@@ -101,6 +101,7 @@ onUnmounted(() => {
 .portfolio-section {
   min-height: 100vh;
   background: #8D363A;
+  background-image: radial-gradient(ellipse at 50% 40%, rgba(180, 60, 60, 0.25) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(160, 50, 50, 0.15) 0%, transparent 50%);
   position: relative;
   overflow: hidden;
 }
@@ -122,10 +123,10 @@ onUnmounted(() => {
 
 .portfolio-title {
   color: #FFF0BE;
-  font-size: clamp(5rem, 14vw, 12rem);
+  font-size: clamp(5.5rem, 15vw, 13rem);
   font-weight: 900;
-  line-height: 0.85;
-  letter-spacing: -0.03em;
+  line-height: 0.82;
+  letter-spacing: -0.04em;
   text-transform: uppercase;
   margin: 0;
   text-align: center;
@@ -135,36 +136,36 @@ onUnmounted(() => {
 
 .profile-card-group {
   position: relative;
-  margin-top: -2rem;
-  margin-left: 10%;
+  margin-top: -2.5rem;
+  margin-left: 8%;
 }
 
 .profile-card-back {
   position: absolute;
-  top: 8px;
-  left: 12px;
-  width: 340px;
-  height: 280px;
-  background: rgba(255, 255, 255, 0.06);
+  top: 6px;
+  left: 10px;
+  width: 360px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transform: rotate(1deg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transform: rotate(-1deg);
   z-index: 1;
 }
 
 .profile-card-front {
   position: relative;
-  width: 340px;
-  height: 280px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  width: 360px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transform: rotate(3deg);
+    0 24px 48px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: rotate(4deg);
   z-index: 2;
   display: flex;
   align-items: center;
@@ -254,28 +255,30 @@ onUnmounted(() => {
 .decor-circle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(180, 80, 80, 0.25);
+  background: rgba(120, 40, 40, 0.35);
+  filter: blur(60px);
+  opacity: 0.6;
 }
 
 .circle-1 {
-  top: 8%;
-  right: 12%;
-  width: 140px;
-  height: 140px;
+  top: 5%;
+  right: 8%;
+  width: 280px;
+  height: 280px;
 }
 
 .circle-2 {
-  top: 50%;
-  left: 0%;
-  width: 200px;
-  height: 200px;
+  top: 45%;
+  left: -2%;
+  width: 350px;
+  height: 350px;
 }
 
 .circle-3 {
-  bottom: 18%;
-  left: 15%;
-  width: 120px;
-  height: 120px;
+  bottom: 12%;
+  left: 10%;
+  width: 220px;
+  height: 220px;
 }
 
 /* Sparkles */
@@ -312,6 +315,15 @@ onUnmounted(() => {
 
   .scroll-arrow:hover {
     opacity: 0.7;
+  }
+
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateX(-50%) translateY(0);
+    }
+    50% {
+      transform: translateX(-50%) translateY(8px);
+    }
   }
 
 </style>

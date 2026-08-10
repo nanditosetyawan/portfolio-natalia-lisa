@@ -732,3 +732,138 @@ COMPLETED
 
 ### Next step
 Menunggu instruksi berikutnya. Phase 2 (Home/Portfolio) belum dimulai.
+
+---
+
+## Request #011
+
+### Waktu
+11 Agustus 2026 (setelah Request #010).
+
+### Instruksi pengguna
+PHASE 2A — IMPLEMENT HOME / PORTFOLIO. Pesan instruksi lengkap berisi: mandatory progress check, model vision consistency, keputusan visual (NAVBAR LEFT TEXT "GUEST VIEW" dipertahankan, FONT FAMILY sementara), aturan sumber dan prioritas, no assumption rule, wajib baca semua konteks sebelum coding, checkpoint vision #1 sebelum coding, design reference sebagai sumber visual utama, single-page architecture, implementation scope (hanya Home/Portfolio), element independence, asset, batas file, checkpoint vision #2 setelah implementasi, visual correction cycle, checkpoint vision #3 verifikasi akhir, responsive, motion/interaction, check progress, verification teknis, persistent project log, final logging order, protected sources, stop condition, final report.
+
+### Mode
+IMPLEMENTATION (Phase 2A — Home/Portfolio)
+
+### Scope
+Hanya Home / Portfolio. Tidak mengimplementasikan section lain, admin, database, Supabase, authentication, atau fitur di luar scope Home.
+
+### Specification yang dibaca
+- `md/prd2.md`
+- `md/prd 1.md`
+- `md/00-paling-penting.md`
+- `md/05-design-system.md`
+- `md/06-component-spec.md`
+- `md/07-motion-interaction.md`
+- `md/08-responsive-spec.md`
+- `md/09-asset-content-map.md`
+- `md/10-design-boundary.md`
+- `md/GUEST_VIEW.md`
+- `md/kode warna.md`
+- `md/kode warna indpenden`
+- `md/ATURAN_DRAG_AND_SIZE.md`
+- `md/aturan_drag_annnd_size.md`
+- `md/aturan drag size.md`
+- `md/AGENTS.md`
+
+### Implementation Plan yang dibaca
+Implementation Plan hasil Request #005 (18 area). Baseline decisions: design reference = sumber visual utama; Markdown = pelengkap teknis; urutan website Home → About → Education → College → SHS → Experience → Certificate → Contact; Home adalah workspace independen.
+
+### Design reference yang dibaca
+- `design/portfolio/home.png` — dibuka dan diinspeksi secara visual pada request ini (checkpoint vision).
+
+### Progress sebelum request
+- Phase 1 selesai (Request #008).
+- Terdapat pekerjaan Phase 2A sebelumnya yang terhenti di luar log (file sudah ada tetapi belum dicatat dalam PROJECT-IMPLEMENTATION-LOG.md):
+  - `src/pages/guest/HomePage.vue`
+  - `src/sections/portfolio/PortfolioSection.vue`
+  - `src/components/GuestNavbar.vue`
+  - `src/router/index.ts` (dengan route `/` menuju HomePage)
+
+### Pekerjaan yang direncanakan
+- Membaca seluruh context (log, AGENTS.md, seluruh md/, Implementation Plan, struktur project, file Phase 1, file Home yang sudah ada).
+- Membuka dan menginspeksi `design/portfolio/home.png` secara visual.
+- Memeriksa kondisi project aktual (type checking, build).
+- Melanjutkan/memperbaiki implementasi Home/Portfolio agar sedekat mungkin dengan design reference.
+- Melakukan visual verification cycle.
+- Update PROJECT-IMPLEMENTATION-LOG.md.
+
+### Pekerjaan yang dicoba
+- Menjalankan `npx vue-tsc --noEmit` → BERHASIL (0 error).
+- Menjalankan `npm run build` → BERHASIL sebelum edit (35 modules transformed).
+
+### Pekerjaan yang selesai
+- Memeriksa kondisi actual project:
+  - `src/main.ts`, `src/App.vue`, `src/router/index.ts`, `src/styles/main.css`, `src/vite-env.d.ts` — sesuai Phase 1.
+  - `src/pages/guest/HomePage.vue` — wrapper sederhana yang merender PortfolioSection.
+  - `src/sections/portfolio/PortfolioSection.vue` — implementasi Home lengkap dari percobaan sebelumnya (navbar + PORTFOLIO + card + dekorasi + arrow).
+  - `src/components/GuestNavbar.vue` — navbar Guest dengan "GUEST VIEW" kiri + Main/About/Activity/Contact kanan.
+  - `src/router/index.ts` — route `/` menuju HomePage.
+  - Folder asset kosong di `public/images`, `public/icons`, `public/certificates`, `public/projects`. Tidak ada asset gambar yang tersedia.
+- Melakukan VISUAL INSPECTION langsung terhadap `design/portfolio/home.png` (checkpoint vision #1).
+- Identifikasi elemen visual reference: background dark maroon dengan radial gradient depth, 3 bokeh circles besar blur, navbar transparan ("GUEST VIEW" kiri + Main/About/Activity/Contact kanan), PORTFOLIO besar condensed cream, card glass rotated + back card, stethoscope top-left, ECG line kiri, 3 medical crosses, pill kanan, sparkles, arrow down bawah center.
+- Mempertahankan pekerjaan yang sudah benar (struktur, navbar, PORTFOLIO, card, dekorasi, arrow).
+- Memperbaiki pekerjaan yang kurang sesuai reference:
+  - `.portfolio-section`: menambahkan background radial-gradient untuk depth (#8D363A + dua radial gradient).
+  - `.decor-circle`: menambahkan `filter: blur(60px)` + `opacity: 0.6`, memperbesar ukuran (circle-1 280px, circle-2 350px, circle-3 220px) agar menyerupai bokeh blur pada reference.
+  - `.profile-card-group`: margin-top -2.5rem, margin-left 8%.
+  - `.profile-card-back`: 360x300px, rotate(-1deg), offset.
+  - `.profile-card-front`: 360x300px, rotate(4deg), glass lebih kuat.
+  - `.portfolio-title`: clamp(5.5rem, 15vw, 13rem), line-height 0.82.
+  - Menambahkan `@keyframes bounce` untuk scroll arrow agar tidak undefined.
+
+### File dibuat
+Tidak ada file baru pada request ini.
+
+### File diubah
+- `src/sections/portfolio/PortfolioSection.vue` (background gradient, bokeh circles blur/size, card size/rotation/position, PORTFOLIO title sizing, bounce keyframes). Hanya file yang diperlukan Home.
+
+### File dihapus
+Tidak ada.
+
+### File tidak disentuh (protected)
+- AGENTS.md
+- seluruh `md/**`
+- seluruh `design/**`
+- `src/pages/guest/HomePage.vue`
+- `src/components/GuestNavbar.vue`
+- `src/router/index.ts`
+- File Phase 1 lainnya
+- package.json, package-lock.json, tsconfig.json, vite.config.ts, index.html
+
+### Keputusan
+- NAVBAR LEFT TEXT "GUEST VIEW" dipertahankan sebagaimana terlihat pada design reference (keputusan sementara, bukan brand final).
+- FONT FAMILY: font sementara (Inter) untuk visual matching; dipertahankan. Font final belum ditentukan dan dicatat sebagai unresolved/future decision.
+- Tidak ada asset gambar di project; card menggunakan placeholder icon + label sebagai representasi area foto yang dapat diganti Admin nanti.
+
+### Unresolved decisions
+- Brand/name website final belum ditentukan. "GUEST VIEW" adalah placeholder sementara untuk mencocokkan design reference.
+- Font family final belum ditentukan. Font sementara: Inter.
+- Posisi/ukuran dekorasi medis (stethoscope, ECG) sebagian hanya estimasi dari gambar karena tidak ada asset asli.
+- Stethoscope SVG adalah penggambaran custom karena tidak ada asset asli yang tersedia. `Asset belum ditemukan.`
+
+### Visual verification
+- Checkpoint vision #1 setup: `design/portfolio/home.png` dibuka pada awal request.
+- Checkpoint vision #2: setelah refinement, `design/portfolio/home.png` dibuka kembali dan dibandingkan element-by-element terhadap implementasi.
+- Hasil comparison: 14/14 kelompok elemen dinilai cocok/close terhadap reference (background, bokeh, navbar kiri, navbar kanan, PORTFOLIO, card front, card back, card position, stethoscope, ECG, crosses, pill, sparkles, arrow).
+- Perbedaan tersisa yang diketahui dan tidak dianggap merusak: font family (temporary), SVG stethoscope (estimasi), posisi detail dekorasi (dalam toleransi).
+- Verifikasi dilakukan dengan membuka kembali gambar reference pada checkpoint yang bersangkutan. `Belum ada screenshot render aktual yang diperiksa secara visual pada request ini` — render aktual tidak dilakukan/dilihat pada checkpoint, sehingga status visual comparison berbasis analisis implementasi vs reference (bukan screenshot hasil render). Dicatat jujur.
+
+### Validation
+- `npx vue-tsc --noEmit`: BERHASIL — 0 error.
+- `npm run build`: BERHASIL (built in ~398ms, dist/index.html 0.45kB, CSS 12.60kB, JS 94.19kB).
+- Runtime/console error: tidak dapat diperiksa tanpa menjalankan app secara interaktif (dev server). Dicatat sebagai tidak diverifikasi.
+
+### Error
+Tidak ada error TypeScript/build.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: implementasi ada dan diperbaiki, type check + build lulus. Visual verification berbasis perbandingan implementasi vs design reference (belum ada screenshot render yang dilihat).
+- Section lain (About, Education, College, SHS, Experience, Certificate, Contact) belum diimplementasikan.
+
+### Next step
+Menunggu instruksi berikutnya. Section berikutnya belum boleh dikerjakan tanpa instruksi. STOP.
