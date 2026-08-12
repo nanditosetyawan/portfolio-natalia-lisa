@@ -1,13 +1,115 @@
 <script setup lang="ts">
-import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-next'
+import { ref, reactive, onBeforeUnmount } from 'vue'
+import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
+
+// ===== Card Data =====
+// Add image URLs to the `images` array to replace placeholders (max 4 per card).
+// Empty string '' = show placeholder. Replace with actual URL to show real photo.
+interface CertCard {
+  id: string
+  title: string
+  date: string
+  description: string
+  images: string[] // URL or '' for placeholder. Min 1, Max 4.
+}
+
+const cards = reactive<CertCard[]>([
+  {
+    id: 'cert-a',
+    title: 'SERTIF A',
+    date: '2025 - Now',
+    description: 'Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet',
+    images: ['', '', ''] // 3 placeholder slots — replace with image URLs
+  },
+  {
+    id: 'cert-b',
+    title: 'SERTIF B',
+    date: '2025 - Now',
+    description: 'Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet',
+    images: ['', ''] // 2 placeholder slots — replace with image URLs
+  }
+])
+
+// ===== Expand State =====
+const expandedCards = ref<Set<string>>(new Set())
+const currentSlides = reactive<Record<string, number>>({})
+const slideTimers: Record<string, ReturnType<typeof setInterval>> = {}
+
+function isExpanded(id: string): boolean {
+  return expandedCards.value.has(id)
+}
+
+function toggleCard(id: string) {
+  if (expandedCards.value.has(id)) {
+    const newSet = new Set(expandedCards.value)
+    newSet.delete(id)
+    expandedCards.value = newSet
+    clearSlideTimer(id)
+  } else {
+    const newSet = new Set(expandedCards.value)
+    newSet.add(id)
+    expandedCards.value = newSet
+    currentSlides[id] = 0
+    startAutoSlide(id)
+  }
+}
+
+function startAutoSlide(id: string) {
+  const card = cards.find(c => c.id === id)
+  if (!card || card.images.length <= 1) return
+  clearSlideTimer(id)
+  slideTimers[id] = setInterval(() => {
+    currentSlides[id] = ((currentSlides[id] ?? 0) + 1) % card.images.length
+  }, 3000)
+}
+
+function clearSlideTimer(id: string) {
+  if (slideTimers[id]) {
+    clearInterval(slideTimers[id])
+    delete slideTimers[id]
+  }
+}
+
+function goToSlide(id: string, index: number) {
+  currentSlides[id] = index
+  const card = cards.find(c => c.id === id)
+  if (card && card.images.length > 1) {
+    clearSlideTimer(id)
+    startAutoSlide(id)
+  }
+}
+
+function downloadCert(card: CertCard) {
+  const validImages = card.images.filter(img => img !== '')
+  if (validImages.length === 0) {
+    // Placeholder: no actual image files yet
+    alert(`Gambar sertifikat "${card.title}" belum tersedia.\nGanti URL di data cards untuk mengaktifkan download.`)
+    return
+  }
+  // Download each image individually
+  validImages.forEach((imgUrl, i) => {
+    const a = document.createElement('a')
+    a.href = imgUrl
+    a.download = validImages.length === 1
+      ? `${card.title}.jpg`
+      : `${card.title}_${i + 1}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  })
+}
+
+onBeforeUnmount(() => {
+  Object.keys(slideTimers).forEach(id => clearSlideTimer(id))
+})
 </script>
 <template>
   <section id="certificate" class="certificate-section">
-    <!-- Layer 2: Organic Blobs -->
+    <!-- Background blobs -->
     <div class="blob blob-top-right" aria-hidden="true"></div>
     <div class="blob blob-bottom-right" aria-hidden="true"></div>
     <div class="blob blob-bottom-left" aria-hidden="true"></div>
-    <!-- Layer 3: Dot Grids -->
+    <!-- Dot Grids -->
     <div class="dot-grid dots-tr" aria-hidden="true">
       <svg width="120" height="120" fill="none">
         <pattern id="dots-pattern-tr" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
@@ -24,141 +126,163 @@ import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-n
         <rect width="120" height="120" fill="url(#dots-pattern-bl)" />
       </svg>
     </div>
-    <!-- Layer 4: Large Line-Art Outline Decorations -->
-    <!-- Large outline certificate/diploma icon (upper-left, tilted left) -->
+    <!-- Line-Art Decorations -->
     <div class="outline-decor decor-cert" aria-hidden="true">
       <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-        <!-- Certificate Tilted Sheet -->
         <rect x="25" y="30" width="110" height="90" rx="4" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.18" />
-        <!-- Inner Border Line -->
         <rect x="31" y="36" width="98" height="78" rx="2" stroke="#F28C38" stroke-width="1" opacity="0.12" />
-        <!-- Certificate Header lines -->
         <line x1="45" y1="52" x2="115" y2="52" stroke="#F28C38" stroke-width="1.5" opacity="0.15" />
         <line x1="45" y1="64" x2="115" y2="64" stroke="#F28C38" stroke-width="1.5" opacity="0.15" />
-        <!-- Body lines -->
         <line x1="45" y1="80" x2="90" y2="80" stroke="#F28C38" stroke-width="1" opacity="0.15" />
         <line x1="45" y1="90" x2="85" y2="90" stroke="#F28C38" stroke-width="1" opacity="0.15" />
-        <!-- Seal (circle with ribbons) -->
         <circle cx="106" cy="88" r="10" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
         <path d="M101 97 L97 108 L103 105 L106 111 L109 105 L115 108 L111 97" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
       </svg>
     </div>
-    <!-- Large outline medal/ribbon icon (upper-right, tilted right) -->
     <div class="outline-decor decor-medal" aria-hidden="true">
       <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-        <!-- Medal Hanger Ribbon -->
         <path d="M60 40 L80 15 L100 40 Z" stroke="#F28C38" stroke-width="1.5" opacity="0.18" />
         <line x1="80" y1="15" x2="80" y2="40" stroke="#F28C38" stroke-width="1" opacity="0.15" />
-        <!-- Medal Circle -->
         <circle cx="80" cy="65" r="22" stroke="#F28C38" stroke-width="1.5" opacity="0.18" />
         <circle cx="80" cy="65" r="16" stroke="#F28C38" stroke-width="1" stroke-dasharray="2 2" opacity="0.15" />
-        <!-- Star inside Medal -->
         <path d="M80 54 L84 62 L92 63 L86 69 L88 77 L80 73 L72 77 L74 69 L68 63 L76 62 Z" stroke="#F28C38" stroke-width="1.2" opacity="0.18" fill="none" />
-        <!-- Ribbons hanging down -->
         <path d="M72 85 L65 115 L78 108 L80 87" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
         <path d="M88 85 L95 115 L82 108 L80 87" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
       </svg>
     </div>
+
     <div class="certificate-container">
-      <!-- Layer 5: Title and Decorative Lines -->
+      <!-- Title -->
       <div class="title-wrapper">
         <h2 class="certificate-title">
           CERTIFIKAT
-          <!-- Sparkles/stars upper-right of title -->
           <div class="title-sparkles" aria-hidden="true">
-            <!-- Sparkle 1 (larger) -->
             <svg class="sparkle sparkle-1" viewBox="0 0 24 24" width="24" height="24" fill="#F28C38">
               <path d="M12 0 C12 7 17 12 24 12 C17 12 12 17 12 24 C12 17 7 12 0 12 C7 12 12 7 12 0 Z" />
             </svg>
-            <!-- Sparkle 2 (smaller) -->
             <svg class="sparkle sparkle-2" viewBox="0 0 24 24" width="14" height="14" fill="#F28C38">
               <path d="M7 0 C7 4 10 7 14 7 C10 7 7 10 7 14 C7 10 4 7 0 7 C4 7 7 4 7 0 Z" />
             </svg>
           </div>
         </h2>
-        <!-- Broken thin line below title -->
         <div class="title-line-divider" aria-hidden="true">
           <div class="line-segment"></div>
           <div class="line-gap"></div>
           <div class="line-segment"></div>
         </div>
       </div>
-      <!-- Layer 7: Certificate Cards (vertical stack) -->
+
+      <!-- Cards Stack (v-for loop) -->
       <div class="cards-stack">
-        <!-- Card 1: SERTIF A -->
-        <div class="certificate-card card-1">
-          <!-- Region 1: Thumbnail on left -->
-          <div class="card-thumbnail-wrapper">
-            <div class="card-thumbnail">
-              <!-- Placeholder image indicator -->
-              <div class="placeholder-icon">
-                <ImageIcon :size="28" stroke-width="1.5" />
+        <div
+          v-for="card in cards"
+          :key="card.id"
+          class="certificate-card"
+          :class="{ 'is-expanded': isExpanded(card.id) }"
+        >
+          <!-- Card Header — always visible, clickable to expand/collapse -->
+          <div class="card-header" @click="toggleCard(card.id)">
+            <!-- Thumbnail -->
+            <div class="card-thumbnail-wrapper">
+              <div class="card-thumbnail">
+                <div class="placeholder-icon"><ImageIcon :size="28" stroke-width="1.5" /></div>
+                <span class="placeholder-label">Thumbnail</span>
+                <span class="placeholder-sublabel">sertif</span>
               </div>
-              <span class="placeholder-label">Thumbnail</span>
-              <span class="placeholder-sublabel">sertif</span>
             </div>
-          </div>
-          <!-- Region 2: Text block in center -->
-          <div class="card-info">
-            <!-- Metadata: Date / Year with Calendar Icon -->
-            <div class="info-metadata">
-              <Calendar class="info-calendar-icon" :size="15" stroke-width="2.2" />
-              <span class="info-date">2025 - Now</span>
-            </div>
-            <!-- Title -->
-            <h3 class="info-title">SERTIF A</h3>
-            <!-- Description placeholder -->
-            <p class="info-description">
-              Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet
-            </p>
-          </div>
-          <!-- Region 3: Action Arrow Button -->
-          <div class="card-action">
-            <button class="action-btn" aria-label="Open certificate details">
-              <ArrowRight :size="20" stroke-width="2.5" />
-            </button>
-          </div>
-        </div>
-        <!-- Card 2: SERTIF B -->
-        <div class="certificate-card card-2">
-          <!-- Region 1: Thumbnail on left -->
-          <div class="card-thumbnail-wrapper">
-            <div class="card-thumbnail">
-              <!-- Placeholder image indicator -->
-              <div class="placeholder-icon">
-                <ImageIcon :size="28" stroke-width="1.5" />
+            <!-- Info -->
+            <div class="card-info">
+              <div class="info-metadata">
+                <Calendar class="info-calendar-icon" :size="15" stroke-width="2.2" />
+                <span class="info-date">{{ card.date }}</span>
               </div>
-              <span class="placeholder-label">Thumbnail</span>
-              <span class="placeholder-sublabel">sertif</span>
+              <h3 class="info-title">{{ card.title }}</h3>
+              <p class="info-description">{{ card.description }}</p>
+            </div>
+            <!-- Action button — ChevronDown, rotates 180° when expanded -->
+            <div class="card-action">
+              <button
+                class="action-btn"
+                :aria-label="isExpanded(card.id) ? 'Tutup detail sertifikat' : 'Buka detail sertifikat'"
+                @click.stop="toggleCard(card.id)"
+              >
+                <ChevronDown
+                  class="action-icon"
+                  :class="{ 'is-rotated': isExpanded(card.id) }"
+                  :size="20"
+                  stroke-width="2.5"
+                />
+              </button>
             </div>
           </div>
-          <!-- Region 2: Text block in center -->
-          <div class="card-info">
-            <!-- Metadata: Date / Year with Calendar Icon -->
-            <div class="info-metadata">
-              <Calendar class="info-calendar-icon" :size="15" stroke-width="2.2" />
-              <span class="info-date">2025 - Now</span>
+
+          <!-- Card Body — shows on expand, with slideshow + download -->
+          <Transition name="cert-expand">
+            <div class="card-body" v-if="isExpanded(card.id)">
+              <!-- Slideshow area -->
+              <div class="cert-slideshow">
+                <!-- Slide track (translateX for smooth sliding) -->
+                <div class="slide-container">
+                  <div
+                    class="slide-track"
+                    :style="{ transform: `translateX(-${(currentSlides[card.id] ?? 0) * 100}%)` }"
+                  >
+                    <div
+                      class="slide-item"
+                      v-for="(img, idx) in card.images"
+                      :key="idx"
+                    >
+                      <img
+                        v-if="img"
+                        :src="img"
+                        :alt="`${card.title} - foto ${idx + 1}`"
+                        class="cert-image"
+                      />
+                      <div v-else class="cert-placeholder">
+                        <ImageIcon :size="52" stroke-width="1" />
+                        <span>Foto Sertifikat {{ idx + 1 }}</span>
+                        <span class="cert-placeholder-hint">Ganti URL di cards data</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dot indicators (only if >1 image) -->
+                <div class="slide-dots" v-if="card.images.length > 1" aria-hidden="true">
+                  <button
+                    v-for="(_, i) in card.images"
+                    :key="i"
+                    class="slide-dot"
+                    :class="{ 'is-active': (currentSlides[card.id] ?? 0) === i }"
+                    @click.stop="goToSlide(card.id, i)"
+                    :aria-label="`Slide ${i + 1}`"
+                  />
+                </div>
+              </div>
+
+              <!-- Download button — bottom-right circle with download icon -->
+              <button
+                class="cert-download-btn"
+                @click.stop="downloadCert(card)"
+                title="Download sertifikat"
+                aria-label="Download sertifikat"
+              >
+                <Download :size="18" stroke-width="2" />
+              </button>
             </div>
-            <!-- Title -->
-            <h3 class="info-title">SERTIF B</h3>
-            <!-- Description placeholder -->
-            <p class="info-description">
-              Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet
-            </p>
-          </div>
-          <!-- Region 3: Action Arrow Button -->
-          <div class="card-action">
-            <button class="action-btn" aria-label="Open certificate details">
-              <ArrowRight :size="20" stroke-width="2.5" />
-            </button>
-          </div>
+          </Transition>
         </div>
       </div>
     </div>
-    <!-- Layer 9: Bottom-center circular refresh button -->
+
+    <!-- Bottom refresh button (kept as-is) -->
     <div class="bottom-action">
       <button class="refresh-btn" aria-label="Refresh certificates view">
-        <RotateCw class="refresh-icon" :size="22" stroke-width="2.5" />
+        <svg class="refresh-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
       </button>
     </div>
   </section>
@@ -427,6 +551,7 @@ import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-n
   display: flex;
   align-items: center;
   justify-content: center;
+  /* card-header has some padding, so the button sits nicely right-aligned */
 }
 .action-btn {
   width: 44px;
@@ -434,7 +559,7 @@ import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-n
   border-radius: 50%;
   background-color: #FFFFFF;
   border: none;
-  color: #F28C38; /* Orange Arrow */
+  color: #F28C38;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,6 +572,14 @@ import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-n
   color: #FFFFFF;
   transform: scale(1.05);
 }
+
+/* ChevronDown rotates 180° when card is expanded */
+.action-icon {
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.35, 1);
+}
+.action-icon.is-rotated {
+  transform: rotate(180deg);
+}
 /* ===== Bottom-center Circular Refresh Button (Layer 9) ===== */
 .bottom-action {
   margin-top: 3.5rem;
@@ -458,7 +591,7 @@ import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-n
   border-radius: 50%;
   background-color: #FFFFFF;
   border: none;
-  color: #F28C38; /* Orange refresh/sync icon */
+  color: #F28C38;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -470,11 +603,184 @@ import { Calendar, ArrowRight, RotateCw, Image as ImageIcon } from 'lucide-vue-n
   transform: scale(1.08);
   box-shadow: 0 8px 20px rgba(54, 45, 37, 0.16);
 }
+.refresh-icon {
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 .refresh-btn:hover .refresh-icon {
   transform: rotate(180deg);
 }
-.refresh-icon {
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+/* ===== Card Header + Body Structure ===== */
+.certificate-card {
+  display: flex;
+  flex-direction: column; /* Stack header and body vertically */
+  background-color: #F5EAE0;
+  border-radius: 20px;
+  overflow: hidden; /* Required for body expand clipping */
+  box-shadow:
+    0 15px 30px rgba(54, 45, 37, 0.08),
+    0 5px 12px rgba(54, 45, 37, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: box-shadow 0.3s ease;
+}
+.certificate-card:hover {
+  box-shadow:
+    0 20px 35px rgba(54, 45, 37, 0.12),
+    0 8px 18px rgba(54, 45, 37, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Header row — always visible, cursor pointer since whole row toggles */
+.card-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 1.5rem 1.8rem;
+  gap: 2rem;
+  cursor: pointer;
+  user-select: none;
+}
+.card-header:hover .card-thumbnail {
+  transform: scale(1.03);
+}
+
+/* ===== Expand transition ===== */
+.cert-expand-enter-active {
+  transition: max-height 0.45s cubic-bezier(0.25, 1, 0.35, 1), opacity 0.3s ease;
+  overflow: hidden;
+}
+.cert-expand-leave-active {
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 1, 1), opacity 0.25s ease;
+  overflow: hidden;
+}
+.cert-expand-enter-from,
+.cert-expand-leave-to {
+  max-height: 0 !important;
+  opacity: 0;
+}
+.cert-expand-enter-to,
+.cert-expand-leave-from {
+  max-height: 600px;
+  opacity: 1;
+}
+
+/* ===== Card Body (expanded area) ===== */
+.card-body {
+  position: relative;
+  padding: 0 1.8rem 1.8rem;
+  border-top: 1px solid rgba(242, 140, 56, 0.12);
+}
+
+/* ===== Slideshow ===== */
+.cert-slideshow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.5rem;
+}
+
+/* Slide container: clips overflow so only 1 slide shows */
+.slide-container {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(54, 45, 37, 0.10);
+}
+
+/* Slide track: flex row, translateX for smooth sliding */
+.slide-track {
+  display: flex;
+  transition: transform 0.45s cubic-bezier(0.25, 1, 0.35, 1);
+}
+
+/* Each slide fills 100% of the container width */
+.slide-item {
+  min-width: 100%;
+  flex-shrink: 0;
+}
+
+/* Actual certificate photo */
+.cert-image {
+  width: 100%;
+  height: 340px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #EEE2D6;
+  display: block;
+}
+
+/* Placeholder when no image URL provided */
+.cert-placeholder {
+  width: 100%;
+  height: 340px;
+  background: linear-gradient(135deg, #EEE2D6 0%, #E4D4C4 100%);
+  border-radius: 14px;
+  border: 2px dashed rgba(242, 140, 56, 0.30);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: rgba(54, 45, 37, 0.45);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.cert-placeholder-hint {
+  font-size: 0.78rem;
+  opacity: 0.6;
+}
+
+/* ===== Dot indicators ===== */
+.slide-dots {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+.slide-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(242, 140, 56, 0.28);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+.slide-dot.is-active {
+  background: #F28C38;
+  transform: scale(1.3);
+}
+.slide-dot:hover {
+  background: rgba(242, 140, 56, 0.55);
+}
+
+/* ===== Download button — bottom-right circle ===== */
+.cert-download-btn {
+  position: absolute;
+  bottom: 1.4rem;
+  right: 1.8rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: none;
+  color: #F28C38;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(54, 45, 37, 0.12);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  z-index: 2;
+}
+.cert-download-btn:hover {
+  background: #F28C38;
+  color: #FFFFFF;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(242, 140, 56, 0.30);
 }
 /* ===== Responsive Breakpoints ===== */
 @media (max-width: 768px) {

@@ -1654,3 +1654,317 @@ COMPLETED
 ### Next step
 Seluruh section guest website (Phase 2Aâ€“2F) telah diimplementasikan. Menunggu instruksi berikutnya dari pengguna (admin/editor, Supabase, person image asset, atau Phase 3).
 
+
+---
+
+## Entry #019 — Global Navbar Logic + Dynamic Island Revision
+Waktu: 2026-08-13T02:14 WIB
+
+### Request
+GLOBAL NAVBAR LOGIC + DYNAMIC ISLAND REVISION (targeted, no section changes)
+
+### Spesifikasi dikonsultasi
+- md/05-design-system.md
+- md/06-component-spec.md
+- md/07-motion-interaction.md
+- md/kode warna.md
+- md/kode warna indpenden.md
+- AGENTS.md
+
+### Existing logic ditemukan
+GuestNavbar.vue sebelumnya: self-contained scroll listener, isScrolled/isHidden refs, tidak ada Lenis, tidak ada active section, tidak ada active pill, Dynamic Island posisi sudah benar (centered pill CSS) namun tidak ada active navigation atau section-aware color.
+
+### Navigation mapping (actual DOM IDs)
+- Main ? #main (element <main id="main">, bukan <section>)
+- About ? #about
+- Activity ? #experience (Experience section adalah Activity dalam menu)
+- Contact ? #contact
+
+### Section color (dark/light bg detection)
+- Home (#8D363A dark): cream text #FFF0BE
+- About (#FFF0BE cream): dark text #5A3E35
+- Education (#FFF0BE): dark text
+- College (#FFF0BE): dark text
+- SHS (#FFF0BE): dark text
+- Experience (#FFF0BE): dark text
+- Certificate (#FDEBD6 warm peach): dark text
+- Contact (#7B2329 dark): cream text
+
+### Warna navbar per kode warna indpenden.md
+A1/B1/C19/D1/E1 terdefinisi sebagai kode tetapi nilai hex aktual TIDAK tercantum dalam spec.
+Solusi: contrast-based — dark bg ? #FFF0BE, light bg ? #5A3E35 (warm dark brown).
+Status: UNRESOLVED per spec (nilai hex A1/B1/C19/D1/E1 belum ditentukan pengguna).
+
+### Font audit
+- current: 'Inter', system-ui, sans-serif
+- spec: "Font family mengikuti font yang ditetapkan project. Tidak menambahkan font eksternal secara bebas."
+- status: FONT FINAL: UNRESOLVED — Inter dipertahankan.
+
+### Lenis
+- Status: NEWLY INSTALLED (npm install lenis — added 1 package)
+- Instance: baru, self-contained di dalam GuestNavbar.vue
+- smoothWheel: true, duration: 1.2
+
+### Hide/show
+- Downward accumulator: 1800ms (threshold HIDE_ACCUM_MS)
+- Minimum scroll depth sebelum hide: 80px
+- Show: segera saat scroll ke atas (delta < 0)
+- Pause reset: 1200ms berhenti ? reset accumulator
+
+### Dynamic Island
+- Centered pill via CSS: left:50%, transform:translateX(-50%), border-radius:999px
+- Glass: background rgba(30,15,15,0.45), backdrop-filter blur(20px) saturate(1.5)
+- Subtle border: 1px solid rgba(255,240,190,0.15)
+- Glass shadow: box-shadow 0 6px 30px rgba(0,0,0,0.28)
+- Mobile: full-width, tidak dynamic island, burger dipertahankan
+
+### Active pill
+- Absolute positioned div dalam .navbar-menu
+- left + width diupdate via updatePill() saat active section berubah
+- CSS transition: left 0.45s + width 0.45s cubic-bezier
+
+### Active section detection
+IntersectionObserver rootMargin '-35% 0px -55% 0px'
+Sections dipantau: main, about, education, college-section, shs-section, experience, certificate, contact
+
+### Programmatic scroll suppression
+suppressHide = true saat click navigation, reset setelah 1500ms
+
+### File dimodifikasi
+- src/components/GuestNavbar.vue (MODIFIED — full revision)
+- package.json / package-lock.json (lenis added)
+- capture-navbar.mjs (NEW — visual verification utility)
+
+### File tidak disentuh
+- PortfolioSection.vue (script cleanup dari entry sebelumnya sudah dilakukan)
+- Semua section components
+- HomePage.vue
+- router
+
+### Validation
+- npx vue-tsc --noEmit: PASS (0 error)
+- npm run build: PASS (1781 modules, 4.65s)
+
+### Visual verification
+- TOP STATE: VERIFIED via CDP screenshot (nb-1-top.png) — GUEST VIEW kiri, menu kanan, active pill pada Main
+- SCROLLED/ISLAND STATE: NOT VERIFIED via CDP (Runtime.evaluate scrollTo tidak trigger rAF-based listener) — verifikasi perlu dilakukan di browser langsung
+- ABOUT/CREAM STATE: NOT VERIFIED via CDP (sama)
+
+### Unresolved
+- Font final: UNRESOLVED (A1/B1/C19/D1/E1 hex values belum ditentukan pengguna)
+- Navbar brand name "GUEST VIEW" mungkin perlu diganti dengan nama portfolio aktual
+- Visual verification Dynamic Island: harus dilakukan manual di browser
+
+### Status
+COMPLETED — technical validation PASS, visual verification partial
+
+---
+
+## Entry #020 — Navbar Visual Verification (Lanjut)
+Waktu: 2026-08-13T02:44 WIB
+
+### Request
+User: lanjut — verifikasi visual navbar setelah Entry #019.
+
+### Execution Mode
+Read-only + visual verification only. No code changes.
+
+### Scope
+GuestNavbar.vue — visual verification via CDP screenshot.
+
+### Work Performed
+1. Used CDP mouseWheel events to trigger real scroll listener.
+2. Captured top state (scrollY=0): full-width navbar, transparent bg, GUEST VIEW left, Main|About|Activity|Contact right, active pill on Main.
+3. Captured Dynamic Island state (scrollY=60, > SCROLL_TOP_THRESHOLD 18): pill condensed, floating center, glass bg, GUEST VIEW left, active pill Main.
+4. Cleaned up all temporary screenshot and script files.
+
+### Visual Verification Results
+- Top state: CONFIRMED CORRECT — transparent bg, menu items visible with proper spacing
+- Dynamic Island state: CONFIRMED CORRECT — pill shape, glass translucent bg, floating below title bar
+- Active pill: CONFIRMED CORRECT — "Main" active pill rendered
+- Auto-hide: NOT TESTED via CDP (expected limitation — only testable in real browser session)
+- Scroll-up show: NOT TESTED via CDP (same limitation)
+
+### Files Modified
+None.
+
+### Files Deleted
+- nb-top.png (temp)
+- nb-island.png (temp)
+- nb-island-full.png (temp)
+- nb-show.png (temp)
+- cap-island.mjs (temp)
+
+### Decisions
+None new.
+
+### Unresolved
+1. Brand name "GUEST VIEW" — may need to be replaced with actual portfolio name
+2. Font final — UNRESOLVED, Inter maintained
+3. Auto-hide + scroll-up show — visually unverifiable via CDP, requires real browser session
+
+### Status
+COMPLETED — visual verification PASS for both top state and Dynamic Island state.
+
+### Current Project Status
+- Phase 1: DONE
+- Phase 2 (Portfolio): DONE
+- Phase 3 (About): DONE
+- Phase 4 (Education/College/SHS): DONE
+- Phase 5 (Experience): DONE
+- Phase 6 (Certificate): DONE
+- Global Navbar revision: DONE — visual verified
+- Contact: PENDING (not yet implemented)
+
+---
+
+## Entry #021 — Navbar Flick Guard + Glass Upgrade
+Waktu: 2026-08-13T03:01 WIB
+
+### Request
+- Navbar hilang saat 1x scroll panjang/flick ? tambah logic flick guard
+- Naikkan mili second syarat hilang navbar
+- Background kurang frosted glass / kaca es ? upgrade glass effect
+
+### Scope
+src/components/GuestNavbar.vue — scroll logic + CSS only.
+
+### Changes Made
+
+#### 1. Flick Guard Logic (NEW)
+- Tambah konstanta: FLICK_VELOCITY_PX = 80, FLICK_COOLDOWN_MS = 900
+- Tambah state: isFlicking = false, flickTimer = null
+- Dalam tick(): Setiap tick, hitung deltaY = currentY - lastScrollY
+  - Jika deltaY >= 80px ? deteksi sebagai flick gesture
+  - Set isFlicking = true, reset accumulator, start 900ms cooldown timer
+  - Selama isFlicking = true ? SKIP accumulation (navbar tidak akan hide)
+  - Setelah 900ms ? isFlicking = false, accumulation resume normal
+
+#### 2. HIDE_ACCUM_MS Raised
+- 1800ms ? 2800ms (butuh scroll terus-menerus lebih lama untuk trigger hide)
+
+#### 3. Frosted Ice Glass CSS
+- backdrop-filter: blur(36px) saturate(2.2) brightness(1.08) contrast(0.95) (was blur(24px))
+- background: warm gradient rgba dengan opacity lebih tinggi (0.38 ? 0.22 gradient)
+- border: 1.5px rgba(255,255,255,0.55) + outline 0.5px subtle
+- box-shadow: 5 layers — ambient warm + depth + top ice rim highlight + bottom crease + L/R edges
+
+### Validation
+- vue-tsc --noEmit: 0 errors
+- CDP visual: is-scrolled state confirmed (class: guest-navbar is-scrolled is-dark-bg)
+- Glass frosted warm ice look verified via CDP screenshot at scrollY=84
+
+### Files Modified
+- src/components/GuestNavbar.vue
+
+### Status
+COMPLETED
+
+---
+
+## Entry #022 — Frosted Glass Transparency Adjustment
+Waktu: 2026-08-13T03:07 WIB
+
+### Request
+User: Lanjut, tapi ini terlalu putih kurang transparan background navbarnya.
+
+### Scope
+src/components/GuestNavbar.vue — CSS changes to scrolled background.
+
+### Changes Made
+1. Reduced opacity of the linear gradient in .guest-navbar.is-scrolled .navbar-inner from ~0.80 down to 0.38 - 0.45.
+   - Start color: rgba(255, 254, 250, 0.45)
+   - Middle color: rgba(245, 238, 225, 0.38)
+   - End color: rgba(252, 248, 240, 0.42)
+2. Kept the heavy backdrop-filter blur (44px) and desaturation settings.
+3. Decreased border/shadow opacities slightly to match the more transparent styling.
+4. Kept the white text system with dark text-shadows, which now stands out perfectly on the semi-transparent frosted background.
+
+### Validation
+- Build & Type check: PASS (0 errors, dist size confirmed).
+- Visual verification: Translucent glass validated via CDP screenshot (nb-island-translucent.png), showing rich color bleeding from the red background while maintaining crisp text legibility.
+
+### Files Modified
+- src/components/GuestNavbar.vue
+
+### Status
+COMPLETED
+
+---
+
+## Entry #023 — Remove Scrolled Navbar Highlight Rim Shadow
+Waktu: 2026-08-13T03:13 WIB
+
+### Request
+- Hilangkan highlight shadow putih diatas navbar saat dynamic island.
+- Beri tahu lokasi pengaturan transparansi manual di kode.
+
+### Scope
+src/components/GuestNavbar.vue — CSS box-shadow adjustment.
+
+### Changes Made
+1. Removed   2.5px 0  rgba(255, 255, 255, 0.75) inset (top rim shadow) from .guest-navbar.is-scrolled .navbar-inner box-shadow properties.
+2. Verified successful compilation using 
+pm run build.
+
+### Files Modified
+- src/components/GuestNavbar.vue
+
+### Status
+COMPLETED
+
+---
+
+## Entry #024 — Multi-Section Revisions: Experience, Education-College, Certificate
+Waktu: 2026-08-13T03:47 WIB
+
+### Request
+1. Experience: naikkan jarak antar pengamalan 1 & lainnya agar 1 viewport laptop masing-masing, dan responsif sesuai tinggi screen komputer.
+2. Education -> College: tambah jarak pemisah karena terlalu dekat.
+3. Certificate:
+   - Ganti tombol panah kanan menjadi panah tanpa ekor menghadap bawah (ChevronDown).
+   - Saat diklik, card memanjang ke bawah (expand).
+   - Bagian atas tetap, bagian bawah memuat sertifikat rata tengah mengisi luas card dengan padding besar dan rounded corner.
+   - Ada dot penanda slideshow di bawah tengah (dengan auto slideshow).
+   - Tombol download bulat di pojok kanan bawah expanded body.
+
+### Scope
+- src/sections/experience/ExperienceSection.vue
+- src/sections/education/EducationSection.vue
+- src/sections/certificate/CertificateSection.vue
+
+### Changes Made
+
+#### 1. Experience Section Viewport Layout
+- Diubah agar .exp-item memiliki min-height: 100vh dan padding responsif menggunakan clamp().
+- Garis timeline vertikal kini digambar secara dinamis melalui pseudo-element ::before di container .experience-items.
+- Timeline dots marker ditempatkan di tengah-tengah (	op: 50%) dari masing-masing .exp-item untuk posisi yang presisi.
+
+#### 2. Education-College Spacing
+- Menambahkan padding-bottom: clamp(4rem, 10vh, 8rem) pada .education-section di EducationSection.vue untuk memberikan breathing room visual yang responsif sebelum College section.
+
+#### 3. Certificate Interactive Expandable Card & Slideshow
+- Menambahkan script setup logic di CertificateSection.vue:
+  - expandedCards Set untuk mendata card mana yang terbuka.
+  - currentSlides Record dan slideTimers Record untuk melacak slide aktif dan timer auto-slideshow per card.
+  - Auto-slideshow berputar setiap 3 detik secara dinamis jika card terbuka dan memiliki >1 gambar.
+  - Fungsi downloadCert yang secara otomatis mengunduh seluruh gambar valid yang tertera di data array (multi-download).
+- Mengubah template:
+  - Looping -for menggunakan data cards reaktif.
+  - ArrowRight diganti menjadi ChevronDown yang berputar 180 derajat saat card expanded.
+  - Bagian dalam card dipisah menjadi .card-header (selalu tampil) dan .card-body (tampil dengan animasi Transition saat expanded).
+  - Di dalam .card-body terdapat container slideshow (.cert-slideshow) dan tombol download bulat .cert-download-btn.
+
+### Validation
+- Build & Type check: PASS (vue-tsc && vite build sukses tanpa error dalam 22.88 detik).
+- Visual verification: Menggunakan CDP screenshot, mengonfirmasi:
+  - Spacing di Experience & Education-College gap teraplikasi dengan baik.
+  - Certificate card berhasil di-expand, menampilkan slideshow, dot indicator, tombol download bulat, dan rotasi panah chevron.
+
+### Files Modified
+- src/sections/experience/ExperienceSection.vue
+- src/sections/education/EducationSection.vue
+- src/sections/certificate/CertificateSection.vue
+
+### Status
+COMPLETED

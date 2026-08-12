@@ -24,19 +24,13 @@
       <!-- Section title -->
       <h2 class="experience-title">Experience</h2>
 
-      <!-- Vertical timeline -->
-      <div class="timeline" aria-hidden="true">
-        <div class="timeline-line"></div>
-        <div class="timeline-dot dot-1"></div>
-        <div class="timeline-dot dot-2"></div>
-        <div class="timeline-dot dot-3"></div>
-        <div class="timeline-dot dot-4"></div>
-      </div>
+      <!-- Timeline line and dots are now rendered via CSS pseudo-elements and per-item markers -->
 
       <!-- Experience items -->
       <div class="experience-items">
         <!-- Item 1: Text Left + Image Right -->
         <div class="exp-item item-1">
+          <div class="timeline-dot-marker" aria-hidden="true"></div>
           <div class="exp-text">
             <h3 class="exp-item-title">Praktik Klinik 1</h3>
             <div class="exp-meta">
@@ -67,6 +61,7 @@
 
         <!-- Item 2: Image Left + Text Right -->
         <div class="exp-item item-2">
+          <div class="timeline-dot-marker" aria-hidden="true"></div>
           <div class="exp-image-wrapper">
             <div class="exp-image-frame">
               <div class="exp-image-placeholder">
@@ -97,6 +92,7 @@
 
         <!-- Item 3: Text Left + Image Right -->
         <div class="exp-item item-3">
+          <div class="timeline-dot-marker" aria-hidden="true"></div>
           <div class="exp-text">
             <h3 class="exp-item-title">Praktik Klinik 3</h3>
             <div class="exp-meta">
@@ -127,6 +123,7 @@
 
         <!-- Item 4: Image Left + Text Right -->
         <div class="exp-item item-4">
+          <div class="timeline-dot-marker" aria-hidden="true"></div>
           <div class="exp-image-wrapper">
             <div class="exp-image-frame">
               <div class="exp-image-placeholder">
@@ -166,7 +163,7 @@
 .experience-section {
   position: relative;
   background: #FFF0BE;
-  padding: 6rem 5rem 7.5rem;
+  /* No fixed section padding — each item handles its own spacing via min-height: 100vh */
   overflow: hidden;
   isolation: isolate;
 }
@@ -223,6 +220,8 @@
   z-index: 2;
   max-width: 1200px;
   margin: 0 auto;
+  /* Padding-top gives the title breathing room at the top of the section */
+  padding-top: clamp(4rem, 8vh, 8rem);
 }
 
 /* ===== Section title ===== */
@@ -232,57 +231,65 @@
   font-size: clamp(3rem, 5vw, 4.5rem);
   font-weight: 700;
   color: #8D363A;
-  margin: 0 0 4rem;
+  margin: 0 0 clamp(2rem, 4vh, 4rem);
   letter-spacing: -0.01em;
 }
 
-/* ===== Timeline ===== */
-.timeline {
-  position: relative;
-  max-width: 900px;
-  margin: 0 auto 3rem;
-}
-
-.timeline-line {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #FFB399;
-  transform: translateX(-50%);
-}
-
-.timeline-dot {
-  position: absolute;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #D62828;
-  border: 2px solid #FFF0BE;
-  transform: translateX(-50%);
-  box-shadow: 0 0 0 3px rgba(214, 40, 40, 0.2);
-}
-
-.dot-1 { top: 0; }
-.dot-2 { top: calc(100% / 3); }
-.dot-3 { top: calc(100% * 2 / 3); }
-.dot-4 { top: 100%; }
-
-/* ===== Experience items ===== */
+/* ===== Experience items container ===== */
 .experience-items {
   position: relative;
   max-width: 1000px;
   margin: 0 auto;
 }
 
+/* Vertical timeline line running through all 4 items */
+.experience-items::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #FFB399 3%,
+    #FFB399 97%,
+    transparent 100%
+  );
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ===== Each item = 1 viewport — RESPONSIVE via clamp() ===== */
 .exp-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 3rem;
-  margin-bottom: 5rem;
   position: relative;
+  display: flex;
+  align-items: center;
+  /* Gap scales with viewport width */
+  gap: clamp(1.5rem, 4vw, 4rem);
+  /* Each experience fills exactly 1 viewport height */
+  min-height: 100vh;
+  /* Padding scales: bigger on wide screens, smaller on narrow */
+  padding: clamp(2rem, 5vh, 5rem) clamp(1rem, 3vw, 3rem);
+  /* No margin-bottom — min-height: 100vh provides the spacing */
+}
+
+/* Timeline dot centered vertically in each item */
+.timeline-dot-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #D62828;
+  border: 2px solid #FFF0BE;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(214, 40, 40, 0.2);
+  z-index: 5;
+  pointer-events: none;
 }
 
 .item-1 {
@@ -305,6 +312,8 @@
 .exp-text {
   flex: 1 1 45%;
   padding-top: 1rem;
+  /* Ensure text doesn't bleed into the center timeline */
+  max-width: 42%;
 }
 
 .exp-item-title {
@@ -350,6 +359,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  max-width: 45%;
 }
 
 .exp-image-frame {
@@ -438,25 +448,21 @@
 
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
-  .experience-section {
-    padding: 4rem 2rem 5rem;
-  }
-
   .exp-item {
     flex-direction: column !important;
     gap: 2rem;
-    margin-bottom: 4rem;
+    /* Still 1 viewport per item on tablet, stacked vertically */
+    min-height: 100svh; /* svh avoids mobile browser chrome issues */
+    padding: clamp(3rem, 5vh, 4rem) clamp(1.5rem, 4vw, 2.5rem);
+    justify-content: center;
   }
 
-  .timeline-line {
-    left: 20px;
-  }
-
-  .timeline-dot {
-    left: 20px;
+  .exp-text {
+    max-width: 100%;
   }
 
   .exp-image-wrapper {
+    max-width: 100%;
     width: 100%;
   }
 
@@ -465,9 +471,34 @@
     transform: none !important;
   }
 
+  /* On mobile, timeline moves to the left side */
+  .experience-items::before {
+    left: 20px;
+  }
+
+  .timeline-dot-marker {
+    left: 20px;
+    top: 3rem;
+    transform: translateX(-50%);
+  }
+
   .decor-syringe,
   .decor-heartbeat {
     opacity: 0.4;
+  }
+}
+
+@media (max-width: 480px) {
+  .exp-item {
+    padding: 3rem 1.2rem 2rem;
+  }
+
+  .exp-item-title {
+    font-size: clamp(1.4rem, 6vw, 2rem);
+  }
+
+  .exp-description {
+    font-size: 0.95rem;
   }
 }
 </style>
