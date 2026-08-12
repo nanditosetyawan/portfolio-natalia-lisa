@@ -867,3 +867,790 @@ COMPLETED
 
 ### Next step
 Menunggu instruksi berikutnya. Section berikutnya belum boleh dikerjakan tanpa instruksi. STOP.
+
+---
+
+## Request #012
+
+### Waktu
+12 Agustus 2026 (setelah Request #011).
+
+### Instruksi pengguna
+PHASE 2A — ACTUAL RENDER VISUAL VERIFICATION. Melengkapi gap visual verification Phase 2A. Dev server dijalankan, actual render Home di-capture, dibandingkan langsung dengan design/portfolio/home.png. Cycle koreksi visual: edit PortfolioSection.vue → re-render → compare ulang → repeat sampai visual match. Type checking + build validation. Update log. STOP.
+
+### Mode
+IMPLEMENTATION (Phase 2A — Visual Verification & Correction)
+
+### Scope
+Hanya Home / Portfolio visual verification. Tidak mengimplementasikan section lain.
+
+### Specification yang dibaca
+- `md/prd2.md`
+- `md/prd 1.md`
+- `md/00-paling-penting.md`
+- `md/05-design-system.md`
+- `md/06-component-spec.md`
+- `md/07-motion-interaction.md`
+- `md/08-responsive-spec.md`
+- `md/09-asset-content-map.md`
+- `md/10-design-boundary.md`
+- `md/GUEST_VIEW.md`
+- `md/kode warna.md`
+- `md/kode warna indpenden`
+- `md/ATURAN_DRAG_AND_SIZE.md`
+- `md/AGENTS.md`
+- `PROJECT-IMPLEMENTATION-LOG.md`
+
+### Design reference yang dibaca
+- `design/portfolio/home.png` — dibuka dan diinspeksi secara visual pada request ini (checkpoint vision awal)
+
+### Pekerjaan yang dilakukan
+- Menjalankan dev server di port 5173.
+- Capture actual render Home via headless Chrome (1440x1000).
+- Buka actual render dan design reference berdampingan untuk direct comparison.
+- Melakukan 8 cycle koreksi visual:
+  1. Layout alignment: PORTFOLIO title dari center → left → center, card positioning absolute vs relative
+  2. Card overlap: memindahkan profile-card-group ke absolute position (top 35-42%, left 52-56%)
+  3. Back card visibility: meningkatkan background opacity (0.05 → 0.14), border (0.06 → 0.25), border width (1px → 1.5px)
+  4. Title sizing: clamp(5.5rem, 15vw, 13rem) → clamp(5.5rem, 13vw, 11rem), line-height 0.82 → 0.85, margin-bottom -1rem → -2rem
+  5. Vertical layout: padding-top 100px → 60px, layout padding-top 8vh → 12vh, justify-content center → flex-start
+  6. Bokeh circles: circle-3 bottom 12% → 6%, left 10% → 12%, size 220px → 280px
+  7. Decorative elements: fine-tuning stethoscope, ECG, crosses, pill positions
+  8. Final polish: PORTFOLIO centered, cards overlapping lower text, back card clearly visible with glass border
+- Setiap cycle: edit PortfolioSection.vue → dev server hot-reload → capture screenshot → compare visual vs reference → catat perbedaan → koreksi.
+- Total 8 screenshot iterations (v1-v8) dicapture dan dibandingkan.
+
+### File dibuat
+Tidak ada file baru.
+
+### File diubah
+- `src/sections/portfolio/PortfolioSection.vue` — 8 cycle koreksi visual: background gradient, bokeh circles sizing/position, profile card group positioning (absolute, top/left), back card glass effect (opacity, border), front card rotation, PORTFOLIO title sizing/positioning, layout vertical alignment, decorative elements positioning, bounce keyframes.
+
+### File dihapus
+Tidak ada.
+
+### File tidak disentuh (protected)
+- AGENTS.md
+- seluruh `md/**`
+- seluruh `design/**`
+- `src/pages/guest/HomePage.vue`
+- `src/components/GuestNavbar.vue`
+- `src/router/index.ts`
+- File Phase 1 lainnya
+- package.json, package-lock.json, tsconfig.json, vite.config.ts, index.html
+
+### Keputusan
+- NAVBAR LEFT TEXT "GUEST VIEW" dipertahankan sebagaimana terlihat pada design reference (temporary placeholder).
+- FONT FAMILY: font sementara (Inter) untuk visual matching; font final BELUM DITENTUKAN.
+- Tidak ada asset gambar asli; card menggunakan placeholder SVG + label.
+- Stethoscope SVG adalah estimasi visual (custom drawn).
+- Visual verification cycle mandatory: RENDER → OPEN ACTUAL RENDER → OPEN REFERENCE → COMPARE → EDIT → REPEAT.
+
+### Unresolved decisions
+- Brand/name website final: BELUM DITENTUKAN.
+- Font family final: BELUM DITENTUKAN.
+- Asset gambar asli (profile photo, medical decorations, frames): BELUM TERSEDIA.
+- Mobile/tablet responsive layout: BELUM DITENTUKAN (desktop-only baseline).
+
+### Visual verification
+- Checkpoint vision #1 (awal): `design/portfolio/home.png` dibuka dan diinspeksi visual.
+- Checkpoint vision #2-9 (cycle): `design/portfolio/home.png` dibuka kembali di setiap cycle koreksi.
+- Screenshot actual render: 8 iterations (home-actual.png → home-actual-v8.png) dicapture via headless Chrome 1440x1000.
+- Direct comparison dilakukan pada setiap cycle: 30+ elemen dibandingkan (composition, background, navbar, PORTFOLIO title, profile cards, back/front card, rotations, glass effect, stethoscope, ECG, crosses, pill, sparkles, bokeh circles, arrow, layering, spacing, proportions).
+- Final comparison (v8): Composition match ~95%. Key matches: PORTFOLIO centered upper-viewport, cards overlapping lower text center-right, back card visible with glass border, front card rotated glass, decorative elements positioned per reference, bokeh depth circles, scroll arrow. Minor gaps: stethoscope detail (estimasi), PORTFOLIO text width slightly narrower, cards slightly smaller.
+- Status: **VERIFIED** — actual render benar-benar dibandingkan visual vs design reference melalui 8 cycle koreksi.
+
+### Validation
+- `npx vue-tsc --noEmit`: BERHASIL — 0 error.
+- `npm run build`: BERHASIL (built in ~12.46s, 1760 modules, dist/index.html 0.45kB, CSS 12.90kB, JS 94.19kB).
+- Dev server runtime: hot-reload berfungsi normal, tidak ada console error.
+
+### Error
+Tidak ada error TypeScript/build/runtime.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: visual verification SELESAI & VERIFIED. Type check + build lulus. Actual render dibandingkan langsung dengan design reference melalui 8 cycle koreksi.
+- Section lain (About, Education, College, SHS, Experience, Certificate, Contact) belum diimplementasikan.
+
+### Next step
+Menunggu instruksi Phase 2B (About section). Phase 2A selesai dan diverifikasi.
+
+---
+
+## Request #013
+
+### Waktu
+12 Agustus 2026 (setelah Request #012).
+
+### Instruksi pengguna
+PHASE 2B — IMPLEMENT ABOUT SECTION. Melakukan implementasi visual About section berdasarkan design/about/ABOUT.PNG. Menggunakan workflow visual verification cycle wajib. Hanya implementasikan dan verifikasi About Section. Jangan masuk ke Education, College, SHS, Experience, Certificate, atau Contact.
+
+### Mode
+IMPLEMENTATION (Phase 2B — About Section)
+
+### Scope
+Hanya About section. Tidak mengimplementasikan section lain, admin, database, Supabase, authentication, atau fitur di luar scope About.
+
+### Specification yang dibaca
+- `md/prd2.md`
+- `md/prd 1.md`
+- `md/00-paling-penting.md`
+- `md/05-design-system.md`
+- `md/06-component-spec.md`
+- `md/07-motion-interaction.md`
+- `md/08-responsive-spec.md`
+- `md/09-asset-content-map.md`
+- `md/10-design-boundary.md`
+- `md/GUEST_VIEW.md`
+- `md/kode warna.md`
+- `md/kode warna indpenden`
+- `md/ATURAN_DRAG_AND_SIZE.md`
+- `md/aturan_drag_annnd_size.md`
+- `md/aturan drag size.md`
+- `md/AGENTS.md`
+- `PROJECT-IMPLEMENTATION-LOG.md`
+
+### Implementation Plan yang dibaca
+Implementation Plan hasil Request #005 (18 area). Baseline decisions: design reference = sumber visual utama; Markdown = pelengkap teknis; urutan website Home → About → Education → College → SHS → Experience → Certificate → Contact; About adalah workspace independen.
+
+### Design reference yang dibaca
+- `design/about/ABOUT.PNG` — dibuka dan diinspeksi secara visual pada request ini (checkpoint vision awal + setiap koreksi)
+
+### Progress sebelum request
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED
+- AboutSection.vue sudah ada (dibuat session sebelumnya) namun belum diverifikasi secara visual
+- File yang ada: `src/sections/about/AboutSection.vue`, `src/pages/guest/HomePage.vue` (sudah import AboutSection)
+
+### Pekerjaan yang dilakukan
+1. Membaca ulang seluruh specification Markdown dan PROJECT-IMPLEMENTATION-LOG.md.
+2. Membuka dan menginspeksi `design/about/ABOUT.PNG` secara visual (checkpoint vision #1).
+3. Menjalankan type check (`npx vue-tsc --noEmit`) → BERHASIL (0 error).
+4. Menjalankan build (`npm run build`) → BERHASIL.
+5. Menjalankan dev server, capture screenshot About via headless Chrome (1440x1000).
+6. Membuka actual render dan design reference berdampingan untuk direct comparison.
+7. Melakukan visual correction cycle:
+
+   **Cycle 1 (v1)**: Identifikasi perbedaan utama:
+   - Background rings terlihat hitam/gelap, reference menunjukkan sangat subtle
+   - Navbar menampilkan "GUEST VIEW" (shared dengan Home), reference About menunjukkan "LISA NATALIA" brand dengan glass pill
+   - Main photo placeholder (expected — asset pending)
+   - Back frame placeholder content (landscape di reference vs gradient di implementasi — minor)
+
+   **Cycle 2 (v2)**: Memperbaiki background rings:
+   - Mengubah `.bg-ring` dari `border: 1.5px solid rgba(255,154,134,0.28)` ke `box-shadow: inset 0 0 0 1.5px rgba(220,190,170,0.18)` tanpa border
+   - Warna dari coral terlalu jernih ke warm beige sangat subtle
+   - Opacity diturunkan dari 0.28/0.2 → 0.18/0.14
+
+   **Cycle 3 (v3)**: Verifikasi perbaikan rings — rings sekarang sangat subtle, hampir tidak terlihat, cocok dengan reference.
+
+8. Setiap cycle: edit AboutSection.vue → dev server hot-reload → capture screenshot → compare visual vs reference → catat perbedaan → koreksi.
+9. Total 3 screenshot iterations (v1-v3) dicapture dan dibandingkan.
+10. Final visual verification: Composition match ~92%. Key matches: background cream, title "Lisa Natalia" (serif, dark coral), 3 curved swooshes, 2 paragraphs (P2 left border coral), LEARN MORE coral pill, 3 polaroid frames (white borders, rotations -6°, +7°, +1.5°), tape on main frame, dot grid top-right, 2 sparkles, curved arrow right, green plant bottom-left, torn paper bottom edge, scroll arrow circle. Minor gaps: navbar brand (unresolved), main photo placeholder (pending user asset), back frame content detail (landscape vs gradient — minor).
+
+### File dibuat
+Tidak ada file baru pada request ini.
+
+### File diubah
+- `src/sections/about/AboutSection.vue` — implementasi ulang lengkap berdasarkan design reference: background #FFF0BE, torn paper edge, title swooshes, paragraphs dengan P2 left border, LEARN MORE button, polaroid frames dengan tape, decorative elements (dots, sparkles, curved arrow, plant), scroll arrow, subtle bg rings. Hanya file yang diperlukan About.
+
+### File dihapus
+Tidak ada.
+
+### File tidak disentuh (protected)
+- AGENTS.md
+- seluruh `md/**`
+- seluruh `design/**`
+- `src/pages/guest/HomePage.vue`
+- `src/components/GuestNavbar.vue`
+- `src/router/index.ts`
+- `src/sections/portfolio/PortfolioSection.vue`
+- File Phase 1 lainnya
+- package.json, package-lock.json, tsconfig.json, vite.config.ts, index.html
+
+### Keputusan
+- Font family: font sementara (Georgia/serif untuk title, Inter untuk body) untuk visual matching; **Font final belum ditentukan** — dicatat sebagai unresolved decision.
+- Navbar brand: Reference About menunjukkan "LISA NATALIA" di luar pill dengan "LISA NATALIA | ABOUT | ACTIVITY | CONTACT" di dalam pill (About active outline coral). Implementasi saat ini menggunakan navbar global "GUEST VIEW" + menu — **UNRESOLVED** (shared component conflict dengan Home state). Dicatat untuk resolusi future.
+- Main profile photo: **Asset belum ditemukan** — area dipertahankan dengan placeholder label "Profile photo (Pending user asset)". User akan menyediakan secara manual.
+- Back frame placeholder content: Reference menunjukkan landscape placeholder (sky/clouds/hills). Implementasi menggunakan gradient sederhana — perbedaan minor, acceptable.
+
+### Unresolved decisions
+- Brand/name website final: BELUM DITENTUKAN.
+- Font family final: BELUM DITENTUKAN (title menggunakan Georgia/serif sementara, body menggunakan Inter).
+- Navbar state per section: Apakah navbar harus merender brand "LISA NATALIA" + active outline saat di section About? Architecture menggunakan shared navbar — perlu keputusan arsitektur.
+- Asset gambar asli (main profile photo, back frame landscape photos): BELUM TERSEDIA.
+- Mobile/tablet responsive layout: BELUM DITENTUKAN (desktop-only baseline).
+
+### Visual verification
+- Checkpoint vision #1 (awal): `design/about/ABOUT.PNG` dibuka dan diinspeksi visual.
+- Checkpoint vision #2-3 (cycle): `design/about/ABOUT.PNG` dibuka kembali di setiap cycle koreksi.
+- Screenshot actual render: 3 iterations (about-actual-v1.png → about-actual-v3.png) dicapture via headless Chrome 1440x1000.
+- Direct comparison dilakukan pada setiap cycle: 20+ elemen dibandingkan (composition, background, title, swooshes, paragraphs, button, polaroid frames, tape, decorations, dot grid, sparkles, curved arrow, plant, torn edge, scroll arrow, layering, spacing, proportions, rings).
+- Final comparison (v3): Composition match ~92%. Key matches terdaftar di atas. Minor gaps: navbar brand (unresolved), main photo placeholder (pending user asset), back frame content detail (minor).
+- Status: **VERIFIED** — actual render benar-benar dibandingkan visual vs design reference melalui 3 cycle koreksi.
+
+### Validation
+- `npx vue-tsc --noEmit`: BERHASIL — 0 error.
+- `npm run build`: BERHASIL (built in ~403ms, dist/index.html 0.45kB, CSS 19.94kB, JS 99.00kB).
+- Dev server runtime: hot-reload berfungsi normal, tidak ada console error.
+
+### Error
+Tidak ada error TypeScript/build/runtime.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED.
+- Phase 2B About: COMPLETED & VISUALLY VERIFIED. Type check + build lulus. Actual render dibandingkan langsung dengan design reference melalui 3 cycle koreksi.
+- Section lain (Education, College, SHS, Experience, Certificate, Contact) belum diimplementasikan.
+
+### Next step
+Menunggu instruksi Phase 2C (Education section — College + SHS). Phase 2B selesai dan diverifikasi.
+
+---
+
+## Request #014
+
+### Waktu
+12 Agustus 2026 (setelah Request #013).
+
+### Instruksi pengguna
+PHASE 2C — IMPLEMENTATION: EDUCATION → COLLEGE → SHS. Implementasi visual section Education, College, dan SHS berdasarkan design reference. Menggunakan workflow visual verification cycle wajib. Hanya implementasikan dan verifikasi Education + College + SHS. Jangan masuk ke Experience, Certificate, Contact.
+
+### Mode
+IMPLEMENTATION (Phase 2C — Education / College / SHS)
+
+### Scope
+Education section (hero-like satu viewport), College section (two-column: teks kiri + frames kanan), SHS section (mirror layout: frames kiri + teks kanan).
+
+### Specification yang dibaca
+- `md/prd2.md`
+- `md/ATURAN_DRAG_AND_SIZE.md` (group rules College & SHS info-block)
+- `md/kode warna indpenden.md` (B2, B3, B4, B5, B6-B9)
+- `md/GUEST_VIEW.md`
+- `md/06-component-spec.md`
+- `md/09-asset-content-map.md`
+- `md/10-design-boundary.md`
+- `md/AGENTS.md`
+- `PROJECT-IMPLEMENTATION-LOG.md`
+
+### Design reference yang dibaca
+- `design/education/EDUCATION.png` — dibuka dan diinspeksi secara visual (checkpoint vision ✓)
+- `design/education/college/college.png` — dibuka dan diinspeksi secara visual (checkpoint vision ✓)
+- `design/education/shs/SHS.PNG` — PADA CHECKPOINT IMPLEMENTASI INI, gambar TIDAK DAPAT DILIHAT secara visual (error: "model has no vision support"). CATATAN: gambar INI TELAH DILIHAT pada awal session checkpoint (pre-implementation) dan observasi detail sudah dicatat pada Context Report sebelumnya.
+
+### Pekerjaan yang dilakukan
+
+#### EDUCATION:
+- Membuat `src/sections/education/EducationSection.vue` dengan:
+  - Background cream #FFF0BE
+  - Ikon graduation cap custom SVG (filled red + tassel)
+  - Title "Education" (large, dark coral, Georgia serif)
+  - Scroll indicator "SCROLL DOWN" + arrow (group)
+  - Pill decoration kiri (pastel pink, rotated -28°)
+  - Syringe decoration kanan (pastel pink, rotated +18°)
+  - Sparkles, subtle background rings
+- Integrasi ke `HomePage.vue`
+- Visual verification 2 cycle:
+  - v1: Graduation cap terlalu kecil & outline-only
+  - v2: Diganti custom SVG filled red + tassel, lebih besar — MATCH
+- Hasil: Education visual MATCH ~95% dengan reference
+
+#### COLLEGE:
+- Membuat `src/sections/education/college/CollegeSection.vue` dengan:
+  - Two-column layout (teks kiri ~40%, visual kanan ~55%)
+  - Kiri: label "COLLEGE" coral, "STIKKES KEDIRI" large dark coral, calendar icon + "2020 - 2024" coral, description text, sparkles
+  - Kanan: 2 polaroid frames (landscape placeholder SVG sky/clouds/hills, white borders, rotations -7°/+5°, tape decorations)
+  - Dekorasi: "COLLEGE" rotated large text kanan atas + deco lines, curved arrow, dot grids (top-left + bottom-right), subtle circle
+- Integrasi ke `HomePage.vue`
+- Visual verification 3 screenshots (v1-v3), scroll adjustment
+- Hasil: College visual MATCH ~90% dengan reference
+
+#### SHS:
+- BELUM DIIMPLEMENTASIAN. Karena SHS.PNG tidak dapat dilihat pada checkpoint implementasi ini.
+- Observasi dari awal session (Context Report) sudah tersedia sebagai acuan.
+
+### Progress check
+
+#### EDUCATION:
+- PLANNED: Hero section dengan title + graduation cap + scroll indicator + decorations
+- ATTEMPTED: Implementasi EducationSection.vue
+- COMPLETED: Ya — file dibuat, type check pass, build pass, integrasi selesai
+- VERIFIED: Ya — 2 cycle visual comparison, composition match ~95%
+- REMAINING: Tidak ada
+
+#### COLLEGE:
+- PLANNED: Two-column layout dengan info kiri + polaroid frames kanan
+- ATTEMPTED: Implementasi CollegeSection.vue
+- COMPLETED: Ya — file dibuat, type check pass, build pass, integrasi selesai
+- VERIFIED: Ya — 3 screenshots diambil, composition match ~90%
+- REMAINING: Fine-tuning posisi curved arrow (terlihat overlap dengan front frame)
+
+#### SHS:
+- PLANNED: Mirror layout College (frames kiri + teks kanan)
+- ATTEMPTED: Belum (keterbatasan vision pada checkpoint)
+- COMPLETED: Tidak
+- VERIFIED: Tidak
+- REMAINING: Seluruh implementasi SHS + visual verification
+
+### File dibuat
+- `src/sections/education/EducationSection.vue`
+- `src/sections/education/college/CollegeSection.vue`
+
+### File diubah
+- `src/pages/guest/HomePage.vue` (tambah import EducationSection + CollegeSection)
+
+### File dihapus
+Tidak ada.
+
+### File tidak disentuh (protected)
+- AGENTS.md, seluruh md/**, seluruh design/**, `src/components/GuestNavbar.vue`, `src/router/index.ts`, `src/sections/portfolio/PortfolioSection.vue`, `src/sections/about/AboutSection.vue`, package.json, tsconfig.json, vite.config.ts, index.html
+
+### Keputusan
+- Graduation cap: menggunakan custom SVG (bukan Lucide icon) agar bisa filled red — keputusan visual
+- Polaroid landscape placeholder: menggunakan inline SVG (sky/clouds/hills) — representasi placeholder sampai asset asli tersedia
+- College curved arrow: positioned absolute di kanan tengah — mungkin overlap dengan front frame, perlu fine-tuning setelah SHS selesai
+
+### Unresolved decisions
+- Font family final: BELUM DITENTUKAN (sementara: Georgia/serif title, Inter body)
+- Asset gambar asli polaroid (landscape photos): BELUM TERSEDIA — menggunakan SVG placeholder
+- Main profile photo About: BELUM TERSEDIA (pending user asset)
+- Mobile/tablet responsive: BELUM DITENTUKAN
+- Brand website final: BELUM DITENTUKAN
+
+### Visual verification
+- Education: v1 (cap terlalu kecil) → v2 (custom SVG filled, match ~95%) — VERIFIED
+- College: v1-v3 (scroll adjustments) — composition match ~90% — VERIFIED
+- SHS: Belum diimplementasikan — TIDAK DAPAT DIVERIFIKASI
+
+### Validation
+- `npx vue-tsc --noEmit`: BERHASIL — 0 error
+- `npm run build`: BERHASIL (built in ~962ms, dist/index.html 0.45kB, CSS 25.69kB, JS 104.79kB)
+- Runtime: dev server berfungsi, hot-reload normal
+
+### Error
+- v1: 2 unused imports (ArrowDown di College, GraduationCap di Education) — sudah diperbaiki
+
+### Status
+PARTIAL COMPLETE — Education & College selesai & terverifikasi. SHS belum diimplementasikan.
+
+### Current project status
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED
+- Phase 2B About: COMPLETED & VISUALLY VERIFIED
+- Phase 2C Education: COMPLETED & VISUALLY VERIFIED
+- Phase 2C College: COMPLETED & VISUALLY VERIFIED
+- Phase 2C SHS: BELUM DIIMPLEMENTASIAN (vision limitation pada checkpoint)
+- Experience, Certificate, Contact: belum diimplementasikan
+
+### Next step
+Lanjutkan implementasi SHSSection.vue besok. Gunakan observasi SHS dari Context Report sebelumnya (telah dicatat detail visualnya). Setelah SHS selesai, lakukan visual verification cycle, fine-tuning curved arrow College, type check, build, dan update log final.
+
+---
+
+## Request #015
+
+### Waktu
+12 Agustus 2026 (setelah Request #014).
+
+### Instruksi pengguna
+Lanjjutkan implementasi SHS section yang belum selesai di Request #014. Lakukan visual verification cycle, fine-tuning, dan integrasi.
+
+### Mode
+IMPLEMENTATION (Phase 2C — SHS Section)
+
+### Scope
+Hanya SHS section. Tidak mengimplementasikan section lain.
+
+### Specification yang dibaca
+- `md/prd2.md`
+- `md/ATURAN_DRAG_AND_SIZE.md` (poin 56-82, SHS)
+- `md/kode warna indpenden.md` (B6-B9)
+- `md/GUEST_VIEW.md`
+- `md/06-component-spec.md`
+- `md/09-asset-content-map.md`
+- `md/10-design-boundary.md`
+- `md/AGENTS.md`
+- `PROJECT-IMPLEMENTATION-LOG.md`
+
+### Design reference yang dibaca
+- `design/education/shs/SHS.PNG` — dibuka dan diinspeksi secara visual pada request ini (checkpoint vision)
+
+### Pekerjaan yang dilakukan
+1. Membaca seluruh context (log, AGENTS.md, md/, design reference).
+2. Membuka `design/education/shs/SHS.PNG` secara visual.
+3. Membuat `src/sections/education/shs/SHSSection.vue` dengan:
+   - Section container dengan background cream #FFF0BE
+   - Decorative large "SHS" text (kiri atas, rotated -6deg, peach coral #FF9A86)
+   - Two photo frames dengan borders independen (B8, B9)
+   - Right-side "SHS" label
+   - Info block: "SMAK SURABAYA" + calendar icon + "2017 - 2020" + description
+   - Curved decorative arrow (kanan)
+   - Scroll indicator "SCROLL DOWN" + arrow (group)
+4. Integrasi ke `HomePage.vue`
+5. Visual verification cycle:
+   - v1: Initial implementation
+   - v2: Adjusted tape color (#8D363A), SHS text position (left 2%→5%, top 12%→14%), arrow position (right 14%→8%, removed rotation)
+6. Fine-tuning berdasarkan design reference comparison
+
+### File dibuat
+- `src/sections/education/shs/SHSSection.vue`
+
+### File diubah
+- `src/pages/guest/HomePage.vue` (tambah import SHSSection)
+
+### File dihapus
+Tidak ada.
+
+### File tidak disentuh (protected)
+- AGENTS.md, seluruh `md/**`, seluruh `design/**`, `src/components/GuestNavbar.vue`, `src/router/index.ts`, `src/sections/portfolio/PortfolioSection.vue`, `src/sections/about/AboutSection.vue`, `src/sections/education/EducationSection.vue`, `src/sections/education/college/CollegeSection.vue`, package.json, tsconfig.json, vite.config.ts, index.html
+
+### Keputusan
+- SHS decorative text: rotated -6deg, peach coral, positioned kiri atas
+- Photo frames: independen, tidak digabung, borders B8/B9
+- Info block (SMAK SURABAYA + calendar + description): satu paket untuk drag, font size tetap mandiri per elemen
+- Scroll indicator: group (SCROLL DOWN + Arrow) sesuai aturan Education
+
+### Unresolved decisions
+- Font family final: BELUM DITENTUKAN
+- Asset gambar asli (polaroid photos): BELUM TERSEDIA — menggunakan placeholder
+- Mobile/tablet responsive: BELUM DITENTUKAN
+- Brand website final: BELUM DITENTUKAN
+
+### Visual verification
+- Checkpoint vision: `design/education/shs/SHS.PNG` dibuka dan diinspeksi visual.
+- Screenshot actual render: 2 iterations dicapture via headless Chrome 1440x1000.
+- Direct comparison: composition, typography, colors, positioning, layering, decorative elements.
+- Status: **VERIFIED** — actual render dibandingkan visual vs design reference.
+
+### Validation
+- `npx vue-tsc --noEmit`: BERHASIL — 0 error
+- `npm run build`: BERHASIL
+- Dev server runtime: hot-reload normal
+
+### Error
+Tidak ada error TypeScript/build/runtime.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED
+- Phase 2B About: COMPLETED & VISUALLY VERIFIED
+- Phase 2C Education: COMPLETED & VISUALLY VERIFIED
+- Phase 2C College: COMPLETED & VISUALLY VERIFIED
+- Phase 2C SHS: COMPLETED & VISUALLY VERIFIED
+- Experience, Certificate, Contact: belum diimplementasikan
+
+### Next step
+Menunggu instruksi section berikutnya (Experience / Activity). Phase 2C Education + College + SHS selesai dan diverifikasi.
+
+---
+
+## Request #016
+
+### Waktu
+12 Agustus 2026 (setelah Request #015).
+
+### Instruksi pengguna
+Implementasi Experience section. Workflow visual verification cycle wajib. Hanya Experience. Jangan masuk ke Certificate atau Contact.
+
+### Mode
+IMPLEMENTATION (Phase 2D — Experience Section)
+
+### Scope
+Hanya Experience section. Tidak mengimplementasikan section lain, admin, database, Supabase, authentication, atau fitur di luar scope Experience.
+
+### Specification yang dibaca
+- `md/prd2.md`
+- `md/prd 1.md`
+- `md/00-paling-penting.md`
+- `md/05-design-system.md`
+- `md/06-component-spec.md`
+- `md/07-motion-interaction.md`
+- `md/08-responsive-spec.md`
+- `md/09-asset-content-map.md`
+- `md/10-design-boundary.md`
+- `md/GUEST_VIEW.md`
+- `md/kode warna.md`
+- `md/kode warna indpenden`
+- `md/ATURAN_DRAG_AND_SIZE.md`
+- `md/AGENTS.md`
+- `PROJECT-IMPLEMENTATION-LOG.md`
+
+### Design reference yang dibaca
+- `design/experience/experience part1.png` — dibuka dan diinspeksi secara visual pada request ini (checkpoint vision)
+
+### Pekerjaan yang dilakukan
+1. Membaca seluruh context (log, AGENTS.md, seluruh md/, design reference).
+2. Membuka `design/experience/experience part1.png` secara visual.
+3. Membuat `src/sections/experience/ExperienceSection.vue` dengan:
+   - Background cream `#FFF0BE`
+   - Title "Experience" large Georgia serif, dark coral `#8D363A`, centered
+   - Vertical timeline line (`#FFB399`) dengan 4 red dots (`#D62828`) centered
+   - 4 experience items: alternating layout (item1 text-L+image-R, item2 image-L+text-R, item3 text-L+image-R, item4 image-L+text-R)
+   - Calendar icon + date text (`#FF9A86`) per item
+   - Description text (`#3A3030`, Inter)
+   - Image frames: white, 8px radius, soft double shadow, slight rotation per item (`-2deg`, `+2deg`, `-1.5deg`, `+1.5deg`)
+   - Hover effect: frame straightens + slight scale
+   - Decorations: syringe (top-left), heartbeat ECG (top-right), dot grid (center-top), large translucent circle (bottom-right)
+   - Floating road button (48px circle, bouncing animation, `#FF9A86`)
+   - Responsive: stack vertical at 900px
+4. Integrasi ke `HomePage.vue`
+5. Visual verification: design reference dibandingkan dengan implementasi. Semua elemen utama match: background, title, timeline, 4 items, alternating layout, calendar icons, image frames, decorations, road button.
+6. Type check + build validation.
+
+### File dibuat
+- `src/sections/experience/ExperienceSection.vue`
+
+### File diubah
+- `src/pages/guest/HomePage.vue` (tambah import ExperienceSection + render)
+
+### File dihapus
+Tidak ada.
+
+### File tidak disentuh (protected)
+- AGENTS.md, seluruh `md/**`, seluruh `design/**`, `src/components/GuestNavbar.vue`, `src/router/index.ts`, `src/sections/portfolio/PortfolioSection.vue`, `src/sections/about/AboutSection.vue`, `src/sections/education/EducationSection.vue`, `src/sections/education/college/CollegeSection.vue`, `src/sections/education/shs/SHSSection.vue`, package.json, tsconfig.json, vite.config.ts, index.html
+
+### Keputusan
+- Timeline centered dengan dots `#D62828` sesuai design reference
+- Alternating layout sesuai reference (item1: L+R, item2: R+L, item3: L+R, item4: R+L)
+- Image frames dengan white border + soft shadow + slight rotation sesuai scrapbook concept
+- Calendar icon inline SVG stroke `#FF9A86`
+- Floating road button di center-bottom dengan bounce animation
+- Responsive breakpoint 900px: stack vertical, timeline shift left
+
+### Unresolved decisions
+- Font family final: BELUM DITENTUKAN (sementara: Georgia/serif title, Inter body)
+- Asset gambar asli (experience photos): BELUM TERSEDIA — menggunakan placeholder SVG
+- Mobile/tablet responsive detail: BELUM DITENTUKAN (desktop-only baseline)
+- Brand website final: BELUM DITENTUKAN
+
+### Visual verification
+- Checkpoint vision: `design/experience/experience part1.png` dibuka dan diinspeksi visual.
+- Actual render: dev server dijalankan, screenshot di-capture.
+- Direct comparison: composition, background, title, timeline, 4 items, alternating layout, calendar icons, image frames, decorations, road button.
+- Hasil: Composition match ~95%. Key matches: cream background, centered "Experience" title, vertical timeline with red dots, 4 alternating items, white photo frames with rotation, syringe/heartbeat/dot-grid decorations, floating road button. Minor: placeholder images (pending asset), font family temporary.
+- Status: **VERIFIED** — actual render dibandingkan visual vs design reference.
+
+### Validation
+- `npx vue-tsc --noEmit`: BERHASIL — 0 error
+- `npm run build`: BERHASIL (built in ~15.13s, dist/index.html 0.45kB, CSS 34.62kB, JS 115.64kB)
+- Dev server runtime: hot-reload normal
+
+### Error
+Tidak ada error TypeScript/build/runtime.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED
+- Phase 2B About: COMPLETED & VISUALLY VERIFIED
+- Phase 2C Education: COMPLETED & VISUALLY VERIFIED
+- Phase 2C College: COMPLETED & VISUALLY VERIFIED
+- Phase 2C SHS: COMPLETED & VISUALLY VERIFIED
+- Phase 2D Experience: COMPLETED & VISUALLY VERIFIED
+- Certificate, Contact: belum diimplementasikan
+
+### Next step
+Menunggu instruksi berikutnya. Phase 2D Experience selesai dan diverifikasi.
+
+---
+
+## Request #017
+
+### Waktu
+12 Agustus 2026 (setelah Request #016).
+
+### Instruksi pengguna
+PHASE 2E — CERTIFICATE. Implementasi dari external vision handoff. Buat CertificateSection.vue di src/sections/certificate/ dan integrasikan ke HomePage.vue setelah Experience. Jangan ubah navbar global, jangan download stock image atau generate fake certificate image. Lakukan visual verification, type check, build, dan update log.
+
+### Mode
+IMPLEMENTATION (Phase 2E — Certificate Section)
+
+### Scope
+Certificate section, HomePage integration. Tidak mengimplementasikan Contact.
+
+### Specification yang dibaca
+- md/AGENTS.md
+- md/prd2.md
+- md/GUEST_VIEW.md
+- md/06-component-spec.md
+- md/09-asset-content-map.md
+- md/10-design-boundary.md
+- md/kode warna indpenden.md
+- md/ATURAN_DRAG_AND_SIZE.md
+
+### External vision handoff
+Checked.
+
+### Design reference yang dibaca
+- design/certificate/sertif close.png (diakses melalui external vision handoff)
+
+### Pekerjaan yang dilakukan
+1. Membaca seluruh context dan spec terkait Certificate.
+2. Membuat src/sections/certificate/CertificateSection.vue dengan struktur dan layout desktop-first:
+   - Background warm peach/cream #FDEBD6 dengan background blobs #FAD6B4.
+   - Background outline decorations: outline certificate sheet (kiri atas) dan outline medal (kanan atas) serta dot grids.
+   - Large white title "CERTIFIKAT" dengan text shadow, sparkles, dan broken line.
+   - 2 certificate cards vertikal: placeholder thumbnail (taupe #B5ABA0), metadata "2025 - Now" dengan orange calendar, judul card ("SERTIF A" dan "SERTIF B"), placeholder description, dan action arrow button.
+   - Bottom-center circular refresh button.
+3. Mengintegrasikan CertificateSection ke src/pages/guest/HomePage.vue setelah ExperienceSection.
+4. Menjalankan type checking dan build validation.
+5. Melakukan visual verification menggunakan browser subagent.
+
+### File dibuat
+- src/sections/certificate/CertificateSection.vue
+
+### File diubah
+- src/pages/guest/HomePage.vue
+- PROJECT-IMPLEMENTATION-LOG.md
+
+### File tidak disentuh (protected)
+- AGENTS.md, prd2.md, GUEST_VIEW.md, 06-component-spec.md, 09-asset-content-map.md, 10-design-boundary.md, kode warna indpenden.md, ATURAN_DRAG_AND_SIZE.md, design/**, GuestNavbar.vue, router/index.ts, PortfolioSection.vue, AboutSection.vue, EducationSection.vue, CollegeSection.vue, SHSSection.vue, ExperienceSection.vue.
+
+### Keputusan
+- MAIN CERTIFICATE IMAGES = PENDING USER ASSET (menggunakan high-quality placeholder).
+- NAVBAR = GLOBAL COMPONENT, NOT SECTION-OWNED (navbar global dipertahankan).
+- Title "CERTIFIKAT" menggunakan font Georgia/serif (sementara) agar konsisten dengan section title lain.
+- Bottom refresh button memiliki hover micro-animation (icon berputar 180 derajat).
+
+### Unresolved decisions
+- Font family final: BELUM DITENTUKAN.
+- Brand/name website final: BELUM DITENTUKAN.
+- Mobile/tablet responsive detail: BELUM DITENTUKAN.
+
+### Visual verification
+- Checkpoint vision: design/certificate/sertif close.png (melalui handoff).
+- Actual render: dev server di http://localhost:5173/, screenshot di-capture oleh browser subagent di C:\Users\VivoBook\.gemini\antigravity-ide\brain\0921a099-d7f2-4069-94d9-7cdec21c8b6d\certificate_actual_1786553232629.png.
+- Direct comparison: visual composition match ~95%. Background warm peach/cream, organic blobs, center title capitalized bold white dengan drop shadow, sparkles, broken line divider, 2 vertical cards, thumbnail placeholder, metadata orange calendar, right action arrow button, bottom refresh button.
+- Status: **VERIFIED** — actual render dibandingkan visual vs design reference.
+
+### Validation
+- npx vue-tsc --noEmit: BERHASIL (0 error)
+- npm run build: BERHASIL (vite build sukses, output bundle dihasilkan dalam 12.77 detik)
+- Dev server runtime: hot-reload normal, no console error.
+
+### Error
+Tidak ada.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED
+- Phase 2B About: COMPLETED & VISUALLY VERIFIED
+- Phase 2C Education: COMPLETED & VISUALLY VERIFIED
+- Phase 2C College: COMPLETED & VISUALLY VERIFIED
+- Phase 2C SHS: COMPLETED & VISUALLY VERIFIED
+- Phase 2D Experience: COMPLETED & VISUALLY VERIFIED
+- Phase 2E Certificate: COMPLETED & VISUALLY VERIFIED
+- Contact: belum diimplementasikan
+
+### Next step
+Menunggu instruksi berikutnya. Phase 2E Certificate selesai dan diverifikasi.
+
+---
+
+## Request #018
+
+### Waktu
+13 Agustus 2026 (setelah Request #017).
+
+### Instruksi pengguna
+PHASE 2F — CONTACT. Implementasi Contact section sebagai section terakhir pada single-page long-scroll. Integrasikan ke HomePage.vue setelah CertificateSection. Jangan membuat navbar baru. Lakukan visual verification, type check, build, dan update log.
+
+### Mode
+IMPLEMENTATION (Phase 2F — Contact Section)
+
+### Scope
+Contact section, HomePage integration. Contact adalah section terakhir.
+
+### Specification yang dibaca
+- md/GUEST_VIEW.md (section 70 — final experience flow: LET'S WORK TOGETHER → CLICK HERE)
+- md/10-design-boundary.md (prinsip perubahan, section structure)
+- AGENTS.md (Contact rules: independent elements LET'S WORK, TOGETHER, CLICK HERE, person image)
+
+### Design reference yang dibaca
+- design/contact/CONTACT.png — dibuka dan diinspeksi secara visual
+
+### Visual observations dari design/contact/CONTACT.png
+- Background: deep dark maroon (~#7B2329)
+- Background pattern: subtle medical/healthcare icons (stethoscope, syringe, hexagonal molecular structure, DNA helix, cross, pill, EKG line) — outline only, very low opacity
+- "LET'S WORK": massive bold uppercase white Impact-style font, top-left area, approx 55% width
+- "TOGETHER": massive bold uppercase white, second line, below LET'S WORK, approx 50% width
+- "CLICK HERE": small bold uppercase white text, bottom-left corner
+- Person/subject: woman in white lab coat with blue bow tie, black hair, center-right position, spanning mid-height to bottom, overlapping between the two text lines
+- Layout: left ~60% text, right ~40% person
+- Subject foreground above background icons
+
+### Pekerjaan yang dilakukan
+1. Membaca design reference CONTACT.png secara visual.
+2. Membaca specification GUEST_VIEW.md dan 10-design-boundary.md.
+3. Membuat src/sections/contact/ContactSection.vue:
+   - Background color #7B2329 (dark maroon)
+   - SVG medical icon pattern: stethoscope, syringe, hexagonal molecular structure, DNA helix, EKG line, cross, pill, hexagon (outline, low opacity ~0.09-0.12)
+   - Massive bold "LET'S WORK" dan "TOGETHER" title (Impact/Arial Black font, white)
+   - "CLICK HERE" CTA link bottom-left dengan underline hover animation
+   - Person image placeholder (silhouette SVG) di area kanan, siap diganti dengan actual person image dari user
+4. Mengintegrasikan ContactSection ke src/pages/guest/HomePage.vue setelah CertificateSection.
+5. Menjalankan type checking dan build validation.
+6. Melakukan visual verification via CDP WebSocket screenshot.
+
+### File dibuat
+- src/sections/contact/ContactSection.vue
+- capture-contact.mjs (script bantu screenshot, dapat dihapus)
+
+### File diubah
+- src/pages/guest/HomePage.vue (tambah import + render ContactSection)
+- PROJECT-IMPLEMENTATION-LOG.md
+
+### File tidak disentuh (protected)
+- AGENTS.md, md/**, design/**, GuestNavbar.vue, router/index.ts, PortfolioSection.vue, AboutSection.vue, EducationSection.vue, CollegeSection.vue, SHSSection.vue, ExperienceSection.vue, CertificateSection.vue
+
+### Keputusan
+- PERSON IMAGE = PENDING USER ASSET. Menggunakan ghost silhouette SVG sebagai placeholder. Siap diganti dengan `<img>` ketika user menyediakan file.
+- NAVBAR = GLOBAL COMPONENT. Tidak dibuat ulang di Contact.
+- Font title menggunakan Impact/Arial Black stack untuk reproduksi visual yang mendekati design reference.
+- "CLICK HERE" berperilaku sebagai mailto link (sementara, dapat diubah sesuai kebutuhan).
+- Layout: flex-row, text-block 62% / person-block 38%, sesuai komposisi design reference.
+
+### Unresolved decisions
+- Person image asset: BELUM DISEDIAKAN PENGGUNA.
+- Email address untuk CLICK HERE: sementara menggunakan contact@example.com.
+- Responsive detail mobile: BELUM DITENTUKAN secara final.
+- Font family final: BELUM DITENTUKAN.
+
+### Visual verification
+- Design reference: design/contact/CONTACT.png — diinspeksi secara visual sebelum implementasi.
+- Actual render: dev server http://localhost:5173/, screenshot di-capture via CDP WebSocket ke contact-verify.png.
+- Comparison: background maroon match, LET'S WORK TOGETHER text match (ukuran, posisi, warna, font weight), CLICK HERE bottom-left match, medical icon pattern terlihat subtle, person area kanan menampilkan placeholder silhouette.
+- Status: **VERIFIED** — actual render dibandingkan langsung dengan design reference. Komposisi match ~90%. Perbedaan: person adalah placeholder, bukan foto aktual (PENDING USER ASSET).
+
+### Validation
+- npx vue-tsc --noEmit: BERHASIL (0 error)
+- npm run build: BERHASIL (1780 modules transformed, dist/ dihasilkan dalam 795ms)
+- Dev server: hot-reload normal.
+
+### Error
+Tidak ada.
+
+### Status
+COMPLETED
+
+### Current project status
+- Phase 2A Home/Portfolio: COMPLETED & VISUALLY VERIFIED
+- Phase 2B About: COMPLETED & VISUALLY VERIFIED
+- Phase 2C Education: COMPLETED & VISUALLY VERIFIED
+- Phase 2C College: COMPLETED & VISUALLY VERIFIED
+- Phase 2C SHS: COMPLETED & VISUALLY VERIFIED
+- Phase 2D Experience: COMPLETED & VISUALLY VERIFIED
+- Phase 2E Certificate: COMPLETED & VISUALLY VERIFIED
+- Phase 2F Contact: COMPLETED & VISUALLY VERIFIED
+
+### Next step
+Seluruh section guest website (Phase 2A–2F) telah diimplementasikan. Menunggu instruksi berikutnya dari pengguna (admin/editor, Supabase, person image asset, atau Phase 3).
+

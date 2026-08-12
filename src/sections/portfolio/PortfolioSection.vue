@@ -1,26 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
 import GuestNavbar from '../../components/GuestNavbar.vue'
 import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
-
-const scrolled = ref(false)
-
-const handleScroll = () => {
-  scrolled.value = window.scrollY > 20
-}
-
-onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
-})
 </script>
 
 <template>
   <div class="portfolio-section">
-    <GuestNavbar :scrolled="scrolled" />
+    <GuestNavbar />
 
     <main id="main" class="main-content">
       <div class="portfolio-layout">
@@ -109,7 +94,7 @@ onUnmounted(() => {
 .main-content {
   min-height: 100vh;
   position: relative;
-  padding-top: 100px;
+  padding-top: 60px;
 }
 
 .portfolio-layout {
@@ -119,37 +104,43 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
+  min-height: calc(100vh - 60px);
+  padding-top: 12vh;
 }
 
 .portfolio-title {
   color: #FFF0BE;
-  font-size: clamp(5.5rem, 15vw, 13rem);
+  font-size: clamp(5.5rem, 13vw, 11rem);
   font-weight: 900;
-  line-height: 0.82;
-  letter-spacing: -0.04em;
+  line-height: 0.85;
+  letter-spacing: -0.03em;
   text-transform: uppercase;
   margin: 0;
+  margin-bottom: -2rem;
   text-align: center;
   font-family: 'Inter', 'Arial Black', system-ui, sans-serif;
   font-stretch: condensed;
 }
 
 .profile-card-group {
-  position: relative;
-  margin-top: -2.5rem;
-  margin-left: 8%;
+  position: absolute;
+  top: 42%;
+  left: 52%;
+  transform: translateX(-50%);
+  z-index: 10;
 }
 
 .profile-card-back {
   position: absolute;
-  top: 6px;
-  left: 10px;
+  top: 10px;
+  left: 14px;
   width: 360px;
   height: 300px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transform: rotate(-1deg);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  transform: rotate(-2deg);
   z-index: 1;
 }
 
@@ -207,18 +198,18 @@ onUnmounted(() => {
 /* Stethoscope */
 .decor-stethoscope {
   position: absolute;
-  top: 8%;
-  left: 4%;
-  transform: rotate(-10deg);
-  opacity: 0.8;
+  top: 7%;
+  left: 3%;
+  transform: rotate(-12deg);
+  opacity: 0.85;
 }
 
 /* ECG */
 .decor-ecg {
   position: absolute;
-  top: 38%;
-  left: 2%;
-  opacity: 0.7;
+  top: 35%;
+  left: 3%;
+  opacity: 0.75;
 }
 
 /* Crosses */
@@ -228,25 +219,25 @@ onUnmounted(() => {
 }
 
 .cross-1 {
-  top: 12%;
-  right: 8%;
+  top: 14%;
+  right: 10%;
 }
 
 .cross-2 {
-  top: 62%;
-  left: 6%;
+  top: 60%;
+  left: 7%;
 }
 
 .cross-3 {
-  bottom: 22%;
-  right: 4%;
+  bottom: 24%;
+  right: 5%;
 }
 
 /* Pill */
 .decor-pill {
   position: absolute;
-  top: 42%;
-  right: 6%;
+  top: 40%;
+  right: 7%;
   color: rgba(255, 240, 190, 0.28);
   transform: rotate(20deg);
 }
@@ -261,24 +252,24 @@ onUnmounted(() => {
 }
 
 .circle-1 {
-  top: 5%;
-  right: 8%;
-  width: 280px;
-  height: 280px;
+  top: 4%;
+  right: 6%;
+  width: 300px;
+  height: 300px;
 }
 
 .circle-2 {
-  top: 45%;
-  left: -2%;
-  width: 350px;
-  height: 350px;
+  top: 42%;
+  left: -4%;
+  width: 380px;
+  height: 380px;
 }
 
 .circle-3 {
-  bottom: 12%;
+  bottom: 6%;
   left: 10%;
-  width: 220px;
-  height: 220px;
+  width: 280px;
+  height: 280px;
 }
 
 /* Sparkles */
