@@ -183,7 +183,7 @@ If inference is unavoidable, clearly identify it as inference and ask for approv
 
 ---
 
-# 4. Mandatory project context and implementation log
+﻿# 4. Mandatory project context and implementation log
 
 The file:
 
@@ -191,11 +191,27 @@ The file:
 
 is the persistent execution history of this project.
 
-The AI MUST read this file at the beginning of EVERY request before performing any action on the project.
+At the beginning of every request, the AI MUST inspect the latest project history before performing project actions.
 
-This requirement applies to EVERY request without exception.
+To control context size, the AI MUST read only the latest 200 lines of:
 
-This includes:
+`PROJECT-IMPLEMENTATION-LOG.md`
+
+Use the equivalent of:
+
+`Get-Content PROJECT-IMPLEMENTATION-LOG.md -Tail 200`
+
+Do NOT read the entire project log by default.
+
+The AI may read older portions of the project log only when:
+
+- the user explicitly asks about historical project decisions;
+- the latest 200 lines do not contain information required to resolve the current request;
+- a specific previous implementation or decision must be verified.
+
+When older history is required, retrieve only the specific relevant section rather than reading the entire log.
+
+This requirement applies to:
 
 - read-only audits;
 - specification review;
@@ -219,7 +235,7 @@ This includes:
 - validation;
 - build verification.
 
-The AI MUST NOT rely on memory from a previous session when the required context can be obtained from `PROJECT-IMPLEMENTATION-LOG.md`.
+The AI MUST NOT rely on memory from a previous session when the required context can be obtained from the current project files.
 
 ---
 
@@ -227,16 +243,18 @@ The AI MUST NOT rely on memory from a previous session when the required context
 
 At the beginning of every request, establish context in this order:
 
-1. Read `PROJECT-IMPLEMENTATION-LOG.md`.
+1. Read only the latest 200 lines of `PROJECT-IMPLEMENTATION-LOG.md`.
 2. Read the relevant `AGENTS.md` instructions.
-3. Read the relevant Markdown specification files.
+3. Read only the relevant Markdown specification files required for the current request.
 4. Read the relevant approved Implementation Plan, if applicable.
 5. Inspect the current project files relevant to the request.
 6. If the request concerns visual implementation, inspect the relevant design reference directly.
 
-Do not skip the project log merely because the current session appears to have sufficient context.
+Do not read the entire project log by default.
 
-Do not assume that information from a previous session is still accurate.
+Do not read all Markdown files under `md/` unless the current request explicitly requires a complete specification review.
+
+Do not assume that information from a previous session is still accurate when the current project files provide authoritative information.
 
 ---
 
