@@ -262,9 +262,14 @@ function handleNavClick(event: Event, item: typeof navItems[0]) {
   // Lenis scroll
   const targetEl = document.getElementById(item.target)
   if (targetEl && lenis) {
+    // Contact = last section → stop at the very bottom (element bottom = viewport bottom)
+    const contactOffset = targetEl.offsetHeight - window.innerHeight
+    const offset = item.target === 'contact'
+      ? contactOffset
+      : (item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : -20))
     lenis.scrollTo(targetEl, {
       duration: 1.3,
-      offset: item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : -20),
+      offset,
     })
   } else {
     // Fallback (Lenis unavailable)
@@ -299,6 +304,12 @@ onMounted(() => {
   initObserver()
   // Initial pill position
   updatePill(activeKey.value)
+  // On refresh/reload: always snap back to main (top of page)
+  if (lenis) {
+    lenis.scrollTo(0, { immediate: true })
+  } else if (typeof window !== 'undefined') {
+    window.scrollTo(0, 0)
+  }
 })
 
 onUnmounted(() => {
@@ -314,27 +325,27 @@ onUnmounted(() => {
     <div class="navbar-inner">
       <!-- Brand -->
       <div class="navbar-brand">
-        <span class="brand-text">GUEST VIEW</span>
+        <span class="brand-text">LISA NATALIA</span>
       </div>
 
-      <!-- Nav links + active pill -->
-      <div class="navbar-menu" ref="menuRef">
-        <!-- Active pill (absolute, slides between items with liquid goop transition) -->
-        <div class="active-pill" ref="pillRef" aria-hidden="true"></div>
+       <!-- Nav links + active pill -->
+       <div class="navbar-menu" ref="menuRef">
+         <!-- Active pill (absolute, slides between items with liquid goop transition) -->
+         <div v-if="isScrolled" class="active-pill" ref="pillRef" aria-hidden="true"></div>
 
-        <a
-          v-for="item in navItems"
-          :key="item.key"
-          :href="`#${item.target}`"
-          :data-key="item.key"
-          :id="`nav-${item.key}`"
-          class="nav-link"
-          :class="{ 'is-active': activeKey === item.key }"
-          @click="handleNavClick($event, item)"
-        >
-          <span class="nav-label">{{ item.label }}</span>
-        </a>
-      </div>
+         <a
+           v-for="item in navItems"
+           :key="item.key"
+           :href="`#${item.target}`"
+           :data-key="item.key"
+           :id="`nav-${item.key}`"
+           class="nav-link"
+           :class="{ 'is-active': isScrolled && activeKey === item.key }"
+           @click="handleNavClick($event, item)"
+         >
+           <span class="nav-label">{{ item.label }}</span>
+         </a>
+       </div>
     </div>
   </nav>
 </template>
@@ -373,9 +384,10 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 0;
   box-shadow: none;
+  gap: 0;
 
   /* Smooth layout morphing */
   transition:
@@ -399,6 +411,9 @@ onUnmounted(() => {
   text-transform: uppercase;
   font-family: 'Inter', system-ui, sans-serif;
   transition: color 0.35s ease;
+  border: none;
+  outline: none;
+  background: none;
 }
 
 /* ═══════════════════════════════════════════════════════

@@ -102,6 +102,7 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
   min-height: 100vh;
   overflow: hidden;
   isolation: isolate;
+  z-index: 999;
   padding-bottom: 200px;
 }
 
@@ -185,7 +186,7 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
   height: 24px;
   background: rgba(196, 204, 141, 0.78);
   box-shadow: 0 1px 2px rgba(61, 40, 34, 0.12);
-  z-index: 5;
+  z-index: 9;
 }
 
 .tape-tl {
@@ -207,7 +208,7 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
   top: 5%;
   left: 5%;
   transform: rotate(-7deg);
-  z-index: 1;
+  z-index: 6;
   padding: 12px 12px 0;
   display: flex;
   flex-direction: column;
@@ -224,7 +225,7 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
   bottom: 8%;
   right: 5%;
   transform: rotate(5deg);
-  z-index: 3;
+  z-index: 7;
   padding: 12px 12px 0;
   display: flex;
   flex-direction: column;
@@ -239,7 +240,7 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
   position: absolute;
   top: 14%;
   left: 5%;
-  z-index: 1;
+  z-index: 100; /* Di atas polaroid frames (frame-back:6, frame-front:7) */
   display: flex;
   align-items: flex-start;
   gap: 0;

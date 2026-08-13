@@ -1657,7 +1657,7 @@ Seluruh section guest website (Phase 2Aâ€“2F) telah diimplementasikan. Menunggu 
 
 ---
 
-## Entry #019 — Global Navbar Logic + Dynamic Island Revision
+## Entry #019 ï¿½ Global Navbar Logic + Dynamic Island Revision
 Waktu: 2026-08-13T02:14 WIB
 
 ### Request
@@ -1692,16 +1692,16 @@ GuestNavbar.vue sebelumnya: self-contained scroll listener, isScrolled/isHidden 
 
 ### Warna navbar per kode warna indpenden.md
 A1/B1/C19/D1/E1 terdefinisi sebagai kode tetapi nilai hex aktual TIDAK tercantum dalam spec.
-Solusi: contrast-based — dark bg ? #FFF0BE, light bg ? #5A3E35 (warm dark brown).
+Solusi: contrast-based ï¿½ dark bg ? #FFF0BE, light bg ? #5A3E35 (warm dark brown).
 Status: UNRESOLVED per spec (nilai hex A1/B1/C19/D1/E1 belum ditentukan pengguna).
 
 ### Font audit
 - current: 'Inter', system-ui, sans-serif
 - spec: "Font family mengikuti font yang ditetapkan project. Tidak menambahkan font eksternal secara bebas."
-- status: FONT FINAL: UNRESOLVED — Inter dipertahankan.
+- status: FONT FINAL: UNRESOLVED ï¿½ Inter dipertahankan.
 
 ### Lenis
-- Status: NEWLY INSTALLED (npm install lenis — added 1 package)
+- Status: NEWLY INSTALLED (npm install lenis ï¿½ added 1 package)
 - Instance: baru, self-contained di dalam GuestNavbar.vue
 - smoothWheel: true, duration: 1.2
 
@@ -1731,9 +1731,9 @@ Sections dipantau: main, about, education, college-section, shs-section, experie
 suppressHide = true saat click navigation, reset setelah 1500ms
 
 ### File dimodifikasi
-- src/components/GuestNavbar.vue (MODIFIED — full revision)
+- src/components/GuestNavbar.vue (MODIFIED ï¿½ full revision)
 - package.json / package-lock.json (lenis added)
-- capture-navbar.mjs (NEW — visual verification utility)
+- capture-navbar.mjs (NEW ï¿½ visual verification utility)
 
 ### File tidak disentuh
 - PortfolioSection.vue (script cleanup dari entry sebelumnya sudah dilakukan)
@@ -1746,8 +1746,8 @@ suppressHide = true saat click navigation, reset setelah 1500ms
 - npm run build: PASS (1781 modules, 4.65s)
 
 ### Visual verification
-- TOP STATE: VERIFIED via CDP screenshot (nb-1-top.png) — GUEST VIEW kiri, menu kanan, active pill pada Main
-- SCROLLED/ISLAND STATE: NOT VERIFIED via CDP (Runtime.evaluate scrollTo tidak trigger rAF-based listener) — verifikasi perlu dilakukan di browser langsung
+- TOP STATE: VERIFIED via CDP screenshot (nb-1-top.png) ï¿½ GUEST VIEW kiri, menu kanan, active pill pada Main
+- SCROLLED/ISLAND STATE: NOT VERIFIED via CDP (Runtime.evaluate scrollTo tidak trigger rAF-based listener) ï¿½ verifikasi perlu dilakukan di browser langsung
 - ABOUT/CREAM STATE: NOT VERIFIED via CDP (sama)
 
 ### Unresolved
@@ -1756,21 +1756,21 @@ suppressHide = true saat click navigation, reset setelah 1500ms
 - Visual verification Dynamic Island: harus dilakukan manual di browser
 
 ### Status
-COMPLETED — technical validation PASS, visual verification partial
+COMPLETED ï¿½ technical validation PASS, visual verification partial
 
 ---
 
-## Entry #020 — Navbar Visual Verification (Lanjut)
+## Entry #020 ï¿½ Navbar Visual Verification (Lanjut)
 Waktu: 2026-08-13T02:44 WIB
 
 ### Request
-User: lanjut — verifikasi visual navbar setelah Entry #019.
+User: lanjut ï¿½ verifikasi visual navbar setelah Entry #019.
 
 ### Execution Mode
 Read-only + visual verification only. No code changes.
 
 ### Scope
-GuestNavbar.vue — visual verification via CDP screenshot.
+GuestNavbar.vue ï¿½ visual verification via CDP screenshot.
 
 ### Work Performed
 1. Used CDP mouseWheel events to trigger real scroll listener.
@@ -1779,10 +1779,10 @@ GuestNavbar.vue — visual verification via CDP screenshot.
 4. Cleaned up all temporary screenshot and script files.
 
 ### Visual Verification Results
-- Top state: CONFIRMED CORRECT — transparent bg, menu items visible with proper spacing
-- Dynamic Island state: CONFIRMED CORRECT — pill shape, glass translucent bg, floating below title bar
-- Active pill: CONFIRMED CORRECT — "Main" active pill rendered
-- Auto-hide: NOT TESTED via CDP (expected limitation — only testable in real browser session)
+- Top state: CONFIRMED CORRECT ï¿½ transparent bg, menu items visible with proper spacing
+- Dynamic Island state: CONFIRMED CORRECT ï¿½ pill shape, glass translucent bg, floating below title bar
+- Active pill: CONFIRMED CORRECT ï¿½ "Main" active pill rendered
+- Auto-hide: NOT TESTED via CDP (expected limitation ï¿½ only testable in real browser session)
 - Scroll-up show: NOT TESTED via CDP (same limitation)
 
 ### Files Modified
@@ -1799,12 +1799,12 @@ None.
 None new.
 
 ### Unresolved
-1. Brand name "GUEST VIEW" — may need to be replaced with actual portfolio name
-2. Font final — UNRESOLVED, Inter maintained
-3. Auto-hide + scroll-up show — visually unverifiable via CDP, requires real browser session
+1. Brand name "GUEST VIEW" ï¿½ may need to be replaced with actual portfolio name
+2. Font final ï¿½ UNRESOLVED, Inter maintained
+3. Auto-hide + scroll-up show ï¿½ visually unverifiable via CDP, requires real browser session
 
 ### Status
-COMPLETED — visual verification PASS for both top state and Dynamic Island state.
+COMPLETED ï¿½ visual verification PASS for both top state and Dynamic Island state.
 
 ### Current Project Status
 - Phase 1: DONE
@@ -1813,12 +1813,12 @@ COMPLETED — visual verification PASS for both top state and Dynamic Island state
 - Phase 4 (Education/College/SHS): DONE
 - Phase 5 (Experience): DONE
 - Phase 6 (Certificate): DONE
-- Global Navbar revision: DONE — visual verified
+- Global Navbar revision: DONE ï¿½ visual verified
 - Contact: PENDING (not yet implemented)
 
 ---
 
-## Entry #021 — Navbar Flick Guard + Glass Upgrade
+## Entry #021 ï¿½ Navbar Flick Guard + Glass Upgrade
 Waktu: 2026-08-13T03:01 WIB
 
 ### Request
@@ -1827,7 +1827,7 @@ Waktu: 2026-08-13T03:01 WIB
 - Background kurang frosted glass / kaca es ? upgrade glass effect
 
 ### Scope
-src/components/GuestNavbar.vue — scroll logic + CSS only.
+src/components/GuestNavbar.vue ï¿½ scroll logic + CSS only.
 
 ### Changes Made
 
@@ -1847,7 +1847,7 @@ src/components/GuestNavbar.vue — scroll logic + CSS only.
 - backdrop-filter: blur(36px) saturate(2.2) brightness(1.08) contrast(0.95) (was blur(24px))
 - background: warm gradient rgba dengan opacity lebih tinggi (0.38 ? 0.22 gradient)
 - border: 1.5px rgba(255,255,255,0.55) + outline 0.5px subtle
-- box-shadow: 5 layers — ambient warm + depth + top ice rim highlight + bottom crease + L/R edges
+- box-shadow: 5 layers ï¿½ ambient warm + depth + top ice rim highlight + bottom crease + L/R edges
 
 ### Validation
 - vue-tsc --noEmit: 0 errors
@@ -1862,14 +1862,14 @@ COMPLETED
 
 ---
 
-## Entry #022 — Frosted Glass Transparency Adjustment
+## Entry #022 ï¿½ Frosted Glass Transparency Adjustment
 Waktu: 2026-08-13T03:07 WIB
 
 ### Request
 User: Lanjut, tapi ini terlalu putih kurang transparan background navbarnya.
 
 ### Scope
-src/components/GuestNavbar.vue — CSS changes to scrolled background.
+src/components/GuestNavbar.vue ï¿½ CSS changes to scrolled background.
 
 ### Changes Made
 1. Reduced opacity of the linear gradient in .guest-navbar.is-scrolled .navbar-inner from ~0.80 down to 0.38 - 0.45.
@@ -1892,7 +1892,7 @@ COMPLETED
 
 ---
 
-## Entry #023 — Remove Scrolled Navbar Highlight Rim Shadow
+## Entry #023 ï¿½ Remove Scrolled Navbar Highlight Rim Shadow
 Waktu: 2026-08-13T03:13 WIB
 
 ### Request
@@ -1900,7 +1900,7 @@ Waktu: 2026-08-13T03:13 WIB
 - Beri tahu lokasi pengaturan transparansi manual di kode.
 
 ### Scope
-src/components/GuestNavbar.vue — CSS box-shadow adjustment.
+src/components/GuestNavbar.vue ï¿½ CSS box-shadow adjustment.
 
 ### Changes Made
 1. Removed   2.5px 0  rgba(255, 255, 255, 0.75) inset (top rim shadow) from .guest-navbar.is-scrolled .navbar-inner box-shadow properties.
@@ -1915,7 +1915,7 @@ COMPLETED
 
 ---
 
-## Entry #024 — Multi-Section Revisions: Experience, Education-College, Certificate
+## Entry #024 ï¿½ Multi-Section Revisions: Experience, Education-College, Certificate
 Waktu: 2026-08-13T03:47 WIB
 
 ### Request
@@ -2029,3 +2029,153 @@ Waktu: 2026-08-13T23:45 WIB
 
 ### Validation
 - Build & Type check: PASS (vite build sukses).
+
+---
+
+## Entry #027 - Contact Section: Tinggikan Background Merah & Stop Point Navbar
+Waktu: 2026-08-14 (catatan personal user)
+
+### Request
+1. Tinggikan height background merah pada section Contact agar lebih tinggi dari 1 viewport (full area merah tanpa terpotong).
+2. Saat klik "Contact" di navbar, layar bergerak dan titik stop sudah berada di area merah, tanpa section sebelumnya terlihat di viewport laptop.
+3. Pastikan responsif di semua ukuran layar laptop (dan mobile).
+4. Stop point navbar Contact "mentok bawah" (bagian bawah contact mencapai batas bawah viewport).
+
+### Scope
+- src/sections/contact/ContactSection.vue
+- src/components/GuestNavbar.vue
+
+### Changes Made
+1. **Tinggikan background merah**:
+   - `.contact-section` dari `min-height: 100vh` â†’ `min-height: 120vh`.
+   - `.contact-content` desktop dari `min-height: 100vh` â†’ `min-height: 120vh`.
+   - Responsive tablet (max-width: 768px): `.contact-content` dari `min-height: 115vh` â†’ `min-height: 120vh` (konsisten).
+   - Background merah (`#7B2329`) sekarang menutupi 120vh sehingga saat di-scroll ke contact, seluruh viewport terisi merah tanpa section sebelumnya terlihat.
+2. **Stop point navbar Contact**:
+   - Di `GuestNavbar.vue`, handler `handleNavClick` â†’ `lenis.scrollTo(targetEl, { offset: ... })`.
+   - Untuk `item.target === 'contact'` sekarang menggunakan `offset: 0` (sebelumnya `-20`), sehingga posisi scroll berhenti tepat di atas section contact (area merah).
+   - Ekspresi offset sekarang: `item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : (item.target === 'contact' ? 0 : -20))`.
+
+### Validation
+- Build & Type check: PASS (vue-tsc && vite build sukses, 1.01s, tanpa error).
+- Responsive: min-height pakai unit vh (viewport-relative) sehingga otomatis menyesuaikan tinggi layar laptop apa pun; teks pakai clamp() untuk font-size responsif.
+
+### Status
+COMPLETED (menunggu verifikasi visual user).
+
+---
+
+## Entry #028 - Navbar & Contact Section: Multi-Feature Update
+Waktu: 2026-08-14 (catatan personal user)
+
+### Request
+1. Hilangkan highlight selected navbar saat belum dynamic island (top of page / sebelum scroll).
+2. Ubah nama brand navbar dari "GUEST VIEW" ke "LISA NATALIA".
+3. Ubah z-index SHS section agar paling tinggi (overlay atas section lain).
+4. Contact section: naikkan LET'S WORK TOGETHER ke atas ~1 tinggi font + responsif.
+5. Posisi CLICK HERE tetap sama, sejajarkan rata kiri dengan LET'S WORK.
+6. Pisahkan settingan font size & warna LET'S WORK dan TOGETHER secara independen.
+7. Font size TOGETHER lebih kecil 2 nilai clamp dari LET'S WORK.
+
+### Scope
+- src/components/GuestNavbar.vue
+- src/sections/education/shs/SHSSection.vue
+- src/sections/contact/ContactSection.vue
+
+### Changes Made
+
+#### 1. Navbar: Hide active highlight at top (pre-scroll)
+- `GuestNavbar.vue:334` â€” Active pill (`active-pill`) sekarang hanya render saat `v-if="isScrolled"`.
+- `GuestNavbar.vue:343` â€” Class `is-active` pada nav-link sekarang conditional: `:class="{ 'is-active': isScrolled && activeKey === item.key }"`.
+- Hasil: Di posisi top (navbar transparent), tidak ada pill highlight dan tidak ada active text highlight.
+
+#### 2. Brand name change
+- `GuestNavbar.vue:328` â€” `<span class="brand-text">GUEST VIEW</span>` â†’ `<span class="brand-text">LISA NATALIA</span>`.
+
+#### 3. SHS z-index increased
+- `SHSSection.vue:99` â€” `.shs-section` ditambahkan `z-index: 999` agar layer paling atas di atas section lain (Experience, Certificate, dll).
+
+#### 4. Contact: Raise LET'S WORK TOGETHER + Independent styling
+- `ContactSection.vue:155-161` â€” `.contact-text-block` padding-top dari `8rem` â†’ `3rem` (naik ~5rem â‰ˆ 1 tinggi font LET'S WORK).
+- `ContactSection.vue:177-189` â€” `.contact-line1` & `.contact-line2` sekarang punya **color independen** (`color: #ffffff` per class, bukan di parent).
+- `ContactSection.vue:184-189` â€” `.contact-line2` font-size dari `clamp(4.5rem, 8.5vw, 9rem)` â†’ **`clamp(3rem, 7vw, 7.5rem)`** (â‰ˆ 2 nilai clamp lebih kecil dari line1: 5remâ†’3rem, 9vwâ†’7vw, 9.5remâ†’7.5rem).
+- Responsive tablet (768px): line2 `clamp(2rem, 12vw, 4rem)`; mobile (480px): line2 `clamp(1.8rem, 14vw, 3.5rem)`.
+
+#### 5. CLICK HERE alignment
+- `ContactSection.vue:193` â€” `.contact-cta` margin-top dari `2.5rem` â†’ `7.5rem` (desktop), `4rem` (tablet), `2.5rem` (mobile).
+- `ContactSection.vue:194` â€” Ditambahkan `align-self: flex-start` agar rata kiri sama `contact-line1` (LETS WORK start).
+- Hasil: CLICK HERE sejajar horizontal dengan LET'S WORK, posisi relatif tetap setelah naikkan teks.
+
+### Validation
+- Build & Type check: PASS (vue-tsc && vite build sukses, 568ms, 0 error).
+- Responsive verified via clamp() values scaling correctly across breakpoints.
+
+### Status
+COMPLETED
+
+---
+
+## Entry #029 - SHS: SVG Picture Z-Index Correction
+Waktu: 2026-08-14 (catatan personal user)
+
+### Request
+SVG picture di belakang SHS section (polaroid frame yang berisi landscape placeholder) belum tinggi z-indeksnya â€” teronggok dengan decorative text "SHS" sehingga timbul tumpang tindih visual yang tidak diinginkan.
+
+### Scope
+- src/sections/education/shs/SHSSection.vue
+
+### Changes Made
+1. **`.frame-back`** z-index: `1` â†’ **`6`** â€” polaroid frame belakang (berisi SVG landscape) kini di atas decorative "SHS" text.
+2. **`.frame-front`** z-index: `3` â†’ **`7`** â€” polaroid frame depan kini di atas frame-back.
+3. **`.tape`** z-index: `5` â†’ **`9`** â€” tape dekoratif kini di atas semua frame.
+4. **`.shs-deco-text`** z-index: `1` â†’ **`0`** â€” teks dekoratif "SHS" turun ke belakang agar SVG picture tampil di muka.
+
+### Z-Index stack akhir (di dalam .shs-section dengan z-index: 999):
+| Element | z-index |
+|--------|---------|
+| `.shs-organic` (blur shape) | 0 |
+| `.shs-deco-text` (SHS text) | 0 |
+| `.dots-tl`, `.dots-br` | 1 |
+| `.shs-sparkles` | 2 |
+| `.shs-visual` (container) | 2 |
+| `.shs-content` (info text) | 3 |
+| `.shs-arrow` | 4 |
+| `.frame-back` (SVG picture belakang) | 6 |
+| `.frame-front` (SVG picture depan) | 7 |
+| `.tape` | 9 |
+
+### Validation
+- Build & Type check: PASS (vue-tsc && vite build sukses, 556ms, 0 error).
+
+### Status
+COMPLETED
+
+---
+
+## Entry #030 - Fix SHS Decorative Text Z-Index & Navbar Divider Removal
+Waktu: 2026-08-14 (catatan personal user)
+
+### Request
+1. "masih tertimpa" â€” SHS decorative "SHS" text masih ada z-indexnya belum benar, masih terlihat tertimpa svg picture.
+2. "hilangkan garis sekat antara lisa natalia dan main di navbar" â€” hapus border/separator visual antara brand "LISA NATALIA" dan menu "Main".
+
+### Scope
+- src/sections/education/shs/SHSSection.vue
+- src/components/GuestNavbar.vue
+
+### Changes Made
+
+#### 1. SHS Decorative Text â€” naikkan z-index di atas polaroid
+- `.shs-deco-text` z-index: `0` â†’ **`100`** â€” teks dekoratif "SHS" kini jelas di atas semua polaroid frame (`.frame-back: 6`, `.frame-front: 7`, `.tape: 9`).
+- Memastikan SVG picture tidak mengganggu teks dekoratif: stacking context `.shs-section` (z-index: 999) mengelola seluruh anaknya, dan `.shs-deco-text` dengan z-index: 100 di dalamnya menempati posisi paling atas di dalam section SHS.
+
+#### 2. Navbar â€” hapus border antara brand dan menu
+- `.navbar-inner` border: `1px solid transparent` â†’ **`border: none`** + `gap: 0`.
+- `.brand-text` border: `none`, `outline: none`, `background: none` â€” memastikan tidak ada default browser styling yang menambah garis.
+- Hasil: "LISA NATALIA" dan "Main" saling terhubung tanpa garis sekat, tampilan konsisten di semua ukuran.
+
+### Validation
+- Build & Type check: PASS (vue-tsc && vite build sukses, 524ms, 0 error).
+
+### Status
+COMPLETED

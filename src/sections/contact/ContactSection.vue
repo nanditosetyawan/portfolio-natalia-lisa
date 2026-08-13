@@ -119,7 +119,7 @@
 .contact-section {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  min-height: 120vh;
   background-color: #7B2329;
   overflow: hidden;
   display: flex;
@@ -147,7 +147,7 @@
   display: flex;
   flex-direction: row;
   align-items: flex-end;
-  min-height: 100vh;
+  min-height: 120vh;
   padding: 0;
 }
 
@@ -158,7 +158,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  padding: 8rem 3rem 6rem 4.5rem;
+  padding: 3rem 3rem 6rem 4.5rem;
   gap: 1rem;
 }
 
@@ -171,7 +171,6 @@
   font-family: 'Impact', 'Arial Black', 'Franklin Gothic Heavy', sans-serif;
   font-weight: 900;
   text-transform: uppercase;
-  color: #ffffff;
 }
 
 .contact-line1 {
@@ -179,18 +178,21 @@
   letter-spacing: -0.02em;
   white-space: nowrap;
   display: block;
+  color: #ffffff;
 }
 
 .contact-line2 {
-  font-size: clamp(4.5rem, 8.5vw, 9rem);
+  font-size: clamp(3rem, 7vw, 7.5rem);
   letter-spacing: -0.02em;
   white-space: nowrap;
   display: block;
+  color: #ffffff;
 }
 
 .contact-cta {
   display: inline-block;
-  margin-top: 2.5rem;
+  margin-top: 7.5rem;
+  align-self: flex-start;
   font-family: 'Impact', 'Arial Black', 'Franklin Gothic Heavy', sans-serif;
   font-weight: 900;
   font-size: clamp(0.9rem, 1.2vw, 1.2rem);
@@ -275,17 +277,20 @@
   .contact-content {
     flex-direction: column;
     align-items: flex-start;
-    min-height: 100vh;
+    min-height: 120vh;
   }
   .contact-text-block {
     flex: 1;
-    padding: 6rem 2rem 2rem 2rem;
+    padding: 3rem 2rem 2rem 2rem;
+  }
+  .contact-cta {
+    margin-top: 4rem;
   }
   .contact-line1 {
     font-size: clamp(3.5rem, 14vw, 6rem);
   }
   .contact-line2 {
-    font-size: clamp(3rem, 13vw, 5.5rem);
+    font-size: clamp(2rem, 12vw, 4rem);
   }
   .contact-person {
     flex: 0 0 auto;
@@ -297,13 +302,16 @@
 
 @media (max-width: 480px) {
   .contact-text-block {
-    padding: 5rem 1.5rem 2rem 1.5rem;
+    padding: 2rem 1.5rem 2rem 1.5rem;
+  }
+  .contact-cta {
+    margin-top: 2.5rem;
   }
   .contact-line1 {
     font-size: clamp(2.8rem, 16vw, 5rem);
   }
   .contact-line2 {
-    font-size: clamp(2.5rem, 14vw, 4.5rem);
+    font-size: clamp(1.8rem, 14vw, 3.5rem);
   }
 }
 </style>
