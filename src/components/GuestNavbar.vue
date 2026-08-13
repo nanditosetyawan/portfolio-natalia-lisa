@@ -264,7 +264,7 @@ function handleNavClick(event: Event, item: typeof navItems[0]) {
   if (targetEl && lenis) {
     lenis.scrollTo(targetEl, {
       duration: 1.3,
-      offset: item.target === 'main' ? 0 : -20,
+      offset: item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : -20),
     })
   } else {
     // Fallback (Lenis unavailable)

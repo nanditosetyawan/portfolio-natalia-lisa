@@ -1968,3 +1968,64 @@ Waktu: 2026-08-13T03:47 WIB
 
 ### Status
 COMPLETED
+
+---
+
+## Entry #025 - Multi-Section Revisions: Spacing, Sticky Experience, and Certificate Card Aspect Ratio
+Waktu: 2026-08-13T23:20 WIB
+
+### Request
+- Naikkan jarak Education dan College ~200px.
+- Naikkan Praktik Klinik 1 agar terlihat di viewport saat klik navbar Activity.
+- Saat scroll memasuki Experience, judul tetap diam, konten klinik 2 naik dari bawah halus menggantikan klinik 1 (gambar dan deskripsi bareng).
+- Dot bulat ditengah diberi efek berdenyut dan turun menjemput konten baru disaat scroll.
+- Perbaiki kotak certificate sisi bawah agar rasionya A4 landscape, dengan isi object-fit contain.
+
+### Scope
+- src/sections/education/EducationSection.vue
+- src/sections/experience/ExperienceSection.vue
+- src/sections/certificate/CertificateSection.vue
+
+### Changes Made
+1. **Education Spacing**:
+   - padding-bottom di EducationSection.vue dinaikkan sebesar 200px via calc(clamp(4rem, 10vh, 8rem) + 200px).
+2. **Sticky Experience**:
+   - Di desktop, tinggi section diubah menjadi 400vh dan wrapper diubah menjadi position: sticky.
+   - Konten (text dan image) bergeser ke kiri dan kanan menggunakan justify-content: space-between & padding: 0 10% agar tidak menimpa garis timeline.
+   - Dot bulat ditengah diberi keyframe pulse (berdenyut) dan posisinya diubah secara elastis seiring scroll (dip/menjemput).
+3. **Certificate Aspect Ratio**:
+   - slide-container menggunakan aspect-ratio: 297/210 (A4 Landscape).
+   - slide-item menggunakan height: 100%, cert-image menggunakan height: 100% dan object-fit: contain agar gambar tidak melar/pecah.
+
+### Validation
+- Build & Type check: PASS (vite build sukses).
+- Walkthrough: Created walkthrough.md
+
+
+---
+
+## Entry #026 - Spacing & Sticky Experience Scrollytelling Calibration
+Waktu: 2026-08-13T23:45 WIB
+
+### Request
+1. Naikkan jarak antara section experience dengan atasnya (SHS).
+2. Kalibrasikan titik henti saat klik navbar Activity agar berjarak dengan judul Experience (seperti gambar).
+3. Perbaiki logic freeze: begitu berhenti di tujuan navbar/scroll masuk, halaman langsung freeze dan hanya konten card + dot yang bergerak saat scroll.
+
+### Scope
+- src/sections/education/shs/SHSSection.vue
+- src/sections/experience/ExperienceSection.vue
+- src/components/GuestNavbar.vue
+
+### Changes Made
+1. **SHS bottom spacing**: Menambahkan `padding-bottom: 200px` pada `.shs-section` agar memberi jarak pemisah yang cukup sebelum section Experience.
+2. **Title & Card Spacing**:
+   - Menurunkan posisi `.experience-title` ke `clamp(5.5rem, 10vh, 7.5rem)` agar memiliki ruang kosong (jarak) yang indah di bawah navbar.
+   - Menyesuaikan `.exp-card` `padding-top` ke `clamp(12rem, 20vh, 16rem)` untuk menyelaraskan dengan posisi judul baru dan mencegah tumpang tindih.
+3. **Scroll Offset & Instant Freeze**:
+   - Di `GuestNavbar.vue`, mengubah scroll offset khusus untuk target `experience` menjadi `0` (dari `-20`).
+   - Ini memastikan saat navbar diklik, halaman bergulir persis ke posisi `rect.top = 0` di mana sticky viewport langsung terpicu aktif/membeku.
+   - Dengan begitu, saat user mulai scroll, tidak ada pergeseran viewport melainkan kartu langsung bergeser secara mulus 1:1.
+
+### Validation
+- Build & Type check: PASS (vite build sukses).

@@ -60,7 +60,7 @@ import { ArrowDown, Pill, Syringe, Sparkles } from 'lucide-vue-next'
   background: #FFF0BE;
   min-height: 100vh;
   /* Extra bottom padding creates visual breathing room before College section */
-  padding-bottom: clamp(4rem, 10vh, 8rem);
+  padding-bottom: calc(clamp(4rem, 10vh, 8rem) + 200px);
   overflow: hidden;
   isolation: isolate;
 }

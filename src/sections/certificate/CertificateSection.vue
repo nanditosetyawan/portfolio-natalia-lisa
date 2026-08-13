@@ -680,40 +680,47 @@ onBeforeUnmount(() => {
   padding-top: 1.5rem;
 }
 
-/* Slide container: clips overflow so only 1 slide shows */
+/* Slide container: clips overflow so only 1 slide shows and enforces A4 landscape aspect ratio */
 .slide-container {
   width: 100%;
+  aspect-ratio: 297 / 210; /* A4 Landscape ratio */
   overflow: hidden;
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(54, 45, 37, 0.10);
+  background: #EEE2D6; /* Background fill for empty space */
 }
 
 /* Slide track: flex row, translateX for smooth sliding */
 .slide-track {
   display: flex;
+  height: 100%;
   transition: transform 0.45s cubic-bezier(0.25, 1, 0.35, 1);
 }
 
-/* Each slide fills 100% of the container width */
+/* Each slide fills 100% of the container width and height */
 .slide-item {
   min-width: 100%;
+  height: 100%;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* Actual certificate photo */
+/* Actual certificate photo: fits fully inside container maintaining its original aspect ratio */
 .cert-image {
   width: 100%;
-  height: 340px;
+  height: 100%;
   object-fit: contain;
   border-radius: 14px;
-  background: #EEE2D6;
   display: block;
 }
 
 /* Placeholder when no image URL provided */
 .cert-placeholder {
   width: 100%;
-  height: 340px;
+  height: 100%;
   background: linear-gradient(135deg, #EEE2D6 0%, #E4D4C4 100%);
   border-radius: 14px;
   border: 2px dashed rgba(242, 140, 56, 0.30);

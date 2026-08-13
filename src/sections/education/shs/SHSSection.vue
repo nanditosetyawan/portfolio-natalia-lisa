@@ -102,6 +102,7 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
   min-height: 100vh;
   overflow: hidden;
   isolation: isolate;
+  padding-bottom: 200px;
 }
 
 .shs-container {

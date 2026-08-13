@@ -1,178 +1,254 @@
 <template>
-  <section id="experience" class="experience-section">
-    <!-- Background decorations -->
-    <div class="exp-decor" aria-hidden="true">
-      <div class="decor-syringe">
-        <svg viewBox="0 0 80 120" width="80" height="120" fill="none">
-          <path d="M40 10 L40 60" stroke="#8D363A" stroke-width="2.5" stroke-linecap="round" />
-          <path d="M30 25 Q40 15 50 25 Q50 35 40 40 Q30 35 30 25" fill="#8D363A" opacity="0.85" />
-          <rect x="36" y="55" width="8" height="40" rx="4" fill="#FF9A86" opacity="0.9" />
-          <rect x="38" y="95" width="4" height="20" rx="2" fill="#8D363A" />
-          <line x1="28" y1="45" x2="52" y2="45" stroke="#8D363A" stroke-width="2" stroke-linecap="round" />
-        </svg>
-      </div>
-      <div class="decor-heartbeat">
-        <svg viewBox="0 0 120 40" width="120" height="40" fill="none">
-          <path d="M5 20 L25 20 L35 5 L50 35 L60 15 L70 25 L115 20" stroke="#D62828" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </div>
-      <div class="decor-dots"></div>
-      <div class="decor-circle"></div>
-    </div>
+  <!--
+    SECTION: 400vh tall on desktop → provides "scroll budget" for 4 cards.
+    The inner sticky viewport stays fixed at top:0 while user scrolls through.
+    Only .exp-card elements move (translate). Everything else is frozen.
+    NO overflow:hidden on the outer section — kills sticky!
+  -->
+  <section id="experience" ref="sectionRef" class="experience-section">
 
-    <div class="experience-container">
-      <!-- Section title -->
+    <!-- ┌─────────────────────────────────────────────────────────────────┐ -->
+    <!-- │ STICKY VIEWPORT — freezes in place while scroll budget runs     │ -->
+    <!-- │ overflow:hidden clips cards as they enter/exit the screen       │ -->
+    <!-- └─────────────────────────────────────────────────────────────────┘ -->
+    <div class="exp-sticky-viewport">
+
+      <!-- ── Background decorations — FROZEN, inside sticky ── -->
+      <div class="exp-decor" aria-hidden="true">
+        <div class="decor-syringe">
+          <svg viewBox="0 0 80 120" width="80" height="120" fill="none">
+            <path d="M40 10 L40 60" stroke="#8D363A" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M30 25 Q40 15 50 25 Q50 35 40 40 Q30 35 30 25" fill="#8D363A" opacity="0.85" />
+            <rect x="36" y="55" width="8" height="40" rx="4" fill="#FF9A86" opacity="0.9" />
+            <rect x="38" y="95" width="4" height="20" rx="2" fill="#8D363A" />
+            <line x1="28" y1="45" x2="52" y2="45" stroke="#8D363A" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="decor-heartbeat">
+          <svg viewBox="0 0 120 40" width="120" height="40" fill="none">
+            <path d="M5 20 L25 20 L35 5 L50 35 L60 15 L70 25 L115 20"
+              stroke="#D62828" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div class="decor-dots"></div>
+        <div class="decor-circle"></div>
+      </div>
+
+      <!-- ── Section title — FROZEN (position:absolute, no transform) ── -->
       <h2 class="experience-title">Experience</h2>
 
-      <!-- Timeline line and dots are now rendered via CSS pseudo-elements and per-item markers -->
+      <!--
+        ── Timeline rail — FROZEN.
+        Center vertical line + faint static dot + pulsing active dot.
+        Active dot's `top` is driven by JS → it dips DOWN to greet incoming card.
+      ── -->
+      <div class="timeline-rail" aria-hidden="true">
+        <div class="timeline-line"></div>
+        <!-- Active pulsing dot: JS sets top via rafProgress -->
+        <div class="tl-active-dot" :style="{ top: dotTopVh + 'vh' }"></div>
+      </div>
 
-      <!-- Experience items -->
-      <div class="experience-items">
-        <!-- Item 1: Text Left + Image Right -->
-        <div class="exp-item item-1">
-          <div class="timeline-dot-marker" aria-hidden="true"></div>
+      <!--
+        ── Cards viewport — clipping container.
+        Each .exp-card is position:absolute.
+        transform: translateY((index - rafProgress) * 100vh)
+          card 0 starts at 0vh  (visible from the start)
+          card 1 starts at 100vh (below, slides in when rafProgress → 1)
+          card 2 starts at 200vh, card 3 at 300vh, etc.
+        Moving DOWN in page increases rafProgress → cards move UP.
+      ── -->
+      <div class="exp-cards-viewport">
+        <div
+          v-for="(item, i) in items"
+          :key="item.id"
+          class="exp-card"
+          :class="item.layout"
+          :style="{ transform: `translateY(${(i - rafProgress) * 100}vh)` }"
+        >
+          <!-- Text: title + date + description — moves with card -->
           <div class="exp-text">
-            <h3 class="exp-item-title">Praktik Klinik 1</h3>
+            <h3 class="exp-item-title">{{ item.title }}</h3>
             <div class="exp-meta">
-              <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16"
+                fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <span class="exp-date">Semester 1 - RSUD</span>
+              <span class="exp-date">{{ item.date }}</span>
             </div>
-            <p class="exp-description">
-              Melaksanakan praktik klinik di RSUD dengan fokus pada asuhan keperawatan pasien, dokumentasi medis, dan kolaborasi tim kesehatan.
-            </p>
+            <p class="exp-description">{{ item.description }}</p>
           </div>
+
+          <!-- Photo(s): moves with card as one unit -->
           <div class="exp-image-wrapper">
             <div class="exp-image-frame">
               <div class="exp-image-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#8D363A" stroke-width="1.5" opacity="0.4">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none"
+                  stroke="#8D363A" stroke-width="1.5" opacity="0.4">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Item 2: Image Left + Text Right -->
-        <div class="exp-item item-2">
-          <div class="timeline-dot-marker" aria-hidden="true"></div>
-          <div class="exp-image-wrapper">
-            <div class="exp-image-frame">
-              <div class="exp-image-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#8D363A" stroke-width="1.5" opacity="0.4">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-              </div>
-            </div>
-          </div>
-          <div class="exp-text">
-            <h3 class="exp-item-title">Praktik Klinik 2</h3>
-            <div class="exp-meta">
-              <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span class="exp-date">Semester 2 - Puskesmas</span>
-            </div>
-            <p class="exp-description">
-              Pengalaman praktik di Puskesmas dengan penekanan pada promotif, preventif, dan pelayanan komunitas kesehatan dasar.
-            </p>
-          </div>
-        </div>
-
-        <!-- Item 3: Text Left + Image Right -->
-        <div class="exp-item item-3">
-          <div class="timeline-dot-marker" aria-hidden="true"></div>
-          <div class="exp-text">
-            <h3 class="exp-item-title">Praktik Klinik 3</h3>
-            <div class="exp-meta">
-              <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span class="exp-date">Semester 3 - Klinik Pratama</span>
-            </div>
-            <p class="exp-description">
-              Praktik di Klinik Pratama dengan pembelajaran asuhan keperawatan masyarakat dan manajemen kasus kesehatan Keluarga.
-            </p>
-          </div>
-          <div class="exp-image-wrapper">
-            <div class="exp-image-frame">
-              <div class="exp-image-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#8D363A" stroke-width="1.5" opacity="0.4">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Item 4: Image Left + Text Right -->
-        <div class="exp-item item-4">
-          <div class="timeline-dot-marker" aria-hidden="true"></div>
-          <div class="exp-image-wrapper">
-            <div class="exp-image-frame">
-              <div class="exp-image-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#8D363A" stroke-width="1.5" opacity="0.4">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-              </div>
-            </div>
-          </div>
-          <div class="exp-text">
-            <h3 class="exp-item-title">Praktik Klinik 4</h3>
-            <div class="exp-meta">
-              <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span class="exp-date">Semester 4 - Rumah Sakit Jiwa</span>
-            </div>
-            <p class="exp-description">
-              Pengalaman praktik di Rumah Sakit Jiwa dengan fokus pada asuhan keperawatan kesehatan jiwa dan interaksi terapeutik.
-            </p>
           </div>
         </div>
       </div>
-    </div>
+
+    </div><!-- /exp-sticky-viewport -->
   </section>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+// ──────────────────────────────────────────────
+// DATA
+// ──────────────────────────────────────────────
+interface ExpItem {
+  id: string
+  title: string
+  date: string
+  description: string
+  layout: 'layout-text-left' | 'layout-img-left'
+}
+
+const items: ExpItem[] = [
+  {
+    id: 'klinik-1',
+    title: 'Praktik Klinik 1',
+    date: 'Semester 1 - RSUD',
+    description: 'Melaksanakan praktik klinik di RSUD dengan fokus pada asuhan keperawatan pasien, dokumentasi medis, dan kolaborasi tim kesehatan.',
+    layout: 'layout-text-left',
+  },
+  {
+    id: 'klinik-2',
+    title: 'Praktik Klinik 2',
+    date: 'Semester 2 - Puskesmas',
+    description: 'Pengalaman praktik di Puskesmas dengan penekanan pada promotif, preventif, dan pelayanan komunitas kesehatan dasar.',
+    layout: 'layout-img-left',
+  },
+  {
+    id: 'klinik-3',
+    title: 'Praktik Klinik 3',
+    date: 'Semester 3 - Klinik Pratama',
+    description: 'Praktik di Klinik Pratama dengan pembelajaran asuhan keperawatan masyarakat dan manajemen kasus kesehatan keluarga.',
+    layout: 'layout-text-left',
+  },
+  {
+    id: 'klinik-4',
+    title: 'Praktik Klinik 4',
+    date: 'Semester 4 - Rumah Sakit Jiwa',
+    description: 'Pengalaman praktik di Rumah Sakit Jiwa dengan fokus pada asuhan keperawatan kesehatan jiwa dan interaksi terapeutik.',
+    layout: 'layout-img-left',
+  },
+]
+
+// ──────────────────────────────────────────────
+// RAF-DRIVEN SCROLL PROGRESS
+// Using requestAnimationFrame for pixel-perfect sync with Lenis smooth scroll.
+// Progress: 0.0 = Klinik 1 visible, 3.0 = Klinik 4 visible
+// ──────────────────────────────────────────────
+const sectionRef = ref<HTMLElement | null>(null)
+const rafProgress = ref(0)   // drives card transforms
+let rafId = 0
+let isDesktop = false
+
+function loop() {
+  if (sectionRef.value && isDesktop) {
+    const rect = sectionRef.value.getBoundingClientRect()
+    // scrolled = how many px we've scrolled past the section top
+    // When section top == viewport top: scrolled = 0
+    const scrolled = -rect.top
+    const vh = window.innerHeight
+    // Clamp 0..3 (one unit per card)
+    const raw = scrolled / vh
+    rafProgress.value = Math.max(0, Math.min(items.length - 1, raw))
+  }
+  rafId = requestAnimationFrame(loop)
+}
+
+function onResize() {
+  isDesktop = window.innerWidth > 900
+}
+
+onMounted(() => {
+  onResize()
+  window.addEventListener('resize', onResize)
+  rafId = requestAnimationFrame(loop)
+})
+
+onUnmounted(() => {
+  cancelAnimationFrame(rafId)
+  window.removeEventListener('resize', onResize)
+})
+
+// ──────────────────────────────────────────────
+// DOT POSITION
+// At rest (between cards): 50vh (center)
+// During transition t ∈ (0,1): dips DOWN toward 72vh (toward the incoming card)
+// then returns to 50vh as card settles.
+// Uses sin curve so motion is smooth and natural.
+// ──────────────────────────────────────────────
+const dotTopVh = computed(() => {
+  const p = rafProgress.value
+  const t = p - Math.floor(p)           // 0..1 within each interval
+  const lastCard = p >= items.length - 1 // clamped at last card
+  if (lastCard) return 50
+  // 50 = center, 22 = max dip (peaks at t=0.5 → 72vh from top)
+  return 50 + 22 * Math.sin(Math.PI * t)
+})
 </script>
 
 <style scoped>
+/* ══════════════════════════════════════════════════════════════════
+   OUTER SECTION — scroll budget (400vh desktop / auto mobile)
+   MUST NOT have overflow:hidden — it destroys position:sticky
+══════════════════════════════════════════════════════════════════ */
 .experience-section {
   position: relative;
   background: #FFF0BE;
-  /* No fixed section padding — each item handles its own spacing via min-height: 100vh */
-  overflow: hidden;
   isolation: isolate;
+  /* mobile default: normal flow */
 }
 
-/* ===== Background decorations ===== */
+@media (min-width: 901px) {
+  .experience-section {
+    height: 400vh;   /* 4 cards × 100vh each */
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   STICKY VIEWPORT — freezes on screen while outer section scrolls.
+   overflow:hidden is placed HERE (not on outer section) to clip
+   cards entering/exiting without breaking sticky.
+══════════════════════════════════════════════════════════════════ */
+.exp-sticky-viewport {
+  /* Mobile: normal block */
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #FFF0BE;
+}
+
+@media (min-width: 901px) {
+  .exp-sticky-viewport {
+    position: sticky;
+    top: 0;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BACKGROUND DECORATIONS — all inside sticky, all frozen
+══════════════════════════════════════════════════════════════════ */
 .exp-decor {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   overflow: hidden;
 }
@@ -214,111 +290,146 @@
   border: 2px solid rgba(255, 154, 134, 0.15);
 }
 
-/* ===== Container ===== */
-.experience-container {
-  position: relative;
-  z-index: 2;
-  max-width: 1200px;
-  margin: 0 auto;
-  /* Padding-top gives the title breathing room at the top of the section */
-  padding-top: clamp(4rem, 8vh, 8rem);
-}
-
-/* ===== Section title ===== */
+/* ══════════════════════════════════════════════════════════════════
+   TITLE — position:absolute, frozen, never translated
+══════════════════════════════════════════════════════════════════ */
 .experience-title {
+  position: absolute;
+  top: clamp(5.5rem, 10vh, 7.5rem);
+  left: 0;
+  right: 0;
   text-align: center;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(3rem, 5vw, 4.5rem);
   font-weight: 700;
   color: #8D363A;
-  margin: 0 0 clamp(2rem, 4vh, 4rem);
   letter-spacing: -0.01em;
-}
-
-/* ===== Experience items container ===== */
-.experience-items {
-  position: relative;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-/* Vertical timeline line running through all 4 items */
-.experience-items::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #FFB399 3%,
-    #FFB399 97%,
-    transparent 100%
-  );
-  transform: translateX(-50%);
-  z-index: 1;
+  margin: 0;
+  z-index: 10;
   pointer-events: none;
 }
 
-/* ===== Each item = 1 viewport — RESPONSIVE via clamp() ===== */
-.exp-item {
-  position: relative;
+/* ══════════════════════════════════════════════════════════════════
+   TIMELINE RAIL — frozen, center of sticky viewport.
+   Active dot's top is driven by JS computed (dotTopVh).
+══════════════════════════════════════════════════════════════════ */
+.timeline-rail {
+  display: none;  /* hidden on mobile */
+}
+
+@media (min-width: 901px) {
+  .timeline-rail {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 0;         /* zero-width — children use absolute positioning */
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .timeline-line {
+    position: absolute;
+    left: 0;
+    top: 18vh;
+    bottom: 10vh;
+    width: 2px;
+    transform: translateX(-50%);
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      #FFB399 5%,
+      #FFB399 95%,
+      transparent 100%
+    );
+    opacity: 0.9;
+  }
+
+  /* Pulsing active dot — JS sets top:XX vh  */
+  .tl-active-dot {
+    position: absolute;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #D62828;
+    border: 2.5px solid #FFF0BE;
+    /* center horizontally on the line */
+    transform: translate(-50%, -50%);
+    z-index: 6;
+    /* Smooth top transition so dot glides rather than jumps */
+    transition: top 0.08s linear;
+    /* Pulsing ring */
+    animation: dot-pulse 1.6s ease-out infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(214, 40, 40, 0.6); }
+    65%  { box-shadow: 0 0 0 12px rgba(214, 40, 40, 0);  }
+    100% { box-shadow: 0 0 0 0   rgba(214, 40, 40, 0);  }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CARDS VIEWPORT — clips cards entering/exiting
+══════════════════════════════════════════════════════════════════ */
+.exp-cards-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 3;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INDIVIDUAL CARD — position:absolute, translated by JS.
+   NO CSS transition — transform tracks scroll pixel-for-pixel.
+   Content: text-left + image-right (or reversed for even cards).
+══════════════════════════════════════════════════════════════════ */
+.exp-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
   display: flex;
   align-items: center;
-  /* Gap scales with viewport width */
-  gap: clamp(1.5rem, 4vw, 4rem);
-  /* Each experience fills exactly 1 viewport height */
-  min-height: 100vh;
-  /* Padding scales: bigger on wide screens, smaller on narrow */
-  padding: clamp(2rem, 5vh, 5rem) clamp(1rem, 3vw, 3rem);
-  /* No margin-bottom — min-height: 100vh provides the spacing */
+  box-sizing: border-box;
+  /* Top padding so content sits below the frozen "Experience" title */
+  padding-top: clamp(12rem, 20vh, 16rem);
+  padding-bottom: clamp(2rem, 4vh, 4rem);
+  will-change: transform;
+  /* NO transition — must follow scroll exactly, zero lag */
 }
 
-/* Timeline dot centered vertically in each item */
-.timeline-dot-marker {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #D62828;
-  border: 2px solid #FFF0BE;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 3px rgba(214, 40, 40, 0.2);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.item-1 {
+/* Klinik 1, 3 — text left, photo right */
+.exp-card.layout-text-left {
   flex-direction: row;
+  justify-content: space-between;
+  padding-left: 8%;
+  padding-right: 6%;
 }
 
-.item-2 {
+/* Klinik 2, 4 — photo left, text right */
+.exp-card.layout-img-left {
   flex-direction: row-reverse;
+  justify-content: space-between;
+  padding-left: 6%;
+  padding-right: 8%;
 }
 
-.item-3 {
-  flex-direction: row;
-}
-
-.item-4 {
-  flex-direction: row-reverse;
-}
-
-/* ===== Text content ===== */
+/* ══════════════════════════════════════════════════════════════════
+   TEXT BLOCK
+══════════════════════════════════════════════════════════════════ */
 .exp-text {
-  flex: 1 1 45%;
-  padding-top: 1rem;
-  /* Ensure text doesn't bleed into the center timeline */
-  max-width: 42%;
+  width: 40%;
+  flex-shrink: 0;
+  z-index: 2;
 }
 
 .exp-item-title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-size: clamp(1.75rem, 2.8vw, 2.4rem);
   font-weight: 700;
   color: #8D363A;
   margin: 0 0 0.75rem;
@@ -336,14 +447,8 @@
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-.calendar-icon {
-  flex-shrink: 0;
-  opacity: 0.85;
-}
-
-.exp-date {
-  letter-spacing: 0.02em;
-}
+.calendar-icon { flex-shrink: 0; opacity: 0.85; }
+.exp-date      { letter-spacing: 0.02em; }
 
 .exp-description {
   color: #3A3030;
@@ -353,13 +458,15 @@
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ===== Image frame ===== */
+/* ══════════════════════════════════════════════════════════════════
+   IMAGE BLOCK — travels with text as one unit
+══════════════════════════════════════════════════════════════════ */
 .exp-image-wrapper {
-  flex: 1 1 50%;
+  width: 44%;
+  flex-shrink: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  max-width: 45%;
 }
 
 .exp-image-frame {
@@ -370,30 +477,22 @@
   background: #FFFFFF;
   border-radius: 8px;
   padding: 12px;
+  box-sizing: border-box;
   box-shadow:
     0 20px 40px rgba(61, 40, 34, 0.12),
     0 8px 16px rgba(61, 40, 34, 0.08);
-  transform: rotate(-2deg);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.item-2 .exp-image-frame {
-  transform: rotate(2deg);
-}
-
-.item-3 .exp-image-frame {
-  transform: rotate(-1.5deg);
-}
-
-.item-4 .exp-image-frame {
-  transform: rotate(1.5deg);
-}
+/* Alternate rotation per card */
+.layout-text-left .exp-image-frame  { transform: rotate(-2deg); }
+.layout-img-left  .exp-image-frame  { transform: rotate(2deg);  }
 
 .exp-image-frame:hover {
-  transform: rotate(0deg) scale(1.02);
+  transform: rotate(0deg) scale(1.02) !important;
   box-shadow:
     0 24px 48px rgba(61, 40, 34, 0.16),
     0 10px 20px rgba(61, 40, 34, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .exp-image-placeholder {
@@ -408,61 +507,40 @@
   overflow: hidden;
 }
 
-/* ===== Floating road button ===== */
-.exp-road-button {
-  position: absolute;
-  bottom: 2.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(255, 240, 190, 0.8);
-  backdrop-filter: blur(8px);
-  border: 2px solid #FF9A86;
-  color: #FF9A86;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  z-index: 10;
-  animation: road-bounce 2.2s ease-in-out infinite;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-  cursor: pointer;
-}
-
-.exp-road-button:hover {
-  background: #FF9A86;
-  color: #FFFFFF;
-  border-color: #FF9A86;
-}
-
-@keyframes road-bounce {
-  0%, 100% {
-    transform: translateX(-50%) translateY(0);
-  }
-  50% {
-    transform: translateX(-50%) translateY(8px);
-  }
-}
-
-/* ===== Responsive ===== */
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE — revert to normal stacked flow (no sticky, no translate)
+══════════════════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .exp-item {
+  .exp-sticky-viewport {
+    position: relative;
+    height: auto;
+    overflow: visible;
+  }
+
+  .experience-title {
+    position: relative;
+    top: auto;
+    padding: clamp(3rem, 6vh, 5rem) 1rem 2rem;
+  }
+
+  .exp-cards-viewport {
+    position: relative;
+    overflow: visible;
+  }
+
+  .exp-card {
+    position: relative;
+    height: auto;
+    min-height: 100svh;
     flex-direction: column !important;
-    gap: 2rem;
-    /* Still 1 viewport per item on tablet, stacked vertically */
-    min-height: 100svh; /* svh avoids mobile browser chrome issues */
-    padding: clamp(3rem, 5vh, 4rem) clamp(1.5rem, 4vw, 2.5rem);
+    padding: 2rem 1.5rem !important;
+    transform: none !important;
     justify-content: center;
+    gap: 2rem;
   }
 
-  .exp-text {
-    max-width: 100%;
-  }
-
+  .exp-text,
   .exp-image-wrapper {
-    max-width: 100%;
     width: 100%;
   }
 
@@ -471,34 +549,12 @@
     transform: none !important;
   }
 
-  /* On mobile, timeline moves to the left side */
-  .experience-items::before {
-    left: 20px;
-  }
-
-  .timeline-dot-marker {
-    left: 20px;
-    top: 3rem;
-    transform: translateX(-50%);
-  }
-
   .decor-syringe,
-  .decor-heartbeat {
-    opacity: 0.4;
-  }
+  .decor-heartbeat { opacity: 0.4; }
 }
 
 @media (max-width: 480px) {
-  .exp-item {
-    padding: 3rem 1.2rem 2rem;
-  }
-
-  .exp-item-title {
-    font-size: clamp(1.4rem, 6vw, 2rem);
-  }
-
-  .exp-description {
-    font-size: 0.95rem;
-  }
+  .exp-item-title  { font-size: clamp(1.4rem, 6vw, 2rem); }
+  .exp-description { font-size: 0.95rem; }
 }
 </style>
