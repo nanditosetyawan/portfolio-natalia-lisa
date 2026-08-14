@@ -44,6 +44,82 @@ export interface AboutVisualConfig {
     flexBasis: string;
     height: string;
   };
+  /* Background decorative rings */
+  bgRing1: {
+    width: string;
+    height: string;
+    top: string;
+    left: string;
+  };
+  bgRing2: {
+    width: string;
+    height: string;
+    bottom: string;
+    right: string;
+    boxShadow: string;
+  };
+  /* Foreground decorative elements */
+  decorDots: {
+    top: string;
+    right: string;
+    width: string;
+    height: string;
+    opacity: number;
+  };
+  decorSparkle1: {
+    top: string;
+    left: string;
+    color: string;
+    opacity: number;
+  };
+  decorSparkle2: {
+    bottom: string;
+    right: string;
+    color: string;
+    opacity: number;
+  };
+  decorArrow: {
+    top: string;
+    right: string;
+    opacity: number;
+  };
+  decorPlant: {
+    left: string;
+    bottom: string;
+    opacity: number;
+  };
+  /* Polaroid frames */
+  frameBack1: {
+    width: string;
+    height: string;
+    top: string;
+    left: string;
+    transformRotate: string;
+    zIndex: number;
+  };
+  frameBack2: {
+    width: string;
+    height: string;
+    bottom: string;
+    right: string;
+    transformRotate: string;
+    zIndex: number;
+  };
+  frameMain: {
+    width: string;
+    height: string;
+    top: string;
+    left: string;
+    transformRotate: string;
+    zIndex: number;
+  };
+  scrollArrow: {
+    bottom: string;
+    color: string;
+    border: string;
+    width: string;
+    height: string;
+  };
 }
 
 export const defaultAboutConfig: AboutVisualConfig = {
@@ -90,5 +166,78 @@ export const defaultAboutConfig: AboutVisualConfig = {
   visual: {
     flexBasis: '56%',
     height: '640px'
+  },
+  bgRing1: {
+    width: '260px',
+    height: '260px',
+    top: '-70px',
+    left: '-70px'
+  },
+  bgRing2: {
+    width: '320px',
+    height: '320px',
+    bottom: '10%',
+    right: '-110px',
+    boxShadow: 'inset 0 0 0 1.5px rgba(220, 190, 170, 0.14)'
+  },
+  decorDots: {
+    top: '3.25rem',
+    right: '4.5rem',
+    width: '84px',
+    height: '84px',
+    opacity: 0.5
+  },
+  decorSparkle1: {
+    top: '22%',
+    left: '5%',
+    color: '#FF9A86',
+    opacity: 1
+  },
+  decorSparkle2: {
+    bottom: '24%',
+    right: '10%',
+    color: '#D62828',
+    opacity: 1
+  },
+  decorArrow: {
+    top: '34%',
+    right: '6%',
+    opacity: 0.85
+  },
+  decorPlant: {
+    left: '1.5rem',
+    bottom: '1.5rem',
+    opacity: 0.9
+  },
+  frameBack1: {
+    width: '210px',
+    height: '252px',
+    top: '2%',
+    left: '4%',
+    transformRotate: '-6deg',
+    zIndex: 1
+  },
+  frameBack2: {
+    width: '230px',
+    height: '272px',
+    bottom: '4%',
+    right: '2%',
+    transformRotate: '7deg',
+    zIndex: 1
+  },
+  frameMain: {
+    width: '300px',
+    height: '380px',
+    top: '15%',
+    left: '42%',
+    transformRotate: '1.5deg',
+    zIndex: 3
+  },
+  scrollArrow: {
+    bottom: '5.25rem',
+    color: '#FF9A86',
+    border: '2px solid #FF9A86',
+    width: '46px',
+    height: '46px'
   }
 }

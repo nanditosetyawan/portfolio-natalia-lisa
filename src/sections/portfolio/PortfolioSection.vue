@@ -60,7 +60,7 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
       <!-- Decorative Elements -->
       <div class="decorative-layer" aria-hidden="true">
         <!-- Stethoscope -->
-        <div class="decor-stethoscope">
+        <div class="decor-stethoscope" :style="{ top: vConfig.decorStethoscope.top, left: vConfig.decorStethoscope.left, transform: 'rotate(' + vConfig.decorStethoscope.transformRotate + ')', opacity: vConfig.decorStethoscope.opacity }">
           <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
             <path d="M40 15 C40 15 30 10 20 20 C10 30 15 45 25 50 C30 52 35 55 40 60 C45 55 50 52 55 50 C65 45 70 30 60 20 C50 10 40 15 40 15Z" stroke="rgba(255,240,190,0.3)" stroke-width="2" fill="none"/>
             <circle cx="40" cy="65" r="6" stroke="rgba(255,240,190,0.3)" stroke-width="2" fill="none"/>
@@ -69,7 +69,7 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
         </div>
 
         <!-- ECG/Heartbeat -->
-        <div class="decor-ecg">
+        <div class="decor-ecg" :style="{ top: vConfig.decorEcg.top, left: vConfig.decorEcg.left, opacity: vConfig.decorEcg.opacity }">
           <svg width="100" height="40" viewBox="0 0 100 40" fill="none">
             <polyline points="0,20 15,20 25,5 35,35 45,15 55,25 65,20 100,20" stroke="rgba(255,240,190,0.35)" stroke-width="2" fill="none"/>
           </svg>
@@ -87,26 +87,26 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
         </div>
 
         <!-- Pill -->
-        <div class="decor-pill">
+        <div class="decor-pill" :style="{ top: vConfig.decorPill.top, right: vConfig.decorPill.right, transform: 'rotate(' + vConfig.decorPill.transformRotate + ')', color: vConfig.decorPill.color }">
           <Pill :size="36" :stroke-width="1.5" />
         </div>
 
         <!-- Circles -->
-        <div class="decor-circle circle-1"></div>
-        <div class="decor-circle circle-2"></div>
-        <div class="decor-circle circle-3"></div>
+        <div class="decor-circle circle-1" :style="{ opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
+        <div class="decor-circle circle-2" :style="{ top: vConfig.decorCircle1.top, right: vConfig.decorCircle1.right, width: vConfig.decorCircle1.width, height: vConfig.decorCircle1.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
+        <div class="decor-circle circle-3" :style="{ bottom: vConfig.decorCircle3.bottom, left: vConfig.decorCircle3.left, width: vConfig.decorCircle3.width, height: vConfig.decorCircle3.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
 
         <!-- Sparkles -->
-        <div class="decor-sparkle sparkle-1">
+        <div class="decor-sparkle sparkle-1" :style="{ top: vConfig.decorSparkle1.top, left: vConfig.decorSparkle1.left, width: vConfig.decorSparkle1.width, height: vConfig.decorSparkle1.height }">
           <Sparkles :size="14" :stroke-width="1.5" />
         </div>
-        <div class="decor-sparkle sparkle-2">
+        <div class="decor-sparkle sparkle-2" :style="{ top: vConfig.decorSparkle2.top, right: vConfig.decorSparkle2.right, width: vConfig.decorSparkle2.width, height: vConfig.decorSparkle2.height }">
           <Sparkles :size="10" :stroke-width="1.5" />
         </div>
       </div>
 
-      <!-- Scroll Arrow -->
-      <a href="#about" class="scroll-arrow" aria-label="Scroll to About section">
+      <!-- Scroll Arrow -->`
+      <a href="#about" class="scroll-arrow" aria-label="Scroll to About section" :style="{ bottom: vConfig.scrollArrow.bottom, left: vConfig.scrollArrow.left, color: vConfig.scrollArrow.color }">
         <ArrowDown :size="28" :stroke-width="1.5" />
       </a>
     </main>
@@ -193,102 +193,38 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
 /* Stethoscope */
 .decor-stethoscope {
   position: absolute;
-  top: 7%;
-  left: 3%;
-  transform: rotate(-12deg);
-  opacity: 0.85;
 }
 
 /* ECG */
 .decor-ecg {
   position: absolute;
-  top: 35%;
-  left: 3%;
-  opacity: 0.75;
 }
 
 /* Crosses */
 .decor-cross {
   position: absolute;
-  color: rgba(255, 240, 190, 0.25);
-}
-
-.cross-1 {
-  top: 14%;
-  right: 10%;
-}
-
-.cross-2 {
-  top: 60%;
-  left: 7%;
-}
-
-.cross-3 {
-  bottom: 24%;
-  right: 5%;
 }
 
 /* Pill */
 .decor-pill {
   position: absolute;
-  top: 40%;
-  right: 7%;
-  color: rgba(255, 240, 190, 0.28);
-  transform: rotate(20deg);
 }
 
 /* Circles */
 .decor-circle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(120, 40, 40, 0.35);
   filter: blur(60px);
-  opacity: 0.6;
-}
-
-.circle-1 {
-  top: 4%;
-  right: 6%;
-  width: 300px;
-  height: 300px;
-}
-
-.circle-2 {
-  top: 42%;
-  left: -4%;
-  width: 380px;
-  height: 380px;
-}
-
-.circle-3 {
-  bottom: 6%;
-  left: 10%;
-  width: 280px;
-  height: 280px;
 }
 
 /* Sparkles */
 .decor-sparkle {
   position: absolute;
-  color: rgba(255, 240, 190, 0.35);
-}
-
-.sparkle-1 {
-  top: 32%;
-  left: 20%;
-}
-
-.sparkle-2 {
-  top: 28%;
-  right: 22%;
 }
 
 /* Scroll Arrow */
 .scroll-arrow {
   position: absolute;
-  bottom: 2.5rem;
-  left: 50%;
-  transform: translateX(-50%);
   color: #FFF0BE;
   text-decoration: none;
   display: flex;

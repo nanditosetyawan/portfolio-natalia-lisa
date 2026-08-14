@@ -1,5 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { defaultContact } from '../../data/default/contact'
+import { defaultContactConfig as vConfig } from '../../data/default/visual/contact'
+
+// Computed styles for TypeScript compatibility
+const sectionStyle = computed(() => ({
+  backgroundColor: vConfig.section.backgroundColor,
+  minHeight: vConfig.section.minHeight,
+  overflow: vConfig.section.overflow,
+  display: vConfig.section.display,
+  flexDirection: vConfig.section.flexDirection,
+  alignItems: vConfig.section.alignItems,
+  justifyContent: vConfig.section.justifyContent
+} as any))
+
+const contentStyle = computed(() => ({
+  flexDirection: vConfig.container.flexDirection,
+  alignItems: vConfig.container.alignItems,
+  justifyContent: vConfig.container.justifyContent
+} as any))
 </script>
 
 <template>
@@ -7,14 +26,7 @@ import { defaultContact } from '../../data/default/contact'
     id="contact"
     class="contact-section"
     aria-label="Contact section"
-    :style="{
-      backgroundColor: vConfig.section.backgroundColor,
-      overflow: vConfig.section.overflow,
-      display: vConfig.section.display,
-      flexDirection: vConfig.section.flexDirection,
-      alignItems: vConfig.section.alignItems,
-      justifyContent: vConfig.section.justifyContent
-    }"
+    :style="sectionStyle"
   >
     <!-- Background medical icon pattern -->
     <div class="contact-bg-pattern" aria-hidden="true">
@@ -89,12 +101,7 @@ import { defaultContact } from '../../data/default/contact'
     <!-- Main content wrapper -->
     <div
       class="contact-content"
-      :style="{
-        flexDirection: vConfig.container.flexDirection,
-        alignItems: vConfig.container.alignItems,
-        justifyContent: vConfig.container.justifyContent,
-        minHeight: vConfig.section.minHeight
-      }"
+      :style="contentStyle"
     >
       <!-- Left: text block -->
       <div

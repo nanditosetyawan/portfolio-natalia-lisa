@@ -39,6 +39,27 @@ export interface ExperienceVisualConfig {
     borderRadius: string;
     boxShadow: string;
   };
+  /* Background decorations */
+  decorSyringe: {
+    width: string;
+    height: string;
+    color: string;
+  };
+  decorHeartbeat: {
+    width: string;
+    height: string;
+    color: string;
+  };
+  decorDots: {
+    width: string;
+    height: string;
+    color: string;
+  };
+  decorCircle: {
+    width: string;
+    height: string;
+    color: string;
+  };
 }
 
 export const defaultExperienceConfig: ExperienceVisualConfig = {
@@ -80,5 +101,25 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
     maxWidth: '380px',
     borderRadius: '8px',
     boxShadow: '0 20px 40px rgba(61, 40, 34, 0.12), 0 8px 16px rgba(61, 40, 34, 0.08)'
+  },
+  decorSyringe: {
+    width: '80px',
+    height: '120px',
+    color: '#8D363A'
+  },
+  decorHeartbeat: {
+    width: '120px',
+    height: '40px',
+    color: '#D62828'
+  },
+  decorDots: {
+    width: '100px',
+    height: '100px',
+    color: '#FF9A86'
+  },
+  decorCircle: {
+    width: '300px',
+    height: '300px',
+    color: 'rgba(255, 214, 166, 0.2)'
   }
 }

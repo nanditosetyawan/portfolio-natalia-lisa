@@ -24,6 +24,41 @@ export interface EducationVisualConfig {
   scrollIndicator: {
     color: string;
   };
+  /* Decorative elements */
+  decorPill: {
+    top: string;
+    left: string;
+    transformRotate: string;
+    color: string;
+  };
+  decorSyringe: {
+    top: string;
+    right: string;
+    transformRotate: string;
+    color: string;
+  };
+  decorSparkle1: {
+    top: string;
+    left: string;
+    color: string;
+  };
+  decorSparkle2: {
+    top: string;
+    right: string;
+    color: string;
+  };
+  decorRing1: {
+    width: string;
+    height: string;
+    top: string;
+    right: string;
+  };
+  decorRing2: {
+    width: string;
+    height: string;
+    bottom: string;
+    left: string;
+  };
 }
 
 export const defaultEducationConfig: EducationVisualConfig = {
@@ -50,5 +85,39 @@ export const defaultEducationConfig: EducationVisualConfig = {
   },
   scrollIndicator: {
     color: '#8D363A'
+  },
+  decorPill: {
+    top: '42%',
+    left: '8%',
+    transformRotate: '-28deg',
+    color: 'rgba(255, 179, 153, 0.45)'
+  },
+  decorSyringe: {
+    top: '38%',
+    right: '7%',
+    transformRotate: '18deg',
+    color: 'rgba(255, 179, 153, 0.4)'
+  },
+  decorSparkle1: {
+    top: '22%',
+    left: '22%',
+    color: 'rgba(141, 54, 58, 0.35)'
+  },
+  decorSparkle2: {
+    top: '70%',
+    right: '20%',
+    color: 'rgba(141, 54, 58, 0.28)'
+  },
+  decorRing1: {
+    width: '280px',
+    height: '280px',
+    top: '-80px',
+    right: '-80px'
+  },
+  decorRing2: {
+    width: '200px',
+    height: '200px',
+    bottom: '-50px',
+    left: '-60px'
   }
 }

@@ -14,6 +14,7 @@ export interface SHSVisualConfig {
     color: string;
     fontSize: string;
     fontWeight: number;
+    letterSpacing: string;
     fontFamily: string;
     marginBottom: string;
   };
@@ -21,6 +22,8 @@ export interface SHSVisualConfig {
     color: string;
     fontSize: string;
     fontWeight: number;
+    lineHeight: number;
+    letterSpacing: string;
     fontFamily: string;
   };
   calendar: {
@@ -63,6 +66,39 @@ export interface SHSVisualConfig {
     fontWeight: number;
     fontFamily: string;
   };
+  /* Dot grids */
+  dotGrid: {
+    width: string;
+    height: string;
+    opacity: number;
+  };
+  dotGridTopLeft: {
+    top: string;
+    left: string;
+  };
+  dotGridBottomRight: {
+    bottom: string;
+    right: string;
+  };
+  /* Organic background shape */
+  organicShape: {
+    top: string;
+    right: string;
+    width: string;
+    height: string;
+    opacity: number;
+  };
+  /* Sparkles */
+  sparkles: {
+    top: string;
+    right: string;
+  };
+  /* Curved arrow */
+  arrow: {
+    top: string;
+    right: string;
+    opacity: number;
+  };
 }
 
 export const defaultSHSConfig: SHSVisualConfig = {
@@ -80,6 +116,7 @@ export const defaultSHSConfig: SHSVisualConfig = {
     color: '#FF9A86',
     fontSize: '1.15rem',
     fontWeight: 700,
+    letterSpacing: '0.04em',
     fontFamily: "'Inter', system-ui, sans-serif",
     marginBottom: '0.25rem'
   },
@@ -87,6 +124,8 @@ export const defaultSHSConfig: SHSVisualConfig = {
     color: '#8D363A',
     fontSize: 'clamp(2.5rem, 5vw, 4rem)',
     fontWeight: 700,
+    lineHeight: 1.05,
+    letterSpacing: '-0.01em',
     fontFamily: "Georgia, 'Times New Roman', serif"
   },
   calendar: {
@@ -126,5 +165,34 @@ export const defaultSHSConfig: SHSVisualConfig = {
     fontSize: 'clamp(4rem, 5vw, 6rem)',
     fontWeight: 800,
     fontFamily: "'Inter', system-ui, sans-serif"
+  },
+  dotGrid: {
+    width: '80px',
+    height: '80px',
+    opacity: 0.45
+  },
+  dotGridTopLeft: {
+    top: '3rem',
+    left: '3rem'
+  },
+  dotGridBottomRight: {
+    bottom: '4rem',
+    right: '3rem'
+  },
+  organicShape: {
+    top: '-80px',
+    right: '-60px',
+    width: '300px',
+    height: '300px',
+    opacity: 0.12
+  },
+  sparkles: {
+    top: '8%',
+    right: '12%'
+  },
+  arrow: {
+    top: '42%',
+    right: '8%',
+    opacity: 0.85
   }
 }

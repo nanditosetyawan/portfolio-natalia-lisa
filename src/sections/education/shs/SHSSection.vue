@@ -5,7 +5,14 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 </script>
 
 <template>
-  <section class="shs-section">
+  <section
+    class="shs-section"
+    :style="{
+      backgroundColor: vConfig.section.backgroundColor,
+      minHeight: vConfig.section.minHeight,
+      zIndex: vConfig.section.zIndex
+    }"
+  >
     <div class="shs-container">
       <!-- Dot grid top-left -->
       <div class="shs-dot-grid dots-tl" aria-hidden="true"></div>
@@ -70,14 +77,40 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
           </svg>
         </div>
 
-        <!-- Right content — info block (group for drag) -->
+<!-- Right content — info block (group for drag) -->
         <div class="shs-content">
-          <span class="shs-label">{{ defaultSHS.items[0].label }}</span>
-          <h2 class="shs-school">{{ defaultSHS.items[0].school }}</h2>
+          <span
+            class="shs-label"
+            :style="{
+              color: vConfig.label.color,
+              fontSize: vConfig.label.fontSize,
+              fontWeight: vConfig.label.fontWeight,
+              letterSpacing: vConfig.label.letterSpacing,
+              fontFamily: vConfig.label.fontFamily
+            }"
+          >{{ defaultSHS.items[0].label }}</span>
+          <h2
+            class="shs-school"
+            :style="{
+              color: vConfig.school.color,
+              fontSize: vConfig.school.fontSize,
+              fontWeight: vConfig.school.fontWeight,
+              lineHeight: vConfig.school.lineHeight,
+              letterSpacing: vConfig.school.letterSpacing,
+              fontFamily: vConfig.school.fontFamily
+            }"
+          >{{ defaultSHS.items[0].school }}</h2>
 
           <div class="shs-calendar">
             <Calendar :size="22" :stroke-width="1.8" />
-            <span>{{ defaultSHS.items[0].period }}</span>
+            <span
+              :style="{
+                color: vConfig.calendar.color,
+                fontSize: vConfig.calendar.fontSize,
+                fontWeight: vConfig.calendar.fontWeight,
+                fontFamily: vConfig.calendar.family
+              }"
+            >{{ defaultSHS.items[0].period }}</span>
           </div>
 
           <div class="shs-separator" aria-hidden="true">
@@ -86,7 +119,16 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             <span class="sep-line"></span>
           </div>
 
-          <p class="shs-desc">
+          <p
+            class="shs-desc"
+            :style="{
+              color: vConfig.description.color,
+              fontSize: vConfig.description.fontSize,
+              fontWeight: vConfig.description.fontWeight,
+              lineHeight: vConfig.description.lineHeight,
+              fontFamily: vConfig.description.fontFamily
+            }"
+          >
             {{ defaultSHS.items[0].description }}
           </p>
         </div>
