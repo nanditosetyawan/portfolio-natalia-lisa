@@ -154,7 +154,7 @@ const handleKeydown = (e: KeyboardEvent) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(90, 62, 53, 0.5);
+  background-color: rgba(15, 23, 42, 0.5);
   z-index: 99;
   opacity: 1;
   pointer-events: auto;
@@ -229,7 +229,7 @@ const handleKeydown = (e: KeyboardEvent) => {
   transition: background-color 0.2s ease;
 }
 
-.admin-sidebar.drawer .hamburger-btn {
+.admin-sidebar.open .hamburger-btn {
   display: flex;
 }
 

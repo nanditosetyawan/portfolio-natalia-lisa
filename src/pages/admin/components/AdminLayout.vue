@@ -3,7 +3,7 @@
     <AdminSidebar
       :items="sidebarItems"
       :active-path="route.path"
-      :is-drawer="isDrawerMode"
+      :is-drawer="true"
       :is-open="sidebarOpen"
       @close="sidebarOpen = false"
       @logout="handleLogout"
@@ -11,11 +11,11 @@
     
     <div
       class="dashboard-content"
-      :class="{ dimmed: isDrawerMode && sidebarOpen }"
+      :class="{ dimmed: sidebarOpen }"
     >
       <AdminHeader
         :title="pageTitle"
-        :show-hamburger="isDashboard"
+        show-hamburger
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
       />
       <main class="admin-content">
@@ -34,9 +34,6 @@ import AdminHeader from './AdminHeader.vue'
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
-
-const isDashboard = computed(() => route.path === '/admin')
-const isDrawerMode = computed(() => isDashboard.value)
 
 const sidebarItems = [
   { path: '/admin', label: 'Dashboard', icon: 'layout-dashboard' },
