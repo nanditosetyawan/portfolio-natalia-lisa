@@ -34,7 +34,7 @@ defineEmits(['toggle-sidebar'])
 <style scoped>
 .admin-header {
   height: 72px;
-  background: #FAF3E0;
+  background: #F6F4E8;
   border-bottom: 1px solid #E8DED0;
   display: flex;
   align-items: center;

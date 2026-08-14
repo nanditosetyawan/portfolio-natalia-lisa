@@ -15,16 +15,40 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
   >
     <div class="shs-container">
       <!-- Dot grid top-left -->
-      <div class="shs-dot-grid dots-tl" aria-hidden="true"></div>
+      <div class="shs-dot-grid dots-tl" aria-hidden="true" :style="{
+        width: `${vConfig.dotGrid.width}`,
+        height: `${vConfig.dotGrid.height}`,
+        opacity: vConfig.dotGrid.opacity,
+        top: vConfig.dotGridTopLeft.top,
+        left: vConfig.dotGridTopLeft.left
+      }"></div>
       <!-- Dot grid bottom-right -->
-      <div class="shs-dot-grid dots-br" aria-hidden="true"></div>
+      <div class="shs-dot-grid dots-br" aria-hidden="true" :style="{
+        width: `${vConfig.dotGrid.width}`,
+        height: `${vConfig.dotGrid.height}`,
+        opacity: vConfig.dotGrid.opacity,
+        bottom: vConfig.dotGridBottomRight.bottom,
+        right: vConfig.dotGridBottomRight.right
+      }"></div>
       <!-- Subtle organic shape top-right -->
-      <div class="shs-organic" aria-hidden="true"></div>
+      <div class="shs-organic" aria-hidden="true" :style="{
+        top: vConfig.organicShape.top,
+        right: vConfig.organicShape.right,
+        width: vConfig.organicShape.width,
+        height: vConfig.organicShape.height,
+        opacity: vConfig.organicShape.opacity
+      }"></div>
 
       <!-- Left visual — polaroid frames -->
       <div class="shs-visual">
         <!-- Back frame (larger, rotated left) -->
-        <div class="polaroid frame-back" aria-hidden="true">
+        <div class="polaroid frame-back" aria-hidden="true" :style="{
+          width: vConfig.frameBack.width,
+          height: vConfig.frameBack.height,
+          top: vConfig.frameBack.top,
+          left: vConfig.frameBack.left,
+          transform: `rotate(${vConfig.frameBack.transformRotate})`
+        }">
           <div class="polaroid-photo landscape-placeholder">
             <svg viewBox="0 0 280 220" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
               <rect width="280" height="220" fill="#C8E3F4"/>
@@ -36,11 +60,23 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-tl" aria-hidden="true"></div>
+          <div class="tape tape-tl" aria-hidden="true" :style="{
+            width: `${vConfig.tapeTl.width}`,
+            height: `${vConfig.tapeTl.height}`,
+            top: vConfig.tapeTl.top,
+            left: vConfig.tapeTl.left,
+            transform: `rotate(${vConfig.tapeTl.transformRotate})`
+          }"></div>
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
-        <div class="polaroid frame-front">
+        <div class="polaroid frame-front" :style="{
+          width: vConfig.frameFront.width,
+          height: vConfig.frameFront.height,
+          bottom: vConfig.frameFront.bottom,
+          right: vConfig.frameFront.right,
+          transform: `rotate(${vConfig.frameFront.transformRotate})`
+        }">
           <div class="polaroid-photo landscape-placeholder">
             <svg viewBox="0 0 240 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
               <rect width="240" height="180" fill="#C8E3F4"/>
@@ -51,12 +87,26 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-br" aria-hidden="true"></div>
+          <div class="tape tape-br" aria-hidden="true" :style="{
+            width: `${vConfig.tapeBr.width}`,
+            height: `${vConfig.tapeBr.height}`,
+            bottom: vConfig.tapeBr.bottom,
+            right: vConfig.tapeBr.right,
+            transform: `rotate(${vConfig.tapeBr.transformRotate})`
+          }"></div>
         </div>
       </div>
 
       <!-- Decorative large SHS text (left side) -->
-      <div class="shs-deco-text" aria-hidden="true">
+      <div class="shs-deco-text" aria-hidden="true" :style="{
+        top: vConfig.decoText.top,
+        left: vConfig.decoText.left,
+        transform: `rotate(${vConfig.decoText.transformRotate})`,
+        color: vConfig.decoText.color,
+        fontSize: vConfig.decoText.fontSize,
+        fontWeight: vConfig.decoText.fontWeight,
+        fontFamily: vConfig.decoText.fontFamily
+      }">
         <span>S</span><span>H</span><span>S</span>
         <div class="deco-sparkles">
           <span></span><span></span><span></span>
@@ -64,13 +114,20 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
       </div>
 
       <!-- Sparkles upper-right -->
-        <div class="shs-sparkles" aria-hidden="true">
+        <div class="shs-sparkles" aria-hidden="true" :style="{
+          top: vConfig.sparkles.top,
+          right: vConfig.sparkles.right
+        }">
           <Sparkles :size="16" :stroke-width="1.5" />
           <Sparkles :size="12" :stroke-width="1.5" />
         </div>
 
         <!-- Curved arrow decoration (right side) -->
-        <div class="shs-arrow" aria-hidden="true">
+        <div class="shs-arrow" aria-hidden="true" :style="{
+          right: vConfig.arrow.right,
+          top: vConfig.arrow.top,
+          opacity: vConfig.arrow.opacity
+        }">
           <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
             <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
             <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -161,34 +218,22 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 /* ===== Dot grids ===== */
 .shs-dot-grid {
   position: absolute;
-  width: 80px;
-  height: 80px;
-  background-image: radial-gradient(#FF9A86 2.2px, transparent 2.2px);
-  background-size: 14px 14px;
-  opacity: 0.45;
   z-index: 1;
 }
 
 .dots-tl {
-  top: 3rem;
-  left: 3rem;
+  top: 0;
+  left: 0;
 }
 
 .dots-br {
-  bottom: 4rem;
-  right: 3rem;
+  bottom: 0;
+  right: 0;
 }
 
 /* Subtle organic shape top-right */
 .shs-organic {
   position: absolute;
-  top: -80px;
-  right: -60px;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: rgba(255, 182, 153, 0.12);
-  filter: blur(40px);
   z-index: 0;
 }
 
@@ -223,32 +268,19 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 
 .tape {
   position: absolute;
-  width: 80px;
-  height: 24px;
   background: rgba(196, 204, 141, 0.78);
   box-shadow: 0 1px 2px rgba(61, 40, 34, 0.12);
   z-index: 9;
 }
 
 .tape-tl {
-  top: -12px;
-  left: 10%;
-  transform: rotate(-5deg);
 }
 
 .tape-br {
-  bottom: 44px;
-  right: 10%;
-  transform: rotate(3deg);
 }
 
 /* Back frame — larger, behind */
 .frame-back {
-  width: 310px;
-  height: 350px;
-  top: 5%;
-  left: 5%;
-  transform: rotate(-7deg);
   z-index: 6;
   padding: 12px 12px 0;
   display: flex;
@@ -261,11 +293,6 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 
 /* Front frame — smaller, in front */
 .frame-front {
-  width: 250px;
-  height: 290px;
-  bottom: 8%;
-  right: 5%;
-  transform: rotate(5deg);
   z-index: 7;
   padding: 12px 12px 0;
   display: flex;
@@ -279,18 +306,11 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 /* ===== Decorative large SHS text ===== */
 .shs-deco-text {
   position: absolute;
-  top: 14%;
-  left: 5%;
-  z-index: 100; /* Di atas polaroid frames (frame-back:6, frame-front:7) */
+  z-index: 100;
   display: flex;
   align-items: flex-start;
   gap: 0;
-  transform: rotate(-6deg);
-  color: #FF9A86;
-  font-size: clamp(4rem, 5vw, 6rem);
-  font-weight: 800;
   line-height: 0.85;
-  font-family: 'Inter', system-ui, sans-serif;
   text-shadow: 2px 2px 0 rgba(141, 54, 58, 0.15);
   pointer-events: none;
 }

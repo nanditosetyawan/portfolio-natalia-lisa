@@ -66,7 +66,7 @@ const pageTitle = computed(() => {
 .admin-layout {
   position: relative;
   min-height: 100vh;
-  background-color: #FAF3E0;
+  background-color: #F6F4E8;
   overflow: hidden;
 }
 

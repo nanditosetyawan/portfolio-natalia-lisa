@@ -17,7 +17,7 @@
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
               <rect width="32" height="32" rx="4" fill="#5A3E35"/>
               <rect x="8" y="8" width="16" height="16" rx="2" fill="#7B5F3B"/>
-              <rect x="12" y="12" width="8" height="8" rx="1" fill="#FAF3E0"/>
+              <rect x="12" y="12" width="8" height="8" rx="1" fill="#F6F4E8"/>
             </svg>
           </div>
           <span class="brand-text">Tali-Temali</span>
@@ -164,7 +164,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 .admin-sidebar {
   width: 260px;
   height: 100vh;
-  background-color: #FAF3E0;
+  background-color: #F6F4E8;
   border-right: 1px solid #E8DED0;
   display: flex;
   flex-direction: column;

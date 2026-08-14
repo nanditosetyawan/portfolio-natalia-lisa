@@ -136,46 +136,47 @@
 <style scoped>
 .dashboard {
   min-height: 100vh;
-  background-color: #FAF3E0;
+  background-color: #F6F4E8;
   font-family: 'Inter', system-ui, sans-serif;
 }
 
 .dashboard-main {
   padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .dashboard-row1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  max-width: 1400px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
 .dashboard-row2 {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 2rem;
-  max-width: 1400px;
+  gap: 20px;
 }
 
 .card {
   background-color: #FFFFFF;
-  border-radius: 20px;
-  padding: 1.5rem;
+  border-radius: 28px;
+  padding: 24px;
   position: relative;
   box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.05);
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
 }
 
 .card-image {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 0.75rem;
   background-color: #FFF5EB;
   display: flex;
   align-items: center;
@@ -184,6 +185,8 @@
 
 .card-image .illustration {
   opacity: 0.7;
+  width: 40px;
+  height: 40px;
 }
 
 .card-content {
@@ -225,19 +228,10 @@
 }
 
 .card-bottom {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid #F0E7DC;
-}
-
-.card-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.1rem;
-  padding: 0.15rem 0.3rem;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
   background-color: #FFE4B5;
   border-radius: 12px;
   font-size: 0.625rem;
@@ -245,43 +239,27 @@
   color: #B45F04;
 }
 
-.card-pill svg {
+.card-bottom svg {
   width: 10px;
   height: 10px;
 }
 
 .card-clock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.card-clock-heading {
-  margin: 0;
-  font-weight: 600;
-  color: #5A3E35;
-  font-size: 0.875rem;
+  flex-direction: row;
 }
 
 .card-clock-desc {
-  display: flex;
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: 1.125rem;
+  font-weight: 700;
   color: #5A3E35;
   line-height: 1.2;
-  letter-spacing: -0.02em;
-  background-color: #FFF5EB;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
-  align-self: flex-start;
 }
 
 .card-clock-labels {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.45rem;
+  gap: 0.75rem;
+  font-size: 0.75rem;
   color: #7B5F3B;
-  margin-top: 0.1rem;
 }
 
 .card-clock-labels span {
@@ -289,11 +267,15 @@
 }
 
 .card-favorite {
-  display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
   align-items: center;
   text-align: center;
+}
+
+.card-favorite .card-image,
+.card-favorite .card-content {
+  width: 100%;
 }
 
 .card-favorite-title {
@@ -305,7 +287,7 @@
 
 .card-favorite-desc {
   margin: 0;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: #7B5F3B;
 }
 
@@ -314,13 +296,13 @@
   .dashboard-main {
     padding: 1.5rem;
   }
-  
+
   .dashboard-row1,
   .dashboard-row2 {
     grid-template-columns: 1fr;
     margin-bottom: 1rem;
   }
-  
+
   .dashboard-row2 {
     grid-template-columns: 1fr;
   }

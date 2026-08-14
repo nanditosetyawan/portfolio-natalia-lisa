@@ -21,11 +21,29 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
       }"
     >
       <!-- Dot grid top-left -->
-      <div class="college-dot-grid dots-tl" aria-hidden="true"></div>
+      <div class="college-dot-grid dots-tl" aria-hidden="true" :style="{
+        width: `${vConfig.dotGrid.width}`,
+        height: `${vConfig.dotGrid.height}`,
+        opacity: vConfig.dotGrid.opacity,
+        top: vConfig.dotGridTopLeft.top,
+        left: vConfig.dotGridTopLeft.left
+      }"></div>
       <!-- Dot grid bottom-right -->
-      <div class="college-dot-grid dots-br" aria-hidden="true"></div>
+      <div class="college-dot-grid dots-br" aria-hidden="true" :style="{
+        width: `${vConfig.dotGrid.width}`,
+        height: `${vConfig.dotGrid.height}`,
+        opacity: vConfig.dotGrid.opacity,
+        bottom: vConfig.dotGridBottomRight.bottom,
+        right: vConfig.dotGridBottomRight.right
+      }"></div>
       <!-- Subtle circle bottom-right -->
-      <div class="college-circle" aria-hidden="true"></div>
+      <div class="college-circle" aria-hidden="true" :style="{
+        width: `${vConfig.circleDecor.width}`,
+        height: `${vConfig.circleDecor.height}`,
+        bottom: vConfig.circleDecor.bottom,
+        right: vConfig.circleDecor.right,
+        boxShadow: vConfig.circleDecor.boxShadow
+      }"></div>
 
         <div
         class="college-content"
@@ -88,9 +106,18 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
         </div>
 
       <!-- Right visual - polaroid frames -->
-      <div class="college-visual">
+      <div class="college-visual" :style="{
+        height: vConfig.visual.height
+      }">
         <!-- Back frame (larger, rotated left) -->
-        <div class="polaroid frame-back" aria-hidden="true">
+        <div class="polaroid frame-back" aria-hidden="true" :style="{
+          width: vConfig.frameBack.width,
+          height: vConfig.frameBack.height,
+          top: vConfig.frameBack.top,
+          left: vConfig.frameBack.left,
+          transform: `rotate(${vConfig.frameBack.transformRotate})`,
+          zIndex: vConfig.frameBack.zIndex
+        }">
           <div class="polaroid-photo landscape-placeholder">
             <svg viewBox="0 0 280 220" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
               <rect width="280" height="220" fill="#C8E3F4"/>
@@ -102,11 +129,24 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-tl" aria-hidden="true"></div>
+          <div class="tape tape-tl" aria-hidden="true" :style="{
+            width: vConfig.tapeTl.width,
+            height: vConfig.tapeTl.height,
+            top: vConfig.tapeTl.top,
+            left: vConfig.tapeTl.left,
+            transform: `rotate(${vConfig.tapeTl.transformRotate})`
+          }"></div>
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
-        <div class="polaroid frame-front">
+        <div class="polaroid frame-front" :style="{
+          width: vConfig.frameFront.width,
+          height: vConfig.frameFront.height,
+          bottom: vConfig.frameFront.bottom,
+          right: vConfig.frameFront.right,
+          transform: `rotate(${vConfig.frameFront.transformRotate})`,
+          zIndex: vConfig.frameFront.zIndex
+        }">
           <div class="polaroid-photo landscape-placeholder">
             <svg viewBox="0 0 240 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
               <rect width="240" height="180" fill="#C8E3F4"/>
@@ -117,12 +157,26 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-br" aria-hidden="true"></div>
+          <div class="tape tape-br" aria-hidden="true" :style="{
+            width: vConfig.tapeBr.width,
+            height: vConfig.tapeBr.height,
+            bottom: vConfig.tapeBr.bottom,
+            right: vConfig.tapeBr.right,
+            transform: `rotate(${vConfig.tapeBr.transformRotate})`
+          }"></div>
         </div>
       </div>
 
       <!-- Decorative COLLEGE text (large, rotated, top-right) -->
-      <div class="college-deco-text" aria-hidden="true">
+      <div class="college-deco-text" aria-hidden="true" :style="{
+        top: vConfig.decoText.top,
+        right: vConfig.decoText.right,
+        transform: `rotate(${vConfig.decoText.transformRotate})`,
+        color: vConfig.decoText.color,
+        fontSize: vConfig.decoText.fontSize,
+        fontWeight: vConfig.decoText.fontWeight,
+        fontFamily: vConfig.decoText.fontFamily
+      }">
         <span>C</span><span>O</span><span>L</span><span>L</span><span>E</span><span>G</span><span>E</span>
         <div class="deco-lines">
           <span></span><span></span><span></span>
@@ -130,7 +184,11 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
       </div>
 
       <!-- Curved arrow decoration -->
-      <div class="college-arrow" aria-hidden="true">
+      <div class="college-arrow" aria-hidden="true" :style="{
+        right: vConfig.arrow.right,
+        top: vConfig.arrow.top,
+        opacity: vConfig.arrow.opacity
+      }">
         <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
           <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
           <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -163,33 +221,22 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
 /* ===== Dot grids ===== */
 .college-dot-grid {
   position: absolute;
-  width: 80px;
-  height: 80px;
-  background-image: radial-gradient(#FF9A86 2.2px, transparent 2.2px);
-  background-size: 14px 14px;
-  opacity: 0.45;
   z-index: 1;
 }
 
 .dots-tl {
-  top: 3rem;
-  left: 3rem;
+  top: 0;
+  left: 0;
 }
 
 .dots-br {
-  bottom: 4rem;
-  right: 3rem;
+  bottom: 0;
+  right: 0;
 }
 
 /* Subtle circle */
 .college-circle {
   position: absolute;
-  width: 340px;
-  height: 340px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px rgba(220, 190, 170, 0.14);
-  bottom: -120px;
-  right: -100px;
   z-index: 0;
 }
 

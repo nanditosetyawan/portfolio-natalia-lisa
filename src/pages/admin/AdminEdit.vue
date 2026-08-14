@@ -250,7 +250,7 @@
 <style scoped>
 .edit-page {
   min-height: calc(100vh - 72px);
-  background-color: #f8fafc;
+  background-color: #F6F4E8;
   padding: 2rem;
   font-family: 'Inter', system-ui, sans-serif;
 }
@@ -301,12 +301,12 @@
   cursor: not-allowed;
 }
 
-.undo-btn { background-color: #1e293b; color: #ffffff; }
+.undo-btn { background-color: #5A3E35; color: #ffffff; }
 .undo-btn:hover:not(:disabled) { background-color: #0f172a; }
 
-.redo-btn { background-color: #94a3b8; color: #0f172a; }
+.redo-btn { background-color: #7B5F3B; color: #F6F4E8; }
 
-.save-btn, .preview-btn, .publish-btn { background-color: #0f172a; color: #ffffff; }
+.save-btn, .preview-btn, .publish-btn { background-color: #5A3E35; color: #ffffff; }
 .save-btn:hover:not(:disabled),
 .preview-btn:hover:not(:disabled),
 .publish-btn:hover:not(:disabled) { background-color: #1e293b; }
@@ -401,7 +401,7 @@
   width: 100%;
   height: 0.5rem;
   -webkit-appearance: none;
-  background: #e2e8f0;
+  background: #F6F4E8;
   border-radius: 9999px;
   outline: none;
   margin: 0.25rem 0;
