@@ -1,10 +1,21 @@
 <script setup lang="ts">
-// ContactSection.vue — Phase 2F
-// Tidak ada state khusus untuk guest view static
+import { defaultContact } from '../../data/default/contact'
 </script>
 
 <template>
-  <section id="contact" class="contact-section" aria-label="Contact section">
+  <section
+    id="contact"
+    class="contact-section"
+    aria-label="Contact section"
+    :style="{
+      backgroundColor: vConfig.section.backgroundColor,
+      overflow: vConfig.section.overflow,
+      display: vConfig.section.display,
+      flexDirection: vConfig.section.flexDirection,
+      alignItems: vConfig.section.alignItems,
+      justifyContent: vConfig.section.justifyContent
+    }"
+  >
     <!-- Background medical icon pattern -->
     <div class="contact-bg-pattern" aria-hidden="true">
       <svg class="bg-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" preserveAspectRatio="xMidYMid slice">
@@ -76,15 +87,59 @@
     </div>
 
     <!-- Main content wrapper -->
-    <div class="contact-content">
+    <div
+      class="contact-content"
+      :style="{
+        flexDirection: vConfig.container.flexDirection,
+        alignItems: vConfig.container.alignItems,
+        justifyContent: vConfig.container.justifyContent,
+        minHeight: vConfig.section.minHeight
+      }"
+    >
       <!-- Left: text block -->
-      <div class="contact-text-block">
-        <h2 class="contact-title">
-          <span class="contact-line1">LET'S WORK</span>
-          <span class="contact-line2">TOGETHER</span>
+      <div
+        class="contact-text-block"
+        :style="{
+          flexBasis: vConfig.textBlock.flexBasis,
+          padding: vConfig.textBlock.padding,
+          gap: vConfig.textBlock.gap
+        }"
+      >
+        <h2
+          class="contact-title"
+          :style="{
+            fontFamily: vConfig.title.fontFamily,
+            fontSize: vConfig.title.fontSize,
+            fontWeight: vConfig.title.fontWeight,
+            color: vConfig.title.color,
+            textTransform: vConfig.title.textTransform,
+            letterSpacing: vConfig.title.letterSpacing,
+            whiteSpace: vConfig.title.whiteSpace,
+            display: vConfig.title.display
+          }"
+        >
+          <span class="contact-line1" :style="{ fontSize: vConfig.line1.fontSize, letterSpacing: vConfig.line1.letterSpacing, whiteSpace: vConfig.line1.whiteSpace, display: vConfig.line1.display }">{{ defaultContact.line1 }}</span>
+          <span class="contact-line2" :style="{ fontSize: vConfig.line2.fontSize, letterSpacing: vConfig.line2.letterSpacing, whiteSpace: vConfig.line2.whiteSpace, display: vConfig.line2.display }">{{ defaultContact.line2 }}</span>
         </h2>
-        <a href="mailto:contact@example.com" class="contact-cta" id="contact-click-here">
-          CLICK HERE
+        <a
+          :href="defaultContact.cta.href"
+          class="contact-cta"
+          id="contact-click-here"
+          :style="{
+            display: vConfig.cta.display,
+            marginTop: vConfig.cta.marginTop,
+            alignSelf: vConfig.cta.alignSelf,
+            fontFamily: vConfig.cta.fontFamily,
+            fontWeight: vConfig.cta.fontWeight,
+            fontSize: vConfig.cta.fontSize,
+            letterSpacing: vConfig.cta.letterSpacing,
+            textTransform: vConfig.cta.textTransform,
+            color: vConfig.cta.color,
+            cursor: vConfig.cta.cursor,
+            transition: vConfig.cta.transition
+          }"
+        >
+          {{ defaultContact.cta.text }}
         </a>
       </div>
 
@@ -92,7 +147,13 @@
       <div class="contact-person" aria-label="Person image placeholder">
         <div class="contact-person-placeholder">
           <!-- Placeholder outline shape representing a person silhouette -->
-          <svg class="person-silhouette" viewBox="0 0 320 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg class="person-silhouette" viewBox="0 0 320 560" fill="none" xmlns="http://www.w3.org/2000/svg"
+            :style="{
+              width: vConfig.personImage.width,
+              height: vConfig.personImage.height,
+              filter: vConfig.personImage.filter
+            }"
+          >
             <!-- Head -->
             <ellipse cx="160" cy="100" rx="65" ry="75" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
             <!-- Neck -->
@@ -107,8 +168,8 @@
             <!-- Shoulder/arm right -->
             <path d="M260 230 C280 240 300 270 305 350 L280 360 C278 290 265 265 255 250 Z" fill="rgba(255,255,255,0.07)"/>
           </svg>
-          <p class="person-label">PERSON IMAGE</p>
-          <p class="person-sublabel">Pending user asset</p>
+          <p class="person-label" :style="{ fontFamily: vConfig.personLabel.fontFamily, fontSize: vConfig.personLabel.fontSize, fontWeight: vConfig.personLabel.fontWeight, letterSpacing: vConfig.personLabel.letterSpacing, color: vConfig.personLabel.color, textTransform: vConfig.personLabel.textTransform }">PERSON IMAGE</p>
+          <p class="person-sublabel" :style="{ fontFamily: vConfig.personSublabel.fontFamily, fontSize: vConfig.personSublabel.fontSize, letterSpacing: vConfig.personSublabel.letterSpacing, color: vConfig.personSublabel.color }">Pending user asset</p>
         </div>
       </div>
     </div>

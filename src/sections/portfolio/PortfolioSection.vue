@@ -1,19 +1,50 @@
 <script setup lang="ts">
 import GuestNavbar from '../../components/GuestNavbar.vue'
 import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
+import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/portfolio'
 </script>
 
 <template>
-  <div class="portfolio-section">
+  <div
+    class="portfolio-section"
+    :style="{
+      minHeight: vConfig.section.minHeight,
+      backgroundColor: vConfig.section.backgroundColor,
+      backgroundImage: vConfig.section.backgroundImage
+    }"
+  >
     <GuestNavbar />
-
     <main id="main" class="main-content">
       <div class="portfolio-layout">
-        <h1 class="portfolio-title">PORTFOLIO</h1>
+        <h1
+          class="portfolio-title"
+          :style="{
+            fontSize: vConfig.title.fontSize,
+            fontWeight: vConfig.title.fontWeight,
+            lineHeight: vConfig.title.lineHeight,
+            letterSpacing: vConfig.title.letterSpacing,
+            textTransform: vConfig.title.textTransform,
+            color: vConfig.title.color,
+            fontFamily: vConfig.title.fontFamily
+          }"
+        >
+          PORTFOLIO
+        </h1>
 
-        <div class="profile-card-group">
+        <div class="profile-card-group" style="transform: translateX(-50%)">
           <div class="profile-card-back" aria-hidden="true"></div>
-          <div class="profile-card-front">
+          <div
+            class="profile-card-front"
+            :style="{
+              width: vConfig.profileCard.width,
+              height: vConfig.profileCard.height,
+              backgroundColor: vConfig.profileCard.backgroundColor,
+              borderRadius: vConfig.profileCard.borderRadius,
+              border: vConfig.profileCard.border,
+              boxShadow: vConfig.profileCard.boxShadow,
+              transform: vConfig.profileCard.transformRotate
+            }"
+          >
             <div class="card-content">
               <svg class="placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -84,9 +115,7 @@ import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
 
 <style scoped>
 .portfolio-section {
-  min-height: 100vh;
-  background: #8D363A;
-  background-image: radial-gradient(ellipse at 50% 40%, rgba(180, 60, 60, 0.25) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(160, 50, 50, 0.15) 0%, transparent 50%);
+  background: transparent;
   position: relative;
   overflow: hidden;
 }
@@ -109,20 +138,6 @@ import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
   padding-top: 12vh;
 }
 
-.portfolio-title {
-  color: #FFF0BE;
-  font-size: clamp(5.5rem, 13vw, 11rem);
-  font-weight: 900;
-  line-height: 0.85;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-  margin: 0;
-  margin-bottom: -2rem;
-  text-align: center;
-  font-family: 'Inter', 'Arial Black', system-ui, sans-serif;
-  font-stretch: condensed;
-}
-
 .profile-card-group {
   position: absolute;
   top: 42%;
@@ -142,26 +157,6 @@ import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
   border: 1.5px solid rgba(255, 255, 255, 0.25);
   transform: rotate(-2deg);
   z-index: 1;
-}
-
-.profile-card-front {
-  position: relative;
-  width: 360px;
-  height: 300px;
-  background: rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow:
-    0 24px 48px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transform: rotate(4deg);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
 }
 
 .card-content {
@@ -316,5 +311,4 @@ import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
       transform: translateX(-50%) translateY(8px);
     }
   }
-
 </style>

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Calendar, Sparkles } from 'lucide-vue-next'
+import { defaultSHS } from '../../../data/default/shs'
+import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 </script>
 
 <template>
@@ -55,43 +57,40 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
       </div>
 
       <!-- Sparkles upper-right -->
-      <div class="shs-sparkles" aria-hidden="true">
-        <Sparkles :size="16" :stroke-width="1.5" />
-        <Sparkles :size="12" :stroke-width="1.5" />
-      </div>
-
-      <!-- Curved arrow decoration (right side) -->
-      <div class="shs-arrow" aria-hidden="true">
-        <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
-          <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
-          <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </div>
-
-      <!-- Right content — info block (group for drag) -->
-      <div class="shs-content">
-        <span class="shs-label">SHS</span>
-        <h2 class="shs-school">SMAK SURABAYA</h2>
-
-        <div class="shs-calendar">
-          <Calendar :size="22" :stroke-width="1.8" />
-          <span>2017 - 2020</span>
+        <div class="shs-sparkles" aria-hidden="true">
+          <Sparkles :size="16" :stroke-width="1.5" />
+          <Sparkles :size="12" :stroke-width="1.5" />
         </div>
 
-        <div class="shs-separator" aria-hidden="true">
-          <span class="sep-line"></span>
-          <span class="sep-dot"></span>
-          <span class="sep-line"></span>
+        <!-- Curved arrow decoration (right side) -->
+        <div class="shs-arrow" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
+            <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </div>
 
-        <p class="shs-desc">
-          Aktif dalam organisasi siswa dan kegiatan sosial.
-          Mengembangkan dasar-dasar kepemimpinan dan
-          minat pada bidang pelayanan masyarakat
-          tingkat daerah.
-        </p>
+        <!-- Right content — info block (group for drag) -->
+        <div class="shs-content">
+          <span class="shs-label">{{ defaultSHS.items[0].label }}</span>
+          <h2 class="shs-school">{{ defaultSHS.items[0].school }}</h2>
+
+          <div class="shs-calendar">
+            <Calendar :size="22" :stroke-width="1.8" />
+            <span>{{ defaultSHS.items[0].period }}</span>
+          </div>
+
+          <div class="shs-separator" aria-hidden="true">
+            <span class="sep-line"></span>
+            <span class="sep-dot"></span>
+            <span class="sep-line"></span>
+          </div>
+
+          <p class="shs-desc">
+            {{ defaultSHS.items[0].description }}
+          </p>
+        </div>
       </div>
-    </div>
   </section>
 </template>
 

@@ -18,6 +18,7 @@
 
 import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import Lenis from 'lenis'
+import { defaultNavigation } from '../data/default/navigation'
 
 // ──────────────────────────────────────────
 // SECTION DEFINITIONS — from actual DOM IDs
@@ -40,13 +41,18 @@ const sections: NavSection[] = [
   { id: 'contact',        label: 'Contact',  menuKey: 'contact',     darkBg: true  }, // #7B2329
 ]
 
-// Menu items yang ditampilkan di navbar
-const navItems = [
-  { key: 'main',     label: 'Main',     target: 'main'     },
-  { key: 'about',    label: 'About',    target: 'about'    },
-  { key: 'activity', label: 'Activity', target: 'experience'},
-  { key: 'contact',  label: 'Contact',  target: 'contact'  },
-]
+// Brand name from default data
+const brandName = computed(() => defaultNavigation.brand)
+
+// Use default navItems from data
+const navItemsData = computed(() => defaultNavigation.navItems)
+
+// Type for nav items
+interface NavItem {
+  key: string
+  label: string
+  target: string
+}
 
 // ──────────────────────────────────────────
 // STATE
@@ -240,7 +246,7 @@ function initLenis() {
 // ──────────────────────────────────────────
 // CLICK NAVIGATION
 // ──────────────────────────────────────────
-function handleNavClick(event: Event, item: typeof navItems[0]) {
+function handleNavClick(event: Event, item: NavItem) {
   event.preventDefault()
 
   // Show navbar, suppress auto-hide during animation
@@ -325,7 +331,7 @@ onUnmounted(() => {
     <div class="navbar-inner">
       <!-- Brand -->
       <div class="navbar-brand">
-        <span class="brand-text">LISA NATALIA</span>
+        <span class="brand-text">{{ brandName }}</span>
       </div>
 
        <!-- Nav links + active pill -->
@@ -334,7 +340,7 @@ onUnmounted(() => {
          <div v-if="isScrolled" class="active-pill" ref="pillRef" aria-hidden="true"></div>
 
          <a
-           v-for="item in navItems"
+           v-for="item in navItemsData"
            :key="item.key"
            :href="`#${item.target}`"
            :data-key="item.key"

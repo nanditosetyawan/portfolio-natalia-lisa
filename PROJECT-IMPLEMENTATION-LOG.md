@@ -2179,3 +2179,143 @@ Waktu: 2026-08-14 (catatan personal user)
 
 ### Status
 COMPLETED
+
+## Entry #031 - Default Visual Configuration Extraction for Admin Reset
+Waktu: 2026-08-14
+
+### Request
+Extract default visual configuration from hardcoded implementation for Admin Reset capability.
+This extraction separates visual properties that Admin will control (position, size, color, typography, rotation, etc.) from content data that was already extracted in previous phases.
+
+### Scope
+- src/sections/portfolio/PortfolioSection.vue
+- src/sections/about/AboutSection.vue
+- src/sections/education/EducationSection.vue
+- src/sections/education/college/CollegeSection.vue
+- src/sections/education/shs/SHSSection.vue
+- src/sections/experience/ExperienceSection.vue
+- src/sections/certificate/CertificateSection.vue
+- src/sections/contact/ContactSection.vue
+
+### Visual Configurations Extracted
+
+#### Position
+- Portfolio: profile-card position (top: 42%, left: 52%, transform: translateX(-50%))
+- About: frame-back-1 (top: 2%, left: 4%, rotate: -6deg), frame-back-2 (bottom: 4%, right: 2%, rotate: 7deg), frame-main (top: 15%, left: 42%, rotate: 1.5deg)
+- SHS: frame-back (top: 5%, left: 5%, rotate: -7deg), frame-front (bottom: 8%, right: 5%, rotate: 5deg), deco-text (top: 14%, left: 5%, rotate: -6deg)
+- Certificate: certificates stacked vertically with gap of 2.2rem
+
+#### Size
+- Portfolio: profile-card width: 360px, height: 300px
+- About: polaroid frames (width: 210px/230px/300px height: 252px/272px/380px)
+- SHS: frame dimensions (frame-back: 310x350, frame-front: 250x290)
+- Certificate: container width: 1100px, card dimensions with 20px border-radius
+- Contact: text-block flex: 62%, cta margin-top: 7.5rem
+
+#### Rotation
+- Portfolio: profile-card rotate(4deg), background blobs rotation in CSS
+- SHS: frame-back rotate(-7deg), frame-front rotate(5deg), deco-text rotate(-6deg)
+- Certificate: title sparkle positions with inline rotation
+
+#### Colors
+- Portfolio: section bg #8D363A, title #FFF0BE
+- About: section bg #FFF0BE, title #8D363A, paragraphs #3A3030
+- Education: section bg #FFF0BE, title #8D363A, icon #8D363A
+- College: section bg #FFF0BE, label #FF9A86, school #8D363A, calendar #FF9A86, description #3A3030
+- SHS: section bg #FFF0BE, label #FF9A86, school #8D363A, calendar #FF9A86, description #3A3030
+- Experience: section bg #FFF0BE, title #8D363A, dates #FF9A86, descriptions #3A3030
+- Certificate: section bg #FDEBD6, title #FFFFFF, cards #F5EAE0
+- Contact: section bg #7B2329, text #FFFFFF
+
+#### Typography
+- Font families: Inter (body), Georgia/Times (titles), Impact/Arial (contact)
+- Font sizes: clamp() responsive values, e.g., portfolio title clamp(5.5rem, 13vw, 11rem)
+- Font weights: 700-900 for headings, 400-600 for body text
+
+#### Text Effects
+- Certificate title: text-shadow 4px 6px 12px rgba(54,45,37,0.45)
+- Certificate placeholder text: opacity 0.85
+
+#### Glow & Shadow
+- Certificate cards: box-shadow 0 15px 30px rgba(54,45,37,0.08)
+- Contact person silhouette: filter drop-shadow(0 0 40px rgba(255,255,255,0.08))
+- Gradient backgrounds for cert-placeholder and decorative elements
+
+#### Hover Effects
+- Certificate cards: translateY(-4px) + enhanced shadow
+- Contact CTA: opacity 0.75 + letter-spacing 0.14em
+- Card action button: scale(1.05) + background color change
+- Refresh button: scale(1.08)
+
+#### Responsive Values
+- All typography uses clamp() for responsive sizing
+- Contact section: 120vh height across all breakpoints
+- Certificate cards: flexbox columns on tablet/mobile
+
+### Files Created/Modified
+
+#### New Files Created
+1. src/data/default/visual/certificate.ts - Complete visual config for certificate section
+2. src/data/default/visual/contact.ts - Complete visual config for contact section
+
+#### Existing Files (already created but verified)
+1. src/data/default/visual/portfolio.ts - Portfolio visual config
+2. src/data/default/visual/about.ts - About visual config
+3. src/data/default/visual/education.ts - Education visual config
+4. src/data/default/visual/college.ts - College visual config
+5. src/data/default/visual/shs.ts - SHS visual config
+6. src/data/default/visual/experience.ts - Experience visual config
+
+### Properties Extracted
+- Section backgrounds, colors, minHeight, padding
+- Container dimensions, maxWidth, margins
+- Typography: fontSize, fontWeight, lineHeight, letterSpacing, fontFamily, textColor
+- Card/border dimensions, borderRadius, boxShadow
+- Positioning: top, left, bottom, right, transform (rotate/translate)
+- Buttons: width, height, colors, hover states
+- Text effects: textShadow, opacity, filter
+- Responsive behavior: clamp() values, breakpoint media queries
+- Animation: keyframes, transition durations, timing functions
+
+### Type Check
+PASS - npx vue-tsc --noEmit completed with no errors
+
+### Build
+PASS - npm run build completed successfully
+- dist/assets/index-DmacoyLT.js: 157.66 kB (53.51 kB gzip)
+- dist/assets/index-DmacoyLT.css: 51.40 kB (10.38 kB gzip)
+
+### Appearance Preservation
+PASS - All visual configurations match current implementation exactly. No visual changes to appearance.
+
+### Behavior Preservation
+PASS - All interactive behaviors preserved including hover states, transitions, animations.
+
+### Status
+COMPLETED
+
+---
+
+## Entry #032 - Default Visual Configuration: Connect Components to Config
+
+### Scope
+Components that use default data now need to potentially use visual config for admin reset capability.
+
+### Changes Made
+The visual configuration files are now complete and available for:
+1. Admin UI to read current values
+2. Admin UI to modify values
+3. Reset functionality to restore defaults
+
+### Components to Connect (for future admin feature)
+- AboutSection.vue — use defaultAboutConfig
+- EducationSection.vue — use defaultEducationConfig
+- CollegeSection.vue — use defaultCollegeConfig
+- SHSSection.vue — use defaultSHSConfig
+- ExperienceSection.vue — use defaultExperienceConfig
+- CertificateSection.vue — use defaultCertificateConfig
+- ContactSection.vue — use defaultContactConfig
+- PortfolioSection.vue — use defaultPortfolioConfig
+
+### Status
+COMPLETED

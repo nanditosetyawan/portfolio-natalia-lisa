@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowRight, Sparkle, User } from 'lucide-vue-next'
+import { defaultAbout } from '../../data/default/about'
+import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 </script>
 
 <template>
-  <section id="about" class="about-section">
+  <section
+    id="about"
+    class="about-section"
+    :style="{
+      backgroundColor: vConfig.section.backgroundColor,
+      minHeight: vConfig.section.minHeight,
+      padding: vConfig.section.padding
+    }"
+  >
     <!-- Subtle edge/background decoration -->
     <div class="bg-decor" aria-hidden="true">
       <div class="bg-ring ring-1"></div>
@@ -11,10 +21,34 @@ import { ArrowDown, ArrowRight, Sparkle, User } from 'lucide-vue-next'
       <div class="bg-grid grid-area"></div>
     </div>
 
-    <div class="about-container">
+    <div
+      class="about-container"
+      :style="{
+        maxWidth: vConfig.container.maxWidth,
+        gap: vConfig.container.gap,
+        minHeight: vConfig.container.minHeight
+      }"
+    >
       <!-- Left content column -->
-      <div class="about-content">
-        <h2 class="about-title">Lisa Natalia</h2>
+      <div
+        class="about-content"
+        :style="{
+          flexBasis: vConfig.content.flexBasis,
+          paddingTop: vConfig.content.paddingTop
+        }"
+      >
+        <h2
+          class="about-title"
+          :style="{
+            color: vConfig.title.color,
+            fontSize: vConfig.title.fontSize,
+            fontWeight: vConfig.title.fontWeight,
+            lineHeight: vConfig.title.lineHeight,
+            fontFamily: vConfig.title.fontFamily
+          }"
+        >
+          {{ defaultAbout.title }}
+        </h2>
 
         <!-- Curved decorative lines under title -->
         <div class="title-swooshes" aria-hidden="true">
@@ -29,33 +63,89 @@ import { ArrowDown, ArrowRight, Sparkle, User } from 'lucide-vue-next'
           </svg>
         </div>
 
-        <p class="about-paragraph p1">
-          Mahasiswa Keperawatan yang memiliki minat besar pada pelayanan kesehatan
-          dan keselamatan pasien.
+        <p
+          class="about-paragraph p1"
+          :style="{
+            color: vConfig.paragraph.color,
+            fontSize: vConfig.paragraph.fontSize,
+            fontWeight: vConfig.paragraph.fontWeight,
+            lineHeight: vConfig.paragraph.lineHeight,
+            maxWidth: vConfig.paragraph.maxWidth,
+            fontFamily: vConfig.paragraph.fontFamily
+          }"
+        >
+          {{ defaultAbout.paragraphs[0] }}
         </p>
 
-        <p class="about-paragraph p2">
-          Memiliki pengalaman praktik kerja lapangan di berbagai fasilitas kesehatan,
-          serta aktif dalam organisasi dan kegiatan penyuluhan kesehatan masyarakat.
+        <p
+          class="about-paragraph p2"
+          :style="{
+            color: vConfig.paragraph.color,
+            fontSize: vConfig.paragraph.fontSize,
+            fontWeight: vConfig.paragraph.fontWeight,
+            lineHeight: vConfig.paragraph.lineHeight,
+            maxWidth: vConfig.paragraph.maxWidth,
+            fontFamily: vConfig.paragraph.fontFamily
+          }"
+        >
+          {{ defaultAbout.paragraphs[1] }}
         </p>
 
-        <a href="#activity" class="learn-more-btn">
+        <a
+          href="#activity"
+          class="learn-more-btn"
+          :style="{
+            backgroundColor: vConfig.button.backgroundColor,
+            color: vConfig.button.color,
+            fontSize: vConfig.button.fontSize,
+            fontWeight: vConfig.button.fontWeight
+          }"
+        >
           <span>LEARN MORE</span>
           <ArrowRight :size="16" :stroke-width="2.5" />
         </a>
       </div>
 
       <!-- Right visual column -->
-      <div class="about-visual">
-        <div class="polaroid frame-back-1" aria-hidden="true">
+      <div
+        class="about-visual"
+        :style="{
+          flexBasis: vConfig.visual.flexBasis,
+          height: vConfig.visual.height
+        }"
+      >
+        <div
+          class="polaroid frame-back-1"
+          aria-hidden="true"
+          :style="{
+            backgroundColor: vConfig.polaroid.backgroundColor,
+            borderRadius: vConfig.polaroid.borderRadius,
+            boxShadow: vConfig.polaroid.boxShadow
+          }"
+        >
           <div class="polaroid-photo empty"></div>
           <div class="polaroid-caption"></div>
         </div>
-        <div class="polaroid frame-back-2" aria-hidden="true">
+        <div
+          class="polaroid frame-back-2"
+          aria-hidden="true"
+          :style="{
+            backgroundColor: vConfig.polaroid.backgroundColor,
+            borderRadius: vConfig.polaroid.borderRadius,
+            boxShadow: vConfig.polaroid.boxShadow
+          }"
+        >
           <div class="polaroid-photo empty"></div>
           <div class="polaroid-caption"></div>
         </div>
-        <div class="polaroid frame-main">
+        <div
+          class="polaroid frame-main"
+          :style="{
+            backgroundColor: vConfig.polaroid.backgroundColor,
+            borderRadius: vConfig.polaroid.borderRadius,
+            boxShadow: vConfig.polaroid.boxShadow
+          }"
+        >
           <div class="polaroid-photo placeholder-main">
             <User class="placeholder-icon" :size="44" :stroke-width="1.2" />
             <span class="placeholder-label">Profile photo<br />(Pending user asset)</span>

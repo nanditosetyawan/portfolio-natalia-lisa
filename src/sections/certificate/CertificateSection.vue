@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onBeforeUnmount } from 'vue'
 import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
+import { defaultCertificates } from '../../data/default/certificates'
+import { defaultCertificateConfig as vConfig } from '../../data/default/visual/certificate'
 
 // ===== Card Data =====
 // Add image URLs to the `images` array to replace placeholders (max 4 per card).
@@ -13,22 +15,9 @@ interface CertCard {
   images: string[] // URL or '' for placeholder. Min 1, Max 4.
 }
 
-const cards = reactive<CertCard[]>([
-  {
-    id: 'cert-a',
-    title: 'SERTIF A',
-    date: '2025 - Now',
-    description: 'Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet',
-    images: ['', '', ''] // 3 placeholder slots — replace with image URLs
-  },
-  {
-    id: 'cert-b',
-    title: 'SERTIF B',
-    date: '2025 - Now',
-    description: 'Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet',
-    images: ['', ''] // 2 placeholder slots — replace with image URLs
-  }
-])
+// Use default certificates data
+const cards = reactive(defaultCertificates.cards)
+const certificatesTitle = defaultCertificates.title
 
 // ===== Expand State =====
 const expandedCards = ref<Set<string>>(new Set())
@@ -104,7 +93,16 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <section id="certificate" class="certificate-section">
+  <section
+    id="certificate"
+    class="certificate-section"
+    :style="{
+      backgroundColor: vConfig.section.backgroundColor,
+      minHeight: vConfig.section.minHeight,
+      padding: vConfig.section.padding,
+      overflow: vConfig.section.overflow
+    }"
+  >
     <!-- Background blobs -->
     <div class="blob blob-top-right" aria-hidden="true"></div>
     <div class="blob blob-bottom-right" aria-hidden="true"></div>
@@ -154,8 +152,21 @@ onBeforeUnmount(() => {
     <div class="certificate-container">
       <!-- Title -->
       <div class="title-wrapper">
-        <h2 class="certificate-title">
-          CERTIFIKAT
+        <h2
+          class="certificate-title"
+          :style="{
+            fontFamily: vConfig.certificateTitle.fontFamily,
+            fontSize: vConfig.certificateTitle.fontSize,
+            fontWeight: vConfig.certificateTitle.fontWeight,
+            color: vConfig.certificateTitle.color,
+            textTransform: vConfig.certificateTitle.textTransform,
+            letterSpacing: vConfig.certificateTitle.letterSpacing,
+            margin: vConfig.certificateTitle.margin,
+            lineHeight: vConfig.certificateTitle.lineHeight,
+            textShadow: vConfig.certificateTitle.textShadow
+          }"
+        >
+          {{ certificatesTitle }}
           <div class="title-sparkles" aria-hidden="true">
             <svg class="sparkle sparkle-1" viewBox="0 0 24 24" width="24" height="24" fill="#F28C38">
               <path d="M12 0 C12 7 17 12 24 12 C17 12 12 17 12 24 C12 17 7 12 0 12 C7 12 12 7 12 0 Z" />

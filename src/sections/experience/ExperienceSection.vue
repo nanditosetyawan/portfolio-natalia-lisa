@@ -5,7 +5,15 @@
     Only .exp-card elements move (translate). Everything else is frozen.
     NO overflow:hidden on the outer section — kills sticky!
   -->
-  <section id="experience" ref="sectionRef" class="experience-section">
+  <section
+    id="experience"
+    ref="sectionRef"
+    class="experience-section"
+    :style="{
+      backgroundColor: vConfig.section.backgroundColor,
+      height: vConfig.section.desktopHeight
+    }"
+  >
 
     <!-- ┌─────────────────────────────────────────────────────────────────┐ -->
     <!-- │ STICKY VIEWPORT — freezes in place while scroll budget runs     │ -->
@@ -35,7 +43,18 @@
       </div>
 
       <!-- ── Section title — FROZEN (position:absolute, no transform) ── -->
-      <h2 class="experience-title">Experience</h2>
+      <h2
+        class="experience-title"
+        :style="{
+          color: vConfig.title.color,
+          fontSize: vConfig.title.fontSize,
+          fontWeight: vConfig.title.fontWeight,
+          fontFamily: vConfig.title.fontFamily,
+          top: vConfig.title.top
+        }"
+      >
+        {{ sectionTitle }}
+      </h2>
 
       <!--
         ── Timeline rail — FROZEN.
@@ -67,8 +86,25 @@
         >
           <!-- Text: title + date + description — moves with card -->
           <div class="exp-text">
-            <h3 class="exp-item-title">{{ item.title }}</h3>
-            <div class="exp-meta">
+            <h3 class="exp-item-title"
+              :style="{
+                color: vConfig.itemTitle.color,
+                fontSize: vConfig.itemTitle.fontSize,
+                fontWeight: vConfig.itemTitle.fontWeight,
+                lineHeight: vConfig.itemTitle.lineHeight,
+                fontFamily: vConfig.itemTitle.fontFamily
+              }"
+            >
+              {{ item.title }}
+            </h3>
+            <div class="exp-meta"
+              :style="{
+                color: vConfig.date.color,
+                fontSize: vConfig.date.fontSize,
+                fontWeight: vConfig.date.fontWeight,
+                fontFamily: vConfig.date.fontFamily
+              }"
+            >
               <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16"
                 fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -79,12 +115,27 @@
               </svg>
               <span class="exp-date">{{ item.date }}</span>
             </div>
-            <p class="exp-description">{{ item.description }}</p>
+            <p class="exp-description"
+              :style="{
+                color: vConfig.description.color,
+                fontSize: vConfig.description.fontSize,
+                lineHeight: vConfig.description.lineHeight,
+                fontFamily: vConfig.description.fontFamily
+              }"
+            >
+              {{ item.description }}
+            </p>
           </div>
 
           <!-- Photo(s): moves with card as one unit -->
           <div class="exp-image-wrapper">
-            <div class="exp-image-frame">
+            <div class="exp-image-frame"
+              :style="{
+                maxWidth: vConfig.imageFrame.maxWidth,
+                borderRadius: vConfig.imageFrame.borderRadius,
+                boxShadow: vConfig.imageFrame.boxShadow
+              }"
+            >
               <div class="exp-image-placeholder">
                 <svg viewBox="0 0 24 24" width="48" height="48" fill="none"
                   stroke="#8D363A" stroke-width="1.5" opacity="0.4">
@@ -104,48 +155,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { defaultExperience } from '../../data/default/experience'
+import { defaultExperienceConfig as vConfig } from '../../data/default/visual/experience'
 
 // ──────────────────────────────────────────────
 // DATA
 // ──────────────────────────────────────────────
-interface ExpItem {
-  id: string
-  title: string
-  date: string
-  description: string
-  layout: 'layout-text-left' | 'layout-img-left'
-}
-
-const items: ExpItem[] = [
-  {
-    id: 'klinik-1',
-    title: 'Praktik Klinik 1',
-    date: 'Semester 1 - RSUD',
-    description: 'Melaksanakan praktik klinik di RSUD dengan fokus pada asuhan keperawatan pasien, dokumentasi medis, dan kolaborasi tim kesehatan.',
-    layout: 'layout-text-left',
-  },
-  {
-    id: 'klinik-2',
-    title: 'Praktik Klinik 2',
-    date: 'Semester 2 - Puskesmas',
-    description: 'Pengalaman praktik di Puskesmas dengan penekanan pada promotif, preventif, dan pelayanan komunitas kesehatan dasar.',
-    layout: 'layout-img-left',
-  },
-  {
-    id: 'klinik-3',
-    title: 'Praktik Klinik 3',
-    date: 'Semester 3 - Klinik Pratama',
-    description: 'Praktik di Klinik Pratama dengan pembelajaran asuhan keperawatan masyarakat dan manajemen kasus kesehatan keluarga.',
-    layout: 'layout-text-left',
-  },
-  {
-    id: 'klinik-4',
-    title: 'Praktik Klinik 4',
-    date: 'Semester 4 - Rumah Sakit Jiwa',
-    description: 'Pengalaman praktik di Rumah Sakit Jiwa dengan fokus pada asuhan keperawatan kesehatan jiwa dan interaksi terapeutik.',
-    layout: 'layout-img-left',
-  },
-]
+const items = defaultExperience.items
+const sectionTitle = defaultExperience.title
 
 // ──────────────────────────────────────────────
 // RAF-DRIVEN SCROLL PROGRESS

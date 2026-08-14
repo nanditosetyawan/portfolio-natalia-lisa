@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, Pill, Syringe, Sparkles } from 'lucide-vue-next'
+import { defaultEducation } from '../../data/default/education'
+import { defaultEducationConfig as vConfig } from '../../data/default/visual/education'
 </script>
 
 <template>
@@ -42,11 +44,26 @@ import { ArrowDown, Pill, Syringe, Sparkles } from 'lucide-vue-next'
           </svg>
         </div>
 
-        <h1 class="edu-title">Education</h1>
+        <h1
+          class="edu-title"
+          :style="{
+            color: vConfig.title.color,
+            fontSize: vConfig.title.fontSize,
+            fontWeight: vConfig.title.fontWeight,
+            lineHeight: vConfig.title.lineHeight,
+            letterSpacing: '-0.01em',
+            margin: 0,
+            fontFamily: vConfig.title.fontFamily
+          }"
+        >
+          {{ defaultEducation.title }}
+        </h1>
       </div>
 
       <!-- Scroll indicator -->
-      <div class="scroll-indicator">
+      <div class="scroll-indicator"
+        :style="{ color: vConfig.scrollIndicator.color }"
+      >
         <span class="scroll-text">SCROLL DOWN</span>
         <ArrowDown :size="20" :stroke-width="1.5" class="scroll-arrow" />
       </div>

@@ -1,10 +1,25 @@
 <script setup lang="ts">
 import { Calendar, Sparkles } from 'lucide-vue-next'
+import { defaultCollege } from '../../../data/default/college'
+import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/college'
 </script>
 
 <template>
-  <section class="college-section">
-    <div class="college-container">
+  <section
+    class="college-section"
+    :style="{
+      backgroundColor: vConfig.section.backgroundColor,
+      minHeight: vConfig.section.minHeight
+    }"
+  >
+    <div
+      class="college-container"
+      :style="{
+        maxWidth: vConfig.container.maxWidth,
+        padding: vConfig.container.padding,
+        gap: vConfig.container.gap
+      }"
+    >
       <!-- Dot grid top-left -->
       <div class="college-dot-grid dots-tl" aria-hidden="true"></div>
       <!-- Dot grid bottom-right -->
@@ -12,28 +27,65 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
       <!-- Subtle circle bottom-right -->
       <div class="college-circle" aria-hidden="true"></div>
 
-      <!-- Left content -->
-      <div class="college-content">
-        <div class="college-sparkles" aria-hidden="true">
-          <Sparkles :size="22" :stroke-width="1.5" />
-          <Sparkles :size="14" :stroke-width="1.5" />
-        </div>
+        <div
+        class="college-content"
+        :style="{
+          flexBasis: vConfig.content.flexBasis
+        }"
+      >
+          <div class="college-sparkles" aria-hidden="true">
+            <Sparkles :size="22" :stroke-width="1.5" />
+            <Sparkles :size="14" :stroke-width="1.5" />
+          </div>
 
-        <span class="college-label">COLLEGE</span>
-        <h2 class="college-school">STIKKES KEDIRI</h2>
+          <span
+          class="college-label"
+          :style="{
+            color: vConfig.label.color,
+            fontSize: vConfig.label.fontSize,
+            fontWeight: vConfig.label.fontWeight,
+            fontFamily: vConfig.label.fontFamily,
+            marginBottom: vConfig.label.marginBottom
+          }"
+        >
+          {{ defaultCollege.items[0].label }}
+        </span>
+          <h2
+        class="college-school"
+        :style="{
+          color: vConfig.school.color,
+          fontSize: vConfig.school.fontSize,
+          fontWeight: vConfig.school.fontWeight,
+          fontFamily: vConfig.school.fontFamily
+        }"
+      >
+        {{ defaultCollege.items[0].school }}
+      </h2>
 
-        <div class="college-calendar">
-          <Calendar :size="22" :stroke-width="1.8" />
-          <span>2020 - 2024</span>
-        </div>
-
-        <p class="college-desc">
-          Menyelesaikan pendidikan tinggi dengan fokus
-          pada keperawatan dan ilmu kesehatan masyarakat.
-          Berpartisipasi aktif dalam kegiatan klinis dan
-          penyuluhan kesehatan.
-        </p>
+<div
+        class="college-calendar"
+        :style="{
+          gap: vConfig.calendar.gap,
+          marginBottom: vConfig.calendar.marginBottom
+        }"
+      >
+        <Calendar :size="22" :stroke-width="1.8" />
+        <span
+          :style="{
+            color: vConfig.calendar.color,
+            fontSize: vConfig.calendar.fontSize,
+            fontWeight: vConfig.calendar.fontWeight,
+            fontFamily: vConfig.calendar.fontFamily
+          }"
+        >
+          {{ defaultCollege.items[0].period }}
+        </span>
       </div>
+
+          <p class="college-desc">
+            {{ defaultCollege.items[0].description }}
+          </p>
+        </div>
 
       <!-- Right visual - polaroid frames -->
       <div class="college-visual">
