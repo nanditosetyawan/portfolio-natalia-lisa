@@ -104,11 +104,35 @@ onBeforeUnmount(() => {
     }"
   >
     <!-- Background blobs -->
-    <div class="blob blob-top-right" aria-hidden="true"></div>
-    <div class="blob blob-bottom-right" aria-hidden="true"></div>
-    <div class="blob blob-bottom-left" aria-hidden="true"></div>
+    <div class="blob blob-top-right" aria-hidden="true"
+      :style="{
+        top: vConfig.blobTopRight.top,
+        right: vConfig.blobTopRight.right,
+        width: vConfig.blobTopRight.width,
+        height: vConfig.blobTopRight.height
+      }"></div>
+    <div class="blob blob-bottom-right" aria-hidden="true"
+      :style="{
+        bottom: vConfig.blobBottomRight.bottom,
+        right: vConfig.blobBottomRight.right,
+        width: vConfig.blobBottomRight.width,
+        height: vConfig.blobBottomRight.height
+      }"></div>
+    <div class="blob blob-bottom-left" aria-hidden="true"
+      :style="{
+        bottom: vConfig.blobBottomLeft.bottom,
+        left: vConfig.blobBottomLeft.left,
+        width: vConfig.blobBottomLeft.width,
+        height: vConfig.blobBottomLeft.height
+      }"></div>
     <!-- Dot Grids -->
-    <div class="dot-grid dots-tr" aria-hidden="true">
+    <div class="dot-grid dots-tr" aria-hidden="true"
+      :style="{
+        top: vConfig.dotGridTR.top,
+        right: vConfig.dotGridTR.right,
+        width: vConfig.dotGridTR.width,
+        height: vConfig.dotGridTR.height
+      }">
       <svg width="120" height="120" fill="none">
         <pattern id="dots-pattern-tr" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
           <circle cx="3" cy="3" r="1.8" fill="#F28C38" opacity="0.3" />
@@ -116,7 +140,13 @@ onBeforeUnmount(() => {
         <rect width="120" height="120" fill="url(#dots-pattern-tr)" />
       </svg>
     </div>
-    <div class="dot-grid dots-bl" aria-hidden="true">
+    <div class="dot-grid dots-bl" aria-hidden="true"
+      :style="{
+        bottom: vConfig.dotGridBL.bottom,
+        left: vConfig.dotGridBL.left,
+        width: vConfig.dotGridBL.width,
+        height: vConfig.dotGridBL.height
+      }">
       <svg width="120" height="120" fill="none">
         <pattern id="dots-pattern-bl" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
           <circle cx="3" cy="3" r="1.8" fill="#F28C38" opacity="0.3" />
@@ -125,7 +155,12 @@ onBeforeUnmount(() => {
       </svg>
     </div>
     <!-- Line-Art Decorations -->
-    <div class="outline-decor decor-cert" aria-hidden="true">
+    <div class="outline-decor decor-cert" aria-hidden="true"
+      :style="{
+        top: vConfig.decorCert.top,
+        left: vConfig.decorCert.left,
+        transform: 'rotate(' + vConfig.decorCert.transformRotate + ')'
+      }">
       <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
         <rect x="25" y="30" width="110" height="90" rx="4" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.18" />
         <rect x="31" y="36" width="98" height="78" rx="2" stroke="#F28C38" stroke-width="1" opacity="0.12" />
@@ -137,7 +172,12 @@ onBeforeUnmount(() => {
         <path d="M101 97 L97 108 L103 105 L106 111 L109 105 L115 108 L111 97" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
       </svg>
     </div>
-    <div class="outline-decor decor-medal" aria-hidden="true">
+    <div class="outline-decor decor-medal" aria-hidden="true"
+      :style="{
+        top: vConfig.decorMedal.top,
+        right: vConfig.decorMedal.right,
+        transform: 'rotate(' + vConfig.decorMedal.transformRotate + ')'
+      }">
       <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
         <path d="M60 40 L80 15 L100 40 Z" stroke="#F28C38" stroke-width="1.5" opacity="0.18" />
         <line x1="80" y1="15" x2="80" y2="40" stroke="#F28C38" stroke-width="1" opacity="0.15" />

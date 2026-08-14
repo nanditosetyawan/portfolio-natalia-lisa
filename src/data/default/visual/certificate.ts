@@ -79,6 +79,49 @@ export interface CertificateVisualConfig {
     width: string;
     flexShrink: number;
   };
+  /* Background blobs */
+  blobTopRight: {
+    top: string;
+    right: string;
+    width: string;
+    height: string;
+  };
+  blobBottomRight: {
+    bottom: string;
+    right: string;
+    width: string;
+    height: string;
+  };
+  blobBottomLeft: {
+    bottom: string;
+    left: string;
+    width: string;
+    height: string;
+  };
+  /* Dot grids */
+  dotGridTR: {
+    top: string;
+    right: string;
+    width: string;
+    height: string;
+  };
+  dotGridBL: {
+    bottom: string;
+    left: string;
+    width: string;
+    height: string;
+  };
+  /* Outline decorations */
+  decorCert: {
+    top: string;
+    left: string;
+    transformRotate: string;
+  };
+  decorMedal: {
+    top: string;
+    right: string;
+    transformRotate: string;
+  };
   cardsStack: {
     display: string;
     flexDirection: string;
@@ -447,6 +490,46 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
   lineGap: {
     width: '36px',
     flexShrink: 0,
+  },
+  blobTopRight: {
+    top: '-8%',
+    right: '-5%',
+    width: '320px',
+    height: '320px'
+  },
+  blobBottomRight: {
+    bottom: '8%',
+    right: '-10%',
+    width: '280px',
+    height: '280px'
+  },
+  blobBottomLeft: {
+    bottom: '-6%',
+    left: '-8%',
+    width: '360px',
+    height: '360px'
+  },
+  dotGridTR: {
+    top: '4%',
+    right: '2%',
+    width: '120px',
+    height: '120px'
+  },
+  dotGridBL: {
+    bottom: '12%',
+    left: '2%',
+    width: '120px',
+    height: '120px'
+  },
+  decorCert: {
+    top: '14%',
+    left: '6%',
+    transformRotate: '-12deg'
+  },
+  decorMedal: {
+    top: '12%',
+    right: '6%',
+    transformRotate: '15deg'
   },
   cardsStack: {
     display: 'flex',
