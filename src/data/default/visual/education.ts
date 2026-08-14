@@ -15,6 +15,7 @@ export interface EducationVisualConfig {
     fontWeight: number;
     fontFamily: string;
     lineHeight: number;
+    letterSpacing: string;
   };
   icon: {
     width: number;
@@ -76,7 +77,8 @@ export const defaultEducationConfig: EducationVisualConfig = {
     fontSize: 'clamp(5.5rem, 14vw, 11rem)',
     fontWeight: 700,
     fontFamily: "Georgia, 'Times New Roman', serif",
-    lineHeight: 1.02
+    lineHeight: 1.02,
+    letterSpacing: '-0.01em'
   },
   icon: {
     width: 110,

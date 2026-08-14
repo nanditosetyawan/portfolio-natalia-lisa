@@ -1,14 +1,14 @@
 <template>
   <div class="sidebar-container">
     <div
-      v-if="isOpen"
+      v-if="drawerOpen"
       class="sidebar-overlay"
       @click="closeSidebar"
       aria-hidden="true"
     ></div>
     
     <aside
-      :class="['admin-sidebar', { open: isOpen, drawer: isDrawer }]"
+      :class="['admin-sidebar', { open: drawerOpen, drawer: isDrawer }]"
       :style="sidebarStyles"
     >
       <div class="sidebar-header">
@@ -67,8 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { Edit, Image, LayoutDashboard, Wrench, Mail } from 'lucide-vue-next'
 
 interface SidebarItem {
@@ -81,19 +80,17 @@ const props = withDefaults(defineProps<{
   items: SidebarItem[]
   activePath: string
   isDrawer?: boolean
+  isOpen?: boolean
 }>(), {
   items: () => [],
   activePath: '',
-  isDrawer: false
+  isDrawer: false,
+  isOpen: false
 })
 
-const emit = defineEmits(['logout'])
+const emit = defineEmits(['close', 'logout'])
 
-const isOpen = ref(false)
-const isDrawer = ref(props.isDrawer)
-
-const route = useRoute()
-const router = useRouter()
+const drawerOpen = computed(() => props.isOpen)
 
 const iconMap = {
   'layout-dashboard': LayoutDashboard,
@@ -107,8 +104,12 @@ const getIconComponent = (iconName: string) => {
   return iconMap[iconName as keyof typeof iconMap] || null
 }
 
+const closeSidebar = () => {
+  emit('close')
+}
+
 const handleNavClick = () => {
-  if (isDrawer.value && isOpen.value) {
+  if (props.isDrawer) {
     closeSidebar()
   }
 }
@@ -117,29 +118,17 @@ const handleLogout = () => {
   emit('logout')
 }
 
-const closeSidebar = () => {
-  isOpen.value = false
-}
-
-const toggleSidebar = () => {
-  isOpen.value = !isOpen.value
-}
-
-// Expose methods for parent to call
-defineExpose({
-  openSidebar: () => { isOpen.value = true },
-  closeSidebar,
-  toggleSidebar
-})
-
-watch(() => route.path, () => {
-  if (isDrawer.value && isOpen.value) {
-    closeSidebar()
+const sidebarStyles = computed(() => {
+  if (props.isDrawer) {
+    return {
+      transform: props.isOpen ? 'translateX(0)' : 'translateX(-100%)',
+      transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+    }
   }
+  return {}
 })
 
 onMounted(() => {
-  // Close sidebar on escape key
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -148,20 +137,10 @@ onUnmounted(() => {
 })
 
 const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && isOpen.value) {
+  if (e.key === 'Escape' && props.isOpen) {
     closeSidebar()
   }
 }
-
-const sidebarStyles = computed(() => {
-  if (isDrawer.value) {
-    return {
-      transform: isOpen.value ? 'translateX(0)' : 'translateX(-100%)',
-      transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-    }
-  }
-  return {}
-})
 </script>
 
 <style scoped>
@@ -177,14 +156,9 @@ const sidebarStyles = computed(() => {
   bottom: 0;
   background-color: rgba(90, 62, 53, 0.5);
   z-index: 99;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.sidebar-overlay:not([style*="display: none"]) {
   opacity: 1;
   pointer-events: auto;
+  transition: opacity 0.3s ease;
 }
 
 .admin-sidebar {
@@ -203,10 +177,15 @@ const sidebarStyles = computed(() => {
 
 .admin-sidebar.drawer {
   box-shadow: 25px 0 50px -12px rgba(90, 62, 53, 0.2);
+  transform: translateX(-100%);
 }
 
 .admin-sidebar.drawer.open {
   transform: translateX(0);
+}
+
+.admin-sidebar:not(.drawer) {
+  transform: none !important;
 }
 
 .sidebar-header {
@@ -231,10 +210,10 @@ const sidebarStyles = computed(() => {
 }
 
 .brand-text {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #5A3E35;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
 }
 
 .hamburger-btn {
@@ -276,12 +255,12 @@ const sidebarStyles = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0.875rem;
   text-decoration: none;
   color: #7B5F3B;
   border-radius: 12px;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
   position: relative;
 }
@@ -302,8 +281,8 @@ const sidebarStyles = computed(() => {
 }
 
 .nav-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.125rem;
+  height: 1.125rem;
   flex-shrink: 0;
 }
 
@@ -321,14 +300,14 @@ const sidebarStyles = computed(() => {
 .logout-btn {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
   background: none;
   border: 1px solid #E8DED0;
   border-radius: 12px;
   color: #7B5F3B;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   width: 100%;
   transition: all 0.2s ease;
@@ -344,7 +323,6 @@ const sidebarStyles = computed(() => {
   flex-shrink: 0;
 }
 
-/* Mobile responsive - hide sidebar on mobile by default, show as drawer */
 @media (max-width: 1024px) {
   .admin-sidebar:not(.drawer) {
     display: none;

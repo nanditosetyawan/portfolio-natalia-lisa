@@ -120,7 +120,13 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
           :style="{
             backgroundColor: vConfig.polaroid.backgroundColor,
             borderRadius: vConfig.polaroid.borderRadius,
-            boxShadow: vConfig.polaroid.boxShadow
+            boxShadow: vConfig.polaroid.boxShadow,
+            width: vConfig.frameBack1.width,
+            height: vConfig.frameBack1.height,
+            top: vConfig.frameBack1.top,
+            left: vConfig.frameBack1.left,
+            transform: 'rotate(' + vConfig.frameBack1.transformRotate + ')',
+            zIndex: vConfig.frameBack1.zIndex
           }"
         >
           <div class="polaroid-photo empty"></div>
@@ -132,7 +138,13 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
           :style="{
             backgroundColor: vConfig.polaroid.backgroundColor,
             borderRadius: vConfig.polaroid.borderRadius,
-            boxShadow: vConfig.polaroid.boxShadow
+            boxShadow: vConfig.polaroid.boxShadow,
+            width: vConfig.frameBack2.width,
+            height: vConfig.frameBack2.height,
+            bottom: vConfig.frameBack2.bottom,
+            right: vConfig.frameBack2.right,
+            transform: 'rotate(' + vConfig.frameBack2.transformRotate + ')',
+            zIndex: vConfig.frameBack2.zIndex
           }"
         >
           <div class="polaroid-photo empty"></div>
@@ -143,7 +155,13 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
           :style="{
             backgroundColor: vConfig.polaroid.backgroundColor,
             borderRadius: vConfig.polaroid.borderRadius,
-            boxShadow: vConfig.polaroid.boxShadow
+            boxShadow: vConfig.polaroid.boxShadow,
+            width: vConfig.frameMain.width,
+            height: vConfig.frameMain.height,
+            top: vConfig.frameMain.top,
+            left: vConfig.frameMain.left,
+            transform: 'rotate(' + vConfig.frameMain.transformRotate + ')',
+            zIndex: vConfig.frameMain.zIndex
           }"
         >
           <div class="polaroid-photo placeholder-main">
@@ -185,7 +203,16 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
     </div>
 
     <!-- Scroll arrow -->
-    <a href="#education" class="about-scroll-arrow" aria-label="Scroll to Education section">
+    <a href="#education"
+      class="about-scroll-arrow"
+      aria-label="Scroll to Education section"
+      :style="{
+        bottom: vConfig.scrollArrow.bottom,
+        color: vConfig.scrollArrow.color,
+        border: vConfig.scrollArrow.border,
+        width: vConfig.scrollArrow.width,
+        height: vConfig.scrollArrow.height
+      }">
       <ArrowDown :size="20" :stroke-width="2" />
     </a>
   </section>
@@ -376,34 +403,13 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 }
 
 /* Back frame 1 - upper left */
-.frame-back-1 {
-  width: 210px;
-  height: 252px;
-  top: 2%;
-  left: 4%;
-  transform: rotate(-6deg);
-  z-index: 1;
-}
+.frame-back-1 {}
 
 /* Back frame 2 - lower right */
-.frame-back-2 {
-  width: 230px;
-  height: 272px;
-  bottom: 4%;
-  right: 2%;
-  transform: rotate(7deg);
-  z-index: 1;
-}
+.frame-back-2 {}
 
 /* Main frame - center front */
-.frame-main {
-  width: 300px;
-  height: 380px;
-  top: 15%;
-  left: 42%;
-  transform: rotate(1.5deg);
-  z-index: 3;
-}
+.frame-main {}
 
 .placeholder-main {
   background: #F4EBDC;

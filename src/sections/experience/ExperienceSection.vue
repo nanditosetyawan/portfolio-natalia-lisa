@@ -23,8 +23,15 @@
 
       <!-- ── Background decorations — FROZEN, inside sticky ── -->
       <div class="exp-decor" aria-hidden="true">
-        <div class="decor-syringe">
-          <svg viewBox="0 0 80 120" width="80" height="120" fill="none">
+        <div class="decor-syringe"
+          :style="{
+            width: vConfig.decorSyringe.width,
+            height: vConfig.decorSyringe.height,
+            top: vConfig.decorSyringe.top,
+            left: vConfig.decorSyringe.left,
+            opacity: vConfig.decorSyringe.opacity
+          }">
+          <svg :viewBox="'0 0 80 120'" :width="vConfig.decorSyringe.width" :height="vConfig.decorSyringe.height" fill="none">
             <path d="M40 10 L40 60" stroke="#8D363A" stroke-width="2.5" stroke-linecap="round" />
             <path d="M30 25 Q40 15 50 25 Q50 35 40 40 Q30 35 30 25" fill="#8D363A" opacity="0.85" />
             <rect x="36" y="55" width="8" height="40" rx="4" fill="#FF9A86" opacity="0.9" />
@@ -32,14 +39,39 @@
             <line x1="28" y1="45" x2="52" y2="45" stroke="#8D363A" stroke-width="2" stroke-linecap="round" />
           </svg>
         </div>
-        <div class="decor-heartbeat">
-          <svg viewBox="0 0 120 40" width="120" height="40" fill="none">
+        <div class="decor-heartbeat"
+          :style="{
+            width: vConfig.decorHeartbeat.width,
+            height: vConfig.decorHeartbeat.height,
+            top: vConfig.decorHeartbeat.top,
+            right: vConfig.decorHeartbeat.right,
+            opacity: vConfig.decorHeartbeat.opacity
+          }">
+          <svg :viewBox="'0 0 120 40'" :width="vConfig.decorHeartbeat.width" :height="vConfig.decorHeartbeat.height" fill="none">
             <path d="M5 20 L25 20 L35 5 L50 35 L60 15 L70 25 L115 20"
               stroke="#D62828" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
-        <div class="decor-dots"></div>
-        <div class="decor-circle"></div>
+        <div class="decor-dots"
+          :style="{
+            width: vConfig.decorDots.width,
+            height: vConfig.decorDots.height,
+            top: vConfig.decorDots.top,
+            left: vConfig.decorDots.left,
+            transform: 'translateX(' + vConfig.decorDots.transformTranslateX + ')',
+            opacity: vConfig.decorDots.opacity
+          }"></div>
+        <div class="decor-circle"
+          :style="{
+            width: vConfig.decorCircle.width,
+            height: vConfig.decorCircle.height,
+            bottom: vConfig.decorCircle.bottom,
+            right: vConfig.decorCircle.right,
+            borderRadius: vConfig.decorCircle.borderRadius,
+            background: vConfig.decorCircle.color,
+            border: vConfig.decorCircle.border,
+            opacity: vConfig.decorCircle.opacity
+          }"></div>
       </div>
 
       <!-- ── Section title — FROZEN (position:absolute, no transform) ── -->
@@ -50,6 +82,7 @@
           fontSize: vConfig.title.fontSize,
           fontWeight: vConfig.title.fontWeight,
           fontFamily: vConfig.title.fontFamily,
+          letterSpacing: vConfig.title.letterSpacing,
           top: vConfig.title.top
         }"
       >
@@ -270,41 +303,18 @@ const dotTopVh = computed(() => {
   overflow: hidden;
 }
 
-.decor-syringe {
-  position: absolute;
-  top: 3rem;
-  left: 3rem;
-  opacity: 0.7;
-}
+.decor-syringe {}
 
-.decor-heartbeat {
-  position: absolute;
-  top: 4rem;
-  right: 4rem;
-  opacity: 0.8;
-}
+.decor-heartbeat {}
 
 .decor-dots {
   position: absolute;
-  top: 8rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100px;
-  height: 100px;
   background-image: radial-gradient(#FF9A86 2px, transparent 2px);
   background-size: 16px 16px;
-  opacity: 0.35;
 }
 
 .decor-circle {
   position: absolute;
-  bottom: -120px;
-  right: -120px;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: rgba(255, 214, 166, 0.2);
-  border: 2px solid rgba(255, 154, 134, 0.15);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -320,7 +330,6 @@ const dotTopVh = computed(() => {
   font-size: clamp(3rem, 5vw, 4.5rem);
   font-weight: 700;
   color: #8D363A;
-  letter-spacing: -0.01em;
   margin: 0;
   z-index: 10;
   pointer-events: none;

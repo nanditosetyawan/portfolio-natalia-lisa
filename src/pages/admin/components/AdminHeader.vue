@@ -1,14 +1,19 @@
 <template>
   <header class="admin-header">
     <div class="header-left">
+      <button
+        v-if="showHamburger"
+        class="hamburger-btn"
+        aria-label="Open sidebar"
+        @click="$emit('toggle-sidebar')"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
       <h1 class="page-title">{{ title }}</h1>
-      <p class="page-description">Admin control center for managing website content</p>
-    </div>
-    <div class="header-right">
-      <div class="admin-badge">
-        <div class="badge-indicator"></div>
-        <span>Admin</span>
-      </div>
     </div>
   </header>
 </template>
@@ -16,16 +21,21 @@
 <script setup lang="ts">
 interface Props {
   title: string
+  showHamburger?: boolean
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showHamburger: false
+})
+
+defineEmits(['toggle-sidebar'])
 </script>
 
 <style scoped>
 .admin-header {
   height: 72px;
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
+  background: #FAF3E0;
+  border-bottom: 1px solid #E8DED0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,55 +44,32 @@ defineProps<Props>()
 
 .header-left {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.page-description {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.header-right {
-  display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-.admin-badge {
+.hamburger-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: #f8fafc;
-  border-radius: 9999px;
-  border: 1px solid #e2e8f0;
+  justify-content: center;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: #7B5F3B;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
 }
 
-.badge-indicator {
-  width: 8px;
-  height: 8px;
-  background-color: #22c55e;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
+.hamburger-btn:hover {
+  background-color: #FFF5EB;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.admin-badge span {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #475569;
+.page-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #5A3E35;
+  letter-spacing: -0.02em;
 }
 </style>

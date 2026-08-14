@@ -9,6 +9,7 @@ export interface ExperienceVisualConfig {
     fontSize: string;
     fontWeight: number;
     fontFamily: string;
+    letterSpacing: string;
     top: string;
   };
   card: {
@@ -43,22 +44,37 @@ export interface ExperienceVisualConfig {
   decorSyringe: {
     width: string;
     height: string;
+    top: string;
+    left: string;
     color: string;
+    opacity: number;
   };
   decorHeartbeat: {
     width: string;
     height: string;
+    top: string;
+    right: string;
     color: string;
+    opacity: number;
   };
   decorDots: {
     width: string;
     height: string;
+    top: string;
+    left: string;
+    transformTranslateX: string;
     color: string;
+    opacity: number;
   };
   decorCircle: {
     width: string;
     height: string;
+    bottom: string;
+    right: string;
+    borderRadius: string;
     color: string;
+    border: string;
+    opacity: number;
   };
 }
 
@@ -72,6 +88,7 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
     fontSize: 'clamp(3rem, 5vw, 4.5rem)',
     fontWeight: 700,
     fontFamily: "Georgia, 'Times New Roman', serif",
+    letterSpacing: '-0.01em',
     top: 'clamp(5.5rem, 10vh, 7.5rem)'
   },
   card: {
@@ -105,21 +122,36 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
   decorSyringe: {
     width: '80px',
     height: '120px',
-    color: '#8D363A'
+    top: '3rem',
+    left: '3rem',
+    color: '#8D363A',
+    opacity: 0.7
   },
   decorHeartbeat: {
     width: '120px',
     height: '40px',
-    color: '#D62828'
+    top: '4rem',
+    right: '4rem',
+    color: '#D62828',
+    opacity: 0.8
   },
   decorDots: {
     width: '100px',
     height: '100px',
-    color: '#FF9A86'
+    top: '8rem',
+    left: '50%',
+    transformTranslateX: '-50%',
+    color: '#FF9A86',
+    opacity: 0.35
   },
   decorCircle: {
     width: '300px',
     height: '300px',
-    color: 'rgba(255, 214, 166, 0.2)'
+    bottom: '-120px',
+    right: '-120px',
+    borderRadius: '50%',
+    color: 'rgba(255, 214, 166, 0.2)',
+    border: '2px solid rgba(255, 154, 134, 0.15)',
+    opacity: 0.9
   }
 }

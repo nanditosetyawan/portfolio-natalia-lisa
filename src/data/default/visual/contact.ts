@@ -104,6 +104,8 @@ export interface ContactVisualConfig {
   bgPattern: {
     width: string;
     height: string;
+    color: string;
+    opacity: number;
   }
 }
 
@@ -212,5 +214,7 @@ export const defaultContactConfig: ContactVisualConfig = {
   bgPattern: {
     width: '100%',
     height: '100%',
+    color: '#ffffff',
+    opacity: 0.12
   }
 }

@@ -51,7 +51,7 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
             fontSize: vConfig.title.fontSize,
             fontWeight: vConfig.title.fontWeight,
             lineHeight: vConfig.title.lineHeight,
-            letterSpacing: '-0.01em',
+            letterSpacing: vConfig.title.letterSpacing,
             margin: 0,
             fontFamily: vConfig.title.fontFamily
           }"

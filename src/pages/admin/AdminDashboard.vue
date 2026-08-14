@@ -1,20 +1,7 @@
 <template>
   <div class="dashboard">
-    <div class="dashboard-header">
-      <div class="header-actions">
-        <button class="hamburger-btn" aria-label="Open sidebar" @click="toggleSidebar">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </button>
-        <h1 class="page-title">Dashboard</h1>
-      </div>
-    </div>
-
     <div class="dashboard-main">
-      <div class="dashboard-grid">
+      <div class="dashboard-row1">
         <div class="card card-draft">
           <div class="card-image">
             <svg width="80" height="80" viewBox="0 0 80 80" fill="none" class="illustration">
@@ -39,7 +26,7 @@
             <div class="card-header">
               <span class="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14.7 6.3a1.9 1.9 0 0 0 .3 2.57 1.9 1.9 0 0 0 .865 1.83 2 2 0 0 1 .66 1.27c.24.55.1 1.28-.2 1.63a2 2 0 0 0-.43.88 1.9 1.9 0 0 0-.94.57h-.8l-.18-.15a7 7 0 0 0-1.18-1.48L6.5 9.5a1.9 1.9 0 0 0-.28 1.48c.1.55.54 1.06.86 1.23a1.9 1.9 0 0 1 1.58.27l.18.15a7 7 0 0 0 1.18 1.48l.18.15c.53.37.76.6 1.2.55.61-.1 1.06-.55.87-1.23a1.9 1.9 0 0 0 .33-2.58l.18-.15a1.9 1.9 0 0 1 1.83-.86 1.9 1.9 0 0 0 1.83-.33 1.9 1.9 0 0 1 .57-.94 1.9 1.9 0 0 1 .86-.66c.55-.24 1.06-.1 1.63.2a2 2 0 0 1 1.27.43l.15.18 1.5 1.2c.55.45.5.96.1 1.63a1.9 1.9 0 0 1-1.23.86l-.15.18-1.2 1.5c-.45.55-.96.5-1.63.1a1.9 1.9 0 0 1-1.83-.33 1.9 1.9 0 0 1-.33-1.83l-.15-.18Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                  <path d="M14 19H20C21.1046 19 22 18.1046 22 17V7C22 5.89543 21.1046 5 20 5H13.41C13.149 5 12.9011 5.10557 12.7071 5.29359L11 7H8C6.89543 7 6 7.89543 6 9V17C6 18.1046 6.89543 19 8 19H10M14 19L14 15C14 14.4477 14.4477 14 15 14H17C17.5523 14 18 14.4477 18 15V19M14 19H14.01M12 8V11C12 11.5523 12 12 12.5 12.5C13 13 13.55 13 14.06 12.95C14.55 12.9 14.89 12.44 14.89 11.89C14.89 11.42 14.55 11 14 10.5C13.49 10 12.99 9.97 12.5 9.97" stroke="currentColor" stroke-width="1.5" fill="none"/>
                 </svg>
               </span>
               <h2 class="card-draft-title">Draf</h2>
@@ -72,8 +59,8 @@
             <div class="card-header">
               <span class="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <path d="M12 7v10M8 12h8"></rect>
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M12 7v10M8 12h8" />
                 </svg>
               </span>
               <h2 class="card-published-title">Published</h2>
@@ -90,7 +77,9 @@
             </div>
           </div>
         </div>
+      </div>
 
+      <div class="dashboard-row2">
         <div class="card card-clock">
           <div class="card-image">
             <svg width="80" height="80" viewBox="0 0 80 80" fill="none" class="illustration">
@@ -146,13 +135,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-
-const sidebarOpen = ref(false)
-
-const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value
-}
 </script>
 
 <style scoped>
@@ -160,83 +142,59 @@ const toggleSidebar = () => {
   min-height: 100vh;
   background-color: #FAF3E0;
   font-family: 'Inter', system-ui, sans-serif;
-  overflow: hidden;
-}
-
-.dashboard-header {
-  padding: 2rem;
-  border-bottom: 1px solid #E8DED0;
-  background-color: #FAF3E0;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.hamburger-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  background: none;
-  border: none;
-  color: #7B5F3B;
-  cursor: pointer;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s ease;
-}
-
-.hamburger-btn:hover {
-  background-color: #FFF5EB;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: #5A3E35;
-  letter-spacing: -0.02em;
 }
 
 .dashboard-main {
   padding: 2rem;
 }
 
-.dashboard-grid {
+.dashboard-row1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  max-width: 1400px;
+}
+
+.dashboard-row2 {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 2rem;
   max-width: 1400px;
-  width: 100%;
 }
 
 .card {
   background-color: #FFFFFF;
-  border-radius: 24px;
-  padding: 2rem;
+  border-radius: 18px;
+  padding: 1.75rem;
   position: relative;
-  box-shadow: 0 25px 50px -12px rgba(90, 62, 53, 0.15), 0 0 0 1px rgba(90, 62, 53, 0.08);
+  box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .card-image {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   background-color: #FFF5EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-image .illustration {
+  opacity: 0.6;
 }
 
 .card-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .card-header {
@@ -246,8 +204,8 @@ const toggleSidebar = () => {
 }
 
 .card-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
@@ -258,7 +216,7 @@ const toggleSidebar = () => {
   margin: 0;
   font-weight: 700;
   color: #5A3E35;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
 }
 
 .card-draft-desc,
@@ -266,7 +224,7 @@ const toggleSidebar = () => {
 .card-clock-desc,
 .card-favorite-desc {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   color: #7B5F3B;
 }
 
@@ -274,7 +232,7 @@ const toggleSidebar = () => {
   margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   padding-top: 0.5rem;
   border-top: 1px solid #F0E7DC;
 }
@@ -282,46 +240,52 @@ const toggleSidebar = () => {
 .card-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
+  gap: 0.2rem;
+  padding: 0.2rem 0.4rem;
   background-color: #FFE4B5;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  border-radius: 16px;
+  font-size: 0.625rem;
   font-weight: 600;
   color: #B45F04;
 }
 
 .card-pill svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .card-clock {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .card-clock-heading {
   margin: 0;
   font-weight: 600;
   color: #5A3E35;
-  font-size: 1rem;
+  font-size: 0.875rem;
 }
 
 .card-clock-desc {
   display: flex;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #5A3E35;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  background-color: #FFF5EB;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  align-self: flex-start;
 }
 
 .card-clock-labels {
   display: flex;
   gap: 1rem;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #7B5F3B;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .card-clock-labels span {
@@ -331,40 +295,38 @@ const toggleSidebar = () => {
 .card-favorite {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  align-items: center;
+  text-align: center;
 }
 
 .card-favorite-title {
   margin: 0;
   font-weight: 600;
   color: #5A3E35;
-  font-size: 1rem;
-  text-align: center;
+  font-size: 0.875rem;
 }
 
 .card-favorite-desc {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #7B5F3B;
-  text-align: center;
 }
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .dashboard-grid {
+  .dashboard-main {
+    padding: 1.5rem;
+  }
+  
+  .dashboard-row1,
+  .dashboard-row2 {
     grid-template-columns: 1fr;
+    margin-bottom: 1rem;
   }
   
-  .card {
-    aspect-ratio: 1;
-  }
-  
-  .card-clock {
-    flex-direction: column;
-  }
-  
-  .card-clock-desc {
-    font-size: 1.5rem;
+  .dashboard-row2 {
+    grid-template-columns: 1fr;
   }
 }
 </style>
