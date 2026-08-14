@@ -25,12 +25,10 @@
             </div>
             <p class="card-draft-desc">3 item draft</p>
             <div class="card-bottom">
-              <span class="card-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20 6L9 17l5 5"></path>
                 </svg>
                 <span>3</span>
-              </span>
             </div>
           </div>
         </div>
@@ -59,13 +57,11 @@
             </div>
             <p class="card-published-desc">1 publication</p>
             <div class="card-bottom">
-              <span class="card-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 22L12 6L9 9L12 12L15 9L12 6"/>
                   <circle cx="12" cy="10" r="2" fill="currentColor"/>
                 </svg>
                 <span>1</span>
-              </span>
             </div>
           </div>
         </div>

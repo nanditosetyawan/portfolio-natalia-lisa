@@ -60,13 +60,7 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-tl" aria-hidden="true" :style="{
-            width: `${vConfig.tapeTl.width}`,
-            height: `${vConfig.tapeTl.height}`,
-            top: vConfig.tapeTl.top,
-            left: vConfig.tapeTl.left,
-            transform: `rotate(${vConfig.tapeTl.transformRotate})`
-          }"></div>
+          <div class="tape tape-tl" aria-hidden="true"></div>
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
@@ -87,13 +81,7 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-br" aria-hidden="true" :style="{
-            width: `${vConfig.tapeBr.width}`,
-            height: `${vConfig.tapeBr.height}`,
-            bottom: vConfig.tapeBr.bottom,
-            right: vConfig.tapeBr.right,
-            transform: `rotate(${vConfig.tapeBr.transformRotate})`
-          }"></div>
+          <div class="tape tape-br" aria-hidden="true"></div>
         </div>
       </div>
 
@@ -143,7 +131,8 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
               fontSize: vConfig.label.fontSize,
               fontWeight: vConfig.label.fontWeight,
               letterSpacing: vConfig.label.letterSpacing,
-              fontFamily: vConfig.label.fontFamily
+              fontFamily: vConfig.label.fontFamily,
+              marginBottom: vConfig.label.marginBottom
             }"
           >{{ defaultSHS.items[0].label }}</span>
           <h2
@@ -158,7 +147,11 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             }"
           >{{ defaultSHS.items[0].school }}</h2>
 
-          <div class="shs-calendar">
+          <div class="shs-calendar" :style="{
+            color: vConfig.calendar.color,
+            gap: vConfig.calendar.gap,
+            marginBottom: vConfig.calendar.marginBottom
+          }">
             <Calendar :size="22" :stroke-width="1.8" />
             <span
               :style="{
@@ -196,23 +189,17 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 <style scoped>
 .shs-section {
   position: relative;
-  background: #FFF0BE;
-  min-height: 100vh;
   overflow: hidden;
   isolation: isolate;
-  z-index: 999;
   padding-bottom: 200px;
 }
 
 .shs-container {
   position: relative;
-  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   min-height: 100vh;
-  padding: 6rem 5rem;
-  gap: 3rem;
 }
 
 /* ===== Dot grids ===== */
@@ -268,15 +255,23 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 
 .tape {
   position: absolute;
+  width: 80px;
+  height: 24px;
   background: rgba(196, 204, 141, 0.78);
   box-shadow: 0 1px 2px rgba(61, 40, 34, 0.12);
   z-index: 9;
 }
 
 .tape-tl {
+  top: -12px;
+  left: 10%;
+  transform: rotate(-5deg);
 }
 
 .tape-br {
+  bottom: 44px;
+  right: 10%;
+  transform: rotate(3deg);
 }
 
 /* Back frame — larger, behind */
@@ -352,8 +347,6 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 /* Sparkles upper-right */
 .shs-sparkles {
   position: absolute;
-  top: 8%;
-  right: 12%;
   z-index: 2;
   display: flex;
   gap: 0.75rem;
@@ -363,10 +356,7 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 /* Curved arrow — right side */
 .shs-arrow {
   position: absolute;
-  right: 8%;
-  top: 42%;
   z-index: 4;
-  opacity: 0.85;
 }
 
 /* ===== Right content — info block ===== */
@@ -378,33 +368,16 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 
 .shs-label {
   display: block;
-  color: #FF9A86;
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  font-family: 'Inter', system-ui, sans-serif;
-  margin-bottom: 0.25rem;
 }
 
 .shs-school {
-  color: #8D363A;
-  font-size: clamp(2.5rem, 5vw, 4rem);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.01em;
   margin: 0 0 1rem;
-  font-family: Georgia, 'Times New Roman', serif;
 }
 
 .shs-calendar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  color: #FF9A86;
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 1.25rem;
 }
 
 .shs-separator {
@@ -430,12 +403,7 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 }
 
 .shs-desc {
-  color: #3A3030;
-  font-size: 0.98rem;
-  font-weight: 400;
-  line-height: 1.75;
   max-width: 32rem;
   margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
 }
 </style>
