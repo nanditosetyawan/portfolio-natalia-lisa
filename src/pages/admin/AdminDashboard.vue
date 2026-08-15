@@ -129,17 +129,33 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
-const clockTime = ref('00 : 00 : 00')
+const clockTime = ref('-- : -- : --')
 let timer: ReturnType<typeof setInterval> | null = null
 let timeOffset: number | null = null
 
+const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Jakarta',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+})
+
 function getWIBTimeComponents(): { h: number; m: number; s: number } {
-  if (timeOffset !== null) {
-    const wib = new Date(Date.now() + timeOffset + 7 * 60 * 60 * 1000)
-    return { h: wib.getUTCHours(), m: wib.getUTCMinutes(), s: wib.getUTCSeconds() }
+  if (timeOffset !== null && Number.isFinite(timeOffset)) {
+    const synced = new Date(Date.now() + timeOffset)
+    const parts = timeFormatter.formatToParts(synced)
+    const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0')
+    const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0')
+    const s = Number(parts.find(p => p.type === 'second')?.value ?? '0')
+    return { h, m, s }
   }
   const now = new Date()
-  return { h: now.getHours(), m: now.getMinutes(), s: now.getSeconds() }
+  const parts = timeFormatter.formatToParts(now)
+  const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0')
+  const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0')
+  const s = Number(parts.find(p => p.type === 'second')?.value ?? '0')
+  return { h, m, s }
 }
 
 function formatTime(): string {
@@ -155,9 +171,27 @@ async function syncTime(): Promise<void> {
   try {
     const res = await fetch('https://timeapi.io/api/Time/current/zone?timezone=Asia/Jakarta')
     if (!res.ok) throw new Error('TimeAPI request failed')
-    const data: { utcTime: string } = await res.json()
-    const serverUtc = new Date(data.utcTime).getTime()
-    timeOffset = serverUtc - Date.now()
+    const data = await res.json() as {
+      dateTime: string
+      year: number
+      month: number
+      day: number
+      hour: number
+      minute: number
+      seconds: number
+      milliSeconds: number
+    }
+    let serverTime: number
+    if (typeof data.dateTime === 'string' && Number.isFinite(new Date(data.dateTime).getTime())) {
+      serverTime = new Date(data.dateTime).getTime()
+    } else {
+      serverTime = Date.UTC(data.year, data.month - 1, data.day, data.hour, data.minute, data.seconds, data.milliSeconds)
+    }
+    if (!Number.isFinite(serverTime)) {
+      timeOffset = null
+      return
+    }
+    timeOffset = serverTime - Date.now()
   } catch {
     timeOffset = null
   }
