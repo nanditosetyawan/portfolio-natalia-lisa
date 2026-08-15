@@ -38,23 +38,8 @@ const profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image
           PORTFOLIO
         </h1>
 
-        <div class="profile-card-group" style="transform: translateX(-50%)">
-          <div class="profile-card-back" aria-hidden="true"></div>
-          <div
-            class="profile-card-front"
-            :style="{
-              width: vConfig.profileCard.width,
-              height: vConfig.profileCard.height,
-              backgroundColor: vConfig.profileCard.backgroundColor,
-              borderRadius: vConfig.profileCard.borderRadius,
-              border: vConfig.profileCard.border,
-              boxShadow: vConfig.profileCard.boxShadow,
-              transform: vConfig.profileCard.transformRotate,
-              overflow: 'hidden'
-            }"
-          >
-            <img :src="profileImageSrc" :alt="defaultProfile.name" class="profile-image" />
-          </div>
+        <div class="profile-image-wrapper">
+          <img :src="profileImageSrc" :alt="defaultProfile.name" class="profile-image" />
         </div>
       </div>
 
@@ -77,13 +62,13 @@ const profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image
         </div>
 
         <!-- Crosses -->
-        <div class="decor-cross cross-1">
+        <div class="decor-cross cross-1" :style="{ color: vConfig.decorPill.color }">
           <Plus :size="28" :stroke-width="2.5" />
         </div>
-        <div class="decor-cross cross-2">
+        <div class="decor-cross cross-2" :style="{ color: vConfig.decorPill.color }">
           <Plus :size="22" :stroke-width="2.5" />
         </div>
-        <div class="decor-cross cross-3">
+        <div class="decor-cross cross-3" :style="{ color: vConfig.decorPill.color }">
           <Plus :size="18" :stroke-width="2.5" />
         </div>
 
@@ -169,12 +154,21 @@ const profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image
   text-align: center;
 }
 
+.profile-image-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 52%;
+  transform: translateX(calc(-50% + 75.6px));
+  z-index: 20;
+}
+
 .profile-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: inherit;
   display: block;
+  width: clamp(320px, 36vw, 520px);
+  height: auto;
+  max-height: 68vh;
+  object-fit: contain;
+  border-radius: 1.25rem;
 }
 
 /* Decorative Layer */
@@ -241,6 +235,39 @@ const profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image
     }
     50% {
       transform: translateX(-50%) translateY(8px);
+    }
+  }
+
+  /* Responsive: Tablet */
+  @media (max-width: 1023px) {
+    .portfolio-layout {
+      padding: 0 2rem;
+    }
+
+    .profile-image-wrapper {
+      transform: translateX(-50%);
+    }
+
+    .profile-image {
+      width: clamp(260px, 44vw, 360px);
+      max-height: 60vh;
+    }
+  }
+
+  /* Responsive: Mobile */
+  @media (max-width: 767px) {
+    .portfolio-layout {
+      padding: 0 1rem;
+    }
+
+    .profile-image-wrapper {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .profile-image {
+      width: min(320px, 88vw);
+      max-height: 50vh;
     }
   }
 </style>

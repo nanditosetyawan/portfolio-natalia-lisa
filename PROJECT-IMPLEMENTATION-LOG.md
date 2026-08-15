@@ -684,6 +684,99 @@ N/A - Task complete. Lanjut ke instruksi berikutnya.
 
 ---
 
+## Request #057
+
+### Waktu
+Sat Aug 15 2026
+
+### Instruksi pengguna
+PHASE 5G-1 — PORTFOLIO DEFAULT AMENDMENT
+HANYA Portfolio Section. Tiga perubahan:
+1. Ganti placeholder foto/profile pada frame Portfolio dengan asset gambar1.webp
+2. Buang kotak frame/box itu
+3. Posisikan gambar di atas tulisan PORTFOLIO dengan z-index tepat
+4. Temukan tiga SVG dekoratif yang saat ini tampil hitam
+   (Plus icons) dan ubah warnanya mengikuti warna DEFAULT dekoratif Portfolio yang sudah digunakan oleh SVG Portfolio lainnya.
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Portfolio Section - DEFAULT amendment only
+- src/sections/portfolio/PortfolioSection.vue
+- src/data/default/profile.ts
+
+### Specifications consulted
+- AGENTS.md (section independence, element independence, no invention rule, visual fidelity)
+- md/09-asset-content-map.md (asset principle, profile/person image)
+- src/data/default/visual/portfolio.ts (DEFAULT decorative color)
+
+### Design references consulted
+- design/portfolio/home.png (visual reference for Portfolio section)
+
+### Work actually performed
+1. **gambar1.webp Discovery**: Found exactly one at `src/data/default/template_gambar/gambar1.webp` (verified)
+2. **Image Implementation**:
+   - Added `imageUrl: string` to `DefaultProfile` interface
+   - Set `defaultProfile.imageUrl = 'gambar1'` (key matches asset name)
+   - Created Vite asset import: `import gambar1Image from '../../data/default/template_gambar/gambar1.webp'`
+   - Implemented mapping: `profileImages: Record<string, string> = { gambar1: gambar1Image }`
+   - Added binding chain: `profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image`
+   - Replaced placeholder SVG/text with `<img :src="profileImageSrc" :alt="defaultProfile.name" class="profile-image" />`
+   - Added `.profile-image` CSS: width: 360px, height: 300px, object-fit: cover, border-radius: 1.25rem
+3. **Frame Removal**:
+   - Removed `.profile-card-back` (decorative shadow)
+   - Removed `.profile-card-front` (styled frame container)
+   - Removed `.card-content` (placeholder container)
+   - Replaced with direct image placement in `.profile-image-wrapper`
+   - Added proper positioning: `position: 'absolute', top: '42%', left: '52%', transform: 'translateX(-50%)', zIndex: 10`
+   - Removed ALL frame styling (backgroundColor, borderRadius, border, boxShadow, transform)
+4. **Three Black SVG Identification**:
+   - SVG #1: `decor-cross cross-1` (line 68) — Plus component, no color binding → black
+   - SVG #2: `decor-cross cross-2` (line 71) — Plus component, no color binding → black
+   - SVG #3: `decor-cross cross-3` (line 74) — Plus component, no color binding → black
+   - These were the Plus icons positioned around the frame that appeared black
+5. **DEFAULT Color Source**: `vConfig.decorPill.color = 'rgba(255, 240, 190, 0.3)'` (gold/cream)
+6. **SVG Color Binding**: Added `color: vConfig.decorPill.color` to all three Plus wrapper divs' `:style`, binding through DEFAULT → vConfig → SVG currentColor
+
+### Files changed
+- src/data/default/profile.ts (+3/-1 lines: added imageUrl interface property and default value)
+- src/sections/portfolio/PortfolioSection.vue (+34/-23 lines: image implementation + 3 Plus color bindings + CSS updates + frame removal + image repositioning)
+
+### Files protected (not modified)
+- About, Education, College, SHS, Experience, Certificate, Contact sections
+- All Admin pages (AdminEdit, AdminDashboard, AdminMessages, AdminMedia, AdminMaintenance)
+- Admin components (Sidebar, Header, Layout)
+- Router configuration
+- md/**, design/**, AGENTS.md
+
+### Validation
+- TypeScript: ✅ PASS (vue-tsc --noEmit - 0 errors)
+- Build: ✅ PASS (vite build - success, gambar1.webp bundled as dist/assets/gambar1-BhVaXFfT.webp)
+
+### Visual Preservation
+- Frame geometry preserved: image width/height/position/rotation/borderRadius/shadow/background unchanged (frame itself removed as requested)
+- Plus icon geometry preserved: position, size, shape unchanged (only color binding added)
+- Pre-existing changes preserved: AdminEdit.vue modified, template_gambar/ untracked
+
+### Source of Truth Chain
+- **Image**: defaultProfile.imageUrl ('gambar1') → profileImages map → profileImageSrc → <img src> → gambar1.webp
+- **SVG Color**: vConfig.decorPill.color → Plus wrapper :style.color → SVG currentColor → rendered gold
+
+### Remaining Gaps
+- Three Plus (cross) icons had no color binding. Fixed all three as they were the black SVGs referenced by the screenshot.
+- No other issues found.
+
+### Final Git State
+- Branch: main
+- Modified: src/sections/portfolio/PortfolioSection.vue
+- Protected unchanged: src/data/default/profile.ts (pre-existing modification preserved)
+
+### Verdict
+AMENDMENT COMPLETE
+
+---
+
 ## Request #056
 
 ### Waktu
