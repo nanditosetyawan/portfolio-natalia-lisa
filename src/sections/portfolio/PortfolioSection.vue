@@ -78,7 +78,7 @@ const wrapperTransform = computed(() => {
             fontFamily: vConfig.title.fontFamily
           }"
         >
-          PORTFOLIO
+          {{ defaultPortfolioContent.title }}
         </h1>
 
         <div class="profile-image-wrapper" :style="{
