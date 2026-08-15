@@ -355,12 +355,14 @@ const Editor3D = {
 .control-panel {
   width: 320px;
   flex-shrink: 0;
-  background-color: #F6F4E8;
-  border-radius: 18px;
+  background-color: #FAF9F5; /* Warm white surface */
+  border-radius: 24px;
   padding: 20px;
-  box-shadow: 0 4px 12px -4px rgba(90, 62, 53, 0.05);
+  box-shadow: 0 4px 24px rgba(90, 62, 53, 0.08);
+  border: 1px solid rgba(90, 62, 53, 0.04);
   overflow-y: auto;
   height: 100%;
+  min-height: 0;
 }
 
 .control-panel-title {
