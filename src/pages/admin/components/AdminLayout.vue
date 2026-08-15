@@ -87,13 +87,15 @@ const Publish = {
 <style scoped>
 .admin-layout {
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   background-color: #F6F4E8;
   overflow: hidden;
 }
 
 .dashboard-content {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   transition: filter 0.3s ease;
@@ -107,6 +109,7 @@ const Publish = {
   flex: 1;
   padding: 2rem;
   overflow: auto;
+  min-height: 0;
 }
 
 .tbar-btn {

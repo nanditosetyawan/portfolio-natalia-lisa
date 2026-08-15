@@ -87,9 +87,9 @@
           </div>
           <div class="card-content">
             <div class="card-header">
-              <h3 class="card-clock-heading">Waktu Edit</h3>
+              <h3 class="card-clock-heading">Waktu Saat Ini</h3>
             </div>
-            <p class="card-clock-desc">01 : 23 : 45</p>
+            <p class="card-clock-desc">{{ clockTime }}</p>
             <div class="card-clock-labels">
               <span>JAM</span>
               <span>MENIT</span>
@@ -127,6 +127,54 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const clockTime = ref('00 : 00 : 00')
+let timer: ReturnType<typeof setInterval> | null = null
+let timeOffset: number | null = null
+
+function getWIBTimeComponents(): { h: number; m: number; s: number } {
+  if (timeOffset !== null) {
+    const wib = new Date(Date.now() + timeOffset + 7 * 60 * 60 * 1000)
+    return { h: wib.getUTCHours(), m: wib.getUTCMinutes(), s: wib.getUTCSeconds() }
+  }
+  const now = new Date()
+  return { h: now.getHours(), m: now.getMinutes(), s: now.getSeconds() }
+}
+
+function formatTime(): string {
+  const { h, m, s } = getWIBTimeComponents()
+  return `${h.toString().padStart(2, '0')} : ${m.toString().padStart(2, '0')} : ${s.toString().padStart(2, '0')}`
+}
+
+function updateClock(): void {
+  clockTime.value = formatTime()
+}
+
+async function syncTime(): Promise<void> {
+  try {
+    const res = await fetch('https://timeapi.io/api/Time/current/zone?timezone=Asia/Jakarta')
+    if (!res.ok) throw new Error('TimeAPI request failed')
+    const data: { utcTime: string } = await res.json()
+    const serverUtc = new Date(data.utcTime).getTime()
+    timeOffset = serverUtc - Date.now()
+  } catch {
+    timeOffset = null
+  }
+}
+
+onMounted(async () => {
+  await syncTime()
+  updateClock()
+  timer = setInterval(updateClock, 1000)
+})
+
+onUnmounted(() => {
+  if (timer !== null) {
+    clearInterval(timer)
+    timer = null
+  }
+})
 </script>
 
 <style scoped>
@@ -245,6 +293,13 @@
 .card-bottom svg {
   width: 10px;
   height: 10px;
+}
+
+.card-clock,
+.card-favorite {
+  min-height: 200px;
+  padding-top: 36px;
+  padding-bottom: 36px;
 }
 
 .card-clock {

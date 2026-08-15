@@ -276,23 +276,14 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 
 .tape {
   position: absolute;
-  width: 80px;
-  height: 24px;
-  background: rgba(196, 204, 141, 0.78);
   box-shadow: 0 1px 2px rgba(61, 40, 34, 0.12);
   z-index: 9;
 }
 
 .tape-tl {
-  top: -12px;
-  left: 10%;
-  transform: rotate(-5deg);
 }
 
 .tape-br {
-  bottom: 44px;
-  right: 10%;
-  transform: rotate(3deg);
 }
 
 /* Back frame — larger, behind */
@@ -371,7 +362,6 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
   z-index: 2;
   display: flex;
   gap: 0.75rem;
-  color: #FF9A86;
 }
 
 /* Curved arrow — right side */
