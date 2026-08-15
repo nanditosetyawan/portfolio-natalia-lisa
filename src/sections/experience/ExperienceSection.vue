@@ -49,7 +49,7 @@
           }">
           <svg :viewBox="'0 0 120 40'" :width="vConfig.decorHeartbeat.width" :height="vConfig.decorHeartbeat.height" fill="none">
             <path d="M5 20 L25 20 L35 5 L50 35 L60 15 L70 25 L115 20"
-              stroke="#D62828" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              :stroke="vConfig.decorHeartbeat.color" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
         <div class="decor-dots"

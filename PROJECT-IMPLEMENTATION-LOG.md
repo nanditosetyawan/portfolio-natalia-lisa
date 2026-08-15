@@ -227,3 +227,145 @@ COMPLETED (READ-ONLY forensic audit).
 
 ### Next step
 Tunggu keputusan human mengenai penutupan P0/P1 GAP sebelum Phase 6.
+
+---
+
+## Request #049
+
+### Waktu
+Sat Aug 15 2026 07:15 UTC
+
+### Instruksi pengguna
+Revisi Admin Edit UI sesuai keputusan final:
+hanya fold FONT dan IMAGE, field benar-benar filled,
+tidak ada duplikasi Edit, Save/Publish lebih kontras,
+canvas tetap besar di kanan, control panel di kiri,
+tanpa editor engine.
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Admin Edit page UI revision - src/pages/admin/AdminEdit.vue only
+
+### Specification yang dibaca
+- admin/TALI-TEMALI_ADMIN_OPENCODE.md (EDIT section requirements)
+- AGENTS.md (section independence, element independence rules)
+
+### Design references yang dibaca
+Tidak ada referensi visual untuk Admin UI shell (utilitarian design)
+
+### Pekerjaan yang dilakukan
+1. Mengganti struktur accordion lama (Layout, Appearance, Position & Transform, Layer, Media) dengan 2 fold utama: FONT dan IMAGE
+2. FONT fold berisi: Size, Spacing, Color, Shadow, Hover, X, Y, Rotate
+3. IMAGE fold berisi: Upload, Hover, X, Y, Outline, Change, Rotate
+4. Semua input field dibuat sebagai filled input box yang terlihat jelas (bukan teks kosong seperti label)
+5. Header Edit: hanya satu "Edit" dengan underline hitam tebal parsial (menghapus duplikasi)
+6. Toolbar: Undo/Redo icon-only, Save (light/warm surface), Publish (peach/orange lebih kontras)
+7. Control panel di kiri (320px), Preview Canvas di kanan (max-width 900px, white, dashed border, radius 24px)
+8. Placeholder canvas: "Mulai mengedit halaman" dengan action chips Drag, Resize, Position, Rotate, Layer
+9. Tidak mengimplementasikan editor engine (selection, drag, resize, rotate, z-index, delete, live editing, save, publish, draft persistence)
+
+### File yang diubah
+- src/pages/admin/AdminEdit.vue (total rewrite sesuai spesifikasi final)
+
+### Files protected (not modified)
+- Dashboard, Manage Media, Maintenance, Messages pages
+- Router configuration
+- Guest View sections
+- AGENTS.md, md/**, design/**
+
+### Validation
+- TypeScript: ✅ PASS (vue-tsc)
+- Build: ✅ PASS (vite build)
+- Global Admin background: #F6F4E8 maintained
+
+### Visual Verification
+Belum dilakukan (harus dibandingkan dengan design reference saat implementation verification)
+
+### Status
+COMPLETED - Admin Edit UI revised per final specification. Ready for visual verification against design reference.
+
+### Visual Verification
+- Shadow system added to FONT fold
+- Normal Shadow: Enable, Color, Offset X, Offset Y, Blur, Spread
+- Hover Shadow: Enable, Color, Offset X, Offset Y, Blur, Spread
+- Hover Color field added
+- All fields are filled input boxes
+- TypeScript: ✅ PASS (vue-tsc --noEmit)
+- Build: ✅ PASS (vite build)
+- AdminEdit.vue: ✅ Not modified beyond intended FOLD section revision
+
+### Status
+COMPLETED - Shadow system implemented in Admin Edit FOLD per P0-2 requirements. Ready to proceed to Manage Media.
+
+### Next step
+Proceed to Manage Media implementation (Phase 5E P0-3).
+
+---
+
+## Request #050
+
+### Waktu
+Sat Aug 15 2026
+
+### Instruksi pengguna
+Revisi layout dan struktur visual Control Panel pada AdminEdit.vue. Control Panel heading harus "Control Panel" bukan "Edit". Struktur FONT fold: Font Family, Size+Spacing (1 row), Color, Shadow, Hover, Position X+Y, Rotate, Z-index. Semua dalam SATU fold FONT. Compact dan terstruktur. Tidak ada accordion tambahan. Hanya 2 fold: FONT dan IMAGE.
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Admin Edit Control Panel layout revision - src/pages/admin/AdminEdit.vue only
+
+### Specification yang dibaca
+- Task spec TALI-TEMALI ADMIN EDIT CONTROL PANEL - FINAL LAYOUT REFINEMENT
+- AGENTS.md (section independence, element independence rules)
+
+### Design references yang dibaca
+Tidak ada referensi visual untuk Admin UI shell (utilitarian design)
+
+### Pekerjaan yang dilakukan
+1. Control Panel heading diubah dari "Edit" menjadi "Control Panel" dengan underline hitam tebal parsial
+2. Top header page tetap "Edit" (tidak duplikat)
+3. FONT fold dirombak menjadi struktur final:
+   - Font Family dropdown (di atas Size, mock font: Inter, Poppins, Plus Jakarta Sans)
+   - Size + Spacing sejajar 1 baris (grid 2 kolom)
+   - Color full width
+   - Shadow section (Enable checkbox, Shadow Color, Offset X/Y grid, Blur/Spread grid)
+   - Hover Color field
+   - Hover Shadow section (Enable checkbox, Shadow Color, Offset X/Y grid, Blur/Spread grid)
+   - Position X + Y sejajar 1 baris (grid 2 kolom)
+   - Rotate full width
+   - Z-index full width (di luar Shadow, di dalam fold FONT)
+4. IMAGE fold dipertahankan dengan struktur yang sudah disepakati (Upload, Hover, X, Y, Outline, Change, Rotate)
+5. Hanya 2 fold utama: FONT dan IMAGE. Tidak ada accordion Layout/Appearance/Position & Transform/Layer/Media
+6. Input fields: semua filled boxes, compact, grid 2 kolom untuk Size+Spacing dan Position X+Y
+7. Compactness: gap antar field dikurangi (12px → 10px), grid 2 kolom untuk field sejenis
+
+### File yang diubah
+- src/pages/admin/AdminEdit.vue (Control Panel layout restructure)
+
+### Files protected (not modified)
+- Dashboard, Manage Media, Maintenance, Messages pages
+- Router configuration
+- Guest View sections
+- AGENTS.md, md/**, design/**
+
+### Pre-existing changes preserved (NOT touched)
+- src/pages/admin/AdminMedia.vue (perubahan dari request sebelumnya)
+- src/sections/experience/ExperienceSection.vue (perubahan dari request sebelumnya)
+
+### Validation
+- TypeScript: ✅ PASS (vue-tsc --noEmit)
+- Build: ✅ PASS (vite build)
+- Global Admin background: #F6F4E8 maintained
+
+### Visual Verification
+Belum dilakukan (harus dibandingkan dengan design reference saat implementation verification)
+
+### Status
+COMPLETED - Control Panel layout refined. Two folds only (FONT, IMAGE). Font Family dropdown added above Size. Size+Spacing and Position X+Y in 2-column rows. Z-index added to FONT fold. Shadow system preserved and clearly separated from element Position.
+
+### Next step
+Visual verification of Admin Edit Control Panel. Then wait for approval before proceeding to Manage Media implementation.

@@ -1,12 +1,5 @@
 <template>
   <div class="admin-media-page">
-    <div class="media-toolbar">
-      <button class="upload-btn" @click="handleUploadClick">
-        <Upload class="upload-icon" />
-        <span>+ Upload</span>
-      </button>
-    </div>
-
     <div class="media-grid">
       <div
         v-for="category in mediaCategories"
@@ -115,16 +108,15 @@ const mediaCategories = ref<MediaCategory[]>([
   }
 ])
 
-const handleUploadClick = () => {
-  // Upload functionality pending implementation
-}
-
 const handleCardAction = (_category: MediaCategory) => {
   // Card action pending implementation
 }
 </script>
 
 <style scoped>
+.toolbar-spacer {
+  height: 24px;
+}
 .admin-media-page {
   background: #F6F4E8;
   min-height: 100vh;
