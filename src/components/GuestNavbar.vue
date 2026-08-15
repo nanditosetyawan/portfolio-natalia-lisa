@@ -19,32 +19,17 @@
 import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import Lenis from 'lenis'
 import { defaultNavigation } from '../data/default/navigation'
+import { defaultNavbarConfig as vConfig } from '../data/default/visual/navbar'
 
 // ──────────────────────────────────────────
-// SECTION DEFINITIONS — from actual DOM IDs
+// SECTION DEFINITIONS — from DEFAULT content
 // ──────────────────────────────────────────
-interface NavSection {
-  id: string          // actual DOM section id
-  label: string       // menu label
-  menuKey: string     // internal key
-  darkBg: boolean     // true = dark background → cream text
-}
+const sections = defaultNavigation.sections
 
-const sections: NavSection[] = [
-  { id: 'main',           label: 'Main',     menuKey: 'main',        darkBg: true  }, // #8D363A
-  { id: 'about',          label: 'About',    menuKey: 'about',       darkBg: false }, // #FFF0BE
-  { id: 'education',      label: 'About',    menuKey: 'about',       darkBg: false }, // #FFF0BE (About sub)
-  { id: 'college-section',label: 'About',    menuKey: 'about',       darkBg: false }, // #FFF0BE (About sub)
-  { id: 'shs-section',    label: 'About',    menuKey: 'about',       darkBg: false }, // #FFF0BE (About sub)
-  { id: 'experience',     label: 'Activity', menuKey: 'activity',    darkBg: false }, // #FFF0BE
-  { id: 'certificate',    label: 'Activity', menuKey: 'activity',    darkBg: false }, // #FDEBD6 (warm peach)
-  { id: 'contact',        label: 'Contact',  menuKey: 'contact',     darkBg: true  }, // #7B2329
-]
-
-// Brand name from default data
+// Brand name from DEFAULT content
 const brandName = computed(() => defaultNavigation.brand)
 
-// Use default navItems from data
+// Navigation items from DEFAULT content
 const navItemsData = computed(() => defaultNavigation.navItems)
 
 // Type for nav items
@@ -53,6 +38,29 @@ interface NavItem {
   label: string
   target: string
 }
+
+// ──────────────────────────────────────────
+// NAVBAR TYPOGRAPHY CSS VARIABLES — from DEFAULT visual config
+// Color is state-driven (dark-bg / light-bg / scrolled) via CSS classes,
+// but the color VALUES themselves are sourced from DEFAULT.
+// ──────────────────────────────────────────
+const navbarStyle = computed(() => ({
+  '--navbar-brand-font-family': vConfig.brand.fontFamily,
+  '--navbar-brand-font-size': vConfig.brand.fontSize,
+  '--navbar-brand-font-weight': vConfig.brand.fontWeight,
+  '--navbar-brand-letter-spacing': vConfig.brand.letterSpacing,
+  '--navbar-brand-line-height': vConfig.brand.lineHeight,
+  '--navbar-navlink-font-family': vConfig.navLink.fontFamily,
+  '--navbar-navlink-font-size': vConfig.navLink.fontSize,
+  '--navbar-navlink-font-weight': vConfig.navLink.fontWeight,
+  '--navbar-navlink-letter-spacing': vConfig.navLink.letterSpacing,
+  '--navbar-navlink-line-height': vConfig.navLink.lineHeight,
+  '--navbar-navlink-scrolled-font-size': vConfig.navLink.scrolledFontSize,
+  '--navbar-navlink-mobile-font-size': vConfig.navLink.mobileFontSize,
+  '--navbar-color-dark-bg': vConfig.colors.darkBgText,
+  '--navbar-color-light-bg': vConfig.colors.lightBgText,
+  '--navbar-color-scrolled': vConfig.colors.scrolledText,
+}))
 
 // ──────────────────────────────────────────
 // STATE
@@ -327,31 +335,44 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <nav class="guest-navbar" :class="navClass" aria-label="Main navigation">
+  <nav class="guest-navbar" :class="navClass" :style="navbarStyle" aria-label="Main navigation">
     <div class="navbar-inner">
       <!-- Brand -->
       <div class="navbar-brand">
-        <span class="brand-text">{{ brandName }}</span>
+        <span class="brand-text" :style="{
+          fontFamily: vConfig.brand.fontFamily,
+          fontSize: vConfig.brand.fontSize,
+          fontWeight: vConfig.brand.fontWeight,
+          letterSpacing: vConfig.brand.letterSpacing,
+          lineHeight: vConfig.brand.lineHeight,
+        }">{{ brandName }}</span>
       </div>
 
        <!-- Nav links + active pill -->
        <div class="navbar-menu" ref="menuRef">
-         <!-- Active pill (absolute, slides between items with liquid goop transition) -->
-         <div v-if="isScrolled" class="active-pill" ref="pillRef" aria-hidden="true"></div>
+          <!-- Active pill (absolute, slides between items with liquid goop transition) -->
+          <div v-if="isScrolled" class="active-pill" ref="pillRef" aria-hidden="true"></div>
 
-         <a
-           v-for="item in navItemsData"
-           :key="item.key"
-           :href="`#${item.target}`"
-           :data-key="item.key"
-           :id="`nav-${item.key}`"
-           class="nav-link"
-           :class="{ 'is-active': isScrolled && activeKey === item.key }"
-           @click="handleNavClick($event, item)"
-         >
-           <span class="nav-label">{{ item.label }}</span>
-         </a>
-       </div>
+          <a
+            v-for="item in navItemsData"
+            :key="item.key"
+            :href="`#${item.target}`"
+            :data-key="item.key"
+            :id="`nav-${item.key}`"
+            class="nav-link"
+            :class="{ 'is-active': isScrolled && activeKey === item.key }"
+            :style="{
+              fontFamily: vConfig.navLink.fontFamily,
+              fontSize: isScrolled ? vConfig.navLink.scrolledFontSize : vConfig.navLink.fontSize,
+              fontWeight: vConfig.navLink.fontWeight,
+              letterSpacing: vConfig.navLink.letterSpacing,
+              lineHeight: vConfig.navLink.lineHeight,
+            }"
+            @click="handleNavClick($event, item)"
+          >
+            <span class="nav-label">{{ item.label }}</span>
+          </a>
+        </div>
     </div>
   </nav>
 </template>
@@ -408,22 +429,18 @@ onUnmounted(() => {
 }
 
 /* ═══════════════════════════════════════════════════════
-   BRAND
+   BRAND (typo from DEFAULT via inline style, color is state-driven)
    ═══════════════════════════════════════════════════════ */
 .brand-text {
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-family: 'Inter', system-ui, sans-serif;
-  transition: color 0.35s ease;
   border: none;
   outline: none;
   background: none;
+  transition: color 0.35s ease;
 }
 
 /* ═══════════════════════════════════════════════════════
-   NAV MENU + LINKS (Perfect symmetry + hover capsules)
+   NAV MENU + LINKS (typo from DEFAULT via inline style, color is state-driven)
    ═══════════════════════════════════════════════════════ */
 .navbar-menu {
   position: relative;
@@ -441,10 +458,6 @@ onUnmounted(() => {
   justify-content: center;
   padding: 0.5rem 1.25rem; /* Wider link padding */
   text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  font-family: 'Inter', system-ui, sans-serif;
   white-space: nowrap;
   border-radius: 999px;
   color: inherit;
@@ -517,7 +530,7 @@ onUnmounted(() => {
    ═══════════════════════════════════════════════════════ */
 .guest-navbar.is-dark-bg .brand-text,
 .guest-navbar.is-dark-bg .nav-link {
-  color: #FFF0BE; /* Cream */
+  color: var(--navbar-color-dark-bg);
 }
 
 .guest-navbar.is-dark-bg .active-pill {
@@ -530,7 +543,7 @@ onUnmounted(() => {
    ═══════════════════════════════════════════════════════ */
 .guest-navbar.is-light-bg .brand-text,
 .guest-navbar.is-light-bg .nav-link {
-  color: #5A3E35; /* Dark brown */
+  color: var(--navbar-color-light-bg);
 }
 
 .guest-navbar.is-light-bg .active-pill {
@@ -580,7 +593,7 @@ onUnmounted(() => {
 }
 
 .guest-navbar.is-scrolled .nav-link {
-  font-size: 0.875rem;
+  font-size: var(--navbar-navlink-scrolled-font-size);
   padding: 0.45rem 1.1rem;
 }
 
@@ -591,7 +604,7 @@ onUnmounted(() => {
    ──────────────────────────────────────────────────────────── */
 .guest-navbar.is-scrolled .brand-text,
 .guest-navbar.is-scrolled .nav-link {
-  color: #FFFFFF;
+  color: var(--navbar-color-scrolled);
   /* Dark shadow behind white text keeps it legible on bright frosted glass */
   text-shadow:
     0 1px 4px rgba(30, 10, 5, 0.50),
@@ -600,7 +613,7 @@ onUnmounted(() => {
 
 /* Active item is brighter white with stronger glow */
 .guest-navbar.is-scrolled .nav-link.is-active {
-  color: #FFFFFF;
+  color: var(--navbar-color-scrolled);
   text-shadow:
     0 1px 6px rgba(20,  5, 0, 0.60),
     0 0  12px rgba(20,  5, 0, 0.30);
@@ -650,7 +663,7 @@ onUnmounted(() => {
 
   .nav-link {
     padding: 0.4rem 0.75rem;
-    font-size: 0.8rem;
+    font-size: var(--navbar-navlink-mobile-font-size);
   }
 }
 </style>

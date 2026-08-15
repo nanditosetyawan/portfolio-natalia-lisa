@@ -851,8 +851,46 @@ Portfolio Section - DEFAULT amendment only
 
 ### Final Git State
 - Branch: main
-- Modified: src/data/default/profile.ts, src/sections/portfolio/PortfolioSection.vue
-- Untracked: src/data/default/template_gambar/ (pre-existing)
+- Modified: src/components/GuestNavbar.vue
+- Untracked: src/data/default/visual/navbar.ts (new file)
 
 ### Verdict
-AMENDMENT COMPLETE
+NAVBAR CONTENT + TYPOGRAPHY DEFAULT BOUND
+
+## Request #050
+
+### Waktu
+Sun Aug 16 2026
+
+### Instruksi pengguna
+PHASE 5H-1 - NAVBAR DEFAULT CONTENT + TYPOGRAPHY BINDING
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Hanya Navbar (GuestNavbar.vue dan DEFAULT source).
+
+### Work actually performed
+1. Content (brand name, nav labels) already DEFAULT-driven via defaultNavigation import
+2. Created src/data/default/visual/navbar.ts with typography and color config
+3. Bound sections array to defaultNavigation.sections (removed hardcoded duplicate)
+4. Bound brand/nav-link typography via inline :style + CSS variables from config
+5. Replaced hardcoded CSS typography and color values with CSS variables from DEFAULT
+6. Logic unchanged: navigation, scroll, morphing, mobile breakpoint, active state
+
+### Files created
+- src/data/default/visual/navbar.ts
+
+### Files modified
+- src/components/GuestNavbar.vue
+
+### Validation performed
+- TypeScript: npx vue-tsc --noEmit -> PASS (0 errors)
+- Build: npm run build -> PASS
+
+### Final Git State
+- Branch: main; Modified: src/components/GuestNavbar.vue; Untracked: src/data/default/visual/navbar.ts
+
+### Verdict
+NAVBAR CONTENT + TYPOGRAPHY DEFAULT BOUND
