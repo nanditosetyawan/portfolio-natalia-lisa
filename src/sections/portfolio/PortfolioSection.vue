@@ -2,6 +2,13 @@
 import GuestNavbar from '../../components/GuestNavbar.vue'
 import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
 import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/portfolio'
+import { defaultProfile } from '../../data/default/profile'
+import gambar1Image from '../../data/default/template_gambar/gambar1.webp'
+
+const profileImages: Record<string, string> = {
+  gambar1: gambar1Image
+}
+const profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image
 </script>
 
 <template>
@@ -42,17 +49,11 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
               borderRadius: vConfig.profileCard.borderRadius,
               border: vConfig.profileCard.border,
               boxShadow: vConfig.profileCard.boxShadow,
-              transform: vConfig.profileCard.transformRotate
+              transform: vConfig.profileCard.transformRotate,
+              overflow: 'hidden'
             }"
           >
-            <div class="card-content">
-              <svg class="placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
-              </svg>
-              <span class="placeholder-label">Editable Cover Profile<br/>(Admin View)</span>
-            </div>
+            <img :src="profileImageSrc" :alt="defaultProfile.name" class="profile-image" />
           </div>
         </div>
       </div>
@@ -97,10 +98,10 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
         <div class="decor-circle circle-3" :style="{ bottom: vConfig.decorCircle3.bottom, left: vConfig.decorCircle3.left, width: vConfig.decorCircle3.width, height: vConfig.decorCircle3.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
 
         <!-- Sparkles -->
-        <div class="decor-sparkle sparkle-1" :style="{ top: vConfig.decorSparkle1.top, left: vConfig.decorSparkle1.left, width: vConfig.decorSparkle1.width, height: vConfig.decorSparkle1.height }">
+        <div class="decor-sparkle sparkle-1" :style="{ top: vConfig.decorSparkle1.top, left: vConfig.decorSparkle1.left, width: vConfig.decorSparkle1.width, height: vConfig.decorSparkle1.height, color: vConfig.decorPill.color }">
           <Sparkles :size="14" :stroke-width="1.5" />
         </div>
-        <div class="decor-sparkle sparkle-2" :style="{ top: vConfig.decorSparkle2.top, right: vConfig.decorSparkle2.right, width: vConfig.decorSparkle2.width, height: vConfig.decorSparkle2.height }">
+        <div class="decor-sparkle sparkle-2" :style="{ top: vConfig.decorSparkle2.top, right: vConfig.decorSparkle2.right, width: vConfig.decorSparkle2.width, height: vConfig.decorSparkle2.height, color: vConfig.decorPill.color }">
           <Sparkles :size="10" :stroke-width="1.5" />
         </div>
       </div>
@@ -168,17 +169,12 @@ import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/por
   text-align: center;
 }
 
-.placeholder-icon {
-  opacity: 0.5;
-}
-
-.placeholder-label {
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 0.8rem;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  line-height: 1.5;
-  font-family: 'Inter', system-ui, sans-serif;
+.profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
 }
 
 /* Decorative Layer */

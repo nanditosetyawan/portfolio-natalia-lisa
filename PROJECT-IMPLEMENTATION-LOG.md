@@ -681,3 +681,85 @@ COMPLETED - Row 1 card height (Draf + Published) dinaikkan ~71% (mendekati targe
 
 ### Next step
 N/A - Task complete. Lanjut ke instruksi berikutnya.
+
+---
+
+## Request #056
+
+### Waktu
+Sat Aug 15 2026
+
+### Instruksi pengguna
+PHASE 5G-1 — PORTFOLIO DEFAULT AMENDMENT
+HANYA Portfolio Section. Dua perubahan:
+1. Ganti placeholder foto/profile pada frame Portfolio dengan asset gambar1.webp
+2. Temukan dua SVG dekoratif yang tampil hitam dan ubah warnanya mengikuti warna DEFAULT dekoratif Portfolio
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Portfolio Section - DEFAULT amendment only
+- src/sections/portfolio/PortfolioSection.vue
+- src/data/default/profile.ts
+
+### Specifications consulted
+- AGENTS.md (section independence, element independence, no invention rule, visual fidelity)
+- md/09-asset-content-map.md (asset principle, profile/person image)
+- src/data/default/visual/portfolio.ts (DEFAULT decorative color)
+
+### Design references consulted
+- design/portfolio/home.png (visual reference for Portfolio section)
+
+### Work actually performed
+1. **gambar1.webp Discovery**: Found exactly one at `src/data/default/template_gambar/gambar1.webp` (verified)
+2. **Portfolio Frame Audit**: Identified `.profile-card-front` with `vConfig.profileCard` properties. Placeholder was inline SVG + text "Editable Cover Profile (Admin View)" in `.card-content` wrapper
+3. **Image Architecture**: Determined image reference belongs in content config (`src/data/default/profile.ts`) following existing pattern (certificates.ts has `images` array in content). Added `imageUrl` to DefaultProfile interface and default value `'gambar1'`
+4. **Image Implementation**:
+   - Added imports for `defaultProfile` and `gambar1Image` (via Vite asset import)
+   - Created mapping `profileImages[defaultProfile.imageUrl]` to resolve DEFAULT → component → image
+   - Replaced placeholder SVG/text with `<img :src="profileImageSrc" :alt="defaultProfile.name" class="profile-image" />`
+   - Added `overflow: 'hidden'` to profile-card-front inline style to clip image to rounded frame
+   - Added `.profile-image` CSS: width/height 100%, object-fit: cover, border-radius: inherit
+   - Removed `.placeholder-icon` and `.placeholder-label` CSS
+5. **Two Black SVG Identification**:
+   - SVG #1: `decor-sparkle sparkle-1` (line 101) — Sparkles component, no color binding → black
+   - SVG #2: `decor-sparkle sparkle-2` (line 104) — Sparkles component, no color binding → black
+   - Both lacked color binding, inheriting black from body text color
+6. **DEFAULT Color Source**: `vConfig.decorPill.color` = `rgba(255, 240, 192, 0.3)` (gold/cream), used by Pill and Circles decorative elements
+7. **SVG Color Binding**: Added `color: vConfig.decorPill.color` to both Sparkles wrapper divs' `:style`, binding through DEFAULT → vConfig → SVG currentColor
+
+### Files changed
+- src/data/default/profile.ts (+3/-1 lines: added imageUrl interface property and default value)
+- src/sections/portfolio/PortfolioSection.vue (+18/-22 lines: image implementation + 2 Sparkles color bindings + CSS updates)
+
+### Files protected (not modified)
+- About, Education, College, SHS, Experience, Certificate, Contact sections
+- Admin pages (AdminEdit, AdminDashboard, AdminMessages, AdminMedia, AdminMaintenance)
+- AdminSidebar, AdminHeader, AdminLayout
+- Router, Supabase, database, persistence
+- md/**, design/**, AGENTS.md
+
+### Validation
+- TypeScript: ✅ PASS (vue-tsc --noEmit - 0 errors)
+- Build: ✅ PASS (vite build - success, gambar1.webp bundled as dist/assets/gambar1-BhVaXFfT.webp)
+
+### Visual Preservation
+- Frame geometry preserved: profile-card-front width/height/position/rotation/borderRadius/shadow/background unchanged
+- Sparkles geometry preserved: position, size, shape unchanged (only color binding added)
+- Pre-existing changes preserved: AdminEdit.vue modified, template_gambar/ untracked
+
+### Source of Truth Chain
+- **Image**: defaultProfile.imageUrl ('gambar1') → profileImages map → profileImageSrc → <img src> → gambar1.webp
+- **SVG Color**: vConfig.decorPill.color → Sparkles wrapper :style.color → SVG currentColor → rendered gold
+
+### Remaining Gaps
+- Three Plus (cross) icons (decor-cross cross-1/2/3) also lack color binding and appear black in source. Reported per Step 10 (report other problems, don't fix). Fixing them would exceed "two SVG" scope.
+
+### Final Git State
+- Branch: main
+- Modified: src/data/default/profile.ts, src/sections/portfolio/PortfolioSection.vue
+- Untracked: src/data/default/template_gambar/ (pre-existing)
+
+### Verdict
+AMENDMENT COMPLETE
