@@ -114,54 +114,28 @@ const handleCardAction = (_category: MediaCategory) => {
 </script>
 
 <style scoped>
-.toolbar-spacer {
-  height: 24px;
-}
 .admin-media-page {
   background: #F6F4E8;
-  min-height: 100vh;
-  padding: 1.5rem 2rem;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 2rem 2rem;
   font-family: 'Inter', system-ui, sans-serif;
-}
-
-.media-toolbar {
-  margin-bottom: 1.5rem;
-}
-
-.upload-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: #FFE4B5;
-  color: #5A3E35;
-  border: 1px solid #E8DED0;
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.upload-btn:hover {
-  background: #FFDE9E;
-}
-
-.upload-icon {
-  width: 18px;
-  height: 18px;
 }
 
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 24px auto 0;
 }
 
 .media-card {
   background: #FAF9F5;
   border-radius: 24px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.05);
   display: flex;
   flex-direction: column;
@@ -169,6 +143,7 @@ const handleCardAction = (_category: MediaCategory) => {
   text-align: center;
   position: relative;
   transition: all 0.2s ease;
+  height: 100%;
 }
 
 .media-card:hover {
@@ -181,33 +156,33 @@ const handleCardAction = (_category: MediaCategory) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
   background: linear-gradient(150deg, #FFF5EB 0%, #FFE4B5 100%);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   box-shadow: inset 0 2px 6px rgba(90, 62, 53, 0.06);
 }
 
 .illustration-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   color: #7B5F3B;
   opacity: 0.85;
 }
 
 .media-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   background: #FF8F5A;
   color: #FFFFFF;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,22 +190,23 @@ const handleCardAction = (_category: MediaCategory) => {
 }
 
 .card-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #5A3E35;
 }
 
 .card-description {
-  margin: 0 0 1.5rem 0;
-  font-size: 0.8rem;
+  margin: 0 0 1rem 0;
+  font-size: 0.75rem;
   color: #7B5F3B;
-  line-height: 1.4;
-  max-width: 180px;
+  line-height: 1.35;
+  max-width: 160px;
 }
 
 .card-actions {
   width: 100%;
+  margin-top: auto;
 }
 
 .card-action-btn {
@@ -242,7 +218,7 @@ const handleCardAction = (_category: MediaCategory) => {
   color: #5A3E35;
   border: 1px solid #E8DED0;
   border-radius: 12px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -255,8 +231,8 @@ const handleCardAction = (_category: MediaCategory) => {
 }
 
 .action-left-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .action-label {
@@ -265,43 +241,64 @@ const handleCardAction = (_category: MediaCategory) => {
 }
 
 .action-chevron {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 @media (max-width: 1024px) {
   .media-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-  }
-}
-
-@media (max-width: 768px) {
-  .media-grid {
-    grid-template-columns: 1fr;
+    gap: 18px;
   }
   
   .admin-media-page {
-    padding: 1.5rem;
+    padding: 0 1.5rem 1.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .media-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .admin-media-page {
+    padding: 0 1rem 1rem;
+  }
+  
+  .media-card {
+    padding: 18px;
   }
   
   .card-illustration {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
   }
   
   .illustration-icon {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
   }
   
   .card-title {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   
   .card-description {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     max-width: 140px;
+  }
+  
+  .card-action-btn {
+    font-size: 0.75rem;
+    padding: 0.45rem 0.65rem;
+  }
+  
+  .action-left-icon,
+  .action-chevron {
+    width: 13px;
+    height: 13px;
   }
 }
 </style>

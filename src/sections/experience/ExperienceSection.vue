@@ -32,11 +32,11 @@
             opacity: vConfig.decorSyringe.opacity
           }">
           <svg :viewBox="'0 0 80 120'" :width="vConfig.decorSyringe.width" :height="vConfig.decorSyringe.height" fill="none">
-            <path d="M40 10 L40 60" stroke="#8D363A" stroke-width="2.5" stroke-linecap="round" />
-            <path d="M30 25 Q40 15 50 25 Q50 35 40 40 Q30 35 30 25" fill="#8D363A" opacity="0.85" />
+            <path d="M40 10 L40 60" :stroke="vConfig.decorSyringe.color" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M30 25 Q40 15 50 25 Q50 35 40 40 Q30 35 30 25" :fill="vConfig.decorSyringe.color" opacity="0.85" />
             <rect x="36" y="55" width="8" height="40" rx="4" fill="#FF9A86" opacity="0.9" />
-            <rect x="38" y="95" width="4" height="20" rx="2" fill="#8D363A" />
-            <line x1="28" y1="45" x2="52" y2="45" stroke="#8D363A" stroke-width="2" stroke-linecap="round" />
+            <rect x="38" y="95" width="4" height="20" rx="2" fill="#FF9A86" />
+            <line x1="28" y1="45" x2="52" y2="45" :stroke="vConfig.decorSyringe.color" stroke-width="2" stroke-linecap="round" />
           </svg>
         </div>
         <div class="decor-heartbeat"
@@ -59,6 +59,7 @@
             top: vConfig.decorDots.top,
             left: vConfig.decorDots.left,
             transform: 'translateX(' + vConfig.decorDots.transformTranslateX + ')',
+            backgroundImage: 'radial-gradient(' + vConfig.decorDots.color + ' 2px, transparent 2px)',
             opacity: vConfig.decorDots.opacity
           }"></div>
         <div class="decor-circle"
@@ -115,7 +116,11 @@
           :key="item.id"
           class="exp-card"
           :class="item.layout"
-          :style="{ transform: `translateY(${(i - rafProgress) * 100}vh)` }"
+          :style="{
+            transform: `translateY(${(i - rafProgress) * 100}vh)`,
+            paddingTop: vConfig.card.paddingTop,
+            paddingBottom: vConfig.card.paddingBottom
+          }"
         >
           <!-- Text: title + date + description — moves with card -->
           <div class="exp-text">

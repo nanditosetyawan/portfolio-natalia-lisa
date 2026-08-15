@@ -1,29 +1,5 @@
 <template>
   <div class="edit-page">
-    <header class="edit-header">
-      <h1 class="edit-title">Edit<span class="edit-underline"></span></h1>
-      <div class="edit-toolbar">
-        <div class="toolbar-left">
-          <button class="tbar-btn tbar-undo" title="Undo" disabled>
-            <Undo />
-          </button>
-          <button class="tbar-btn tbar-redo" title="Redo" disabled>
-            <Redo />
-          </button>
-        </div>
-        <div class="toolbar-right">
-          <button class="tbar-btn tbar-save" disabled>
-            <Save />
-            <span>Save</span>
-          </button>
-          <button class="tbar-btn tbar-publish" disabled>
-            <Publish />
-            <span>Publish</span>
-          </button>
-        </div>
-      </div>
-    </header>
-
     <div class="edit-canvas">
       <aside class="control-panel">
         <h2 class="control-panel-title">Control Panel<span class="control-panel-underline"></span></h2>
@@ -236,12 +212,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import {
-  Undo,
-  Redo,
-  Save,
-  ChevronDown,
-} from 'lucide-vue-next'
+import { ChevronDown } from 'lucide-vue-next'
 
 const expanded = ref({
   font: true,
@@ -251,10 +222,6 @@ const expanded = ref({
 const shadowNormalEnabled = ref(false)
 const shadowHoverEnabled = ref(false)
 
-const Publish = {
-  template:
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6l-6-6z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><line x1="8" y1="9" x2="8.5" y2="9"></line></svg>',
-}
 const Editor3D = {
   template:
     '<svg width="64" height="64" viewBox="0 0 48 48" fill="none"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="32" height="32" rx="4"/><path d="M8 20h32M8 28h32M16 8v8M32 8v8"></g></svg>',

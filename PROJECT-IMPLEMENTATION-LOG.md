@@ -365,7 +365,58 @@ Tidak ada referensi visual untuk Admin UI shell (utilitarian design)
 Belum dilakukan (harus dibandingkan dengan design reference saat implementation verification)
 
 ### Status
-COMPLETED - Control Panel layout refined. Two folds only (FONT, IMAGE). Font Family dropdown added above Size. Size+Spacing and Position X+Y in 2-column rows. Z-index added to FONT fold. Shadow system preserved and clearly separated from element Position.
+COMPLETED - Edit heading removed from AdminEdit.vue. Control Panel is now the only heading. Sidebar "Edit" menu preserved. Two-fold structure (FONT, IMAGE) maintained.
 
 ### Next step
-Visual verification of Admin Edit Control Panel. Then wait for approval before proceeding to Manage Media implementation.
+Visual verification of Admin Edit page heading removal. Then wait for approval before proceeding to Manage Media.
+
+---
+
+## Request #051
+
+### Waktu
+Sat Aug 15 2026
+
+### Instruksi pengguna
+Koreksi HANYA halaman /admin/edit. Menghilangkan heading "Edit" kedua pada halaman edit, sehingga hanya satu heading "Control Panel" yang terlihat. Top header "Edit" dihapus untuk route /admin/edit saja, tanpa menghapus AdminHeader secara global. Sidebar menu "Edit" tetap dijaga.
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Admin Edit heading removal - src/pages/admin/AdminEdit.vue only
+
+### Specification yang dibaca
+- Task spec TALI-TEMALI ADMIN EDIT - REMOVE DUPLICATE EDIT HEADING
+- AGENTS.md (section independence, element independence rules)
+
+### Design references yang dibaca
+Tidak ada referensi visual untuk Admin UI shell (utilitarian design)
+
+### Pekerjaan yang dilakukan
+1. Hapus page header (tag <header>, <h1 class="edit-title">Edit</h1>, dan edit toolbar) dari AdminEdit.vue untuk route /admin/edit
+2. Top heading "Edit" pada halaman Edit dihapus (single source of truth)
+3. Control Panel heading "Control Panel" sebagai satu-satunya heading utama pada area editor kiri
+4. Sidebar menu "Edit" tetap dijaga tanpa diubah menjadi "Control Panel"
+5. Import Undo, Redo, Save, Publish dihapus dari AdminEdit.vue karena tidak digunakan lagi
+6. Struktur FONT dan IMAGE fold tetap utuh tanpa gangguan
+
+### File yang diubah
+- src/pages/admin/AdminEdit.vue (hapus page header, hapus import Undo/Redo/Save/Publish)
+
+### Files protected (not modified)
+- Dashboard, Manage Media, Maintenance, Messages pages - header tidak disentuh
+- AdminSidebar.vue - menu tetap "Edit"
+- AdminHeader.vue - tidak diubah secara global
+- Router configuration
+- Guest View sections
+
+### Validation
+- TypeScript: ✅ PASS (vue-tsc --noEmit - 0 errors)
+- Build: ✅ PASS (vite build - sukses 1.15s)
+
+### Status
+COMPLETED - Duplicate Edit heading removed from /admin/edit page. Control Panel is the only heading. Admin sidebar "Edit" menu preserved. Build passes cleanly.
+
+### Next step
+Visual verification of Admin Edit page. Then proceed to Manage Media implementation (Phase 5E).

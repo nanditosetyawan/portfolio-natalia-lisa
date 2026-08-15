@@ -16,8 +16,19 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
   >
     <!-- Subtle edge/background decoration -->
     <div class="bg-decor" aria-hidden="true">
-      <div class="bg-ring ring-1"></div>
-      <div class="bg-ring ring-2"></div>
+      <div class="bg-ring ring-1" :style="{
+        width: vConfig.bgRing1.width,
+        height: vConfig.bgRing1.height,
+        top: vConfig.bgRing1.top,
+        left: vConfig.bgRing1.left
+      }"></div>
+      <div class="bg-ring ring-2" :style="{
+        width: vConfig.bgRing2.width,
+        height: vConfig.bgRing2.height,
+        bottom: vConfig.bgRing2.bottom,
+        right: vConfig.bgRing2.right,
+        boxShadow: vConfig.bgRing2.boxShadow
+      }"></div>
       <div class="bg-grid grid-area"></div>
     </div>
 
@@ -176,20 +187,44 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 
     <!-- Foreground decorative elements -->
     <div class="front-decor" aria-hidden="true">
-      <div class="decor-dots"></div>
-      <div class="decor-sparkle sp-1">
+      <div class="decor-dots" :style="{
+        top: vConfig.decorDots.top,
+        right: vConfig.decorDots.right,
+        width: vConfig.decorDots.width,
+        height: vConfig.decorDots.height,
+        opacity: vConfig.decorDots.opacity
+      }"></div>
+      <div class="decor-sparkle sp-1" :style="{
+        top: vConfig.decorSparkle1.top,
+        left: vConfig.decorSparkle1.left,
+        color: vConfig.decorSparkle1.color,
+        opacity: vConfig.decorSparkle1.opacity
+      }">
         <Sparkle :size="22" :stroke-width="1.5" />
       </div>
-      <div class="decor-sparkle sp-2">
+      <div class="decor-sparkle sp-2" :style="{
+        bottom: vConfig.decorSparkle2.bottom,
+        right: vConfig.decorSparkle2.right,
+        color: vConfig.decorSparkle2.color,
+        opacity: vConfig.decorSparkle2.opacity
+      }">
         <Sparkle :size="14" :stroke-width="1.5" />
       </div>
-      <div class="decor-arrow">
+      <div class="decor-arrow" :style="{
+        top: vConfig.decorArrow.top,
+        right: vConfig.decorArrow.right,
+        opacity: vConfig.decorArrow.opacity
+      }">
         <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
           <path d="M12 50 Q 12 22 42 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
           <path d="M42 20 L 34 11 M42 20 L 33 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </div>
-      <div class="decor-plant">
+      <div class="decor-plant" :style="{
+        left: vConfig.decorPlant.left,
+        bottom: vConfig.decorPlant.bottom,
+        opacity: vConfig.decorPlant.opacity
+      }">
         <svg viewBox="0 0 80 90" width="80" height="90" fill="none">
           <path d="M40 90 C 40 60 40 34 40 12" stroke="#7A8B5C" stroke-width="3" stroke-linecap="round" />
           <path d="M40 72 C 26 68 16 55 18 44" stroke="#7A8B5C" stroke-width="2.5" stroke-linecap="round" />

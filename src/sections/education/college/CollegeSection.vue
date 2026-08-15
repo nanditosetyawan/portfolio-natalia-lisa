@@ -100,7 +100,13 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
         </span>
       </div>
 
-          <p class="college-desc">
+          <p class="college-desc" :style="{
+            color: vConfig.description.color,
+            fontSize: vConfig.description.fontSize,
+            fontWeight: vConfig.description.fontWeight,
+            lineHeight: vConfig.description.lineHeight,
+            fontFamily: vConfig.description.fontFamily
+          }">
             {{ defaultCollege.items[0].description }}
           </p>
         </div>
