@@ -894,3 +894,188 @@ Hanya Navbar (GuestNavbar.vue dan DEFAULT source).
 
 ### Verdict
 NAVBAR CONTENT + TYPOGRAPHY DEFAULT BOUND
+
+## Request #051
+
+### Waktu
+Sun Aug 16 2026
+
+### Instruksi pengguna
+PHASE 5H-1C - ABOUT SECTION BACKGROUND VERTICAL SPACE AMENDMENT
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+About section background vertical spacing only.
+
+### Work actually performed
+1. Performed forensic audit (Phase 5H-1B) - identified section.padding as default-driven source of vertical spacing
+2. Changed ONLY section.padding in src/data/default/visual/about.ts from 6rem 5rem 7.5rem to 8rem 5rem 10rem
+3. No CSS fallback changes in AboutSection.vue (DEFAULT remains source of truth)
+4. container.minHeight, visual.height, content.paddingTop untouched
+5. TypeScript and build both pass
+
+### Files modified
+- src/data/default/visual/about.ts
+
+### Files explicitly protected (not modified)
+- src/components/GuestNavbar.vue
+- src/sections/about/AboutSection.vue (CSS fallback only, not touched)
+- All other sections
+- AGENTS.md, md/**, design/**
+
+### Validation performed
+- TypeScript: npx vue-tsc --noEmit -> PASS (0 errors)
+- Build: npm run build -> PASS
+
+### Final Git State
+- Branch: main
+- Modified: src/data/default/visual/about.ts
+
+### Verdict
+ABOUT BACKGROUND HEIGHT AMENDED
+## Request #052 - PHASE 5H-2B NAVBAR CLICK TARGET DIRECT SWITCH
+
+Main nav item target: main -> about
+About nav item target: about -> education
+Activity + Contact unchanged
+Validation: vue-tsc PASS, npm run build PASS
+Verdict: NAVBAR CLICK TARGET SWITCHED
+
+---
+
+## Request #053
+
+### Waktu
+Sun Aug 16 2026
+
+### Instruksi pengguna
+PHASE 5I-1 — CONTACT/WORK TOGETHER IMAGE REPLACEMENT
+Ganti placeholder "PERSON IMAGE" pada section Work Together / Contact dengan asset gambar1.webp. Tanpa frame/card.
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Hanya Contact Section (Work Together). DEFAULT content config + component binding.
+
+### Specifications consulted
+- AGENTS.md (section independence, no frame/card, source of truth DEFAULT)
+- md/09-asset-content-map.md (asset principle - gunakan existing asset)
+- Request #056 (Portfolio gambar1.webp pattern)
+
+### Design references consulted
+- design/contact/contact.png (visual reference for Contact section)
+
+### Work actually performed
+1. **Asset Discovery**: gambar1.webp SUDAH ADA di `src/data/default/template_gambar/gambar1.webp` (same as Portfolio). Tidak dibuat baru, tidak di-rename, tidak diduplikasi.
+2. **Section Tracking**: Component `src/sections/contact/ContactSection.vue` menghasilkan "LET'S WORK TOGETHER", "CLICK HERE", "PERSON IMAGE", "PENDING USER ASSET".
+3. **DEFAULT Source**: `src/data/default/contact.ts` (DefaultContact) belum punya property image. Added `imageUrl: string` to interface + default value `'gambar1'`.
+4. **Component Binding**: Import `gambar1Image` dari `../../data/default/template_gambar/gambar1.webp`. Create `contactImages` map: `{ gambar1: gambar1Image }`. `contactImageSrc = contactImages[defaultContact.imageUrl] ?? gambar1Image`.
+5. **Placeholder Removal**: Hapus `.contact-person-placeholder` div, SVG silhouette, `<p>PERSON IMAGE</p>`, `<p>Pending user asset</p>`.
+6. **Image Insertion**: `<img :src="contactImageSrc" class="contact-person-image" :style="{ width, height, filter, zIndex }">` langsung di `.contact-person` (NO frame/card).
+7. **CSS Cleanup**: Hapus `.contact-person-placeholder`, `.person-silhouette`, `.person-label`, `.person-sublabel`. Rename `.person-silhouette` geometry ke `.contact-person-image` (width clamp, height auto, filter drop-shadow).
+8. **Image Properties**: Diperoleh dari DEFAULT `vConfig.personImage` (width, height, filter, zIndex). Position/size dari structural CSS `.contact-person` (flex 0 0 38%, align-items flex-end, padding-bottom 2rem). NO structural CSS berubah.
+
+### Files changed
+- src/data/default/contact.ts (+2 lines: imageUrl interface + default value)
+- src/sections/contact/ContactSection.vue (+15/-59 lines: import map + img tag + CSS cleanup)
+
+### Files protected (not modified)
+- About, Education, College, SHS, Experience, Certificate, Portfolio sections
+- All Admin pages
+- md/**, design/**, AGENTS.md
+
+### Validation performed
+- TypeScript: npx vue-tsc --noEmit -> PASS (0 errors)
+- Build: npm run build -> PASS
+- gambar1.webp bundled: dist/assets/gambar1-BhVaXFfT.webp (164.47 kB)
+
+### Visual Preservation
+- LET'S WORK TOGETHER: unchanged
+- CLICK HERE: unchanged
+- Background section (#7B2329): unchanged
+- Decorative SVG pattern: unchanged
+- Section layout (flex row, min-height 120vh): unchanged
+- CTA behavior: unchanged
+- Image geometry: sama dengan placeholder sebelumnya (width clamp 180-320px, height auto, drop-shadow)
+
+### Source of Truth Chain
+DEFAULT (contact.ts: imageUrl 'gambar1')
+→ contactImages map
+→ contactImageSrc
+→ <img :src>
+→ gambar1.webp
+
+### Remaining Gaps
+- Tidak ada.
+
+### Final Git State
+- Branch: main
+- Modified: src/data/default/contact.ts, src/sections/contact/ContactSection.vue
+
+### Verdict
+CONTACT IMAGE REPLACEMENT COMPLETE
+
+---
+
+# PHASE 5I-1 CONTACT IMAGE REPLACEMENT
+
+## 1. Target Component
+File: src/sections/contact/ContactSection.vue
+
+## 2. Asset Discovery
+gambar1.webp:
+exact path: src/data/default/template_gambar/gambar1.webp
+
+## 3. Previous Placeholder
+- person placeholder (SVG silhouette)
+- PERSON IMAGE
+- PENDING USER ASSET
+
+Status:
+REMOVED
+
+## 4. Image Replacement
+gambar1.webp:
+INSERTED
+
+Frame/card:
+NONE
+
+## 5. Source of Truth
+DEFAULT (contact.ts: imageUrl)
+→ config/content
+→ component
+→ <img>
+
+## 6. Image Properties
+Laporkan sumber:
+- position: structural CSS (.contact-person flex 0 0 38%, align-items flex-end, padding-bottom 2rem)
+- size: DEFAULT vConfig.personImage.width (clamp 180-320px), height auto
+- z-index: DEFAULT vConfig.personImage.zIndex (2)
+- object-fit: width/height auto (no object-fit needed for transparent PNG)
+
+## 7. Preserved
+- LET'S WORK TOGETHER
+- CLICK HERE
+- background
+- decorations
+- section layout
+- CTA
+
+## 8. Files Changed
+- src/data/default/contact.ts
+- src/sections/contact/ContactSection.vue
+
+## 9. Typecheck
+PASS (0 errors)
+
+## 10. Build
+PASS
+
+## 11. Final Status
+CONTACT IMAGE REPLACEMENT COMPLETE
+
+STOP.

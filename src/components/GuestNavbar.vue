@@ -280,7 +280,7 @@ function handleNavClick(event: Event, item: NavItem) {
     const contactOffset = targetEl.offsetHeight - window.innerHeight
     const offset = item.target === 'contact'
       ? contactOffset
-      : (item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : -20))
+      : (item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : (item.target === 'about' ? 20 : -20)))
     lenis.scrollTo(targetEl, {
       duration: 1.3,
       offset,

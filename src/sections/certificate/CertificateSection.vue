@@ -188,6 +188,56 @@ onBeforeUnmount(() => {
         <path d="M88 85 L95 115 L82 108 L80 87" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
       </svg>
     </div>
+    <!-- Additional Decorative Elements -->
+    <div class="outline-decor decor-left" aria-hidden="true"
+      :style="{
+        top: vConfig.decorLeft.top,
+        left: vConfig.decorLeft.left,
+        transform: 'rotate(' + vConfig.decorLeft.transformRotate + ')'
+      }">
+      <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
+        <circle cx="80" cy="80" r="55" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.15" />
+        <circle cx="80" cy="80" r="40" stroke="#F28C38" stroke-width="1" opacity="0.1" />
+        <path d="M30 80 Q80 30 130 80 Q80 130 30 80" stroke="#F28C38" stroke-width="1.2" opacity="0.12" fill="none" />
+      </svg>
+    </div>
+    <div class="outline-decor decor-right-bottom" aria-hidden="true"
+      :style="{
+        bottom: vConfig.decorRightBottom.bottom,
+        right: vConfig.decorRightBottom.right,
+        transform: 'rotate(' + vConfig.decorRightBottom.transformRotate + ')'
+      }">
+      <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
+        <circle cx="80" cy="80" r="50" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="5 5" opacity="0.15" />
+        <circle cx="80" cy="80" r="35" stroke="#F28C38" stroke-width="1" stroke-dasharray="3 3" opacity="0.1" />
+        <path d="M80 30 L80 130 M30 80 L130 80" stroke="#F28C38" stroke-width="1" opacity="0.08" />
+      </svg>
+    </div>
+    <!-- Organic Wave Shapes -->
+    <div class="wave-shape wave-top" aria-hidden="true"
+      :style="{
+        top: vConfig.waveShapeTop.top,
+        right: vConfig.waveShapeTop.right,
+        width: vConfig.waveShapeTop.width,
+        height: vConfig.waveShapeTop.height
+      }">
+      <svg viewBox="0 0 240 240" width="100%" height="100%" fill="none">
+        <path d="M0 120 Q60 80 120 100 Q180 120 240 90 V240 H0 V120 Z" stroke="#F28C38" stroke-width="2" fill="#F28C38" fill-opacity="0.03" />
+        <path d="M0 160 Q60 140 120 150 Q180 160 240 130 V240 H0 V160 Z" stroke="#F28C38" stroke-width="1.5" fill="#F28C38" fill-opacity="0.02" />
+      </svg>
+    </div>
+    <div class="wave-shape wave-bottom" aria-hidden="true"
+      :style="{
+        bottom: vConfig.waveShapeBottom.bottom,
+        left: vConfig.waveShapeBottom.left,
+        width: vConfig.waveShapeBottom.width,
+        height: vConfig.waveShapeBottom.height
+      }">
+      <svg viewBox="0 0 280 280" width="100%" height="100%" fill="none">
+        <path d="M0 140 Q70 100 140 130 Q210 160 280 120 V280 H0 V140 Z" stroke="#F28C38" stroke-width="2" fill="#F28C38" fill-opacity="0.03" />
+        <path d="M0 190 Q70 170 140 180 Q210 190 280 170 V280 H0 V190 Z" stroke="#F28C38" stroke-width="1.5" fill="#F28C38" fill-opacity="0.02" />
+      </svg>
+    </div>
 
     <div class="certificate-container">
       <!-- Title -->
@@ -207,11 +257,12 @@ onBeforeUnmount(() => {
           }"
         >
           {{ certificatesTitle }}
-          <div class="title-sparkles" aria-hidden="true">
-            <svg class="sparkle sparkle-1" viewBox="0 0 24 24" width="24" height="24" fill="#F28C38">
+          <div class="title-sparkles" aria-hidden="true"
+           :style="{ color: vConfig.lineSegment.backgroundColor }">
+            <svg class="sparkle sparkle-1" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
               <path d="M12 0 C12 7 17 12 24 12 C17 12 12 17 12 24 C12 17 7 12 0 12 C7 12 12 7 12 0 Z" />
             </svg>
-            <svg class="sparkle sparkle-2" viewBox="0 0 24 24" width="14" height="14" fill="#F28C38">
+            <svg class="sparkle sparkle-2" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
               <path d="M7 0 C7 4 10 7 14 7 C10 7 7 10 7 14 C7 10 4 7 0 7 C4 7 7 4 7 0 Z" />
             </svg>
           </div>
@@ -437,6 +488,30 @@ onBeforeUnmount(() => {
   top: 12%;
   right: 6%;
   transform: rotate(15deg);
+}
+.decor-left {
+  top: 42%;
+  left: 3%;
+  transform: rotate(20deg);
+}
+.decor-right-bottom {
+  bottom: 12%;
+  right: 8%;
+  transform: rotate(-18deg);
+}
+/* ===== Organic Wave Shapes (Layer 4.5) ===== */
+.wave-shape {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+.wave-top {
+  top: 25%;
+  right: 12%;
+}
+.wave-bottom {
+  bottom: 30%;
+  left: 5%;
 }
 /* ===== Title and Sparkles (Layer 5) ===== */
 .title-wrapper {

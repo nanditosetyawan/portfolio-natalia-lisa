@@ -126,7 +126,7 @@ export const defaultAboutConfig: AboutVisualConfig = {
   section: {
     backgroundColor: '#FFF0BE',
     minHeight: '100vh',
-    padding: '6rem 5rem 7.5rem'
+    padding: '8rem 5rem 10rem'
   },
   container: {
     maxWidth: '1400px',

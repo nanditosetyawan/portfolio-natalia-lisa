@@ -122,6 +122,30 @@ export interface CertificateVisualConfig {
     right: string;
     transformRotate: string;
   };
+  /* Additional decorative elements */
+  decorLeft: {
+    top: string;
+    left: string;
+    transformRotate: string;
+  };
+  decorRightBottom: {
+    bottom: string;
+    right: string;
+    transformRotate: string;
+  };
+  /* Organic wave shapes */
+  waveShapeTop: {
+    top: string;
+    right: string;
+    width: string;
+    height: string;
+  };
+  waveShapeBottom: {
+    bottom: string;
+    left: string;
+    width: string;
+    height: string;
+  };
   cardsStack: {
     display: string;
     flexDirection: string;
@@ -530,6 +554,28 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     top: '12%',
     right: '6%',
     transformRotate: '15deg'
+  },
+  decorLeft: {
+    top: '42%',
+    left: '3%',
+    transformRotate: '20deg'
+  },
+  decorRightBottom: {
+    bottom: '12%',
+    right: '8%',
+    transformRotate: '-18deg'
+  },
+  waveShapeTop: {
+    top: '25%',
+    right: '12%',
+    width: '240px',
+    height: '240px'
+  },
+  waveShapeBottom: {
+    bottom: '30%',
+    left: '5%',
+    width: '280px',
+    height: '280px'
   },
   cardsStack: {
     display: 'flex',

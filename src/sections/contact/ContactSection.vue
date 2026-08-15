@@ -2,6 +2,12 @@
 import { computed } from 'vue'
 import { defaultContact } from '../../data/default/contact'
 import { defaultContactConfig as vConfig } from '../../data/default/visual/contact'
+import gambar1Image from '../../data/default/template_gambar/gambar1.webp'
+
+const contactImages: Record<string, string> = {
+  gambar1: gambar1Image
+}
+const contactImageSrc = contactImages[defaultContact.imageUrl] ?? gambar1Image
 
 // Computed styles for TypeScript compatibility
 const sectionStyle = computed(() => ({
@@ -153,34 +159,14 @@ const contentStyle = computed(() => ({
         </a>
       </div>
 
-      <!-- Right: person image (placeholder until user provides asset) -->
-      <div class="contact-person" aria-label="Person image placeholder">
-        <div class="contact-person-placeholder">
-          <!-- Placeholder outline shape representing a person silhouette -->
-          <svg class="person-silhouette" viewBox="0 0 320 560" fill="none" xmlns="http://www.w3.org/2000/svg"
-            :style="{
-              width: vConfig.personImage.width,
-              height: vConfig.personImage.height,
-              filter: vConfig.personImage.filter
-            }"
-          >
-            <!-- Head -->
-            <ellipse cx="160" cy="100" rx="65" ry="75" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
-            <!-- Neck -->
-            <rect x="135" y="170" width="50" height="50" rx="4" fill="rgba(255,255,255,0.06)"/>
-            <!-- Torso/lab coat -->
-            <path d="M60 230 C60 215 100 200 160 200 C220 200 260 215 260 230 L270 500 C270 510 265 520 255 520 L65 520 C55 520 50 510 50 500 Z"
-                  fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
-            <!-- Lab coat lapels -->
-            <path d="M160 200 L130 260 L160 240 L190 260 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-            <!-- Shoulder/arm left -->
-            <path d="M60 230 C40 240 20 270 15 350 L40 360 C42 290 55 265 65 250 Z" fill="rgba(255,255,255,0.07)"/>
-            <!-- Shoulder/arm right -->
-            <path d="M260 230 C280 240 300 270 305 350 L280 360 C278 290 265 265 255 250 Z" fill="rgba(255,255,255,0.07)"/>
-          </svg>
-          <p class="person-label" :style="{ fontFamily: vConfig.personLabel.fontFamily, fontSize: vConfig.personLabel.fontSize, fontWeight: vConfig.personLabel.fontWeight, letterSpacing: vConfig.personLabel.letterSpacing, color: vConfig.personLabel.color, textTransform: vConfig.personLabel.textTransform }">PERSON IMAGE</p>
-          <p class="person-sublabel" :style="{ fontFamily: vConfig.personSublabel.fontFamily, fontSize: vConfig.personSublabel.fontSize, letterSpacing: vConfig.personSublabel.letterSpacing, color: vConfig.personSublabel.color }">Pending user asset</p>
-        </div>
+      <!-- Right: person image -->
+      <div class="contact-person" aria-label="Person image">
+        <img :src="contactImageSrc" alt="Person image" class="contact-person-image" :style="{
+          width: vConfig.personImage.width,
+          height: vConfig.personImage.height,
+          filter: vConfig.personImage.filter,
+          zIndex: vConfig.personImage.zIndex
+        }"/>
       </div>
     </div>
   </section>
@@ -304,43 +290,13 @@ const contentStyle = computed(() => ({
   justify-content: center;
   align-self: stretch;
   overflow: visible;
-}
-
-.contact-person-placeholder {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
   padding-bottom: 2rem;
 }
 
-.person-silhouette {
+.contact-person-image {
   width: clamp(180px, 22vw, 320px);
   height: auto;
   filter: drop-shadow(0 0 40px rgba(255,255,255,0.08));
-}
-
-.person-label {
-  margin: 0;
-  font-family: 'Impact', 'Arial Black', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.3);
-  text-transform: uppercase;
-}
-
-.person-sublabel {
-  margin: 0;
-  font-family: 'Arial', sans-serif;
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.2);
-  text-transform: uppercase;
 }
 
 /* ── Responsive ── */
