@@ -2,7 +2,7 @@
   <div class="edit-page">
     <div class="edit-canvas">
       <aside class="control-panel">
-        <h2 class="control-panel-title">Control Panel<span class="control-panel-underline"></span></h2>
+        <h2 class="control-panel-title">Control Panel</h2>
         <nav class="control-nav">
           <!-- FONT FOLD -->
           <div class="fold">
@@ -188,7 +188,7 @@
       </aside>
 
       <main class="canvas-container">
-        <div class="canvas-border">
+        <div class="canvas-frame">
           <div class="canvas-scroll">
             <div class="canvas-placeholder">
               <div class="placeholder-3d">
@@ -236,6 +236,7 @@ const Editor3D = {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
 }
 
 /* ===== FOLDS ===== */
@@ -405,8 +406,9 @@ const Editor3D = {
   display: flex;
   gap: 24px;
   padding: 0 2rem;
-  height: calc(100vh - 160px);
-  flex: 1;
+  height: calc(100vh - 72px - 20px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ===== CONTROL PANEL ===== */
@@ -418,6 +420,7 @@ const Editor3D = {
   padding: 20px;
   box-shadow: 0 4px 12px -4px rgba(90, 62, 53, 0.05);
   overflow-y: auto;
+  height: 100%;
 }
 
 .control-panel-title {
@@ -425,18 +428,6 @@ const Editor3D = {
   font-size: 1.25rem;
   font-weight: 800;
   color: #5A3E35;
-  position: relative;
-  display: inline-block;
-}
-
-.control-panel-underline {
-  display: inline-block;
-  width: 64px;
-  height: 4px;
-  background-color: #5A3E35;
-  border-radius: 2px;
-  margin-left: 6px;
-  vertical-align: bottom;
 }
 
 .control-nav {
@@ -611,27 +602,32 @@ const Editor3D = {
 .canvas-container {
   flex: 1;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
 }
 
-.canvas-border {
+.canvas-frame {
   width: 100%;
-  max-width: 900px;
-  border: 2px dashed rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+  background: #FFFFFF;
+  border: 2px dashed rgba(0, 0, 0, 0.10);
   border-radius: 24px;
-  background: white;
   overflow: hidden;
+  aspect-ratio: 16 / 10;
+  display: flex;
+  flex-direction: column;
 }
 
 .canvas-scroll {
-  max-height: calc(100vh - 200px);
+  flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 20px;
 }
 
 .canvas-placeholder {
-  min-height: 720px;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -640,6 +636,7 @@ const Editor3D = {
   text-align: center;
   padding: 2rem;
   color: #7B5F3B;
+  box-sizing: border-box;
 }
 
 /* ===== PLACEHOLDER ===== */
