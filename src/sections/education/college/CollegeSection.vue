@@ -113,10 +113,14 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
 
       <!-- Right visual - polaroid frames -->
       <div class="college-visual" :style="{
+        flexBasis: vConfig.visual.flexBasis,
         height: vConfig.visual.height
       }">
         <!-- Back frame (larger, rotated left) -->
         <div class="polaroid frame-back" aria-hidden="true" :style="{
+          backgroundColor: vConfig.polaroid.backgroundColor,
+          borderRadius: vConfig.polaroid.borderRadius,
+          boxShadow: vConfig.polaroid.boxShadow,
           width: vConfig.frameBack.width,
           height: vConfig.frameBack.height,
           top: vConfig.frameBack.top,
@@ -146,6 +150,9 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
 
         <!-- Front frame (smaller, rotated right) -->
         <div class="polaroid frame-front" :style="{
+          backgroundColor: vConfig.polaroid.backgroundColor,
+          borderRadius: vConfig.polaroid.borderRadius,
+          boxShadow: vConfig.polaroid.boxShadow,
           width: vConfig.frameFront.width,
           height: vConfig.frameFront.height,
           bottom: vConfig.frameFront.bottom,

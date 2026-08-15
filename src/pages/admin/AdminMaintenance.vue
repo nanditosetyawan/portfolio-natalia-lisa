@@ -1,224 +1,358 @@
 <template>
   <div class="maintenance-page">
-    <div class="page-title">Maintenance</div>
-    <p class="page-description">
-      System maintenance tools. These actions affect the entire project.
-    </p>
-
-    <div class="maintenance-actions">
-      <button class="maint-btn" disabled>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M21 15V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M9 11L12 14L15 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M12 14L12 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Export</span>
+    <div class="maintenance-container">
+      <button
+        type="button"
+        class="maintenance-card maintenance-card--import"
+        aria-label="Import media"
+        @click="handleCardClick('import')"
+      >
+        <span class="maintenance-illustration">
+          <Upload class="illustration-icon" />
+        </span>
+        <span class="maintenance-content">
+          <span class="maintenance-title">Import</span>
+          <span class="maintenance-description">
+            Import configuration and media data from an external package.
+          </span>
+        </span>
+        <span class="maintenance-chevron">
+          <ChevronRight class="chevron-icon" />
+        </span>
       </button>
 
-      <button class="maint-btn" disabled>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M21 15V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M15 11L11 15L9 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Import</span>
+      <button
+        type="button"
+        class="maintenance-card maintenance-card--export"
+        aria-label="Export media"
+        @click="handleCardClick('export')"
+      >
+        <span class="maintenance-illustration">
+          <Download class="illustration-icon" />
+        </span>
+        <span class="maintenance-content">
+          <span class="maintenance-title">Export</span>
+          <span class="maintenance-description">
+            Export current configuration and project data to a package file.
+          </span>
+        </span>
+        <span class="maintenance-chevron">
+          <ChevronRight class="chevron-icon" />
+        </span>
       </button>
 
-      <button class="maint-btn reset-btn" @click="showResetModal = true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M3 12C3 7.58172 6.58172 4 11 4C15.4183 4 19 7.58172 19 12C19 16.4183 15.4183 20 11 20C6.58172 20 3 16.4183 3 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 3L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Reset System</span>
+      <button
+        type="button"
+        class="maintenance-card maintenance-card--reset"
+        aria-label="Reset system"
+        @click="handleResetCardClick"
+      >
+        <span class="maintenance-illustration">
+          <RefreshCw class="illustration-icon" />
+        </span>
+        <span class="maintenance-content">
+          <span class="maintenance-title">Reset System</span>
+          <span class="maintenance-description">
+            Reset all configuration to the default system state.
+          </span>
+        </span>
+        <span class="maintenance-chevron">
+          <ChevronRight class="chevron-icon" />
+        </span>
       </button>
-    </div>
 
-    <p class="maint-note">
-      Export, Import, and Reset System are UI placeholders — no persistence or data operations are implemented.
-    </p>
-
-    <div v-if="showResetModal" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">Confirm Reset System</h3>
-          <p class="modal-text">
-            This action will reset all configuration to system defaults.
-            This operation cannot be undone.
-          </p>
-        </div>
-        <div class="modal-actions">
-          <button class="modal-btn cancel" @click="showResetModal = false">
-            Cancel
-          </button>
-          <button class="modal-btn confirm" :disabled="isResetting" @click="handleConfirmReset">
-            {{ isResetting ? 'Resetting...' : 'Reset All' }}
-          </button>
-        </div>
+      <div class="maintenance-info-banner">
+        <Info class="info-icon" />
+        <span class="info-text">
+          Reset System will restore the current configuration to the default system state.
+        </span>
       </div>
     </div>
+
+    <transition name="modal-fade">
+      <div
+        v-if="showResetModal"
+        class="modal-overlay"
+        @click.self="showResetModal = false"
+      >
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <div class="modal-header">
+            <h3 id="modal-title" class="modal-title">Reset System</h3>
+            <p class="modal-text">
+              This will reset the current configuration to the default system
+              state. This operation cannot be undone.
+            </p>
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="modal-btn modal-btn--cancel"
+              @click="showResetModal = false"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="modal-btn modal-btn--confirm"
+              @click="showResetModal = false"
+            >
+              Reset System
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Upload, Download, RefreshCw, ChevronRight, Info } from 'lucide-vue-next'
 
 const showResetModal = ref(false)
-const isResetting = ref(false)
 
-const handleConfirmReset = () => {
-  isResetting.value = true
-  setTimeout(() => {
-    isResetting.value = false
-    showResetModal.value = false
-  }, 1000)
+const handleCardClick = (_action: string) => {
+  // UI shell only - placeholder action
+}
+
+const handleResetCardClick = () => {
+  showResetModal.value = true
 }
 </script>
 
 <style scoped>
 .maintenance-page {
+  background: #F6F4E8;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 0 2rem 2rem;
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 0.5rem;
-}
-
-.page-description {
-  margin: 0 0 2rem 0;
-  font-size: 0.95rem;
-  color: #64748b;
-}
-
-.maintenance-actions {
+.maintenance-container {
+  width: 100%;
+  max-width: 880px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-width: 400px;
+  gap: 18px;
+  margin-top: 24px;
 }
 
-.maint-btn {
-  display: inline-flex;
+.maintenance-card {
+  background: #FAF9F5;
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.05);
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1.25rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background-color: white;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #475569;
-  cursor: not-allowed;
-  opacity: 0.5;
-  transition: all 0.2s ease;
-}
-
-.maint-btn:not(.reset-btn):hover {
-  background-color: #f8fafc;
-}
-
-.reset-btn {
-  border-color: #fecaca;
-  color: #dc2626;
-  opacity: 1;
+  gap: 20px;
+  width: 100%;
+  text-align: left;
   cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  color: inherit;
 }
 
-.reset-btn:hover {
-  background-color: #fef2f2;
+.maintenance-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -8px rgba(90, 62, 53, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.06);
 }
 
-.reset-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.maintenance-card:focus-visible {
+  outline: 2px solid #E8DED0;
+  outline-offset: 2px;
 }
 
-.maint-note {
-  margin-top: 2rem;
-  font-size: 0.875rem;
-  color: #94a3b8;
-  font-style: italic;
+.maintenance-illustration {
+  flex: 0 0 38%;
+  max-width: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #FFF5EB 0%, #FFE4B5 100%);
+  box-shadow: inset 0 2px 6px rgba(90, 62, 53, 0.06);
+}
+
+.illustration-icon {
+  width: 40px;
+  height: 40px;
+  color: #7B5F3B;
+  opacity: 0.85;
+}
+
+.maintenance-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.maintenance-title {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #5A3E35;
+}
+
+.maintenance-description {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #7B5F3B;
+  line-height: 1.35;
+}
+
+.maintenance-chevron {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5A3E35;
+  opacity: 0.6;
+}
+
+.chevron-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.maintenance-card--reset:hover .maintenance-illustration {
+  background: linear-gradient(150deg, #FFEEEC 0%, #FFEFEE 100%);
+}
+
+.maintenance-card--reset:hover {
+  box-shadow: 0 12px 30px -8px rgba(180, 78, 42, 0.18), 0 0 0 1px rgba(180, 78, 42, 0.1);
+}
+
+.maintenance-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #EBE9E0;
+  border: 1px solid #DEDAD0;
+  border-radius: 18px;
+  font-size: 0.8rem;
+  color: #7B5F3B;
+  line-height: 1.4;
+}
+
+.info-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #B45F04;
 }
 
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(15, 23, 42, 0.5);
+  inset: 0;
+  background: rgba(90, 62, 53, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1.5rem;
 }
 
 .modal {
-  background: white;
-  border-radius: 0.75rem;
-  padding: 2rem;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: #FAF9F5;
+  border-radius: 24px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(90, 62, 53, 0.25);
 }
 
 .modal-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .modal-title {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #5A3E35;
 }
 
 .modal-text {
   margin: 0;
-  font-size: 0.95rem;
-  color: #64748b;
+  font-size: 0.9rem;
+  color: #7B5F3B;
   line-height: 1.5;
 }
 
 .modal-actions {
   display: flex;
-  gap: 1rem;
+  gap: 12px;
   justify-content: flex-end;
+  margin-top: 1.25rem;
 }
 
 .modal-btn {
-  padding: 0.625rem 1.5rem;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
-  border: none;
+  border: 1px solid #E8DED0;
   transition: all 0.2s ease;
 }
 
-.cancel {
-  background-color: #f8fafc;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+.modal-btn--cancel {
+  background: #FFF5EB;
+  color: #7B5F3B;
 }
 
-.cancel:hover {
-  background-color: #f1f5f9;
+.modal-btn--cancel:hover {
+  background: #FFE4B5;
 }
 
-.confirm {
-  background-color: #0f172a;
-  color: white;
+.modal-btn--confirm {
+  background: #FFEEEC;
+  color: #B44E2A;
+  border-color: #FCD3BE;
 }
 
-.confirm:hover:not(:disabled) {
-  background-color: #1e293b;
+.modal-btn--confirm:hover {
+  background: #FFE1DA;
 }
 
-.modal-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .maintenance-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .maintenance-content {
+    text-align: center;
+    align-items: center;
+  }
+
+  .maintenance-illustration {
+    flex: 0 0 auto;
+    max-width: 140px;
+    margin: 0 auto;
+  }
+
+  .maintenance-chevron {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
 }
 </style>

@@ -29,16 +29,19 @@ const contentStyle = computed(() => ({
     :style="sectionStyle"
   >
     <!-- Background medical icon pattern -->
-    <div class="contact-bg-pattern" aria-hidden="true">
-      <svg class="bg-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" preserveAspectRatio="xMidYMid slice">
+    <div class="contact-bg-pattern" aria-hidden="true" :style="{
+      width: vConfig.bgPattern.width,
+      height: vConfig.bgPattern.height
+    }">
+      <svg class="bg-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" preserveAspectRatio="xMidYMid slice" :style="{ color: vConfig.bgPattern.color }">
         <!-- Stethoscope left-center area -->
-        <g opacity="0.12" stroke="#ffffff" stroke-width="1.8" fill="none">
+        <g opacity="0.12" stroke="currentColor" stroke-width="1.8" fill="none">
           <circle cx="340" cy="480" r="28"/>
           <path d="M340 452 C340 420 310 400 310 370 C310 340 330 325 350 325 C370 325 390 340 390 370"/>
           <circle cx="390" cy="370" r="12"/>
         </g>
         <!-- Syringe top-left -->
-        <g opacity="0.10" stroke="#ffffff" stroke-width="1.8" fill="none" transform="translate(80, 100) rotate(-30)">
+        <g opacity="0.10" stroke="currentColor" stroke-width="1.8" fill="none" transform="translate(80, 100) rotate(-30)">
           <rect x="0" y="0" width="18" height="70" rx="3"/>
           <rect x="5" y="-20" width="8" height="25" rx="2"/>
           <line x1="9" y1="70" x2="9" y2="90"/>
@@ -47,7 +50,7 @@ const contentStyle = computed(() => ({
           <line x1="0" y1="50" x2="-8" y2="50"/>
         </g>
         <!-- Hexagonal molecular structure center-left -->
-        <g opacity="0.09" stroke="#ffffff" stroke-width="1.5" fill="none">
+        <g opacity="0.09" stroke="currentColor" stroke-width="1.5" fill="none">
           <polygon points="200,420 230,403 260,420 260,454 230,471 200,454"/>
           <line x1="260" y1="420" x2="290" y2="403"/>
           <polygon points="290,386 320,369 350,386 350,420 320,437 290,420"/>
@@ -55,7 +58,7 @@ const contentStyle = computed(() => ({
           <polygon points="140,471 170,454 200,471 200,505 170,522 140,505"/>
         </g>
         <!-- DNA/helix right area -->
-        <g opacity="0.10" stroke="#ffffff" stroke-width="1.6" fill="none">
+        <g opacity="0.10" stroke="currentColor" stroke-width="1.6" fill="none">
           <path d="M1050,60 C1080,80 1110,100 1080,120 C1050,140 1020,160 1050,180 C1080,200 1110,220 1080,240 C1050,260 1020,280 1050,300"/>
           <path d="M1090,60 C1060,80 1030,100 1060,120 C1090,140 1120,160 1090,180 C1060,200 1030,220 1060,240 C1090,260 1120,280 1090,300"/>
           <line x1="1050" y1="80" x2="1090" y2="80"/>
@@ -66,31 +69,31 @@ const contentStyle = computed(() => ({
           <line x1="1055" y1="280" x2="1085" y2="280"/>
         </g>
         <!-- Hexagon top-right area -->
-        <g opacity="0.09" stroke="#ffffff" stroke-width="1.5" fill="none">
+        <g opacity="0.09" stroke="currentColor" stroke-width="1.5" fill="none">
           <polygon points="1200,80 1240,57 1280,80 1280,126 1240,149 1200,126"/>
         </g>
         <!-- Pill icon right-center -->
-        <g opacity="0.10" stroke="#ffffff" stroke-width="1.8" fill="none" transform="translate(1150, 320) rotate(45)">
+        <g opacity="0.10" stroke="currentColor" stroke-width="1.8" fill="none" transform="translate(1150, 320) rotate(45)">
           <rect x="0" y="0" width="22" height="52" rx="11"/>
           <line x1="0" y1="26" x2="22" y2="26"/>
         </g>
         <!-- Heart/EKG area bottom-left -->
-        <g opacity="0.09" stroke="#ffffff" stroke-width="1.6" fill="none">
+        <g opacity="0.09" stroke="currentColor" stroke-width="1.6" fill="none">
           <path d="M80,580 L120,580 L140,540 L160,620 L180,500 L200,580 L240,580"/>
         </g>
         <!-- Syringe bottom-right -->
-        <g opacity="0.09" stroke="#ffffff" stroke-width="1.6" fill="none" transform="translate(1220, 480) rotate(40)">
+        <g opacity="0.09" stroke="currentColor" stroke-width="1.6" fill="none" transform="translate(1220, 480) rotate(40)">
           <rect x="0" y="0" width="16" height="60" rx="3"/>
           <rect x="4" y="-18" width="8" height="22" rx="2"/>
           <line x1="8" y1="60" x2="8" y2="78"/>
         </g>
         <!-- Cross icon top-left area -->
-        <g opacity="0.09" stroke="#ffffff" stroke-width="2" fill="none">
+        <g opacity="0.09" stroke="currentColor" stroke-width="2" fill="none">
           <line x1="500" y1="80" x2="500" y2="140"/>
           <line x1="470" y1="110" x2="530" y2="110"/>
         </g>
         <!-- Stethoscope right-bottom -->
-        <g opacity="0.10" stroke="#ffffff" stroke-width="1.6" fill="none">
+        <g opacity="0.10" stroke="currentColor" stroke-width="1.6" fill="none">
           <circle cx="1300" cy="580" r="22"/>
           <path d="M1300 558 C1300 530 1275 512 1275 488 C1275 464 1292 452 1308 452 C1324 452 1340 464 1340 488"/>
           <circle cx="1340" cy="488" r="10"/>

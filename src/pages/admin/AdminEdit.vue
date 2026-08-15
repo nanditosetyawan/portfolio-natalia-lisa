@@ -238,104 +238,166 @@ const Editor3D = {
   gap: 20px;
 }
 
-/* ===== HEADER ===== */
-.edit-header {
+/* ===== FOLDS ===== */
+.fold-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
-}
-
-.edit-title {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 800;
-  color: #5A3E35;
-  letter-spacing: -0.02em;
-  position: relative;
-  display: inline-block;
-}
-
-.edit-underline {
-  display: inline-block;
-  width: 60px;
-  height: 4px;
-  background-color: #5A3E35;
-  border-radius: 2px;
-  margin-left: 8px;
-  vertical-align: bottom;
-}
-
-/* ===== TOOLBAR ===== */
-.edit-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tbar-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.4rem 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
   border: none;
-  border-radius: 9999px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: not-allowed;
-  opacity: 0.5;
+  background: transparent;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #7B5F3B;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 10px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.tbar-btn:disabled {
-  cursor: not-allowed;
+.fold-header:hover {
+  background-color: rgba(90, 62, 53, 0.03);
+  color: #5A3E35;
 }
 
-.tbar-undo,
-.tbar-redo {
-  background: transparent;
+.fold-title {
+  letter-spacing: 0.1em;
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
   color: #7B5F3B;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  justify-content: center;
 }
 
-.tbar-undo:hover:not(:disabled),
-.tbar-redo:hover:not(:disabled) {
-  background: transparent;
+.chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.fold-header:hover .chevron {
   color: #5A3E35;
 }
 
-.tbar-save {
-  background: rgba(255, 255, 255, 0.8);
+.fold-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding-left: 4px;
+}
+
+/* ===== FIELD ROWS ===== */
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.upload-row {
+  gap: 0.5rem;
+}
+
+.grid-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.field-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7B5F3B;
+  letter-spacing: 0.05em;
+}
+
+.shadow-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.shadow-enable input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.shadow-enable label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #7B5F3B;
+  cursor: pointer;
+}
+
+/* ===== INPUT FIELDS ===== */
+.input-field {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(90, 62, 53, 0.2);
+  border-radius: 8px;
+  background: #FFFFFF;
   color: #5A3E35;
-  border: 1px solid rgba(138, 124, 110, 0.3);
+  font-size: 0.85rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
-.tbar-save:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.9);
+.input-field:focus {
+  outline: none;
+  border-color: #5A3E35;
+  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
 }
 
-.tbar-publish {
-  background: #FF9A86;
-  color: #FFFFFF;
+.input-field::placeholder {
+  color: #A8968A;
 }
 
-.tbar-publish:hover:not(:disabled) {
-  background: #FF8572;
+.input-color {
+  width: 100%;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid rgba(90, 62, 53, 0.2);
+  border-radius: 8px;
+  background: #FFFFFF;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.input-color:focus {
+  outline: none;
+  border-color: #5A3E35;
+  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
+}
+
+.input-file {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed rgba(90, 62, 53, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 245, 235, 0.5);
+  color: #5A3E35;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.input-file:hover {
+  border-color: #5A3E35;
+  background: rgba(255, 245, 235, 0.8);
+}
+
+.input-file:focus {
+  outline: none;
+  border-color: #5A3E35;
+  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
 }
 
 /* ===== MAIN CANVAS AREA ===== */

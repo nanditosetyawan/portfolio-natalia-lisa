@@ -15,6 +15,9 @@
       </button>
       <h1 class="page-title">{{ title }}</h1>
     </div>
+    <div class="header-right" v-if="$slots.default">
+      <slot />
+    </div>
   </header>
 </template>
 
@@ -71,5 +74,11 @@ defineEmits(['toggle-sidebar'])
   font-weight: 800;
   color: #5A3E35;
   letter-spacing: -0.02em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

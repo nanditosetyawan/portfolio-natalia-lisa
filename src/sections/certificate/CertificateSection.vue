@@ -216,10 +216,29 @@ onBeforeUnmount(() => {
             </svg>
           </div>
         </h2>
-        <div class="title-line-divider" aria-hidden="true">
-          <div class="line-segment"></div>
-          <div class="line-gap"></div>
-          <div class="line-segment"></div>
+        <div class="title-line-divider" aria-hidden="true" :style="{
+          display: vConfig.titleLineDivider.display,
+          alignItems: vConfig.titleLineDivider.alignItems,
+          justifyContent: vConfig.titleLineDivider.justifyContent,
+          width: vConfig.titleLineDivider.width,
+          margin: vConfig.titleLineDivider.margin
+        }">
+          <div class="line-segment" :style="{
+            flexGrow: vConfig.lineSegment.flexGrow,
+            height: vConfig.lineSegment.height,
+            backgroundColor: vConfig.lineSegment.backgroundColor,
+            opacity: vConfig.lineSegment.opacity
+          }"></div>
+          <div class="line-gap" :style="{
+            width: vConfig.lineGap.width,
+            flexShrink: vConfig.lineGap.flexShrink
+          }"></div>
+          <div class="line-segment" :style="{
+            flexGrow: vConfig.lineSegment.flexGrow,
+            height: vConfig.lineSegment.height,
+            backgroundColor: vConfig.lineSegment.backgroundColor,
+            opacity: vConfig.lineSegment.opacity
+          }"></div>
         </div>
       </div>
 
