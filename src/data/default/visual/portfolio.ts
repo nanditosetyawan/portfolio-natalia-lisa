@@ -80,6 +80,12 @@ export interface PortfolioVisualConfig {
     width: string;
     height: string;
   };
+  decorCircle2: {
+    top: string;
+    right: string;
+    width: string;
+    height: string;
+  };
   decorCircle3: {
     bottom: string;
     left: string;
@@ -95,7 +101,7 @@ export interface PortfolioVisualConfig {
   };
   decorSparkle2: {
     top: string;
-    right: string;
+    left: string;
     width: string;
     height: string;
     size: string;
@@ -108,12 +114,18 @@ export interface PortfolioVisualConfig {
   };
   decorCross1: {
     size: string;
+    top: string;
+    right: string;
   };
   decorCross2: {
     size: string;
+    top: string;
+    left: string;
   };
   decorCross3: {
     size: string;
+    top: string;
+    left: string;
   };
   /* Card transform details are handled via JS, not CSS defaults */
 }
@@ -166,25 +178,25 @@ export const defaultPortfolioConfig: PortfolioVisualConfig = {
     opacity: 0.9
   },
   decorStethoscope: {
-    top: '20%',
-    left: '20%',
+    top: '12%',
+    left: '8%',
     transformRotate: '0deg',
     opacity: 0.4,
     color: 'rgba(255, 240, 192, 0.3)',
-    width: '120',
-    height: '120',
+    width: '130',
+    height: '130',
   },
   decorEcg: {
-    top: '50%',
-    left: '0%',
+    top: '46%',
+    left: '1%',
     opacity: 0.4,
     color: 'rgba(255, 240, 192, 0.35)',
-    width: '100',
-    height: '40',
+    width: '150',
+    height: '60',
   },
   decorPill: {
-    top: '15%',
-    right: '15%',
+    top: '44%',
+    right: '16%',
     transformRotate: '15deg',
     color: 'rgba(255, 240, 192, 0.3)',
     size: '36'
@@ -194,30 +206,36 @@ export const defaultPortfolioConfig: PortfolioVisualConfig = {
     color: 'rgba(255, 240, 192, 0.3)'
   },
   decorCircle1: {
-    top: '70%',
-    right: '10%',
-    width: '200px',
-    height: '200px'
+    top: '8%',
+    right: '30%',
+    width: '170px',
+    height: '170px'
+  },
+  decorCircle2: {
+    top: '30%',
+    right: '6%',
+    width: '160px',
+    height: '160px'
   },
   decorCircle3: {
-    bottom: '20%',
-    left: '50%',
+    bottom: '8%',
+    left: '10%',
     width: '150px',
     height: '150px'
   },
   decorSparkle1: {
-    top: '30%',
-    left: '30%',
-    width: '24px',
-    height: '24px',
-    size: '14',
+    top: '22%',
+    left: '18%',
+    width: '40px',
+    height: '40px',
+    size: '36',
   },
   decorSparkle2: {
-    top: '60%',
-    right: '30%',
-    width: '20px',
-    height: '20px',
-    size: '10',
+    top: '68%',
+    left: '20%',
+    width: '36px',
+    height: '36px',
+    size: '36',
   },
   scrollArrow: {
     bottom: '2rem',
@@ -226,12 +244,18 @@ export const defaultPortfolioConfig: PortfolioVisualConfig = {
     size: '28'
   },
   decorCross1: {
-    size: '28'
+    size: '44',
+    top: '14%',
+    right: '12%'
   },
   decorCross2: {
-    size: '22'
+    size: '40',
+    top: '62%',
+    left: '8%'
   },
   decorCross3: {
-    size: '18'
+    size: '36',
+    top: '80%',
+    left: '28%'
   }
 }

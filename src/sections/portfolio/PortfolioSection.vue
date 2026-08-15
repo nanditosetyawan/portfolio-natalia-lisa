@@ -4,6 +4,7 @@ import GuestNavbar from '../../components/GuestNavbar.vue'
 import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
 import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/portfolio'
 import { defaultProfile } from '../../data/default/profile'
+import { defaultPortfolioContent } from '../../data/default/portfolio'
 import gambar1Image from '../../data/default/template_gambar/gambar1.webp'
 
 const profileImages: Record<string, string> = {
@@ -115,13 +116,13 @@ const wrapperTransform = computed(() => {
         </div>
 
         <!-- Crosses -->
-        <div class="decor-cross cross-1" :style="{ color: vConfig.decorPill.color }">
+        <div class="decor-cross cross-1" :style="{ top: vConfig.decorCross1.top, right: vConfig.decorCross1.right, color: vConfig.decorPill.color }">
           <Plus :size="Number(vConfig.decorCross1.size)" :stroke-width="2.5" />
         </div>
-        <div class="decor-cross cross-2" :style="{ color: vConfig.decorPill.color }">
+        <div class="decor-cross cross-2" :style="{ top: vConfig.decorCross2.top, left: vConfig.decorCross2.left, color: vConfig.decorPill.color }">
           <Plus :size="Number(vConfig.decorCross2.size)" :stroke-width="2.5" />
         </div>
-        <div class="decor-cross cross-3" :style="{ color: vConfig.decorPill.color }">
+        <div class="decor-cross cross-3" :style="{ top: vConfig.decorCross3.top, left: vConfig.decorCross3.left, color: vConfig.decorPill.color }">
           <Plus :size="Number(vConfig.decorCross3.size)" :stroke-width="2.5" />
         </div>
 
@@ -131,15 +132,15 @@ const wrapperTransform = computed(() => {
         </div>
 
         <!-- Circles -->
-        <div class="decor-circle circle-1" :style="{ opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
-        <div class="decor-circle circle-2" :style="{ top: vConfig.decorCircle1.top, right: vConfig.decorCircle1.right, width: vConfig.decorCircle1.width, height: vConfig.decorCircle1.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
+        <div class="decor-circle circle-1" :style="{ top: vConfig.decorCircle1.top, right: vConfig.decorCircle1.right, width: vConfig.decorCircle1.width, height: vConfig.decorCircle1.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
+        <div class="decor-circle circle-2" :style="{ top: vConfig.decorCircle2.top, right: vConfig.decorCircle2.right, width: vConfig.decorCircle2.width, height: vConfig.decorCircle2.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
         <div class="decor-circle circle-3" :style="{ bottom: vConfig.decorCircle3.bottom, left: vConfig.decorCircle3.left, width: vConfig.decorCircle3.width, height: vConfig.decorCircle3.height, opacity: vConfig.decorCircle.opacity, color: vConfig.decorCircle.color }"></div>
 
         <!-- Sparkles -->
         <div class="decor-sparkle sparkle-1" :style="{ top: vConfig.decorSparkle1.top, left: vConfig.decorSparkle1.left, width: vConfig.decorSparkle1.width, height: vConfig.decorSparkle1.height, color: vConfig.decorPill.color }">
           <Sparkles :size="Number(vConfig.decorSparkle1.size)" :stroke-width="1.5" />
         </div>
-        <div class="decor-sparkle sparkle-2" :style="{ top: vConfig.decorSparkle2.top, right: vConfig.decorSparkle2.right, width: vConfig.decorSparkle2.width, height: vConfig.decorSparkle2.height, color: vConfig.decorPill.color }">
+        <div class="decor-sparkle sparkle-2" :style="{ top: vConfig.decorSparkle2.top, left: vConfig.decorSparkle2.left, width: vConfig.decorSparkle2.width, height: vConfig.decorSparkle2.height, color: vConfig.decorPill.color }">
           <Sparkles :size="Number(vConfig.decorSparkle2.size)" :stroke-width="1.5" />
         </div>
       </div>
