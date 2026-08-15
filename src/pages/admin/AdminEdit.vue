@@ -356,13 +356,40 @@ const Editor3D = {
   width: 320px;
   flex-shrink: 0;
   background-color: #FAF9F5; /* Warm white surface */
-  border-radius: 24px;
+  border-radius: 32px;
   padding: 20px;
-  box-shadow: 0 4px 24px rgba(90, 62, 53, 0.08);
+  box-shadow: 0 2px 12px rgba(90, 62, 53, 0.06);
   border: 1px solid rgba(90, 62, 53, 0.04);
   overflow-y: auto;
   height: 100%;
   min-height: 0;
+}
+
+.control-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 62, 53, 0.35) transparent;
+}
+
+.control-panel::-webkit-scrollbar {
+  width: 3px;
+}
+
+.control-panel::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0; /* Inset from rounded corners */
+}
+
+.control-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(90, 62, 53, 0.35);
+  border-radius: 3px;
+}
+
+.control-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(90, 62, 53, 0.5);
+}
+
+.control-panel::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .control-panel-title {
