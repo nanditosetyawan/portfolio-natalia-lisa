@@ -41,6 +41,12 @@ export interface SHSVisualConfig {
     lineHeight: number;
     fontFamily: string;
   };
+  /* Polaroid base appearance (shared by frames) */
+  polaroid: {
+    backgroundColor: string;
+    borderRadius: string;
+    boxShadow: string;
+  };
   /* Polaroid frame positions (drag group) */
   frameBack: {
     width: string;
@@ -92,6 +98,24 @@ export interface SHSVisualConfig {
   sparkles: {
     top: string;
     right: string;
+    color: string;
+  };
+  /* Tape elements */
+  tapeTl: {
+    top: string;
+    left: string;
+    transformRotate: string;
+    width: string;
+    height: string;
+    backgroundColor: string;
+  };
+  tapeBr: {
+    bottom: string;
+    right: string;
+    transformRotate: string;
+    width: string;
+    height: string;
+    backgroundColor: string;
   };
   /* Curved arrow */
   arrow: {
@@ -157,6 +181,11 @@ export const defaultSHSConfig: SHSVisualConfig = {
     right: '5%',
     transformRotate: '5deg'
   },
+  polaroid: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
+  },
   decoText: {
     top: '14%',
     left: '5%',
@@ -188,7 +217,24 @@ export const defaultSHSConfig: SHSVisualConfig = {
   },
   sparkles: {
     top: '8%',
-    right: '12%'
+    right: '12%',
+    color: '#FF9A86'
+  },
+  tapeTl: {
+    top: '-12px',
+    left: '10%',
+    transformRotate: '-5deg',
+    width: '80px',
+    height: '24px',
+    backgroundColor: 'rgba(196, 204, 141, 0.78)'
+  },
+  tapeBr: {
+    bottom: '44px',
+    right: '10%',
+    transformRotate: '3deg',
+    width: '80px',
+    height: '24px',
+    backgroundColor: 'rgba(196, 204, 141, 0.78)'
   },
   arrow: {
     top: '42%',

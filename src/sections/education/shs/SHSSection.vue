@@ -43,6 +43,9 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
       <div class="shs-visual">
         <!-- Back frame (larger, rotated left) -->
         <div class="polaroid frame-back" aria-hidden="true" :style="{
+          backgroundColor: vConfig.polaroid.backgroundColor,
+          borderRadius: vConfig.polaroid.borderRadius,
+          boxShadow: vConfig.polaroid.boxShadow,
           width: vConfig.frameBack.width,
           height: vConfig.frameBack.height,
           top: vConfig.frameBack.top,
@@ -60,11 +63,21 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-tl" aria-hidden="true"></div>
+          <div class="tape tape-tl" aria-hidden="true" :style="{
+            width: vConfig.tapeTl.width,
+            height: vConfig.tapeTl.height,
+            top: vConfig.tapeTl.top,
+            left: vConfig.tapeTl.left,
+            transform: `rotate(${vConfig.tapeTl.transformRotate})`,
+            backgroundColor: vConfig.tapeTl.backgroundColor
+          }"></div>
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
         <div class="polaroid frame-front" :style="{
+          backgroundColor: vConfig.polaroid.backgroundColor,
+          borderRadius: vConfig.polaroid.borderRadius,
+          boxShadow: vConfig.polaroid.boxShadow,
           width: vConfig.frameFront.width,
           height: vConfig.frameFront.height,
           bottom: vConfig.frameFront.bottom,
@@ -81,7 +94,14 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-br" aria-hidden="true"></div>
+          <div class="tape tape-br" aria-hidden="true" :style="{
+            width: vConfig.tapeBr.width,
+            height: vConfig.tapeBr.height,
+            bottom: vConfig.tapeBr.bottom,
+            right: vConfig.tapeBr.right,
+            transform: `rotate(${vConfig.tapeBr.transformRotate})`,
+            backgroundColor: vConfig.tapeBr.backgroundColor
+          }"></div>
         </div>
       </div>
 
@@ -104,7 +124,8 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
       <!-- Sparkles upper-right -->
         <div class="shs-sparkles" aria-hidden="true" :style="{
           top: vConfig.sparkles.top,
-          right: vConfig.sparkles.right
+          right: vConfig.sparkles.right,
+          color: vConfig.sparkles.color
         }">
           <Sparkles :size="16" :stroke-width="1.5" />
           <Sparkles :size="12" :stroke-width="1.5" />

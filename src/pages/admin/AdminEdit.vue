@@ -230,185 +230,125 @@ const Editor3D = {
 
 <style scoped>
 .edit-page {
-  min-height: calc(100vh - 72px);
+  width: 100%;
+  height: 100%;
   background-color: #F6F4E8;
   font-family: 'Inter', system-ui, sans-serif;
   display: flex;
   flex-direction: column;
-  gap: 20px;
   overflow: hidden;
 }
 
-/* ===== FOLDS ===== */
-.fold-header {
+/* ===== HEADER ===== */
+.edit-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: none;
-  background: transparent;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #7B5F3B;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 0 1rem;
+  height: 96px;
 }
 
-.fold-header:hover {
-  background-color: rgba(90, 62, 53, 0.03);
+.edit-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
   color: #5A3E35;
+  letter-spacing: -0.02em;
+  position: relative;
+  display: inline-block;
 }
 
-.fold-title {
-  letter-spacing: 0.1em;
+.edit-underline {
+  display: inline-block;
+  width: 60px;
+  height: 4px;
+  background-color: #5A3E35;
+  border-radius: 2px;
+  margin-left: 8px;
+  vertical-align: bottom;
 }
 
-.chevron {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.2s ease;
-  color: #7B5F3B;
-}
-
-.chevron.rotated {
-  transform: rotate(180deg);
-}
-
-.fold-header:hover .chevron {
-  color: #5A3E35;
-}
-
-.fold-content {
+/* ===== TOOLBAR ===== */
+.edit-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
-  padding-left: 4px;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-/* ===== FIELD ROWS ===== */
-.field-row {
+.toolbar-left {
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.upload-row {
+  align-items: center;
   gap: 0.5rem;
 }
 
-.grid-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.toolbar-right {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.field-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #7B5F3B;
-  letter-spacing: 0.05em;
-}
-
-.shadow-enable {
+.tbar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.15rem;
-}
-
-.shadow-enable input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.shadow-enable label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #7B5F3B;
-  cursor: pointer;
-}
-
-/* ===== INPUT FIELDS ===== */
-.input-field {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(90, 62, 53, 0.2);
-  border-radius: 8px;
-  background: #FFFFFF;
-  color: #5A3E35;
-  font-size: 0.85rem;
-  font-family: inherit;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: #5A3E35;
-  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
-}
-
-.input-field::placeholder {
-  color: #A8968A;
-}
-
-.input-color {
-  width: 100%;
-  height: 40px;
-  padding: 2px;
-  border: 1px solid rgba(90, 62, 53, 0.2);
-  border-radius: 8px;
-  background: #FFFFFF;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-}
-
-.input-color:focus {
-  outline: none;
-  border-color: #5A3E35;
-  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
-}
-
-.input-file {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed rgba(90, 62, 53, 0.3);
-  border-radius: 8px;
-  background: rgba(255, 245, 235, 0.5);
-  color: #5A3E35;
+  gap: 0.375rem;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: 9999px;
   font-size: 0.8rem;
-  font-family: inherit;
-  cursor: pointer;
-  box-sizing: border-box;
+  font-weight: 500;
+  cursor: not-allowed;
+  opacity: 0.5;
   transition: all 0.2s ease;
 }
 
-.input-file:hover {
-  border-color: #5A3E35;
-  background: rgba(255, 245, 235, 0.8);
+.tbar-btn:disabled {
+  cursor: not-allowed;
 }
 
-.input-file:focus {
-  outline: none;
-  border-color: #5A3E35;
-  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
+.tbar-undo,
+.tbar-redo {
+  background: transparent;
+  color: #7B5F3B;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+}
+
+.tbar-undo:hover:not(:disabled),
+.tbar-redo:hover:not(:disabled) {
+  background: transparent;
+  color: #5A3E35;
+}
+
+.tbar-save {
+  background: rgba(255, 255, 255, 0.8);
+  color: #5A3E35;
+  border: 1px solid rgba(138, 124, 110, 0.3);
+}
+
+.tbar-save:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.tbar-publish {
+  background: #FF9A86;
+  color: #FFFFFF;
+}
+
+.tbar-publish:hover:not(:disabled) {
+  background: #FF8572;
 }
 
 /* ===== MAIN CANVAS AREA ===== */
 .edit-canvas {
   display: flex;
   gap: 24px;
-  padding: 0 2rem;
-  height: calc(100vh - 72px - 20px);
-  min-height: 0;
+  padding: 1rem;
+  height: 100%;
+  flex: 1;
   overflow: hidden;
+  align-items: flex-start;
 }
 
 /* ===== CONTROL PANEL ===== */

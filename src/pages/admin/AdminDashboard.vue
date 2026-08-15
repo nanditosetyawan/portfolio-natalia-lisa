@@ -167,6 +167,13 @@
   gap: 1rem;
 }
 
+.card-draft,
+.card-published {
+  min-height: 240px;
+  padding-top: 64px;
+  padding-bottom: 64px;
+}
+
 .card-image {
   width: 56px;
   height: 56px;
