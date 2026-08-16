@@ -10,22 +10,25 @@ export interface EducationVisualConfig {
      padding: string;
      margin: string;
    };
-   title: {
-     color: string;
-     fontSize: string;
-     fontWeight: number;
-     fontFamily: string;
-     lineHeight: number;
-     letterSpacing: string;
-   };
-   icon: {
-     width: number;
-     height: number;
-     color: string;
-   };
-   scrollIndicator: {
-     color: string;
-   };
+    title: {
+      color: string;
+      fontSize: string;
+      fontWeight: number;
+      fontFamily: string;
+      lineHeight: number;
+      letterSpacing: string;
+      transformTranslateY: string;
+    };
+    icon: {
+      width: number;
+      height: number;
+      color: string;
+    };
+    scrollIndicator: {
+      color: string;
+      gap: string;
+      bottom: string;
+    };
    /* Decorative elements */
    decorPill: {
      top: string;
@@ -74,22 +77,25 @@ export const defaultEducationConfig: EducationVisualConfig = {
      padding: '6rem 2rem 4rem',
      margin: '0 auto'
    },
-   title: {
-     color: '#8D363A',
-     fontSize: 'clamp(5.5rem, 14vw, 11rem)',
-     fontWeight: 700,
-     fontFamily: "Georgia, 'Times New Roman', serif",
-     lineHeight: 1.02,
-     letterSpacing: '-0.01em'
-   },
-   icon: {
-     width: 110,
-     height: 92,
-     color: '#8D363A'
-   },
-   scrollIndicator: {
-     color: '#8D363A'
-   },
+    title: {
+      color: '#8D363A',
+      fontSize: 'clamp(5.5rem, 14vw, 11rem)',
+      fontWeight: 700,
+      fontFamily: "Georgia, 'Times New Roman', serif",
+      lineHeight: 1.02,
+      letterSpacing: '-0.01em',
+      transformTranslateY: '-3vh'
+    },
+    icon: {
+      width: 110,
+      height: 92,
+      color: '#8D363A'
+    },
+    scrollIndicator: {
+      color: '#8D363A',
+      gap: '0.85rem',
+      bottom: '5rem'
+    },
    decorPill: {
      top: '42%',
      left: '8%',

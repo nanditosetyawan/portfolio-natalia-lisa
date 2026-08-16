@@ -72,9 +72,12 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
         }"></div>
       </div>
 
-      <!-- Main content -->
-      <div class="edu-content">
-        <div class="edu-icon">
+<!-- Main content -->
+       <div class="edu-content"
+         :style="{
+           transform: `translateY(${vConfig.title.transformTranslateY})`
+         }">
+         <div class="edu-icon">
           <svg viewBox="0 0 120 100" :width="vConfig.icon.width" :height="vConfig.icon.height" fill="none" xmlns="http://www.w3.org/2000/svg">
             <polygon points="60,8 115,35 60,55 5,35" :fill="vConfig.icon.color" />
             <polygon points="60,8 115,35 60,55 5,35" fill="rgba(0,0,0,0.08)" />
@@ -101,7 +104,11 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
 
       <!-- Scroll indicator -->
       <div class="scroll-indicator"
-        :style="{ color: vConfig.scrollIndicator.color }"
+        :style="{
+          color: vConfig.scrollIndicator.color,
+          gap: vConfig.scrollIndicator.gap,
+          bottom: vConfig.scrollIndicator.bottom
+        }"
       >
         <span class="scroll-text">SCROLL DOWN</span>
         <ArrowDown :size="20" :stroke-width="1.5" class="scroll-arrow" />
@@ -199,14 +206,12 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
 /* ===== Scroll Indicator ===== */
 .scroll-indicator {
   position: absolute;
-  bottom: 4rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
 }
 
 .scroll-text {

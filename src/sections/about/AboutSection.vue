@@ -2,6 +2,10 @@
 import { ArrowDown, ArrowRight, Sparkle, User } from 'lucide-vue-next'
 import { defaultAbout } from '../../data/default/about'
 import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
+
+const frameImages: Record<string, string> = {
+  'lisa-profile': ''
+}
 </script>
 
 <template>
@@ -140,27 +144,31 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
             zIndex: vConfig.frameBack1.zIndex
           }"
         >
-          <div class="polaroid-photo empty"></div>
+          <div class="polaroid-photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 2px; overflow: hidden;">
+            <img :src="frameImages[vConfig.frameImage.source]" alt="" :style="{ width: '100%', height: '100%', objectFit: vConfig.frameImage.objectFit, borderRadius: '2px' }" />
+          </div>
           <div class="polaroid-caption"></div>
-        </div>
-        <div
-          class="polaroid frame-back-2"
-          aria-hidden="true"
-          :style="{
-            backgroundColor: vConfig.polaroid.backgroundColor,
-            borderRadius: vConfig.polaroid.borderRadius,
-            boxShadow: vConfig.polaroid.boxShadow,
-            width: vConfig.frameBack2.width,
-            height: vConfig.frameBack2.height,
-            bottom: vConfig.frameBack2.bottom,
-            right: vConfig.frameBack2.right,
-            transform: 'rotate(' + vConfig.frameBack2.transformRotate + ')',
-            zIndex: vConfig.frameBack2.zIndex
-          }"
-        >
-          <div class="polaroid-photo empty"></div>
-          <div class="polaroid-caption"></div>
-        </div>
+</div>
+          <div
+            class="polaroid frame-back-2"
+            aria-hidden="true"
+            :style="{
+              backgroundColor: vConfig.polaroid.backgroundColor,
+              borderRadius: vConfig.polaroid.borderRadius,
+              boxShadow: vConfig.polaroid.boxShadow,
+              width: vConfig.frameBack2.width,
+              height: vConfig.frameBack2.height,
+              bottom: vConfig.frameBack2.bottom,
+              right: vConfig.frameBack2.right,
+              transform: 'rotate(' + vConfig.frameBack2.transformRotate + ')',
+              zIndex: vConfig.frameBack2.zIndex
+            }"
+          >
+            <div class="polaroid-photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 2px; overflow: hidden;">
+              <img :src="frameImages[vConfig.frameImage.source]" alt="" :style="{ width: '100%', height: '100%', objectFit: vConfig.frameImage.objectFit, borderRadius: '2px' }" />
+            </div>
+            <div class="polaroid-caption"></div>
+</div>
         <div
           class="polaroid frame-main"
           :style="{
@@ -175,12 +183,29 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
             zIndex: vConfig.frameMain.zIndex
           }"
         >
-          <div class="polaroid-photo placeholder-main">
-            <User class="placeholder-icon" :size="44" :stroke-width="1.2" />
-            <span class="placeholder-label">Profile photo<br />(Pending user asset)</span>
+          <div class="polaroid-photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 2px; overflow: hidden;">
+            <img v-if="frameImages[vConfig.frameImage.source]" :src="frameImages[vConfig.frameImage.source]" alt="Profile photo" :style="{ width: '100%', height: '100%', objectFit: vConfig.frameImage.objectFit, borderRadius: '2px' }" />
+            <div v-else class="placeholder-main">
+              <User class="placeholder-icon" :size="44" :stroke-width="1.2" />
+              <span class="placeholder-label">Profile photo<br/>(Pending user asset)</span>
+            </div>
           </div>
           <div class="polaroid-caption"></div>
-          <div class="tape tape-top" aria-hidden="true"></div>
+          <div
+            class="tape tape-top"
+            aria-hidden="true"
+            :style="{
+              width: vConfig.tape.width,
+              height: vConfig.tape.height,
+              top: vConfig.tape.top,
+              left: vConfig.tape.left,
+              transform: vConfig.tape.rotation + ' translateX(-50%)',
+              background: vConfig.tape.color,
+              opacity: vConfig.tape.opacity,
+              boxShadow: vConfig.tape.boxShadow,
+              zIndex: vConfig.tape.zIndex
+            }"
+          ></div>
         </div>
       </div>
     </div>
@@ -425,12 +450,8 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
   flex: 1;
   border-radius: 2px;
   overflow: hidden;
-}
-
-.polaroid-photo.empty {
-  background:
-    linear-gradient(180deg, #EAF1F7 0%, #DCE8F2 55%, #F3E9D6 55%, #EDE2CC 100%);
-  opacity: 0.85;
+  width: 100%;
+  height: 100%;
 }
 
 .polaroid-caption {

@@ -1439,3 +1439,115 @@ Jangan implement Reset.
 Jangan implement Persistence.
 Jangan commit.
 Jangan push.
+## Request #049
+
+### Waktu
+Mon Aug 17 2026
+
+### User Instruction
+PHASE 5I-10 — EDUCATION TITLE VERTICAL POSITION + SCROLL SPACING AMENDMENT
+
+New session. Perbaiki posisi visual heading "Education" dan elemen "SCROLL" + panah pada Education section.
+
+Target:
+1. Judul "Education" — naikkan posisi vertikal sedikit ke atas, tetap center horizontal
+2. "SCROLL" + panah — pastikan ada jarak vertikal yang jelas antara bottom of "Education" dan "SCROLL", serta antara "SCROLL" dan panah
+
+### Execution mode
+Visual positioning amendment
+
+### Scope
+- src/sections/education/EducationSection.vue
+- src/data/default/visual/education.ts
+
+### Audit findings
+
+#### Education title
+- Source: .edu-content (flex column, justify-content: center) centers icon + h1.title within .education-container
+- .edu-title: positioned by flex centering, no explicit vertical position
+- Horizontal centering: container.margin = '0 auto', align-items: center ?
+- No DEFAULT property for vertical position existed
+
+#### Scroll label
+- Source: .scroll-indicator (position: absolute, bottom: 4rem in CSS)
+- "SCROLL DOWN" text with hardcoded gap: 0.4rem (CSS)
+- Color from DEFAULT: vConfig.scrollIndicator.color ?
+
+#### Scroll arrow
+- Source: ArrowDown component, gap: 0.4rem from .scroll-text (CSS)
+- Animation: edu-bounce (preserved)
+
+### Changes applied
+
+#### src/data/default/visual/education.ts
+- Added 	ransformTranslateY: string to EducationVisualConfig title interface
+- Added gap: string and ottom: string to EducationVisualConfig scrollIndicator interface
+- Added to defaultEducationConfig:
+  - title.transformTranslateY: '-3vh' (shifts content block up by 3% viewport height)
+  - scrollIndicator.gap: '0.85rem' (increased from 0.4rem)
+  - scrollIndicator.bottom: '5rem' (increased from 4rem)
+
+#### src/sections/education/EducationSection.vue
+- Applied :style="{ transform: translateY(vConfig.title.transformTranslateY) }" to .edu-content
+- Applied inline :style binding for gap and bottom on .scroll-indicator
+- Removed hardcoded ottom: 4rem and gap: 0.4rem from CSS .scroll-indicator
+
+### Source of truth chain
+DEFAULT ? vConfig ? EducationSection.vue :style ? render
+
+### Visual preservation
+- Background #FFF0BE: preserved
+- Graduation cap icon: preserved
+- Pill decoration: preserved
+- Syringe decoration: preserved
+- Sparkles: preserved
+- Rings: preserved
+- All decorations: preserved
+- Education typography (font, size, color, weight, letter-spacing): preserved
+- Scroll arrow animation (edu-bounce): preserved
+- Scroll arrow shape/color: preserved
+- Scroll click/hover behavior: preserved
+- Container margin '0 auto': preserved
+- Horizontal centering: preserved
+
+### Responsive verification
+- transformTranslateY uses '-3vh' (viewport-relative, scales with screen height)
+- scrollIndicator.bottom uses '5rem' (consistent spacing on all screens)
+- scrollIndicator.gap uses '0.85rem' (consistent on all screens)
+- No breakpoint changes
+- Education remains centered horizontally
+- SCROLL label remains below title
+- Arrow remains below SCROLL label
+- No horizontal overflow expected (left: 50%, transform: translateX(-50%))
+
+### Typecheck
+npx vue-tpc --noEmit:
+- Education-specific errors: 0 (none)
+- Pre-existing unrelated about.ts error present (not fixed per instructions)
+  -> about.ts(284,3): error TS1117: duplicate property
+  -> AboutSection.vue errors about frameImage/frameImages (pre-existing)
+
+### Build
+npm run build:
+- FAILS due to pre-existing about.ts/about.vue TypeScript errors (not caused by this task)
+- Vite build itself: PASS (when vue-tsc passes)
+- Per instructions: "Jika error unrelated: jangan memperbaiki"
+
+### Files changed
+- src/data/default/visual/education.ts
+- src/sections/education/EducationSection.vue
+
+### Final Git State
+- Branch: main
+- No commit/push (per instructions)
+- Modified files: education.ts, EducationSection.vue (plus pre-existing about.ts, AboutSection.vue, certificate.ts, CertificateSection.vue from prior phases)
+
+### Verdict
+EDUCATION TITLE + SCROLL SPACING FIXED
+
+STOP.
+Jangan lanjut ke section lain.
+Jangan implement Admin.
+Jangan implement Reset.
+Jangan commit.
+Jangan push.
