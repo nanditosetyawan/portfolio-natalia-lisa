@@ -44,6 +44,7 @@ export interface CertificateVisualConfig {
     width: string;
     height: string;
     pointerEvents: string;
+    color: string;
   };
   sparkle1: {
     position: string;
@@ -52,6 +53,7 @@ export interface CertificateVisualConfig {
     width: string;
     height: string;
     animation: string;
+    color: string;
   };
   sparkle2: {
     position: string;
@@ -61,6 +63,7 @@ export interface CertificateVisualConfig {
     height: string;
     animation: string;
     animationDelay: string;
+    color: string;
   };
   titleLineDivider: {
     display: string;
@@ -85,18 +88,24 @@ export interface CertificateVisualConfig {
     right: string;
     width: string;
     height: string;
+    backgroundColor: string;
+    opacity: number;
   };
   blobBottomRight: {
     bottom: string;
     right: string;
     width: string;
     height: string;
+    backgroundColor: string;
+    opacity: number;
   };
   blobBottomLeft: {
     bottom: string;
     left: string;
     width: string;
     height: string;
+    backgroundColor: string;
+    opacity: number;
   };
   /* Dot grids */
   dotGridTR: {
@@ -104,34 +113,50 @@ export interface CertificateVisualConfig {
     right: string;
     width: string;
     height: string;
+    color: string;
+    opacity: number;
   };
   dotGridBL: {
     bottom: string;
     left: string;
     width: string;
     height: string;
+    color: string;
+    opacity: number;
   };
   /* Outline decorations */
   decorCert: {
     top: string;
     left: string;
     transformRotate: string;
+    color: string;
+    width: string;
+    height: string;
   };
   decorMedal: {
     top: string;
     right: string;
     transformRotate: string;
+    color: string;
+    width: string;
+    height: string;
   };
   /* Additional decorative elements */
   decorLeft: {
     top: string;
     left: string;
     transformRotate: string;
+    color: string;
+    width: string;
+    height: string;
   };
   decorRightBottom: {
     bottom: string;
     right: string;
     transformRotate: string;
+    color: string;
+    width: string;
+    height: string;
   };
   /* Organic wave shapes */
   waveShapeTop: {
@@ -139,12 +164,14 @@ export interface CertificateVisualConfig {
     right: string;
     width: string;
     height: string;
+    color: string;
   };
   waveShapeBottom: {
     bottom: string;
     left: string;
     width: string;
     height: string;
+    color: string;
   };
   cardsStack: {
     display: string;
@@ -480,6 +507,7 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     width: '35px',
     height: '35px',
     pointerEvents: 'none',
+    color: '#F28C38',
   },
   sparkle1: {
     position: 'absolute',
@@ -488,6 +516,7 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     width: '24px',
     height: '24px',
     animation: 'shine 3s ease-in-out infinite',
+    color: '#F28C38',
   },
   sparkle2: {
     position: 'absolute',
@@ -497,6 +526,7 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     height: '14px',
     animation: 'shine 3s ease-in-out infinite',
     animationDelay: '1.5s',
+    color: '#F28C38',
   },
   titleLineDivider: {
     display: 'flex',
@@ -519,63 +549,87 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     top: '-8%',
     right: '-5%',
     width: '320px',
-    height: '320px'
+    height: '320px',
+    backgroundColor: '#FAD6B4',
+    opacity: 0.65,
   },
   blobBottomRight: {
     bottom: '8%',
     right: '-10%',
     width: '280px',
-    height: '280px'
+    height: '280px',
+    backgroundColor: '#FAD6B4',
+    opacity: 0.65,
   },
   blobBottomLeft: {
     bottom: '-6%',
     left: '-8%',
     width: '360px',
-    height: '360px'
+    height: '360px',
+    backgroundColor: '#FAD6B4',
+    opacity: 0.65,
   },
   dotGridTR: {
     top: '4%',
     right: '2%',
     width: '120px',
-    height: '120px'
+    height: '120px',
+    color: '#F28C38',
+    opacity: 0.3,
   },
   dotGridBL: {
     bottom: '12%',
     left: '2%',
     width: '120px',
-    height: '120px'
+    height: '120px',
+    color: '#F28C38',
+    opacity: 0.3,
   },
   decorCert: {
     top: '14%',
     left: '6%',
-    transformRotate: '-12deg'
+    transformRotate: '-12deg',
+    color: '#F28C38',
+    width: '160px',
+    height: '160px',
   },
   decorMedal: {
     top: '12%',
     right: '6%',
-    transformRotate: '15deg'
+    transformRotate: '15deg',
+    color: '#F28C38',
+    width: '160px',
+    height: '160px',
   },
   decorLeft: {
     top: '42%',
     left: '3%',
-    transformRotate: '20deg'
+    transformRotate: '20deg',
+    color: '#F28C38',
+    width: '160px',
+    height: '160px',
   },
   decorRightBottom: {
     bottom: '12%',
     right: '8%',
-    transformRotate: '-18deg'
+    transformRotate: '-18deg',
+    color: '#F28C38',
+    width: '160px',
+    height: '160px',
   },
   waveShapeTop: {
     top: '25%',
     right: '12%',
     width: '240px',
-    height: '240px'
+    height: '240px',
+    color: '#F28C38',
   },
   waveShapeBottom: {
     bottom: '30%',
     left: '5%',
     width: '280px',
-    height: '280px'
+    height: '280px',
+    color: '#F28C38',
   },
   cardsStack: {
     display: 'flex',

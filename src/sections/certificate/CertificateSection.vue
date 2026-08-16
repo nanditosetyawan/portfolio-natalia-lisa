@@ -109,21 +109,27 @@ onBeforeUnmount(() => {
         top: vConfig.blobTopRight.top,
         right: vConfig.blobTopRight.right,
         width: vConfig.blobTopRight.width,
-        height: vConfig.blobTopRight.height
+        height: vConfig.blobTopRight.height,
+        backgroundColor: vConfig.blobTopRight.backgroundColor,
+        opacity: vConfig.blobTopRight.opacity
       }"></div>
     <div class="blob blob-bottom-right" aria-hidden="true"
       :style="{
         bottom: vConfig.blobBottomRight.bottom,
         right: vConfig.blobBottomRight.right,
         width: vConfig.blobBottomRight.width,
-        height: vConfig.blobBottomRight.height
+        height: vConfig.blobBottomRight.height,
+        backgroundColor: vConfig.blobBottomRight.backgroundColor,
+        opacity: vConfig.blobBottomRight.opacity
       }"></div>
     <div class="blob blob-bottom-left" aria-hidden="true"
       :style="{
         bottom: vConfig.blobBottomLeft.bottom,
         left: vConfig.blobBottomLeft.left,
         width: vConfig.blobBottomLeft.width,
-        height: vConfig.blobBottomLeft.height
+        height: vConfig.blobBottomLeft.height,
+        backgroundColor: vConfig.blobBottomLeft.backgroundColor,
+        opacity: vConfig.blobBottomLeft.opacity
       }"></div>
     <!-- Dot Grids -->
     <div class="dot-grid dots-tr" aria-hidden="true"
@@ -131,11 +137,13 @@ onBeforeUnmount(() => {
         top: vConfig.dotGridTR.top,
         right: vConfig.dotGridTR.right,
         width: vConfig.dotGridTR.width,
-        height: vConfig.dotGridTR.height
+        height: vConfig.dotGridTR.height,
+        color: vConfig.dotGridTR.color,
+        opacity: vConfig.dotGridTR.opacity
       }">
       <svg width="120" height="120" fill="none">
         <pattern id="dots-pattern-tr" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
-          <circle cx="3" cy="3" r="1.8" fill="#F28C38" opacity="0.3" />
+          <circle cx="3" cy="3" r="1.8" fill="currentColor" />
         </pattern>
         <rect width="120" height="120" fill="url(#dots-pattern-tr)" />
       </svg>
@@ -145,11 +153,13 @@ onBeforeUnmount(() => {
         bottom: vConfig.dotGridBL.bottom,
         left: vConfig.dotGridBL.left,
         width: vConfig.dotGridBL.width,
-        height: vConfig.dotGridBL.height
+        height: vConfig.dotGridBL.height,
+        color: vConfig.dotGridBL.color,
+        opacity: vConfig.dotGridBL.opacity
       }">
       <svg width="120" height="120" fill="none">
         <pattern id="dots-pattern-bl" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
-          <circle cx="3" cy="3" r="1.8" fill="#F28C38" opacity="0.3" />
+          <circle cx="3" cy="3" r="1.8" fill="currentColor" />
         </pattern>
         <rect width="120" height="120" fill="url(#dots-pattern-bl)" />
       </svg>
@@ -159,33 +169,34 @@ onBeforeUnmount(() => {
       :style="{
         top: vConfig.decorCert.top,
         left: vConfig.decorCert.left,
-        transform: 'rotate(' + vConfig.decorCert.transformRotate + ')'
+        transform: 'rotate(' + vConfig.decorCert.transformRotate + ')',
+        color: vConfig.decorCert.color
       }">
-      <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-        <rect x="25" y="30" width="110" height="90" rx="4" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.18" />
-        <rect x="31" y="36" width="98" height="78" rx="2" stroke="#F28C38" stroke-width="1" opacity="0.12" />
-        <line x1="45" y1="52" x2="115" y2="52" stroke="#F28C38" stroke-width="1.5" opacity="0.15" />
-        <line x1="45" y1="64" x2="115" y2="64" stroke="#F28C38" stroke-width="1.5" opacity="0.15" />
-        <line x1="45" y1="80" x2="90" y2="80" stroke="#F28C38" stroke-width="1" opacity="0.15" />
-        <line x1="45" y1="90" x2="85" y2="90" stroke="#F28C38" stroke-width="1" opacity="0.15" />
-        <circle cx="106" cy="88" r="10" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
-        <path d="M101 97 L97 108 L103 105 L106 111 L109 105 L115 108 L111 97" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
+      <svg :width="vConfig.decorCert.width" :height="vConfig.decorCert.height" viewBox="0 0 160 160" fill="none">
+        <rect x="28" y="22" width="104" height="116" rx="4" stroke="currentColor" stroke-width="2" opacity="0.15" />
+        <path d="M110 22 L110 42 L130 22" stroke="currentColor" stroke-width="1.8" opacity="0.15" />
+        <circle cx="80" cy="108" r="24" stroke="currentColor" stroke-width="1.8" opacity="0.15" />
+        <circle cx="80" cy="108" r="16" stroke="currentColor" stroke-width="1.2" opacity="0.12" />
+        <circle cx="80" cy="108" r="6" stroke="currentColor" stroke-width="1" opacity="0.10" />
+        <path d="M60 126 C60 138 70 146 80 146 C90 146 100 138 100 126" stroke="currentColor" stroke-width="1.5" opacity="0.12" fill="none" />
+        <path d="M60 126 C54 132 52 142 60 150" stroke="currentColor" stroke-width="1.2" opacity="0.10" fill="none" />
+        <path d="M100 126 C106 132 108 142 100 150" stroke="currentColor" stroke-width="1.2" opacity="0.10" fill="none" />
       </svg>
     </div>
     <div class="outline-decor decor-medal" aria-hidden="true"
       :style="{
         top: vConfig.decorMedal.top,
         right: vConfig.decorMedal.right,
-        transform: 'rotate(' + vConfig.decorMedal.transformRotate + ')'
+        transform: 'rotate(' + vConfig.decorMedal.transformRotate + ')',
+        color: vConfig.decorMedal.color
       }">
-      <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-        <path d="M60 40 L80 15 L100 40 Z" stroke="#F28C38" stroke-width="1.5" opacity="0.18" />
-        <line x1="80" y1="15" x2="80" y2="40" stroke="#F28C38" stroke-width="1" opacity="0.15" />
-        <circle cx="80" cy="65" r="22" stroke="#F28C38" stroke-width="1.5" opacity="0.18" />
-        <circle cx="80" cy="65" r="16" stroke="#F28C38" stroke-width="1" stroke-dasharray="2 2" opacity="0.15" />
-        <path d="M80 54 L84 62 L92 63 L86 69 L88 77 L80 73 L72 77 L74 69 L68 63 L76 62 Z" stroke="#F28C38" stroke-width="1.2" opacity="0.18" fill="none" />
-        <path d="M72 85 L65 115 L78 108 L80 87" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
-        <path d="M88 85 L95 115 L82 108 L80 87" stroke="#F28C38" stroke-width="1.2" opacity="0.18" />
+      <svg :width="vConfig.decorMedal.width" :height="vConfig.decorMedal.height" viewBox="0 0 160 160" fill="none">
+        <path d="M45 50 L55 82 L80 68 L105 82 L115 50" stroke="currentColor" stroke-width="1.8" opacity="0.15" fill="none" />
+        <line x1="80" y1="68" x2="80" y2="50" stroke="currentColor" stroke-width="1" opacity="0.12" />
+        <circle cx="80" cy="105" r="28" stroke="currentColor" stroke-width="2" opacity="0.15" />
+        <circle cx="80" cy="105" r="20" stroke="currentColor" stroke-width="1.2" opacity="0.12" />
+        <path d="M80 87 L84 97 L94 97 L87 103 L90 113 L80 107 L70 113 L73 103 L66 97 L76 97 Z" stroke="currentColor" stroke-width="1.5" opacity="0.12" fill="none" />
+        <path d="M60 125 L55 148 L75 135 L80 148 L85 135 L105 148 L100 125" stroke="currentColor" stroke-width="1.5" opacity="0.12" fill="none" />
       </svg>
     </div>
     <!-- Additional Decorative Elements -->
@@ -193,24 +204,26 @@ onBeforeUnmount(() => {
       :style="{
         top: vConfig.decorLeft.top,
         left: vConfig.decorLeft.left,
-        transform: 'rotate(' + vConfig.decorLeft.transformRotate + ')'
+        transform: 'rotate(' + vConfig.decorLeft.transformRotate + ')',
+        color: vConfig.decorLeft.color
       }">
-      <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-        <circle cx="80" cy="80" r="55" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.15" />
-        <circle cx="80" cy="80" r="40" stroke="#F28C38" stroke-width="1" opacity="0.1" />
-        <path d="M30 80 Q80 30 130 80 Q80 130 30 80" stroke="#F28C38" stroke-width="1.2" opacity="0.12" fill="none" />
+      <svg :width="vConfig.decorLeft.width" :height="vConfig.decorLeft.height" viewBox="0 0 160 160" fill="none">
+        <circle cx="80" cy="80" r="55" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.15" />
+        <circle cx="80" cy="80" r="40" stroke="currentColor" stroke-width="1" opacity="0.1" />
+        <path d="M30 80 Q80 30 130 80 Q80 130 30 80" stroke="currentColor" stroke-width="1.2" opacity="0.12" fill="none" />
       </svg>
     </div>
     <div class="outline-decor decor-right-bottom" aria-hidden="true"
       :style="{
         bottom: vConfig.decorRightBottom.bottom,
         right: vConfig.decorRightBottom.right,
-        transform: 'rotate(' + vConfig.decorRightBottom.transformRotate + ')'
+        transform: 'rotate(' + vConfig.decorRightBottom.transformRotate + ')',
+        color: vConfig.decorRightBottom.color
       }">
-      <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-        <circle cx="80" cy="80" r="50" stroke="#F28C38" stroke-width="1.5" stroke-dasharray="5 5" opacity="0.15" />
-        <circle cx="80" cy="80" r="35" stroke="#F28C38" stroke-width="1" stroke-dasharray="3 3" opacity="0.1" />
-        <path d="M80 30 L80 130 M30 80 L130 80" stroke="#F28C38" stroke-width="1" opacity="0.08" />
+      <svg :width="vConfig.decorRightBottom.width" :height="vConfig.decorRightBottom.height" viewBox="0 0 160 160" fill="none">
+        <circle cx="80" cy="80" r="50" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 5" opacity="0.15" />
+        <circle cx="80" cy="80" r="35" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" opacity="0.1" />
+        <path d="M80 30 L80 130 M30 80 L130 80" stroke="currentColor" stroke-width="1" opacity="0.08" />
       </svg>
     </div>
     <!-- Organic Wave Shapes -->
@@ -219,11 +232,12 @@ onBeforeUnmount(() => {
         top: vConfig.waveShapeTop.top,
         right: vConfig.waveShapeTop.right,
         width: vConfig.waveShapeTop.width,
-        height: vConfig.waveShapeTop.height
+        height: vConfig.waveShapeTop.height,
+        color: vConfig.waveShapeTop.color
       }">
       <svg viewBox="0 0 240 240" width="100%" height="100%" fill="none">
-        <path d="M0 120 Q60 80 120 100 Q180 120 240 90 V240 H0 V120 Z" stroke="#F28C38" stroke-width="2" fill="#F28C38" fill-opacity="0.03" />
-        <path d="M0 160 Q60 140 120 150 Q180 160 240 130 V240 H0 V160 Z" stroke="#F28C38" stroke-width="1.5" fill="#F28C38" fill-opacity="0.02" />
+        <path d="M0 120 Q60 80 120 100 Q180 120 240 90 V240 H0 V120 Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.03" />
+        <path d="M0 160 Q60 140 120 150 Q180 160 240 130 V240 H0 V160 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.02" />
       </svg>
     </div>
     <div class="wave-shape wave-bottom" aria-hidden="true"
@@ -231,11 +245,12 @@ onBeforeUnmount(() => {
         bottom: vConfig.waveShapeBottom.bottom,
         left: vConfig.waveShapeBottom.left,
         width: vConfig.waveShapeBottom.width,
-        height: vConfig.waveShapeBottom.height
+        height: vConfig.waveShapeBottom.height,
+        color: vConfig.waveShapeBottom.color
       }">
       <svg viewBox="0 0 280 280" width="100%" height="100%" fill="none">
-        <path d="M0 140 Q70 100 140 130 Q210 160 280 120 V280 H0 V140 Z" stroke="#F28C38" stroke-width="2" fill="#F28C38" fill-opacity="0.03" />
-        <path d="M0 190 Q70 170 140 180 Q210 190 280 170 V280 H0 V190 Z" stroke="#F28C38" stroke-width="1.5" fill="#F28C38" fill-opacity="0.02" />
+        <path d="M0 140 Q70 100 140 130 Q210 160 280 120 V280 H0 V140 Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.03" />
+        <path d="M0 190 Q70 170 140 180 Q210 190 280 170 V280 H0 V190 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.02" />
       </svg>
     </div>
 
@@ -258,7 +273,7 @@ onBeforeUnmount(() => {
         >
           {{ certificatesTitle }}
           <div class="title-sparkles" aria-hidden="true"
-           :style="{ color: vConfig.lineSegment.backgroundColor }">
+           :style="{ color: vConfig.titleSparkles.color }">
             <svg class="sparkle sparkle-1" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
               <path d="M12 0 C12 7 17 12 24 12 C17 12 12 17 12 24 C12 17 7 12 0 12 C7 12 12 7 12 0 Z" />
             </svg>

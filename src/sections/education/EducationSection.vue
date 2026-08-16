@@ -14,9 +14,10 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
       paddingBottom: vConfig.section.paddingBottom
     }"
   >
-    <div class="education-container" :style="{
-  maxWidth: vConfig.container.maxWidth,
-  padding: vConfig.container.padding
+<div class="education-container" :style="{
+   maxWidth: vConfig.container.maxWidth,
+   padding: vConfig.container.padding,
+   margin: vConfig.container.margin
 }">
       <!-- Decorative elements -->
       <div class="edu-decor" aria-hidden="true">

@@ -1,4 +1,12 @@
 /* Default Visual Configuration - Contact Section */
+export interface ContactDecoration {
+  opacity: number;
+  strokeWidth: number;
+  translateX: number;
+  translateY: number;
+  rotation: number;
+}
+
 export interface ContactVisualConfig {
   section: {
     backgroundColor: string;
@@ -106,7 +114,24 @@ export interface ContactVisualConfig {
     height: string;
     color: string;
     opacity: number;
-  }
+  };
+  bgDecorations: {
+    decorStethoscope: ContactDecoration;
+    decorSyringeTop: ContactDecoration;
+    decorMolecule: ContactDecoration;
+    decorDna: ContactDecoration;
+    decorHexagon: ContactDecoration;
+    decorPill: ContactDecoration;
+    decorEcg: ContactDecoration;
+    decorSyringeBottom: ContactDecoration;
+    decorCross: ContactDecoration;
+    decorStethoscopeBottom: ContactDecoration;
+  };
+  ctaUnderline: {
+    background: string;
+    bottom: string;
+    height: string;
+  };
 }
 
 export const defaultContactConfig: ContactVisualConfig = {
@@ -216,5 +241,82 @@ export const defaultContactConfig: ContactVisualConfig = {
     height: '100%',
     color: '#ffffff',
     opacity: 0.12
+  },
+  bgDecorations: {
+    decorStethoscope: {
+      opacity: 0.12,
+      strokeWidth: 1.8,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    },
+    decorSyringeTop: {
+      opacity: 0.10,
+      strokeWidth: 1.8,
+      translateX: 80,
+      translateY: 100,
+      rotation: -30
+    },
+    decorMolecule: {
+      opacity: 0.09,
+      strokeWidth: 1.5,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    },
+    decorDna: {
+      opacity: 0.10,
+      strokeWidth: 1.6,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    },
+    decorHexagon: {
+      opacity: 0.09,
+      strokeWidth: 1.5,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    },
+    decorPill: {
+      opacity: 0.10,
+      strokeWidth: 1.8,
+      translateX: 1150,
+      translateY: 320,
+      rotation: 45
+    },
+    decorEcg: {
+      opacity: 0.09,
+      strokeWidth: 1.6,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    },
+    decorSyringeBottom: {
+      opacity: 0.09,
+      strokeWidth: 1.6,
+      translateX: 1220,
+      translateY: 480,
+      rotation: 40
+    },
+    decorCross: {
+      opacity: 0.09,
+      strokeWidth: 2,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    },
+    decorStethoscopeBottom: {
+      opacity: 0.10,
+      strokeWidth: 1.6,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0
+    }
+  },
+  ctaUnderline: {
+    background: '#ffffff',
+    bottom: '-3px',
+    height: '2px'
   }
 }

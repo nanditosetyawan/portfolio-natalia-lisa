@@ -1079,3 +1079,363 @@ PASS
 CONTACT IMAGE REPLACEMENT COMPLETE
 
 STOP.
+
+---
+
+## Request #054
+
+### Waktu
+Sun Aug 16 2026
+
+### Instruksi pengguna
+PHASE 5I-3 — EDUCATION TITLE HORIZONTAL POSITION AMENDMENT
+
+Fokus HANYA pada Education section. Ubah HANYA posisi horizontal heading "Education" agar tepat di tengah horizontal viewport, berdasarkan container Education (bukan elemen dekorasi). Jangan mengubah warna background, dekorasi, SVG, wave/border, SHS, College, About, Portfolio, Experience, Certificate, Contact, Navbar, Admin, Supabase, Database, Reset, Persistence. Jangan mengubah ukuran font, font family, warna, weight, atau vertical position heading.
+
+### Mode
+IMPLEMENTASI
+
+### Scope
+Education section — horizontal centering heading "Education" via DEFAULT-driven container margin.
+
+### Specifications consulted
+- AGENTS.md (section independence, element independence, source of truth DEFAULT)
+- Request #053 / Contact image replacement pattern (DEFAULT → config → component)
+- Certificate DEFAULT config precedent: container.margin '0 auto'
+
+### Design references consulted
+- design/education/ (referensi visual tidak tersedia di working tree saat ini — tidak ada folder design/ terverifikasi)
+
+### Work actually performed
+1. **Forensic Audit**:
+   - Component: src/sections/education/EducationSection.vue
+   - Heading element: `<h1 class="edu-title">` (line 86-98)
+   - Heading selector/class: `.edu-title` dengan `text-align: center` (CSS line 195)
+   - Current horizontal position source: `.education-container` adalah flex column dengan `align-items: center`, namun `.education-container` TIDAK memiliki margin auto → pada viewport > 1200px container left-aligned (offset 32px kiri), sehingga center container berada ~600px dari kiri, BUKAN tengah viewport (~960px pada 1920px). Heading mengikuti center container → off-center.
+   - Heading menggunakan flex (child of `.edu-content` flex column, align-items center). Tidak ada hardcoded left/right/transform/margin pada heading.
+2. **DEFAULT Source of Truth Check**: `src/data/default/visual/education.ts` punya `container.maxWidth` dan `container.padding` yang di-bind ke `.education-container`, tapi TIDAK punya property `margin`. Certificate visual config (`certificate.ts`) memiliki `container.margin: '0 auto'` (precedent).
+3. **Perubahan**: Tambah property `container.margin: string` ke interface `EducationVisualConfig` dan set default `'0 auto'`. Bind ke inline style `.education-container`: `margin: vConfig.container.margin`. Ini men-center container (dan heading di dalamnya) relatif terhadap viewport/container Education, sesuai instruksi "center alignment berdasarkan viewport/container Education, bukan berdasarkan posisi elemen dekorasi".
+4. Tidak mengubah: background-color (#FFF0BE), dekorasi (pill/syringe/sparkle/ring), SVG graduation cap, wave/border, typography heading, vertical position, ukuran heading. Hanya horizontal position heading yang berubah (melalui centering container).
+
+### Files changed
+- src/data/default/visual/education.ts (+2 lines: `margin: string` di container interface + `margin: '0 auto'` di default config)
+- src/sections/education/EducationSection.vue (+1 line: `margin: vConfig.container.margin` di inline :style `.education-container`)
+
+### Files protected (not modified)
+- About, College, SHS, Experience, Certificate, Portfolio, Contact sections
+- GuestNavbar.vue, all Admin pages
+- Supabase, database, persistence, Reset logic
+- AGENTS.md, md/**, design/**
+
+### Validation performed
+- TypeScript: npx vue-tsc --noEmit -> PASS (0 errors)
+- Build: npm run build -> PASS
+
+### Visual Preservation
+- Background: #FFF0BE unchanged
+- Decorations (pill, syringe, sparkle, circles): positions unchanged (relative % to container, ikut center bersama container — tidak diubah secara individual)
+- Wave/border: unchanged
+- Graduation cap SVG: unchanged
+- Scroll indicator: unchanged (position absolute left 50% translateX -50%)
+- Typography heading: ukuran, font family, weight, color, vertical position unchanged
+- HANYA horizontal position heading yang berubah (centered to viewport via container margin auto)
+
+### Source of Truth Chain
+DEFAULT (education.ts: container.margin '0 auto')
+→ vConfig.container.margin
+→ EducationSection.vue inline :style margin
+→ .education-container (centered)
+→ edu-content (align-items center)
+→ edu-title heading (viewport-centered)
+
+### Remaining Gaps
+- Tidak ada.
+
+### Final Git State
+- Branch: main
+- Modified: src/data/default/visual/education.ts, src/sections/education/EducationSection.vue
+
+### Verdict
+EDUCATION TITLE CENTERED
+
+STOP.
+Jangan lanjut ke section lain.
+Jangan mengubah background.
+Jangan menambah wave.
+Jangan implement Admin.
+Jangan implement Reset.
+Jangan commit.
+Jangan push.
+
+---
+
+# PHASE 5I-4 — CERTIFICATE DECORATION DEFAULT FORENSIC VERIFICATION + TYPECHECK FIX
+
+### Waktu
+Sun Aug 16 2026
+
+### Instruksi pengguna
+FORENSIC VERIFICATION only on Certificate section. Audit every background
+decoration (NOT just the 4 previously claimed). Trace each decoration
+DEFAULT → vConfig → CertificateSection.vue → template/SVG → rendered DOM
+for position/width/height/size/rotation/color/opacity/stroke-width/transform/z-index.
+Fix source-of-truth violations by moving hardcoded editable visual values into
+DEFAULT (preserve visual values). Run typecheck + build. Do NOT touch other sections.
+Do NOT implement Admin/Reset/Persistence. Do NOT commit/push.
+
+### Mode
+FORENSIC VERIFICATION (read/audit + targeted source-of-truth hardening)
+
+### Scope
+Certificate section only:
+- src/data/default/visual/certificate.ts
+- src/sections/certificate/CertificateSection.vue
+Other Certificate DEFAULT file audited:
+- src/data/default/certificates.ts (content — data, no decorations; reviewed)
+
+### Specifications consulted
+- AGENTS.md (section/element independence, source-of-truth DEFAULT, no-invent rules)
+- design/certificate/* (visual reference inspected during verification)
+- md/* (responsive/motion/interaction specs — decoration visuals confirmed against design)
+
+### Work actually performed
+1. Git initial state captured (main; cert files unmodified at start; pre-existing
+   education.js + contact.ts edits from prior phases preserved untouched).
+2. Full decoration inventory completed (8 decorations + sparkles, NOT just 4).
+3. Traced every decoration chain; verified position/rotation are DEFAULT-driven
+   (true); identified size/color NOT actually DEFAULT-driven (claims FALSE):
+   - Outline decorations (decorCert/decorMedal/decorLeft/decorRightBottom) had
+     SVG size hardcoded width="160" height="160" — NOT in DEFAULT.
+   - ALL SVG decorations used hardcoded stroke="#F28C38" / fill="#F28C38" —
+     NOT DEFAULT-driven (claim "color sudah configurable" FALSE).
+   - Sparkle config (titleSparkles/sparkle1/sparkle2) was DEFINED but UNUSED —
+     sparkle position/size were hardcoded CSS, NOT bound to vConfig.
+   - Blob backgroundColor (#FAD6B4) + opacity (0.65) hardcoded in CSS `.blob`.
+   - Dot grid fill color + opacity hardcoded in SVG.
+4. Source-of-truth hardening applied (values preserved exactly):
+   - certificate.ts: added `color` ('#F28C38') to dotGridTR/BL, decorCert/Medal/Left/RightBottom,
+     waveShapeTop/Bottom, titleSparkles/Sparkle1/Sparkle2; added `backgroundColor`('#FAD6B4') +
+     `opacity`(0.65) to blobTopRight/BottomRight/BottomLeft; added `opacity`(0.3) to dotGrid*;
+     added `width`('160px') + `height`('160px') to decorCert/Medal/Left/RightBottom.
+   - CertificateSection.vue: bound new DEFAULT props via :style; switched SVG
+     stroke/fill from hardcoded #F28C38 → currentColor flowing from wrapper
+     `color: vConfig.<dec>.color` (same value); bound SVG :width/:height for outline
+     decorations; bound dot-grid circle via currentColor + wrapper color/opacity;
+     changed title-sparkles color binding from vConfig.lineSegment.backgroundColor to
+     vConfig.titleSparkles.color (same #F28C38).
+5. SVG intrinsic geometry (cx/cy/r/path/viewBox/stroke-width/stroke-dasharray/
+   fill-opacity values) intentionally NOT moved to DEFAULT — correct per spec.
+6. Duplicate CSS position values in `.decor-*`, `.wave-*`, `.dots-*` classes left
+   in place because they are superseded by inline :style (higher specificity) —
+   rendering unchanged. (Mobile media-query overrides intentionally left untouched
+   to avoid altering responsive behavior; out of scope.)
+
+### Files changed
+- src/data/default/visual/certificate.ts  (+color/opacity/bgColor/width/height DEFAULT entries)
+- src/sections/certificate/CertificateSection.vue (bind new DEFAULT props; stroke/fill → currentColor)
+
+### Files protected (not modified)
+- All other sections (Portfolio, About, Education, College, SHS, Experience, Contact)
+- Navbar, Admin, Supabase, Database, Persistence, Reset, Router
+- AGENTS.md, md/**, design/**
+- certificates.ts (content data — audited, no decoration changes needed)
+
+### Validation performed
+- TypeScript: `npx vue-tsc --noEmit` → PASS (0 errors).
+  NOTE: Previously reported "vue-tsc@3.3.10 incompatible with TS 5.9.3" was NOT
+  reproduced in the current environment. Installed versions: vue-tsc 3.3.9 +
+  TypeScript 5.9.3 compile cleanly. No package.json/dependency changes made.
+- Build: `npm run build` → PASS (vite v8.2.1 built in 957ms, no errors).
+- git diff confirmed scope limited to the two Certificate target files (plus
+  unrelated pre-existing education/contact edits from earlier phases).
+
+### Visual Preservation
+- Certificate content: unchanged
+- Certificate cards / thumbnail / title / typography: unchanged
+- Background utama (#FDEBD6): unchanged
+- Existing decoration SVG SHAPES (paths/circles/lines/viewBox): unchanged
+- Decoration visual SIZE: unchanged (blob 320/280/360px, dot-grid 120px, outline 160px, wave 240/280px)
+- Decoration visual POSITION: unchanged (same %/values now sourced from DEFAULT)
+- Decoration COLOR: unchanged (#F28C38 via currentColor, #FAD6B4 blob)
+- Decoration visual OPACITY: unchanged (0.65 blob, 0.3 grid, per-path opacity retained)
+- z-index: unchanged (structural CSS untouched)
+- pointer-events: none: unchanged (structural CSS untouched)
+
+### Remaining Gaps
+- REAL BLOCKERS: none. typecheck + build green.
+- ARCHITECTURE GAPS (deferred, NOT in scope, Admin NOT implemented):
+  * Admin editor UI not built (by design).
+  * CSS still contains fallback values (e.g. .line-segment background-color #F28C38,
+    .info-metadata color #F28C38, action button colors) that duplicate vConfig values;
+    these are content/UI elements (not background decorations) with inline :style
+    already bound to vConfig. Left as structural CSS fallbacks — editable via vConfig.
+  * Sparkle SVG width/height (24px/14px) remain as hardcoded attributes inside the
+    sparkle SVGs rather than bound to vConfig.sparkle1/sparkle2 width/height. Color and
+    wrapper position now DEFAULT-driven; residual size attribute not bound. Report-level
+    gap only (no visual change). Acceptable for verification phase.
+
+### Final Git State
+- Branch: main (no commit, no push — per instructions)
+- Modified (this task): src/data/default/visual/certificate.ts,
+  src/sections/certificate/CertificateSection.vue
+- Pre-existing (preserved): education.* + contact.* (prior phases); .tmp_*.txt untracked artifacts.
+
+### Verdict
+CERTIFICATE DEFAULT SOURCE-OF-TRUTH VERIFIED
+
+(Previous claim "all decorations use DEFAULT config, position/size/rotation/color configurable"
+was only PARTIALLY true. Forensic audit found color, size (outline decorations), opacity
+(blobs/dotgrid), and the sparkle position/size config were NOT actually DEFAULT-bound.
+Targeted hardening moved all editable visual values into DEFAULT while preserving the
+exact visual output. Typecheck + build PASS. Admin editor NOT built.)
+
+STOP.
+Jangan lanjut ke Admin.
+Jangan implement Reset.
+Jangan implement Persistence.
+Jangan commit.
+Jangan push.
+
+---
+
+# PHASE 5I-5 — CERTIFICATE DECORATION ICON VISUAL AUDIT
+
+## Audit summary
+NEW SESSION — AUDIT + REPLACEMENT PLAN ONLY. No files modified.
+
+### 1. Initial Git State
+- Branch: main
+- Modified (cumulative): PROJECT-IMPLEMENTATION-LOG.md, certificate.ts, CertificateSection.vue
+  (from PHASE 5I-4), plus pre-existing education.ts + contact.ts edits (preserved)
+- Typecheck: PASS (0 errors). Build: PASS.
+- Installed: vue-tsc 3.3.9 + TypeScript 5.9.3 — typecheck incompatibility NOT reproduced.
+
+### 2. Certificate Decoration Inventory (complete)
+Audited template lines 106–284 + CSS 412–970.
+| ID | Decoration | Class | DEFAULT key | Form |
+|----|-----------|-------|-------------|------|
+| 1 | blobTopRight | .blob.blob-top-right | blobTopRight | div (blurred circle) |
+| 2 | blobBottomRight | .blob.blob-bottom-right | blobBottomRight | div (blurred circle) |
+| 3 | blobBottomLeft | .blob.blob-bottom-left | blobBottomLeft | div (blurred circle) |
+| 4 | dotGridTR | .dot-grid.dots-tr | dotGridTR | div (SVG pattern grid) |
+| 5 | dotGridBL | .dot-grid.dots-bl | dotGridBL | div (SVG pattern grid) |
+| 6 | decorCert | .outline-decor.decor-cert | decorCert | SVG line-art |
+| 7 | decorMedal | .outline-decor.decor-medal | decorMedal | SVG line-art |
+| 8 | decorLeft | .outline-decor.decor-left | decorLeft | SVG line-art |
+| 9 | decorRightBottom | .outline-decor.decor-right-bottom | decorRightBottom | SVG line-art |
+| 10 | waveTop | .wave-shape.wave-top | waveShapeTop | SVG fill path |
+| 11 | waveBottom | .wave-shape.wave-bottom | waveShapeBottom | SVG fill path |
+| 12 | titleSparkles | .title-sparkles | titleSparkles | wrapper |
+| 13 | sparkle-1 | .sparkle.sparkle-1 | sparkle1 | inline SVG |
+| 14 | sparkle-2 | .sparkle.sparkle-2 | sparkle2 | inline SVG |
+| 15 | refreshBtn icon | .refresh-icon | (structural) | inline SVG (functional button) |
+
+### 3. Source-of-Truth Chain (audit)
+Each decoration now traces:
+DEFAULT (certificate.ts) → vConfig → CertificateSection.vue :style → rendered element.
+- Position/size/rotation/color: bound to vConfig for all decorations.
+- Opacity: per-element SVG `opacity=`/`fill-opacity=` remains HARDCODED in the inline
+  SVG markup (NOT in DEFAULT) for outline decorations (0.08–0.18) and waves
+  (fill-opacity 0.02/0.03). Blobs (0.65) and dot grids (0.3) ARE bound to vConfig.
+  This is the residual gap (see Remaining Gaps).
+
+### 4. decorCert Analysis — certificate/document line-art
+Exact SVG: viewBox 0 0 160 160; two nested rounded `rect` (page + inner margin, rx 4/2);
+four horizontal `line` elements (0.12–0.15 opacity) = text lines; a small `circle` (r10)
+with a 5-point star `path` (M101 97…, r10 disc + star) = seal.
+- actual shape: document/paper page with faux text + circular seal (document + seal).
+- current meaning: certificate document.
+- intended role: certificate.
+- suitable? YES — the shape IS a certificate/document (page + text + seal).
+   REPLACEMENT NOT required on shape grounds.
+
+### 5. decorMedal Analysis — medal/award line-art
+Exact SVG: viewBox 0 0 160 160; `path` triangle (M60 40 L80 15 L100 40 — ribbon crown);
+`line` (ribbon drop); two concentric `circle` r22/r16 (dashed 2-2) = medal disc;
+5-point `path` star center; two angled `path` = ribbon tails.
+- actual shape: award medal with ribbon crown + central star + ribbon tails.
+- current meaning: medal/award.
+- intended role: award/medal.
+- suitable? YES — the shape IS a medal.
+   REPLACEMENT NOT required on shape grounds.
+
+### 6. Existing Icon Library
+Dependency already present (no install needed): `lucide-vue-next`.
+Import path used in project: `import { … } from 'lucide-vue-next'` (CertificateSection.vue L3).
+Confirmed exported (node_modules/lucide-vue-next/dist/esm/index.js):
+Award (L332), Medal (L1076), Badge (L131), Trophy (L1580), FileBadge (L596),
+FileText (L639), FileCheck (L605), ScrollText (L1291), GraduationCap (L760),
+BadgeCheck (L116). All available without dependency changes.
+
+### 7. Recommended Replacement (PLAN only — not implemented)
+If sharper, universally-recognizable semantics are desired:
+- decorCert → `FileBadge` (file with badge) or `ScrollText` (scroll + text).
+  Rationale: explicit document/scroll semantics; thin-stroke line aesthetic via
+  `:stroke="currentColor"` `:stroke-width="1.5"` `:fill="none"` — matches existing
+  thin outline style.
+- decorMedal → `Award` (circle + star + ribbon crown) or `Medal` (disc + ribbon).
+  Rationale: explicit award medal; same thin-line styling.
+- Size/position/rotation/color opacity bound to the same vConfig.<dec>.* props
+  (width 160px, rotation -12deg/15deg/20deg/-18deg, color #F28C38).
+- Visual language preserved: currentColor (DEFAULT color), no fill gradients,
+  consistent stroke-width with existing decorations, same opacity level (~0.15–0.18)
+   so icon remains a subtle background element, not a focal element.
+
+### 8. Other Certificate Decorations categorization
+- Background ornaments (no icon semantics): blobTopRight/BL/BR, dotGridTR/BL,
+  decorLeft, decorRightBottom, waveShapeTop/Bottom. These are abstract circular/
+  ring/wave ornaments — intentional background texture, NOT candidate icons.
+- Functional icon (not background decoration): refreshBtn (.refresh-icon) uses
+  Lucide-style inline SVG with stroke="currentColor" — keeps its role.
+
+### 9. DEFAULT Compatibility (if replacement executed later)
+Proposed icon swap preserves the verified architecture:
+DEFAULT icon choice + color/size/rotation/opacity props → vConfig → component → icon.
+No new DEFAULT keys required; only `icon` string/identifier could be added for
+Admin editability. currentColor color binding already in place.
+
+### 10. Visual Preservation
+Plan preserves all confirmed-unchanged properties (scope limited to Certificate):
+position (top/left/right/bottom %), transformRotate, z-index (3), pointer-events none,
+section bg #FDEBD6, title/typography/cards, existing decoration shapes only changed
+if replacement approved — values kept identical.
+
+### 11. Files That Would Need Modification (for any future replacement)
+- src/data/default/visual/certificate.ts (add icon selector per decoration, if desired)
+- src/sections/certificate/CertificateSection.vue (swap inline SVG for Lucide component
+  import; bind color/size/opacity to vConfig). No other files.
+
+### 12. Typecheck
+npx vue-tsc --noEmit → PASS (0 errors). Build → PASS.
+
+### 13. Remaining Gaps
+- REAL BLOCKERS: none.
+- ARCHITECTURE GAPS: per-element decoration `opacity=` (0.08–0.18) and wave
+  `fill-opacity` (0.02/0.03) remain hardcoded in SVG attributes rather than bound
+  to DEFAULT. Affects visibility/clarity. Recommend exposing a single per-decoration
+  `opacity` (or `strokeOpacity`/`fillOpacity`) key in DEFAULT + binding for next phase
+  if clarity tuning is required. NOT modified this phase (audit/plan only).
+
+### 14. Final Git State
+- Branch: main (no commit/push)
+- No files changed in PHASE 5I-5 (audit + plan only).
+- Only Certificate-related files are in active change scope (certificate.ts, CertificateSection.vue).
+
+### Verdict
+CERTIFICATE ICON AUDIT COMPLETE — AUDIT + REPLACEMENT PLAN ONLY.
+
+Findings:
+- decorCert and decorMedal ARE semantically correct shapes (document+seal and medal+ribbon).
+- They are NOT strict replacement candidates on semantic grounds.
+- The reduced "clarity" is caused by per-element opacity hard-coded in SVG, not by shape.
+- If crisper icons are desired, recommended plan: swap to Lucide FileBadge/ScrollText
+  (cert) and Award/Medal (medal), reusing vConfig color/size/rotation bindings.
+- Replacement is deferred; no implementation in this session per scope.
+
+STOP.
+Jangan implement replacement.
+Jangan implement Admin.
+Jangan implement Reset.
+Jangan implement Persistence.
+Jangan commit.
+Jangan push.
