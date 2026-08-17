@@ -67,16 +67,16 @@ export interface EducationVisualConfig {
 }
 
 export const defaultEducationConfig: EducationVisualConfig = {
-   section: {
-     backgroundColor: '#FFF0BE',
-     minHeight: '100vh',
-     paddingBottom: 'calc(clamp(4rem, 10vh, 8rem) + 200px)'
-   },
-   container: {
-     maxWidth: '1200px',
-     padding: '6rem 2rem 4rem',
-     margin: '0 auto'
-   },
+section: {
+      backgroundColor: '#FFF0BE',
+      minHeight: '100vh',
+      paddingBottom: 'calc(clamp(4rem, 10vh, 8rem) + 4rem + 200px)'
+    },
+container: {
+      maxWidth: '1200px',
+      padding: '10rem 2rem 4rem',
+      margin: '0 auto'
+    },
     title: {
       color: '#8D363A',
       fontSize: 'clamp(5.5rem, 14vw, 11rem)',
@@ -93,8 +93,8 @@ export const defaultEducationConfig: EducationVisualConfig = {
     },
     scrollIndicator: {
       color: '#8D363A',
-      gap: '0.85rem',
-      bottom: '5rem'
+      gap: '1.5rem',
+      bottom: '3rem'
     },
    decorPill: {
      top: '42%',

@@ -6,6 +6,14 @@ import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 const frameImages: Record<string, string> = {
   'lisa-profile': ''
 }
+
+function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage' | 'frameImage') {
+  const cfg = vConfig[source]
+  return {
+    objectFit: cfg.objectFit,
+    objectPosition: cfg.objectPosition
+  } as any
+}
 </script>
 
 <template>
@@ -67,15 +75,9 @@ const frameImages: Record<string, string> = {
 
         <!-- Curved decorative lines under title -->
         <div class="title-swooshes" aria-hidden="true">
-          <svg class="swoosh swoosh-1" viewBox="0 0 120 24" width="120" height="24" fill="none">
-            <path d="M2 22 Q 60 -8 118 22" stroke="#FF9A86" stroke-width="5" stroke-linecap="round" />
-          </svg>
-          <svg class="swoosh swoosh-2" viewBox="0 0 96 20" width="96" height="20" fill="none">
-            <path d="M2 18 Q 48 -6 94 18" stroke="#FF9A86" stroke-width="4" stroke-linecap="round" />
-          </svg>
-          <svg class="swoosh swoosh-3" viewBox="0 0 72 16" width="72" height="16" fill="none">
-            <path d="M2 14 Q 36 -4 70 14" stroke="#FF9A86" stroke-width="3" stroke-linecap="round" />
-          </svg>
+          <svg class="swoosh swoosh-1" viewBox="0 0 120 24" width="120" height="24" fill="none" :stroke="vConfig.titleSwooshes.color" :stroke-width="vConfig.titleSwooshes.strokeWidth"><path d="M2 22 Q 60 -8 118 22"/></svg>
+          <svg class="swoosh swoosh-2" viewBox="0 0 96 20" width="96" height="20" fill="none" :stroke="vConfig.titleSwooshes.color" :stroke-width="vConfig.titleSwooshes.strokeWidth"><path d="M2 18 Q 48 -6 94 18"/></svg>
+          <svg class="swoosh swoosh-3" viewBox="0 0 72 16" width="72" height="16" fill="none" :stroke="vConfig.titleSwooshes.color" :stroke-width="vConfig.titleSwooshes.strokeWidth"><path d="M2 14 Q 36 -4 70 14"/></svg>
         </div>
 
         <p
@@ -144,12 +146,12 @@ const frameImages: Record<string, string> = {
             zIndex: vConfig.frameBack1.zIndex
           }"
         >
-          <div class="polaroid-photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 2px; overflow: hidden;">
-            <img :src="frameImages[vConfig.frameImage.source]" alt="" :style="{ width: '100%', height: '100%', objectFit: vConfig.frameImage.objectFit, borderRadius: '2px' }" />
+          <div class="polaroid-photo">
+            <img :src="frameImages[vConfig.frameBack1Image.source]" alt="Profile photo" :style="imgStyle('frameBack1Image')" />
           </div>
-          <div class="polaroid-caption"></div>
-</div>
-          <div
+<div class="polaroid-caption"></div>
+         </div>
+         <div
             class="polaroid frame-back-2"
             aria-hidden="true"
             :style="{
@@ -164,8 +166,8 @@ const frameImages: Record<string, string> = {
               zIndex: vConfig.frameBack2.zIndex
             }"
           >
-            <div class="polaroid-photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 2px; overflow: hidden;">
-              <img :src="frameImages[vConfig.frameImage.source]" alt="" :style="{ width: '100%', height: '100%', objectFit: vConfig.frameImage.objectFit, borderRadius: '2px' }" />
+            <div class="polaroid-photo">
+              <img :src="frameImages[vConfig.frameBack2Image.source]" alt="Profile photo" :style="imgStyle('frameBack2Image')" />
             </div>
             <div class="polaroid-caption"></div>
 </div>
@@ -183,8 +185,8 @@ const frameImages: Record<string, string> = {
             zIndex: vConfig.frameMain.zIndex
           }"
         >
-          <div class="polaroid-photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 2px; overflow: hidden;">
-            <img v-if="frameImages[vConfig.frameImage.source]" :src="frameImages[vConfig.frameImage.source]" alt="Profile photo" :style="{ width: '100%', height: '100%', objectFit: vConfig.frameImage.objectFit, borderRadius: '2px' }" />
+          <div class="polaroid-photo">
+            <img v-if="frameImages[vConfig.frameMainImage.source]" :src="frameImages[vConfig.frameMainImage.source]" alt="Profile photo" :style="imgStyle('frameMainImage')" />
             <div v-else class="placeholder-main">
               <User class="placeholder-icon" :size="44" :stroke-width="1.2" />
               <span class="placeholder-label">Profile photo<br/>(Pending user asset)</span>
@@ -238,26 +240,28 @@ const frameImages: Record<string, string> = {
       <div class="decor-arrow" :style="{
         top: vConfig.decorArrow.top,
         right: vConfig.decorArrow.right,
+        color: vConfig.decorArrow.color,
         opacity: vConfig.decorArrow.opacity
       }">
-        <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
-          <path d="M12 50 Q 12 22 42 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
-          <path d="M42 20 L 34 11 M42 20 L 33 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        <svg viewBox="0 0 64 64" width="64" height="64" fill="none" :stroke="vConfig.decorArrow.color" :stroke-width="vConfig.decorArrow.strokeWidth" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 50 Q 12 22 42 20"/>
+          <path d="M42 20 L 34 11 M42 20 L 33 27"/>
         </svg>
       </div>
       <div class="decor-plant" :style="{
         left: vConfig.decorPlant.left,
         bottom: vConfig.decorPlant.bottom,
+        color: vConfig.decorPlant.color,
         opacity: vConfig.decorPlant.opacity
       }">
-        <svg viewBox="0 0 80 90" width="80" height="90" fill="none">
-          <path d="M40 90 C 40 60 40 34 40 12" stroke="#7A8B5C" stroke-width="3" stroke-linecap="round" />
-          <path d="M40 72 C 26 68 16 55 18 44" stroke="#7A8B5C" stroke-width="2.5" stroke-linecap="round" />
-          <ellipse cx="21" cy="43" rx="11" ry="5.5" fill="#8FA06B" transform="rotate(-38 21 43)" />
-          <path d="M40 55 C 54 51 63 38 61 27" stroke="#7A8B5C" stroke-width="2.5" stroke-linecap="round" />
-          <ellipse cx="59" cy="27" rx="11" ry="5.5" fill="#8FA06B" transform="rotate(38 59 27)" />
-          <path d="M40 36 C 28 32 22 21 25 12" stroke="#7A8B5C" stroke-width="2.5" stroke-linecap="round" />
-          <ellipse cx="27" cy="12" rx="9" ry="4.5" fill="#A3B382" transform="rotate(-45 27 12)" />
+        <svg viewBox="0 0 80 90" width="80" height="90" fill="none" :stroke="vConfig.decorPlant.color" :stroke-width="vConfig.decorPlant.strokeWidth" stroke-linecap="round">
+          <path d="M40 90 C 40 60 40 34 40 12"/>
+          <path d="M40 72 C 26 68 16 55 18 44"/>
+          <ellipse cx="21" cy="43" rx="11" ry="5.5" fill="currentColor" opacity="0.5" transform="rotate(-38 21 43)"/>
+          <path d="M40 55 C 54 51 63 38 61 27"/>
+          <ellipse cx="59" cy="27" rx="11" ry="5.5" fill="currentColor" opacity="0.5" transform="rotate(38 59 27)"/>
+          <path d="M40 36 C 28 32 22 21 25 12"/>
+          <ellipse cx="27" cy="12" rx="9" ry="4.5" fill="currentColor" opacity="0.6" transform="rotate(-45 27 12)"/>
         </svg>
       </div>
     </div>

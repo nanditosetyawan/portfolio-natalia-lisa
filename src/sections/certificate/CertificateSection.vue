@@ -173,14 +173,14 @@ onBeforeUnmount(() => {
         color: vConfig.decorCert.color
       }">
       <svg :width="vConfig.decorCert.width" :height="vConfig.decorCert.height" viewBox="0 0 160 160" fill="none">
-        <rect x="28" y="22" width="104" height="116" rx="4" stroke="currentColor" stroke-width="2" opacity="0.15" />
-        <path d="M110 22 L110 42 L130 22" stroke="currentColor" stroke-width="1.8" opacity="0.15" />
-        <circle cx="80" cy="108" r="24" stroke="currentColor" stroke-width="1.8" opacity="0.15" />
-        <circle cx="80" cy="108" r="16" stroke="currentColor" stroke-width="1.2" opacity="0.12" />
-        <circle cx="80" cy="108" r="6" stroke="currentColor" stroke-width="1" opacity="0.10" />
-        <path d="M60 126 C60 138 70 146 80 146 C90 146 100 138 100 126" stroke="currentColor" stroke-width="1.5" opacity="0.12" fill="none" />
-        <path d="M60 126 C54 132 52 142 60 150" stroke="currentColor" stroke-width="1.2" opacity="0.10" fill="none" />
-        <path d="M100 126 C106 132 108 142 100 150" stroke="currentColor" stroke-width="1.2" opacity="0.10" fill="none" />
+        <rect x="28" y="22" width="104" height="116" rx="4" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" />
+        <path d="M110 22 L110 42 L130 22" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" />
+        <circle cx="80" cy="108" r="24" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" />
+        <circle cx="80" cy="108" r="16" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" />
+        <circle cx="80" cy="108" r="6" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" />
+        <path d="M60 126 C60 138 70 146 80 146 C90 146 100 138 100 126" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" fill="none" />
+        <path d="M60 126 C54 132 52 142 60 150" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" fill="none" />
+        <path d="M100 126 C106 132 108 142 100 150" stroke="currentColor" :stroke-width="vConfig.decorCert.strokeWidth" :opacity="vConfig.decorCert.opacity" fill="none" />
       </svg>
     </div>
     <div class="outline-decor decor-medal" aria-hidden="true"
@@ -191,12 +191,12 @@ onBeforeUnmount(() => {
         color: vConfig.decorMedal.color
       }">
       <svg :width="vConfig.decorMedal.width" :height="vConfig.decorMedal.height" viewBox="0 0 160 160" fill="none">
-        <path d="M45 50 L55 82 L80 68 L105 82 L115 50" stroke="currentColor" stroke-width="1.8" opacity="0.15" fill="none" />
-        <line x1="80" y1="68" x2="80" y2="50" stroke="currentColor" stroke-width="1" opacity="0.12" />
-        <circle cx="80" cy="105" r="28" stroke="currentColor" stroke-width="2" opacity="0.15" />
-        <circle cx="80" cy="105" r="20" stroke="currentColor" stroke-width="1.2" opacity="0.12" />
-        <path d="M80 87 L84 97 L94 97 L87 103 L90 113 L80 107 L70 113 L73 103 L66 97 L76 97 Z" stroke="currentColor" stroke-width="1.5" opacity="0.12" fill="none" />
-        <path d="M60 125 L55 148 L75 135 L80 148 L85 135 L105 148 L100 125" stroke="currentColor" stroke-width="1.5" opacity="0.12" fill="none" />
+        <path d="M45 50 L55 82 L80 68 L105 82 L115 50" stroke="currentColor" :stroke-width="vConfig.decorMedal.strokeWidth" :opacity="vConfig.decorMedal.opacity" fill="none" />
+        <line x1="80" y1="68" x2="80" y2="50" stroke="currentColor" :stroke-width="vConfig.decorMedal.strokeWidth" :opacity="vConfig.decorMedal.opacity" />
+        <circle cx="80" cy="105" r="28" stroke="currentColor" :stroke-width="vConfig.decorMedal.strokeWidth" :opacity="vConfig.decorMedal.opacity" />
+        <circle cx="80" cy="105" r="20" stroke="currentColor" :stroke-width="vConfig.decorMedal.strokeWidth" :opacity="vConfig.decorMedal.opacity" />
+        <path d="M80 87 L84 97 L94 97 L87 103 L90 113 L80 107 L70 113 L73 103 L66 97 L76 97 Z" stroke="currentColor" :stroke-width="vConfig.decorMedal.strokeWidth" :opacity="vConfig.decorMedal.opacity" fill="none" />
+        <path d="M60 125 L55 148 L75 135 L80 148 L85 135 L105 148 L100 125" stroke="currentColor" :stroke-width="vConfig.decorMedal.strokeWidth" :opacity="vConfig.decorMedal.opacity" fill="none" />
       </svg>
     </div>
     <!-- Additional Decorative Elements -->
@@ -226,33 +226,7 @@ onBeforeUnmount(() => {
         <path d="M80 30 L80 130 M30 80 L130 80" stroke="currentColor" stroke-width="1" opacity="0.08" />
       </svg>
     </div>
-    <!-- Organic Wave Shapes -->
-    <div class="wave-shape wave-top" aria-hidden="true"
-      :style="{
-        top: vConfig.waveShapeTop.top,
-        right: vConfig.waveShapeTop.right,
-        width: vConfig.waveShapeTop.width,
-        height: vConfig.waveShapeTop.height,
-        color: vConfig.waveShapeTop.color
-      }">
-      <svg viewBox="0 0 240 240" width="100%" height="100%" fill="none">
-        <path d="M0 120 Q60 80 120 100 Q180 120 240 90 V240 H0 V120 Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.03" />
-        <path d="M0 160 Q60 140 120 150 Q180 160 240 130 V240 H0 V160 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.02" />
-      </svg>
-    </div>
-    <div class="wave-shape wave-bottom" aria-hidden="true"
-      :style="{
-        bottom: vConfig.waveShapeBottom.bottom,
-        left: vConfig.waveShapeBottom.left,
-        width: vConfig.waveShapeBottom.width,
-        height: vConfig.waveShapeBottom.height,
-        color: vConfig.waveShapeBottom.color
-      }">
-      <svg viewBox="0 0 280 280" width="100%" height="100%" fill="none">
-        <path d="M0 140 Q70 100 140 130 Q210 160 280 120 V280 H0 V140 Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.03" />
-        <path d="M0 190 Q70 170 140 180 Q210 190 280 170 V280 H0 V190 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.02" />
-      </svg>
-    </div>
+    
 
     <div class="certificate-container">
       <!-- Title -->

@@ -44,12 +44,56 @@ export interface AboutVisualConfig {
     flexBasis: string;
     height: string;
   };
+  /* Frame image slots */
+  frameImage: {
+    source: string;
+    width: string;
+    height: string;
+    objectFit: string;
+    objectPosition: string;
+  };
+  frameBack1Image: {
+    source: string;
+    width: string;
+    height: string;
+    objectFit: string;
+    objectPosition: string;
+  };
+  frameBack2Image: {
+    source: string;
+    width: string;
+    height: string;
+    objectFit: string;
+    objectPosition: string;
+  };
+  frameMainImage: {
+    source: string;
+    width: string;
+    height: string;
+    objectFit: string;
+    objectPosition: string;
+  };
+  /* Tape decoration */
+  tape: {
+    width: string;
+    height: string;
+    top: string;
+    left: string;
+    rotation: string;
+    color: string;
+    opacity: number;
+    boxShadow: string;
+    zIndex: number;
+  };
   /* Background decorative rings */
   bgRing1: {
     width: string;
     height: string;
     top: string;
     left: string;
+    opacity: number;
+    strokeWidth: number;
+    strokeColor: string;
   };
   bgRing2: {
     width: string;
@@ -57,6 +101,9 @@ export interface AboutVisualConfig {
     bottom: string;
     right: string;
     boxShadow: string;
+    opacity: number;
+    strokeWidth: number;
+    strokeColor: string;
   };
   /* Foreground decorative elements */
   decorDots: {
@@ -65,28 +112,40 @@ export interface AboutVisualConfig {
     width: string;
     height: string;
     opacity: number;
+    color: string;
   };
   decorSparkle1: {
     top: string;
     left: string;
     color: string;
     opacity: number;
+    strokeWidth: number;
   };
   decorSparkle2: {
     bottom: string;
     right: string;
     color: string;
     opacity: number;
+    strokeWidth: number;
   };
   decorArrow: {
     top: string;
     right: string;
+    color: string;
     opacity: number;
+    strokeWidth: number;
   };
   decorPlant: {
     left: string;
     bottom: string;
+    color: string;
     opacity: number;
+    strokeWidth: number;
+  };
+  /* Title swooshes */
+  titleSwooshes: {
+    color: string;
+    strokeWidth: number;
   };
   /* Polaroid frames */
   frameBack1: {
@@ -167,47 +226,103 @@ export const defaultAboutConfig: AboutVisualConfig = {
     flexBasis: '56%',
     height: '640px'
   },
+  frameImage: {
+    source: 'lisa-profile',
+    width: '100%',
+    height: '252px',
+    objectFit: 'cover',
+    objectPosition: 'center center'
+  },
+  frameBack1Image: {
+    source: 'lisa-profile',
+    width: '100%',
+    height: '252px',
+    objectFit: 'cover',
+    objectPosition: 'center center'
+  },
+  frameBack2Image: {
+    source: 'lisa-profile',
+    width: '100%',
+    height: '272px',
+    objectFit: 'cover',
+    objectPosition: 'center center'
+  },
+  frameMainImage: {
+    source: 'lisa-profile',
+    width: '100%',
+    height: '380px',
+    objectFit: 'cover',
+    objectPosition: 'center center'
+  },
+  tape: {
+    width: '96px',
+    height: '26px',
+    top: '-13px',
+    left: '50%',
+    rotation: 'rotate(-4deg)',
+    color: 'rgba(255, 214, 166, 0.75)',
+    opacity: 0.75,
+    boxShadow: 'inset 0 0 0 1px rgba(255, 214, 166, 0.6)',
+    zIndex: 4
+  },
   bgRing1: {
     width: '260px',
     height: '260px',
     top: '-70px',
-    left: '-70px'
+    left: '-70px',
+    opacity: 0.18,
+    strokeWidth: 1.5,
+    strokeColor: '#DCCAAA'
   },
   bgRing2: {
     width: '320px',
     height: '320px',
     bottom: '10%',
     right: '-110px',
-    boxShadow: 'inset 0 0 0 1.5px rgba(220, 190, 170, 0.14)'
+    boxShadow: 'inset 0 0 0 1.5px rgba(220, 190, 170, 0.14)',
+    opacity: 0.14,
+    strokeWidth: 1.5,
+    strokeColor: '#DCCAAA'
   },
   decorDots: {
     top: '3.25rem',
     right: '4.5rem',
     width: '84px',
     height: '84px',
-    opacity: 0.5
+    opacity: 0.5,
+    color: '#FF9A86'
   },
   decorSparkle1: {
     top: '22%',
     left: '5%',
     color: '#FF9A86',
-    opacity: 1
+    opacity: 1,
+    strokeWidth: 1.5
   },
   decorSparkle2: {
     bottom: '24%',
     right: '10%',
     color: '#D62828',
-    opacity: 1
+    opacity: 1,
+    strokeWidth: 1.5
   },
   decorArrow: {
     top: '34%',
     right: '6%',
-    opacity: 0.85
+    color: '#FF9A86',
+    opacity: 0.85,
+    strokeWidth: 2.5
   },
   decorPlant: {
     left: '1.5rem',
     bottom: '1.5rem',
-    opacity: 0.9
+    color: '#7A8B5C',
+    opacity: 0.9,
+    strokeWidth: 2.5
+  },
+  titleSwooshes: {
+    color: '#FF9A86',
+    strokeWidth: 3
   },
   frameBack1: {
     width: '210px',

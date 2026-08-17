@@ -132,6 +132,8 @@ export interface CertificateVisualConfig {
     color: string;
     width: string;
     height: string;
+    strokeWidth: number;
+    opacity: number;
   };
   decorMedal: {
     top: string;
@@ -140,6 +142,8 @@ export interface CertificateVisualConfig {
     color: string;
     width: string;
     height: string;
+    strokeWidth: number;
+    opacity: number;
   };
   /* Additional decorative elements */
   decorLeft: {
@@ -592,6 +596,8 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     color: '#F28C38',
     width: '160px',
     height: '160px',
+    strokeWidth: 3,
+    opacity: 0.8,
   },
   decorMedal: {
     top: '12%',
@@ -600,6 +606,8 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     color: '#F28C38',
     width: '160px',
     height: '160px',
+    strokeWidth: 3,
+    opacity: 0.8,
   },
   decorLeft: {
     top: '42%',
