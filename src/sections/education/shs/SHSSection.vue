@@ -63,14 +63,6 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-tl" aria-hidden="true" :style="{
-            width: vConfig.tapeTl.width,
-            height: vConfig.tapeTl.height,
-            top: vConfig.tapeTl.top,
-            left: vConfig.tapeTl.left,
-            transform: `rotate(${vConfig.tapeTl.transformRotate})`,
-            backgroundColor: vConfig.tapeTl.backgroundColor
-          }"></div>
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
@@ -94,14 +86,6 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-br" aria-hidden="true" :style="{
-            width: vConfig.tapeBr.width,
-            height: vConfig.tapeBr.height,
-            bottom: vConfig.tapeBr.bottom,
-            right: vConfig.tapeBr.right,
-            transform: `rotate(${vConfig.tapeBr.transformRotate})`,
-            backgroundColor: vConfig.tapeBr.backgroundColor
-          }"></div>
         </div>
       </div>
 
@@ -129,18 +113,6 @@ import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
         }">
           <Sparkles :size="16" :stroke-width="1.5" />
           <Sparkles :size="12" :stroke-width="1.5" />
-        </div>
-
-        <!-- Curved arrow decoration (right side) -->
-        <div class="shs-arrow" aria-hidden="true" :style="{
-          right: vConfig.arrow.right,
-          top: vConfig.arrow.top,
-          opacity: vConfig.arrow.opacity
-        }">
-          <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
-            <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
-            <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
         </div>
 
 <!-- Right content — info block (group for drag) -->

@@ -134,17 +134,6 @@ import { defaultSHSConfig as shsVConfig } from '../data/default/visual/shs'
             <span></span><span></span><span></span>
           </div>
         </div>
-        <div class="college-arrow" :style="{
-          right: collegeVConfig.arrow.right,
-          top: collegeVConfig.arrow.top,
-          opacity: collegeVConfig.arrow.opacity
-        }">
-          <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
-            <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
-            <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </div>
-
         <div class="college-dot-grid" :data-decoration-id="collegeVConfig.dotGrid3.id" :style="{
           width: collegeVConfig.dotGrid3.width,
           height: collegeVConfig.dotGrid3.height,

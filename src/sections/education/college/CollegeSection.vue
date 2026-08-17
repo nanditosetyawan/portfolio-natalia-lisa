@@ -144,13 +144,6 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
             </svg>
           </div>
           <div class="polaroid-bottom"></div>
-          <div class="tape tape-br" aria-hidden="true" :style="{
-            width: vConfig.tapeBr.width,
-            height: vConfig.tapeBr.height,
-            bottom: vConfig.tapeBr.bottom,
-            right: vConfig.tapeBr.right,
-            transform: `rotate(${vConfig.tapeBr.transformRotate})`
-          }"></div>
         </div>
       </div>
     </div>
