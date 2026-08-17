@@ -2855,3 +2855,74 @@ Rear About frame is now higher and horizontally wider in both directions; portra
 ### Files Modified In This Request
 - `src/data/default/visual/about.ts`.
 - `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+---
+
+## Request #070
+
+**Date:** 2026-08-17
+**Instruction:** Enlarge only `about-frame-main` to approximately three times its current rendered size, retain square ratio and stacking, and preserve portrait/rear layer numerically.
+**Execution mode:** Browser-measured single-layer size and necessary same-layer position adjustment.
+
+### Runtime Baseline 1440x900
+- Portrait: x=895.203, y=284.750, 300x544.453, z-index 5.
+- Main: x=1090.993, y=285.118, 133.3584x133.3585, z-index 3.
+- Back: x=725.823, y=99.832, 454.510x336.335, z-index 1.
+- Screenshot: `%TEMP%/about-main-triple-before.png`.
+
+### Work and Runtime Result
+- Changed only main-frame config: width/height 130px to 390px.
+- Adjusted only main-frame left from 61% to 42% to keep the 3x frame within the viewport while approximately preserving its visual center.
+- Final main: x=957.384, y=281.759, 400.0753x400.0753, z-index 3.
+- Runtime size factor: approximately 3.000001; ratio 1:1.
+- Main rotation, source/image config, border, radius, shadow, z-index, ID, and responsive rules unchanged.
+- Portrait and back-frame bounding boxes/computed stacking properties remained exactly identical.
+- Stacking remained 5 > 3 > 1; overflow false.
+- Final screenshot: `%TEMP%/about-main-triple-after.png`.
+- Snapshot diff contains only three properties inside `frameMain`.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; 1831 modules transformed.
+- `git diff --check`: PASS.
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+---
+
+## Request #071
+
+**Date:** 2026-08-17
+**Instruction:** Shrink only `about-frame-main` from its top and right edges, preserving square ratio and left/bottom visual anchors; verify desktop/tablet/mobile.
+**Execution mode:** Browser-measured single-layer resize with anchor compensation.
+
+### Desktop Runtime Baseline 1440x900
+- Portrait: x=895.203, y=284.750, 300x544.453, z-index 5.
+- Main: x=957.384, y=281.759, 400.0753x400.0753, right=1357.459, bottom=681.835, z-index 3.
+- Back: x=725.823, y=99.832, 454.510x336.335, z-index 1.
+- Screenshot: `%TEMP%/about-main-shrink-before.png`.
+
+### Work and Runtime Result
+- Changed only main geometry: 390x390 to 300x300, top 27% to 41.25%, left 42% to 41.83%.
+- Final main: x=957.391, y=374.125, 307.7502x307.7503, right=1265.141, bottom=681.875, z-index 3.
+- Left anchor delta +0.006px; bottom anchor delta +0.041px.
+- Top edge moved down 92.366px; right edge moved left 92.319px.
+- Runtime ratio remained effectively 1:1; rotation/source/style/z-index/ID/responsive rules unchanged.
+- Portrait and rear frame were runtime-identical before/after.
+- Stacking remained 5 > 3 > 1; desktop overflow false.
+- Final screenshot: `%TEMP%/about-main-shrink-after.png`.
+
+### Responsive Runtime
+- Tablet 1024x768: main 76.9375x76.9376, square, overflow false.
+- Mobile 390x844: main 88.0134x88.0134, square, overflow false.
+- Responsive overrides and all other layers unchanged.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; 1831 modules transformed.
+- `git diff --check`: PASS.
+- Snapshot diff contained only four geometry values inside `frameMain`.
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
