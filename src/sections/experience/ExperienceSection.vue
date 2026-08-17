@@ -41,11 +41,11 @@
         </div>
         <div class="decor-heartbeat"
           :style="{
-            width: vConfig.decorHeartbeat.width,
-            height: vConfig.decorHeartbeat.height,
-            top: vConfig.decorHeartbeat.top,
-            right: vConfig.decorHeartbeat.right,
-            opacity: vConfig.decorHeartbeat.opacity
+             width: vConfig.decorHeartbeat.width,
+             height: vConfig.decorHeartbeat.height,
+             bottom: vConfig.decorHeartbeat.bottom,
+             right: vConfig.decorHeartbeat.right,
+             opacity: vConfig.decorHeartbeat.opacity
           }">
           <svg :viewBox="'0 0 120 40'" :width="vConfig.decorHeartbeat.width" :height="vConfig.decorHeartbeat.height" fill="none">
             <path d="M5 20 L25 20 L35 5 L50 35 L60 15 L70 25 L115 20"
@@ -310,7 +310,9 @@ const dotTopVh = computed(() => {
 
 .decor-syringe {}
 
-.decor-heartbeat {}
+.decor-heartbeat {
+  position: absolute;
+}
 
 .decor-dots {
   position: absolute;

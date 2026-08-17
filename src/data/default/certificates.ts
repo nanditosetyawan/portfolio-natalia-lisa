@@ -3,7 +3,8 @@ export interface CertificateCard {
   title: string
   date: string
   description: string
-  images: string[]
+  thumbnailImage: string
+  detailImages: string[]
 }
 
 export interface DefaultCertificates {
@@ -19,14 +20,16 @@ export const defaultCertificates: DefaultCertificates = {
       title: 'SERTIF A',
       date: '2025 - Now',
       description: 'Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet',
-      images: ['', '', '']
+      thumbnailImage: '',
+      detailImages: ['', '', '']
     },
     {
       id: 'cert-b',
       title: 'SERTIF B',
       date: '2025 - Now',
       description: 'Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet',
-      images: ['', '']
+      thumbnailImage: '',
+      detailImages: ['', '']
     }
   ]
 }

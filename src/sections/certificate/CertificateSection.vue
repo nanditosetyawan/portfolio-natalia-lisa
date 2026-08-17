@@ -5,14 +5,15 @@ import { defaultCertificates } from '../../data/default/certificates'
 import { defaultCertificateConfig as vConfig } from '../../data/default/visual/certificate'
 
 // ===== Card Data =====
-// Add image URLs to the `images` array to replace placeholders (max 4 per card).
+// Add image URLs to the `detailImages` array to replace placeholders.
 // Empty string '' = show placeholder. Replace with actual URL to show real photo.
 interface CertCard {
   id: string
   title: string
   date: string
   description: string
-  images: string[] // URL or '' for placeholder. Min 1, Max 4.
+  thumbnailImage: string // URL or '' for placeholder
+  detailImages: string[] // URLs or '' for placeholders
 }
 
 // Use default certificates data
@@ -45,10 +46,10 @@ function toggleCard(id: string) {
 
 function startAutoSlide(id: string) {
   const card = cards.find(c => c.id === id)
-  if (!card || card.images.length <= 1) return
+  if (!card || card.detailImages.length <= 1) return
   clearSlideTimer(id)
   slideTimers[id] = setInterval(() => {
-    currentSlides[id] = ((currentSlides[id] ?? 0) + 1) % card.images.length
+    currentSlides[id] = ((currentSlides[id] ?? 0) + 1) % card.detailImages.length
   }, 3000)
 }
 
@@ -61,15 +62,15 @@ function clearSlideTimer(id: string) {
 
 function goToSlide(id: string, index: number) {
   currentSlides[id] = index
-  const card = cards.find(c => c.id === id)
-  if (card && card.images.length > 1) {
+  const card = cards.find(c => c.detailImages.length > 1)
+  if (card && card.detailImages.length > 1) {
     clearSlideTimer(id)
     startAutoSlide(id)
   }
 }
 
 function downloadCert(card: CertCard) {
-  const validImages = card.images.filter(img => img !== '')
+  const validImages = card.detailImages.filter(img => img !== '')
   if (validImages.length === 0) {
     // Placeholder: no actual image files yet
     alert(`Gambar sertifikat "${card.title}" belum tersedia.\nGanti URL di data cards untuk mengaktifkan download.`)
@@ -289,26 +290,62 @@ onBeforeUnmount(() => {
           :key="card.id"
           class="certificate-card"
           :class="{ 'is-expanded': isExpanded(card.id) }"
+          :style="{ backgroundColor: vConfig.certificateCard.backgroundColor }"
         >
           <!-- Card Header — always visible, clickable to expand/collapse -->
           <div class="card-header" @click="toggleCard(card.id)">
-            <!-- Thumbnail -->
-            <div class="card-thumbnail-wrapper">
-              <div class="card-thumbnail">
-                <div class="placeholder-icon"><ImageIcon :size="28" stroke-width="1.5" /></div>
-                <span class="placeholder-label">Thumbnail</span>
-                <span class="placeholder-sublabel">sertif</span>
-              </div>
-            </div>
-            <!-- Info -->
-            <div class="card-info">
-              <div class="info-metadata">
-                <Calendar class="info-calendar-icon" :size="15" stroke-width="2.2" />
-                <span class="info-date">{{ card.date }}</span>
-              </div>
-              <h3 class="info-title">{{ card.title }}</h3>
-              <p class="info-description">{{ card.description }}</p>
-            </div>
+<!-- Thumbnail -->
+             <div class="card-thumbnail-wrapper">
+               <div class="card-thumbnail">
+                 <div v-if="card.thumbnailImage" class="thumbnail-image">
+                   <img
+                     :src="card.thumbnailImage"
+                     :alt="`${card.title} - thumbnail`"
+                     class="cert-image"
+                   />
+                 </div>
+                 <div v-else class="placeholder">
+                   <div class="placeholder-icon"><ImageIcon :size="28" stroke-width="1.5" /></div>
+                   <span class="placeholder-label">Thumbnail</span>
+                   <span class="placeholder-sublabel">sertif</span>
+                 </div>
+               </div>
+             </div>
+<!-- Info -->
+             <div class="card-info">
+               <div class="info-metadata">
+                 <Calendar class="info-calendar-icon" :size="15" stroke-width="2.2" />
+                 <span class="info-date"
+                   :style="{
+                     fontFamily: vConfig.infoDate.fontFamily,
+                     fontSize: vConfig.infoDate.fontSize,
+                     fontWeight: vConfig.infoDate.fontWeight,
+                     letterSpacing: vConfig.infoDate.letterSpacing
+                   }"
+                 >{{ card.date }}</span>
+               </div>
+               <h3 class="info-title"
+                 :style="{
+                   fontFamily: vConfig.infoTitle.fontFamily,
+                   fontSize: vConfig.infoTitle.fontSize,
+                   fontWeight: vConfig.infoTitle.fontWeight,
+                   color: vConfig.infoTitle.color,
+                   margin: vConfig.infoTitle.margin,
+                   lineHeight: vConfig.infoTitle.lineHeight
+                 }"
+               >{{ card.title }}</h3>
+               <p class="info-description"
+                 :style="{
+                   fontFamily: vConfig.infoDescription.fontFamily,
+                   fontSize: vConfig.infoDescription.fontSize,
+                   fontWeight: vConfig.infoDescription.fontWeight,
+                   color: vConfig.infoDescription.color,
+                   margin: vConfig.infoDescription.margin,
+                   lineHeight: vConfig.infoDescription.lineHeight,
+                   opacity: vConfig.infoDescription.opacity
+                 }"
+               >{{ card.description }}</p>
+             </div>
             <!-- Action button — ChevronDown, rotates 180° when expanded -->
             <div class="card-action">
               <button
@@ -337,30 +374,30 @@ onBeforeUnmount(() => {
                     class="slide-track"
                     :style="{ transform: `translateX(-${(currentSlides[card.id] ?? 0) * 100}%)` }"
                   >
-                    <div
-                      class="slide-item"
-                      v-for="(img, idx) in card.images"
-                      :key="idx"
-                    >
-                      <img
-                        v-if="img"
-                        :src="img"
-                        :alt="`${card.title} - foto ${idx + 1}`"
-                        class="cert-image"
-                      />
-                      <div v-else class="cert-placeholder">
-                        <ImageIcon :size="52" stroke-width="1" />
-                        <span>Foto Sertifikat {{ idx + 1 }}</span>
-                        <span class="cert-placeholder-hint">Ganti URL di cards data</span>
-                      </div>
-                    </div>
+                   <div
+                     class="slide-item"
+                     v-for="(img, idx) in card.detailImages"
+                     :key="idx"
+                   >
+                     <img
+                       v-if="img"
+                       :src="img"
+                       :alt="`${card.title} - foto ${idx + 1}`"
+                       class="cert-image"
+                     />
+                     <div v-else class="cert-placeholder">
+                       <ImageIcon :size="52" stroke-width="1" />
+                       <span>Foto Sertifikat {{ idx + 1 }}</span>
+                       <span class="cert-placeholder-hint">Ganti URL di cards data</span>
+                     </div>
+                   </div>
                   </div>
                 </div>
 
                 <!-- Dot indicators (only if >1 image) -->
-                <div class="slide-dots" v-if="card.images.length > 1" aria-hidden="true">
+                <div class="slide-dots" v-if="card.detailImages.length > 1" aria-hidden="true">
                   <button
-                    v-for="(_, i) in card.images"
+                    v-for="(_, i) in card.detailImages"
                     :key="i"
                     class="slide-dot"
                     :class="{ 'is-active': (currentSlides[card.id] ?? 0) === i }"
@@ -586,7 +623,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: row;
   align-items: center;
-  background-color: #F5EAE0; /* Off-white / cream background */
   border-radius: 20px; /* Large rounded corners */
   padding: 1.5rem 1.8rem;
   gap: 2rem;
@@ -656,29 +692,7 @@ onBeforeUnmount(() => {
 .info-calendar-icon {
   flex-shrink: 0;
 }
-.info-date {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700; /* Small bold sans-serif */
-  letter-spacing: 0.02em;
-}
-.info-title {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 1.35rem;
-  font-weight: 800; /* Bold sans-serif */
-  color: #362D25; /* Dark brown / near-black */
-  margin: 0 0 0.5rem;
-  line-height: 1.2;
-}
-.info-description {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 0.92rem;
-  font-weight: 400; /* Regular sans-serif */
-  color: #362D25;
-  margin: 0;
-  line-height: 1.5;
-  opacity: 0.85;
-}
+/* Typography now driven from vConfig via inline :style */
 /* --- Region 3: Action Arrow Button --- */
 .card-action {
   flex-shrink: 0;
@@ -748,7 +762,6 @@ onBeforeUnmount(() => {
 .certificate-card {
   display: flex;
   flex-direction: column; /* Stack header and body vertically */
-  background-color: #F5EAE0;
   border-radius: 20px;
   overflow: hidden; /* Required for body expand clipping */
   box-shadow:

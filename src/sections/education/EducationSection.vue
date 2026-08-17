@@ -50,10 +50,11 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
 
       <div class="scroll-indicator"
         :style="{
-          color: vConfig.scrollIndicator.color,
-          gap: vConfig.scrollIndicator.gap,
-          bottom: vConfig.scrollIndicator.bottom
-        }"
+           color: vConfig.scrollIndicator.color,
+           gap: vConfig.scrollIndicator.gap,
+           bottom: vConfig.scrollIndicator.bottom,
+           transform: `translateX(-50%) translateY(${vConfig.scrollIndicator.translateY})`
+         }"
       >
         <span class="scroll-text">SCROLL DOWN</span>
         <ArrowDown :size="20" :stroke-width="1.5" class="scroll-arrow" />
@@ -113,7 +114,6 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
 }
 
 .scroll-text {

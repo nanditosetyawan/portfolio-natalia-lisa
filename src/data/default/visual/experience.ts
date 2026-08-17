@@ -52,7 +52,7 @@ export interface ExperienceVisualConfig {
   decorHeartbeat: {
     width: string;
     height: string;
-    top: string;
+    bottom: string;
     right: string;
     color: string;
     opacity: number;
@@ -130,7 +130,7 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
   decorHeartbeat: {
     width: '120px',
     height: '40px',
-    top: '4rem',
+    bottom: '4rem',
     right: '4rem',
     color: '#D62828',
     opacity: 0.8
