@@ -35,41 +35,23 @@ export interface AboutVisualConfig {
     fontSize: string;
     fontWeight: number;
   };
-  polaroid: {
-    backgroundColor: string;
-    borderRadius: string;
-    boxShadow: string;
-  };
   visual: {
     flexBasis: string;
     height: string;
   };
   /* Frame image slots */
-  frameImage: {
-    source: string;
-    width: string;
-    height: string;
-    objectFit: string;
-    objectPosition: string;
-  };
   frameBack1Image: {
     source: string;
-    width: string;
-    height: string;
     objectFit: string;
     objectPosition: string;
   };
   frameBack2Image: {
     source: string;
-    width: string;
-    height: string;
     objectFit: string;
     objectPosition: string;
   };
   frameMainImage: {
     source: string;
-    width: string;
-    height: string;
     objectFit: string;
     objectPosition: string;
   };
@@ -159,28 +141,43 @@ export interface AboutVisualConfig {
   };
   /* Polaroid frames */
   frameBack1: {
+    id: string;
     width: string;
     height: string;
     top: string;
     left: string;
     transformRotate: string;
     zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
   };
   frameBack2: {
+    id: string;
     width: string;
     height: string;
     bottom: string;
     right: string;
     transformRotate: string;
     zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
   };
   frameMain: {
+    id: string;
     width: string;
     height: string;
     top: string;
     left: string;
     transformRotate: string;
     zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
   };
   scrollArrow: {
     bottom: string;
@@ -227,40 +224,22 @@ export const defaultAboutConfig: AboutVisualConfig = {
     fontSize: '0.9rem',
     fontWeight: 700
   },
-  polaroid: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '4px',
-    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
-  },
   visual: {
     flexBasis: '56%',
     height: '640px'
   },
-  frameImage: {
-    source: 'lisa-profile',
-    width: '100%',
-    height: '252px',
-    objectFit: 'cover',
-    objectPosition: 'center center'
-  },
   frameBack1Image: {
-    source: 'lisa-profile',
-    width: '100%',
-    height: '252px',
+    source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
   },
   frameBack2Image: {
-    source: 'lisa-profile',
-    width: '100%',
-    height: '272px',
+    source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
   },
   frameMainImage: {
-    source: 'lisa-profile',
-    width: '100%',
-    height: '380px',
+    source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
   },
@@ -344,28 +323,43 @@ export const defaultAboutConfig: AboutVisualConfig = {
     strokeWidth: 3
   },
   frameBack1: {
+    id: 'about-frame-back-1',
     width: '210px',
     height: '252px',
     top: '2%',
     left: '4%',
     transformRotate: '-6deg',
-    zIndex: 1
+    zIndex: 1,
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
   },
   frameBack2: {
+    id: 'about-frame-back-2',
     width: '230px',
     height: '272px',
     bottom: '4%',
     right: '2%',
     transformRotate: '7deg',
-    zIndex: 1
+    zIndex: 1,
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
   },
   frameMain: {
+    id: 'about-frame-main',
     width: '300px',
     height: '380px',
     top: '15%',
     left: '42%',
     transformRotate: '1.5deg',
-    zIndex: 3
+    zIndex: 3,
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
   },
   scrollArrow: {
     bottom: '5.25rem',

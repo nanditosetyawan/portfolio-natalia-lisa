@@ -3,20 +3,19 @@ import { ArrowDown, ArrowRight, Sparkle } from 'lucide-vue-next'
 import { defaultAbout } from '../../data/default/about'
 import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 
-const frameImages: Record<string, string> = {
-  'lisa-profile': ''
-}
-
-function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage' | 'frameImage') {
+function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage') {
   const cfg = vConfig[source]
   return {
+    width: '100%',
+    height: '100%',
     objectFit: cfg.objectFit,
-    objectPosition: cfg.objectPosition
+    objectPosition: cfg.objectPosition,
+    display: 'block'
   } as any
 }
 
-function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage' | 'frameImage') {
-  return !!frameImages[vConfig[source].source]
+function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage') {
+  return Boolean(vConfig[source].source)
 }
 </script>
 
@@ -138,10 +137,12 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
 <div
           class="polaroid frame-back-1"
           aria-hidden="true"
+          :data-frame-id="vConfig.frameBack1.id"
           :style="{
-            backgroundColor: vConfig.polaroid.backgroundColor,
-            borderRadius: vConfig.polaroid.borderRadius,
-            boxShadow: vConfig.polaroid.boxShadow,
+            backgroundColor: vConfig.frameBack1.backgroundColor,
+            border: vConfig.frameBack1.border,
+            borderRadius: vConfig.frameBack1.borderRadius,
+            boxShadow: vConfig.frameBack1.boxShadow,
             width: vConfig.frameBack1.width,
             height: vConfig.frameBack1.height,
             top: vConfig.frameBack1.top,
@@ -151,7 +152,7 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
           }"
         >
           <div class="polaroid-photo">
-            <img v-if="hasSource('frameBack1Image')" :src="frameImages[vConfig.frameBack1Image.source]" alt="Profile photo" :style="imgStyle('frameBack1Image')" />
+            <img v-if="hasSource('frameBack1Image')" :src="vConfig.frameBack1Image.source" alt="Profile photo" :style="imgStyle('frameBack1Image')" />
             <div v-else class="image-boundary-placeholder" :style="{
               color: vConfig.imagePlaceholder.color,
               opacity: vConfig.imagePlaceholder.opacity,
@@ -171,10 +172,12 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
          <div
             class="polaroid frame-back-2"
             aria-hidden="true"
+            :data-frame-id="vConfig.frameBack2.id"
             :style="{
-              backgroundColor: vConfig.polaroid.backgroundColor,
-              borderRadius: vConfig.polaroid.borderRadius,
-              boxShadow: vConfig.polaroid.boxShadow,
+              backgroundColor: vConfig.frameBack2.backgroundColor,
+              border: vConfig.frameBack2.border,
+              borderRadius: vConfig.frameBack2.borderRadius,
+              boxShadow: vConfig.frameBack2.boxShadow,
               width: vConfig.frameBack2.width,
               height: vConfig.frameBack2.height,
               bottom: vConfig.frameBack2.bottom,
@@ -184,7 +187,7 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
             }"
           >
           <div class="polaroid-photo">
-            <img v-if="hasSource('frameBack2Image')" :src="frameImages[vConfig.frameBack2Image.source]" alt="Profile photo" :style="imgStyle('frameBack2Image')" />
+            <img v-if="hasSource('frameBack2Image')" :src="vConfig.frameBack2Image.source" alt="Profile photo" :style="imgStyle('frameBack2Image')" />
             <div v-else class="image-boundary-placeholder" :style="{
               color: vConfig.imagePlaceholder.color,
               opacity: vConfig.imagePlaceholder.opacity,
@@ -203,10 +206,12 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
         </div>
         <div
           class="polaroid frame-main"
+          :data-frame-id="vConfig.frameMain.id"
           :style="{
-            backgroundColor: vConfig.polaroid.backgroundColor,
-            borderRadius: vConfig.polaroid.borderRadius,
-            boxShadow: vConfig.polaroid.boxShadow,
+            backgroundColor: vConfig.frameMain.backgroundColor,
+            border: vConfig.frameMain.border,
+            borderRadius: vConfig.frameMain.borderRadius,
+            boxShadow: vConfig.frameMain.boxShadow,
             width: vConfig.frameMain.width,
             height: vConfig.frameMain.height,
             top: vConfig.frameMain.top,
@@ -216,7 +221,7 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
           }"
         >
           <div class="polaroid-photo">
-            <img v-if="hasSource('frameMainImage')" :src="frameImages[vConfig.frameMainImage.source]" alt="Profile photo" :style="imgStyle('frameMainImage')" />
+            <img v-if="hasSource('frameMainImage')" :src="vConfig.frameMainImage.source" alt="Profile photo" :style="imgStyle('frameMainImage')" />
             <div v-else class="image-boundary-placeholder" :style="{
               color: vConfig.imagePlaceholder.color,
               opacity: vConfig.imagePlaceholder.opacity,
@@ -481,9 +486,6 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
 /* Polaroid base */
 .polaroid {
   position: absolute;
-  background: #FFFFFF;
-  border-radius: 4px;
-  box-shadow: 0 16px 32px rgba(61, 40, 34, 0.16);
   padding: 12px 12px 0;
   display: flex;
   flex-direction: column;

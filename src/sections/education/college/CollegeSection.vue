@@ -2,6 +2,27 @@
 import { Calendar, Sparkles } from 'lucide-vue-next'
 import { defaultCollege } from '../../../data/default/college'
 import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/college'
+
+type CollegeFrameImageKey = 'frameBackImage' | 'frameFrontImage'
+
+function imageSource(key: CollegeFrameImageKey) {
+  return vConfig[key].source
+}
+
+function hasImage(key: CollegeFrameImageKey) {
+  return Boolean(imageSource(key))
+}
+
+function imageStyle(key: CollegeFrameImageKey) {
+  const image = vConfig[key]
+
+  return {
+    width: '100%',
+    height: '100%',
+    objectFit: image.objectFit,
+    objectPosition: image.objectPosition
+  } as any
+}
 </script>
 
 <template>
@@ -91,10 +112,11 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
         height: vConfig.visual.height
       }">
         <!-- Back frame (larger, rotated left) -->
-        <div class="polaroid frame-back" aria-hidden="true" :style="{
-          backgroundColor: vConfig.polaroid.backgroundColor,
-          borderRadius: vConfig.polaroid.borderRadius,
-          boxShadow: vConfig.polaroid.boxShadow,
+        <div class="polaroid frame-back" aria-hidden="true" :data-frame-id="vConfig.frameBack.id" :style="{
+          backgroundColor: vConfig.frameBack.backgroundColor,
+          border: vConfig.frameBack.border,
+          borderRadius: vConfig.frameBack.borderRadius,
+          boxShadow: vConfig.frameBack.boxShadow,
           width: vConfig.frameBack.width,
           height: vConfig.frameBack.height,
           top: vConfig.frameBack.top,
@@ -103,7 +125,8 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
           zIndex: vConfig.frameBack.zIndex
         }">
           <div class="polaroid-photo landscape-placeholder">
-            <svg viewBox="0 0 280 220" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+            <img v-if="hasImage('frameBackImage')" :src="imageSource('frameBackImage')" alt="College frame back photo" :style="imageStyle('frameBackImage')" />
+            <svg v-else viewBox="0 0 280 220" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
               <rect width="280" height="220" fill="#C8E3F4"/>
               <path d="M0 160 Q 70 120 140 145 Q 210 170 280 130 L280 220 L0 220Z" fill="#6B8F3C"/>
               <path d="M0 180 Q 60 155 120 170 Q 200 190 280 160 L280 220 L0 220Z" fill="#4A7025"/>
@@ -123,10 +146,11 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
-        <div class="polaroid frame-front" :style="{
-          backgroundColor: vConfig.polaroid.backgroundColor,
-          borderRadius: vConfig.polaroid.borderRadius,
-          boxShadow: vConfig.polaroid.boxShadow,
+        <div class="polaroid frame-front" :data-frame-id="vConfig.frameFront.id" :style="{
+          backgroundColor: vConfig.frameFront.backgroundColor,
+          border: vConfig.frameFront.border,
+          borderRadius: vConfig.frameFront.borderRadius,
+          boxShadow: vConfig.frameFront.boxShadow,
           width: vConfig.frameFront.width,
           height: vConfig.frameFront.height,
           bottom: vConfig.frameFront.bottom,
@@ -135,7 +159,8 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
           zIndex: vConfig.frameFront.zIndex
         }">
           <div class="polaroid-photo landscape-placeholder">
-            <svg viewBox="0 0 240 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+            <img v-if="hasImage('frameFrontImage')" :src="imageSource('frameFrontImage')" alt="College frame front photo" :style="imageStyle('frameFrontImage')" />
+            <svg v-else viewBox="0 0 240 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
               <rect width="240" height="180" fill="#C8E3F4"/>
               <path d="M0 130 Q 60 100 120 120 Q 180 140 240 110 L240 180 L0 180Z" fill="#6B8F3C"/>
               <path d="M0 150 Q 50 130 110 145 Q 170 160 240 135 L240 180 L0 180Z" fill="#4A7025"/>
@@ -257,15 +282,16 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
 
 .polaroid {
   position: absolute;
-  background: #FFFFFF;
-  border-radius: 4px;
-  box-shadow: 0 16px 32px rgba(61, 40, 34, 0.16);
   overflow: visible;
 }
 
 .polaroid-photo {
   border-radius: 2px;
   overflow: hidden;
+}
+
+.polaroid-photo img {
+  display: block;
 }
 
 .landscape-placeholder {

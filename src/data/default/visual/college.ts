@@ -40,11 +40,6 @@ export interface CollegeVisualConfig {
     lineHeight: number;
     fontFamily: string;
   };
-  polaroid: {
-    backgroundColor: string;
-    borderRadius: string;
-    boxShadow: string;
-  };
   visual: {
     flexBasis: string;
     height: string;
@@ -71,20 +66,30 @@ export interface CollegeVisualConfig {
     boxShadow: string;
   };
   frameBack: {
+    id: string;
     width: string;
     height: string;
     top: string;
     left: string;
     transformRotate: string;
     zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
   };
   frameFront: {
+    id: string;
     width: string;
     height: string;
     bottom: string;
     right: string;
     transformRotate: string;
     zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
   };
   tapeTl: {
     top: string;
@@ -125,6 +130,16 @@ export interface CollegeVisualConfig {
     top: string;
     left: string;
     zIndex: number;
+  };
+  frameBackImage: {
+    source: string;
+    objectFit: string;
+    objectPosition: string;
+  };
+  frameFrontImage: {
+    source: string;
+    objectFit: string;
+    objectPosition: string;
   };
   dotGrid4: {
     id: string;
@@ -211,11 +226,6 @@ export const defaultCollegeConfig: CollegeVisualConfig = {
     lineHeight: 1.75,
     fontFamily: "'Inter', system-ui, sans-serif"
   },
-  polaroid: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '4px',
-    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
-  },
   visual: {
     flexBasis: '55%',
     height: '580px'
@@ -241,20 +251,40 @@ export const defaultCollegeConfig: CollegeVisualConfig = {
     boxShadow: 'inset 0 0 0 1.5px rgba(220, 190, 170, 0.14)'
   },
   frameBack: {
+    id: 'college-frame-back',
     width: '310px',
     height: '350px',
     top: '5%',
     left: '5%',
     transformRotate: '-7deg',
-    zIndex: 1
+    zIndex: 1,
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
   },
   frameFront: {
+    id: 'college-frame-front',
     width: '250px',
     height: '290px',
     bottom: '8%',
     right: '5%',
     transformRotate: '5deg',
-    zIndex: 3
+    zIndex: 3,
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
+  },
+  frameBackImage: {
+    source: '',
+    objectFit: 'cover',
+    objectPosition: 'center center'
+  },
+  frameFrontImage: {
+    source: '',
+    objectFit: 'cover',
+    objectPosition: 'center center'
   },
   tapeTl: {
     top: '-12px',

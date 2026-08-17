@@ -41,26 +41,42 @@ export interface SHSVisualConfig {
     lineHeight: number;
     fontFamily: string;
   };
-  /* Polaroid base appearance (shared by frames) */
-  polaroid: {
-    backgroundColor: string;
-    borderRadius: string;
-    boxShadow: string;
-  };
   /* Polaroid frame positions (drag group) */
   frameBack: {
+    id: string;
     width: string;
     height: string;
     top: string;
     left: string;
     transformRotate: string;
+    zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
   };
   frameFront: {
+    id: string;
     width: string;
     height: string;
     bottom: string;
     right: string;
     transformRotate: string;
+    zIndex: number;
+    backgroundColor: string;
+    border: string;
+    borderRadius: string;
+    boxShadow: string;
+  };
+  frameBackImage: {
+    source: string;
+    objectFit: string;
+    objectPosition: string;
+  };
+  frameFrontImage: {
+    source: string;
+    objectFit: string;
+    objectPosition: string;
   };
   /* Decorative "SHS" text */
   decoText: {
@@ -213,23 +229,40 @@ export const defaultSHSConfig: SHSVisualConfig = {
     fontFamily: "'Inter', system-ui, sans-serif"
   },
   frameBack: {
+    id: 'shs-frame-back',
     width: '310px',
     height: '350px',
     top: '5%',
     left: '5%',
-    transformRotate: '-7deg'
+    transformRotate: '-7deg',
+    zIndex: 6,
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
   },
   frameFront: {
+    id: 'shs-frame-front',
     width: '250px',
     height: '290px',
     bottom: '8%',
     right: '5%',
-    transformRotate: '5deg'
-  },
-  polaroid: {
+    transformRotate: '5deg',
+    zIndex: 7,
     backgroundColor: '#FFFFFF',
+    border: 'none',
     borderRadius: '4px',
     boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
+  },
+  frameBackImage: {
+    source: '',
+    objectFit: 'cover',
+    objectPosition: 'center center'
+  },
+  frameFrontImage: {
+    source: '',
+    objectFit: 'cover',
+    objectPosition: 'center center'
   },
   decoText: {
     top: '14%',

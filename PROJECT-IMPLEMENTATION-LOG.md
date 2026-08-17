@@ -1846,3 +1846,553 @@ Jangan implement Admin.
 Jangan implement Reset.
 Jangan commit.
 Jangan push.
+
+---
+
+## Request #057
+
+### Waktu
+2026-08-17 19:57:53 +07:00
+
+### User Instruction
+PHASE EDUCATION-FRAME-IMAGE-001 - make every College and SHS photo frame an independent Admin-editable image entity, using the About Lisa Natalia frame architecture as the required reference; preserve existing frames, placeholders, and decoration configuration; validate independence, persistence, clipping, responsiveness, typecheck, build, and visual output; do not commit/push/reset/restore.
+
+### Execution Mode
+Architecture audit and prerequisite validation. Implementation was not started because the required existing architecture and authoritative persistence decision are absent.
+
+### Scope Inspected
+- Latest 200 lines of PROJECT-IMPLEMENTATION-LOG.md.
+- Root AGENTS.md.
+- About visual config and renderer.
+- College content, visual config, and renderer.
+- SHS content, visual config, and renderer.
+- Admin Edit and Manage Media implementations.
+- Relevant Admin architecture/specification passages in src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md.
+- Router, application bootstrap, dependencies, and available source architecture.
+- Current Git status and localhost availability.
+
+### Specifications Consulted
+- AGENTS.md.
+- src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md: media replacement, Guest/Admin boundary, editable College/SHS image/frame scope, media workflow, Supabase future architecture, media storage principle, runtime-state principle, acceptance criteria, and implementation rules.
+- md/**: not consulted because the md/ directory is absent from the current working tree.
+
+### Design References Consulted
+- None. The design/ directory is absent from the current working tree.
+- Visual verification: Belum dilakukan.
+
+### About Architecture Audit Result
+- Config branches exist for frameBack1Image, frameBack2Image, and frameMainImage with source, width, height, objectFit, and objectPosition.
+- AboutSection.vue resolves sources through a local hardcoded frameImages record whose only key currently maps to an empty string.
+- Renderer conditionally shows an img when the resolved source is truthy and otherwise renders the existing PHOTO AREA boundary placeholder.
+- Image clipping is provided by .polaroid-photo with border-radius 2px and overflow hidden.
+- Frame geometry/style remains separate in frameBack1, frameBack2, and frameMain config branches.
+- No stable frame entity IDs, Admin canvas selection binding, working upload/replacement handler, image remove handler, save/load persistence, or default/reset image integration were found.
+
+### College / SHS Audit Result
+- College contains two existing frames: back and front.
+- SHS contains two existing frames: back and front.
+- All four render inline SVG landscape illustrations directly inside .polaroid-photo.
+- None has a stable entity ID or independent image-source config.
+- Existing clipping, frame border/background, shadow, rotation, geometry, and responsive containment can be preserved when an approved image entity architecture is available.
+
+### Admin / Persistence Audit Result
+- AdminEdit.vue is a placeholder control panel/canvas. Its file inputs have no selection binding, change handler, save/load flow, or connection to Guest frame entities.
+- AdminMedia.vue is a placeholder category UI; handleCardAction is explicitly pending implementation.
+- No store/composable/service for media upload, frame selection, draft/published state, or persistence exists under src/.
+- Supabase is not installed in package.json.
+- The Admin architecture expects binary media in Supabase Storage and metadata/reference in PostgreSQL, while the exact final schema is undefined and must not be invented without an approved data model.
+
+### Blocking Conflict
+The phase requires upload/replacement plus persistence after reload, but About does not provide those mechanisms and the approved Admin persistence architecture has no approved data model or installed backend dependency. Creating a new localStorage/data-URL/IndexedDB system would be an unapproved architecture invention and would not be reuse of About. Therefore a partial renderer-only change was intentionally not made or reported as a completed Admin-editable system.
+
+### Work Actually Performed
+- Completed the required architecture and source audit.
+- Confirmed http://localhost:5173/ responds with HTTP 200 without starting a second Vite server.
+- Preserved all College, SHS, and Education decoration configuration and markup.
+- Preserved all existing frames and inline SVG placeholders.
+- Did not create SVGs, assets, dependencies, temporary browser profiles, screenshots, reset UI, commits, or pushes.
+
+### Files Modified
+- PROJECT-IMPLEMENTATION-LOG.md only (mandatory request log).
+
+### Files Explicitly Protected From Modification
+- AGENTS.md
+- md/** (directory absent)
+- design/** (directory absent)
+- src/data/default/visual/education.ts
+- All existing Education/College/SHS decoration config and markup
+- All Guest and Admin source files because implementation prerequisites are unresolved
+
+### Validation
+- Localhost availability: PASS (HTTP 200).
+- npx vue-tsc --noEmit: NOT RUN; npx is not available on the current PowerShell PATH.
+- npm run build: NOT RUN; npm is not available on the current PowerShell PATH.
+- Independence tests A/B/C: NOT RUN; no image entity/persistence implementation was created.
+- Visual comparison: Belum dilakukan. Design references are unavailable and no implementation change was made.
+
+### Errors Encountered
+- Required md/ directory is missing.
+- Required design/ directory is missing.
+- npx and npm commands are not available in the current execution environment PATH.
+
+### Current Project Status
+Evaluated but not implemented. The existing About implementation is only a config/renderer/fallback pattern, not an Admin-editable persistent image-frame architecture.
+
+### Unresolved Decisions / Next Required Step
+- Restore/provide the relevant md/ and design/ sources.
+- Approve the persistent media/data architecture and data model (documented target: Supabase Storage plus PostgreSQL references), and authorize required deferred dependency installation/configuration; or explicitly authorize a temporary local persistence architecture and its draft/published limitations.
+- Then implement the four independent entities and perform the required Admin, reload, responsive, clipping, typecheck, build, and visual verification loops.
+
+### Final Verdict
+COLLEGE AND SHS PHOTO FRAME IMAGE SYSTEM NOT READY
+
+---
+
+## Request #058
+
+### Waktu
+2026-08-17 20:06:05 +07:00
+
+### User Instruction
+PHASE EDUCATION-FRAME-IMAGE-002 - add independent College and SHS photo-frame image content following the About config/renderer/fallback pattern; preserve existing placeholders, frame geometry, About, and all decoration; do not invent upload or persistence infrastructure; perform structural independence validation when Admin upload is unavailable.
+
+### Execution Mode
+Incremental implementation limited to independent frame identity, image config, renderer branches, placeholder fallback, and structural validation. Admin upload/persistence was audited but not invented.
+
+### Sources Consulted
+- Latest 200 lines of PROJECT-IMPLEMENTATION-LOG.md.
+- AGENTS.md.
+- src/data/default/visual/about.ts.
+- src/sections/about/AboutSection.vue.
+- src/data/default/visual/college.ts.
+- src/data/default/visual/shs.ts.
+- src/sections/education/college/CollegeSection.vue.
+- src/sections/education/shs/SHSSection.vue.
+- src/pages/admin/AdminEdit.vue.
+- src/pages/admin/AdminMedia.vue.
+- Relevant media, independence, Supabase, and data-model constraints in src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md.
+- Guest source files, package.json, router, and all upload/media/storage/persistence references under src/.
+- md/**: unavailable because md/ is absent.
+- design/**: unavailable because design/ is absent.
+
+### Architecture Audit
+- About keeps image config separate from frame geometry and conditionally renders img versus a placeholder inside an overflow-hidden, rounded photo area.
+- AdminEdit and AdminMedia remain non-functional placeholder UI with no frame selection, upload handler, media registry, save/load, or Guest binding.
+- No Supabase client, Storage integration, PostgreSQL metadata implementation, or other persistence service exists.
+- The documented final data schema is not approved; localStorage, IndexedDB, file persistence, and substitute architecture were prohibited by the user.
+
+### Work Completed
+- Added stable ID college-frame-back to College frameBack.
+- Added stable ID college-frame-front to College frameFront.
+- Added stable ID shs-frame-back to SHS frameBack.
+- Added stable ID shs-frame-front to SHS frameFront.
+- Added independent frameBackImage and frameFrontImage branches to CollegeVisualConfig/defaultCollegeConfig.
+- Added independent frameBackImage and frameFrontImage branches to SHSVisualConfig/defaultSHSConfig.
+- Every image branch owns source, width, height, objectFit, and objectPosition.
+- Default source is an empty string, so no broken image is rendered.
+- Added frame-specific data-frame-id attributes to rendered frame DOM.
+- Added frame-specific img branches. Each branch resolves only its own config key.
+- Preserved each existing inline SVG as the v-else fallback for its original frame.
+- Preserved .polaroid-photo border-radius 2px and overflow hidden; uploaded content will remain clipped by the existing photo boundary once a real media source is connected.
+- Added display:block only to uploaded img content to avoid inline-image baseline gaps.
+
+### Frame Inventory
+- College back: ID college-frame-back; geometry frameBack; image config frameBackImage; existing large SVG fallback.
+- College front: ID college-frame-front; geometry frameFront; image config frameFrontImage; existing small SVG fallback.
+- SHS back: ID shs-frame-back; geometry frameBack; image config frameBackImage; existing large SVG fallback.
+- SHS front: ID shs-frame-front; geometry frameFront; image config frameFrontImage; existing small SVG fallback.
+
+### Independence Validation
+Structural/state-isolation validation was used because no working Admin upload system exists.
+- TEST 1 College frameBack binding isolation: PASS.
+- TEST 2 College frameFront binding isolation: PASS.
+- TEST 3 SHS frameBack binding isolation: PASS.
+- TEST 4 SHS frameFront binding isolation: PASS.
+- Four IDs are unique.
+- Four image configs are separate object literals and renderer branches.
+- No sharedImage, globalFrameImage, or educationFrameImage state exists.
+- Each renderer calls only its own frameBackImage or frameFrontImage key.
+
+### Placeholder / Clipping Validation
+- Four existing SVG fallbacks preserved: PASS.
+- Empty default source avoids broken img: PASS.
+- Conditional img replaces only its own fallback when resolvable: PASS structurally.
+- border-radius 2px preserved: PASS.
+- overflow hidden preserved: PASS.
+- Image width/height 100% follows its existing photo container: PASS structurally.
+
+### Admin / Upload / Remove / Persistence
+- Individual Admin selection: NOT IMPLEMENTED; required infrastructure is absent.
+- Upload/replace: NOT IMPLEMENTED; required media flow is absent.
+- Remove image: NOT IMPLEMENTED; no existing remove-image architecture exists.
+- Persistence: NOT IMPLEMENTED; no approved data model or Supabase integration exists.
+- No localStorage, IndexedDB, file persistence, dependency, schema, or substitute backend was added.
+
+### Visual / Runtime Validation
+- Existing user-run localhost server: PASS, HTTP 200.
+- College dev-server Vue module: PASS, HTTP 200 and contains data-frame-id/image branches.
+- SHS dev-server Vue module: PASS, HTTP 200 and contains data-frame-id/image branches.
+- Browser screenshot comparison: Belum dilakukan; browser automation was not available and design/ is absent.
+- Desktop/tablet/mobile visual comparison: Belum dilakukan.
+- Responsive image containment: PASS structurally because each image uses 100% width/height inside the existing responsive frame/photo container; existing responsive frame geometry was not modified.
+
+### Typecheck / Build
+- First npx vue-tsc --noEmit: FAIL with four new Vue style-typing errors because objectFit was typed as string.
+- Correction: imageStyle return values were cast using the same pattern already used by About; no visual value changed.
+- Final npx vue-tsc --noEmit: PASS.
+- Final npm run build: PASS; Vite transformed 1831 modules and completed successfully.
+
+### Preservation Audit Against HEAD
+- College frameBack geometry: UNCHANGED after excluding the newly required id property.
+- College frameFront geometry: UNCHANGED after excluding the newly required id property.
+- SHS frameBack geometry: UNCHANGED after excluding the newly required id property.
+- SHS frameFront geometry: UNCHANGED after excluding the newly required id property.
+- All College decoration config blocks: UNCHANGED.
+- All SHS decoration config blocks: UNCHANGED.
+- Education decoration files/markup: UNCHANGED.
+- About config/component diff: NONE.
+- Existing inline SVG path/shape content: UNCHANGED.
+
+### Files Modified In This Request
+- src/data/default/visual/college.ts
+- src/data/default/visual/shs.ts
+- src/sections/education/college/CollegeSection.vue
+- src/sections/education/shs/SHSSection.vue
+- PROJECT-IMPLEMENTATION-LOG.md (mandatory log)
+
+### Files Created / Deleted
+- None.
+
+### Temporary Artifact Audit
+- No .tmp-chrome-*, .tmp-education-*, *.cdp.mjs, screenshot dumps, test files, or debug files were created.
+
+### Current Status
+The College and SHS Guest renderers now have four pure, stable, independently addressable image entities with independent config and preserved placeholder fallback/clipping. They are prepared for a future Admin/media binding, but are not yet Admin-uploadable or persistent.
+
+### Final Verdict
+INDEPENDENT COLLEGE AND SHS FRAME IMAGE CONFIG/RENDERER READY
+ADMIN UPLOAD AND PERSISTENCE NOT READY
+
+---
+
+## Request #059
+
+### Waktu
+2026-08-17 20:14:00 +07:00
+
+### User Instruction
+PHASE FRAME-INDEPENDENCE-AUDIT-003 - read-only architecture audit and implementation preparation for 7 photo frames: 3 About, 2 College, and 2 SHS. Prove the complete ID -> frame config -> renderer -> image config -> image render chain. Do not implement Admin, rewrite frame architecture, alter geometry/decorations, or create temporary artifacts.
+
+### Execution Mode
+Read-only source/config/renderer audit plus typecheck, production build, localhost availability check, Git preservation audit, and mandatory project-log update.
+
+### Sources Consulted
+- Latest 200 lines of PROJECT-IMPLEMENTATION-LOG.md.
+- AGENTS.md.
+- src/data/default/visual/about.ts.
+- src/sections/about/AboutSection.vue.
+- src/data/default/visual/college.ts.
+- src/sections/education/college/CollegeSection.vue.
+- src/data/default/visual/shs.ts.
+- src/sections/education/shs/SHSSection.vue.
+- Current Git status/diff and HEAD versions of College/SHS visual configs.
+- md/**: unavailable because md/ is absent.
+- design/**: unavailable because design/ is absent.
+
+### Seven-Frame Inventory Audit
+1. About back 1: actual class identity frame-back-1; no stable data/config ID; geometry frameBack1; image frameBack1Image; conditional img/PHOTO AREA renderer exists.
+2. About back 2: actual class identity frame-back-2; no stable data/config ID; geometry frameBack2; image frameBack2Image; conditional img/PHOTO AREA renderer exists.
+3. About main: actual class identity frame-main; no stable data/config ID; geometry frameMain; image frameMainImage; conditional img/PHOTO AREA renderer exists.
+4. College back: stable ID college-frame-back; geometry frameBack; image frameBackImage; frame and image renderer bindings exist; inline SVG fallback exists.
+5. College front: stable ID college-frame-front; geometry frameFront; image frameFrontImage; frame and image renderer bindings exist; inline SVG fallback exists.
+6. SHS back: stable ID shs-frame-back; geometry frameBack; image frameBackImage; frame and image renderer bindings exist; inline SVG fallback exists.
+7. SHS front: stable ID shs-frame-front; geometry frameFront; image frameFrontImage; frame and image renderer bindings exist; inline SVG fallback exists.
+
+### About Findings
+- Geometry is separate across frameBack1, frameBack2, and frameMain and each geometry branch is bound to its matching DOM frame.
+- Stable IDs are absent for all three About frames.
+- backgroundColor, borderRadius, and boxShadow are not independent: all three frames bind to the single shared vConfig.polaroid branch (9 shared style bindings total).
+- No frame border property exists. CSS also does not define a frame border.
+- Rotation and z-index are independent per geometry branch.
+- frameBack1Image, frameBack2Image, and frameMainImage are separate config objects with source, width, height, objectFit, and objectPosition.
+- All three source fields currently point to the same lisa-profile key, resolved through one shared frameImages entry. Replacing that shared asset mapping would affect all three frames.
+- imgStyle binds objectFit and objectPosition but does not bind image width or height.
+- The .polaroid-photo wrapper is flex:1, width:100%, height:100%, border-radius:2px, overflow:hidden, so the container follows the frame. The actual img element has no bound/CSS width and height, so the image render box is not proven to follow the frame.
+- All three PHOTO AREA fallbacks are separate DOM branches but use one shared imagePlaceholder style config.
+- frameImage is an additional image config branch but is not used by any of the three rendered About frames.
+
+### College Findings
+- Both frames have unique stable IDs, unique geometry branches, matching renderer bindings, and unique image-config branches.
+- Frame width/height/position/rotation/z-index are independent.
+- backgroundColor, borderRadius, and boxShadow remain shared through one vConfig.polaroid object, so color/radius/shadow independence fails.
+- No frame border config exists.
+- Both image configs use width:100% and height:100%; imageStyle applies width, height, objectFit, and objectPosition to the matching img.
+- Each image/placeholder sits inside the matching flex photo container with border-radius:2px and overflow:hidden.
+- The local frameImages lookup is a shared resolver/library, but the source property and renderer key are separate per frame. It is currently empty and is not an Admin/media state implementation.
+
+### SHS Findings
+- Both frames have unique stable IDs, unique geometry branches, matching renderer bindings, and unique image-config branches.
+- Frame width/height/position/rotation are independent.
+- backgroundColor, borderRadius, and boxShadow remain shared through one vConfig.polaroid object, so color/radius/shadow independence fails.
+- No frame border config exists.
+- Both image configs use width:100% and height:100%; imageStyle applies width, height, objectFit, and objectPosition to the matching img.
+- Each image/placeholder sits inside the matching flex photo container with border-radius:2px and overflow:hidden.
+- The local frameImages lookup is a shared resolver/library, but the source property and renderer key are separate per frame. It is currently empty and is not an Admin/media state implementation.
+
+### Independence Verdicts
+- Seven unique stable frame IDs: FAIL; only College/SHS four IDs exist.
+- Frame geometry independence: PASS for all seven.
+- Frame color/background independence: FAIL; each section shares one polaroid style object among its frames.
+- Frame border independence: FAIL/NOT AVAILABLE; no frame border config exists.
+- Border-radius independence: FAIL; shared per section.
+- Shadow independence: FAIL; shared per section.
+- Rotation independence: PASS for all seven.
+- Image-config object independence: PASS structurally for seven rendered frame-specific branches.
+- Resolved image-source independence: FAIL overall because all three About branches resolve the same lisa-profile mapping.
+- objectFit/objectPosition config independence: PASS; each rendered frame has its own image config branch.
+- Image-follows-frame verification: PASS for College/SHS; FAIL/NOT PROVEN for About because img width/height config is not bound.
+- Placeholder conditional behavior: PASS structurally for all seven.
+- Pure seven-frame independence foundation: FAIL.
+
+### Preservation / Git Audit
+- No source/config/component files were modified during this audit.
+- About source diff: none.
+- College and SHS source changes visible in Git are pre-existing changes from Request #058, not this audit.
+- College/SHS decoration blocks changed versus HEAD: 0.
+- Education decoration source/markup was not modified.
+- Frame geometry was not modified.
+- Existing SVG/path/frame markup was not modified.
+- Temporary artifacts found: 0.
+
+### Validation
+- npx vue-tsc --noEmit: PASS.
+- npm run build: PASS; Vite transformed 1831 modules and built successfully.
+- Existing localhost: PASS, HTTP 200; no second server started.
+- Visual comparison: Belum dilakukan because design/ is absent and no source visual change was made.
+
+### Minimal Preparation Recommendation (Not Implemented)
+1. Add stable IDs to the three About geometry entities and bind them in DOM.
+2. Move or duplicate backgroundColor, border/border value, borderRadius, and boxShadow into each of the seven frame entity configs, then bind the matching frame branch rather than shared polaroid state.
+3. Give the three About frame image sources independent asset references if changing one photo must never affect the others.
+4. Bind About image width/height to img and use frame-relative dimensions (for example 100%/100%) only in a separately approved implementation phase.
+5. Decide whether the unused About frameImage branch is legacy before removing or repurposing it.
+6. Keep Admin selection/upload/media/persistence work deferred until this seven-entity foundation is corrected and the Admin data/media architecture is approved.
+
+### Admin Phase Dependency
+- Seven stable entity IDs.
+- Seven complete per-frame visual configs.
+- Seven frame-specific image references.
+- Reactive current/draft config separate from immutable defaults.
+- Canvas selection by frame ID.
+- Media registry and asset-reference resolution.
+- Upload/replace/remove flows.
+- Approved Supabase Storage/PostgreSQL metadata model, authentication/RLS, draft/publish flow, and persistence.
+
+### Files Modified In This Request
+- PROJECT-IMPLEMENTATION-LOG.md only (mandatory log).
+
+### Final Verdict
+7 FRAME PURE INDEPENDENCE FOUNDATION NOT READY
+
+---
+
+## Request #060
+
+### Waktu
+2026-08-17 20:24:33 +07:00
+
+### User Instruction
+PHASE FRAME-PURE-INDEPENDENCE-004 - complete the seven-frame foundation so About Back 1, About Back 2, About Main, College Back, College Front, SHS Back, and SHS Front each have a stable ID, independent geometry/z-index/appearance/image config, direct independent source, frame-relative image sizing, and preserved fallback. Do not implement Admin/upload/media/persistence or alter decorations, existing geometry, or SVG artwork.
+
+### Execution Mode
+Incremental source implementation, structural isolation validation, preservation audit, existing dev-server module verification, typecheck, production build, and Git diff validation.
+
+### Sources Consulted
+- Latest 200 lines of PROJECT-IMPLEMENTATION-LOG.md.
+- AGENTS.md.
+- src/data/default/visual/about.ts.
+- src/sections/about/AboutSection.vue.
+- src/data/default/visual/college.ts.
+- src/sections/education/college/CollegeSection.vue.
+- src/data/default/visual/shs.ts.
+- src/sections/education/shs/SHSSection.vue.
+- Current working-tree diff and HEAD versions for geometry/decoration/SVG comparison.
+- md/**: unavailable because md/ is absent.
+- design/**: unavailable because design/ is absent.
+
+### Work Completed
+- Removed shared polaroid appearance config from About, College, and SHS.
+- Added complete per-frame appearance fields to all seven frame geometry entities: backgroundColor, border, borderRadius, and boxShadow.
+- Preserved existing appearance values per frame: #FFFFFF background, no border, 4px radius, and the existing 0 16px 32px shadow.
+- Added About stable IDs about-frame-back-1, about-frame-back-2, and about-frame-main and bound all three through data-frame-id.
+- Preserved College IDs college-frame-back and college-frame-front.
+- Preserved SHS IDs shs-frame-back and shs-frame-front.
+- Moved SHS z-index 6/7 from per-class CSS into the respective frameBack/frameFront config and renderer binding without changing rendered stacking.
+- Removed unused About frameImage config to establish one source of truth.
+- Removed shared frameImages/lisa-profile resolution from About.
+- Removed the empty shared frameImages lookup from College and SHS.
+- Each of the seven image configs now owns a direct source, objectFit, and objectPosition field.
+- All seven default source values are empty, preserving placeholder state without broken images.
+- Removed independent image width/height config fields. Every renderer now uses width:100% and height:100% so the image automatically follows its own photo container/frame.
+- Kept existing photo-container flex layout, border-radius 2px, and overflow hidden clipping.
+- Removed shared background/radius/shadow declarations from base .polaroid CSS so config is the appearance source of truth.
+- Preserved all existing About PHOTO AREA fallbacks and College/SHS inline SVG fallbacks.
+
+### Seven-Frame Final Inventory
+1. about-frame-back-1: independent frameBack1 + frameBack1Image.
+2. about-frame-back-2: independent frameBack2 + frameBack2Image.
+3. about-frame-main: independent frameMain + frameMainImage.
+4. college-frame-back: independent frameBack + frameBackImage.
+5. college-frame-front: independent frameFront + frameFrontImage.
+6. shs-frame-back: independent frameBack + frameBackImage.
+7. shs-frame-front: independent frameFront + frameFrontImage.
+
+### Required Property Audit
+For every frame, source inspection and renderer inspection confirmed:
+- unique stable ID: PASS.
+- independent width/height: PASS.
+- independent relevant position pair: PASS.
+- independent rotation: PASS.
+- independent z-index: PASS.
+- independent backgroundColor: PASS.
+- independent border: PASS.
+- independent borderRadius: PASS.
+- independent boxShadow: PASS.
+- independent image source: PASS.
+- independent objectFit: PASS.
+- independent objectPosition: PASS.
+- frame ID/config/renderer/image-config/image-render chain: PASS.
+
+### Shared-State Audit
+Repository search across src found none of the removed shared/legacy frame state references:
+- vConfig.polaroid: none.
+- frameImages: none.
+- lisa-profile: none.
+- frameImage legacy config: none.
+- shared required frame appearance binding: none.
+- shared required image source: none.
+
+Reusable structural CSS remains for .polaroid and .polaroid-photo, and About retains common placeholder style tokens. These do not hold any required frame/image entity value, do not share image source, and do not remove the seven separate placeholder DOM identities.
+
+### Mutation Isolation Tests
+In-memory structural models were created from the seven actual config branches and mutated independently:
+- college-frame-back.backgroundColor changed; College Front unchanged: PASS.
+- college-frame-front.backgroundColor changed; College Back retained its own changed value: PASS.
+- shs-frame-back.width changed; SHS Front unchanged: PASS.
+- about-frame-main image source changed; About Back 1/2 unchanged: PASS.
+- about-frame-back-1 image source changed; About Back 2/Main unchanged: PASS.
+
+### Image / Frame Relationship
+- All seven photo containers remain inside their matching frame DOM.
+- All seven images render at width:100% and height:100%.
+- objectFit and objectPosition come only from the matching frame image config.
+- Frame resizing therefore changes its own flex photo area and image render box without a separate absolute image-size state.
+- border-radius 2px and overflow hidden clipping preserved.
+- Result: PASS for all seven.
+
+### Preservation Against HEAD
+- Existing frame geometry value changes: 0.
+- Existing frame position value changes: 0.
+- Existing rotation value changes: 0.
+- SHS z-index visual values preserved while moved from CSS to config.
+- College decoration blocks changed: 0.
+- SHS decoration blocks changed: 0.
+- Education decoration source/markup changed: 0.
+- College/SHS SVG body changes: 0.
+- New SVGs created: 0.
+- Placeholder artwork removed/replaced: 0.
+- Temporary artifacts: 0.
+
+### Runtime / Validation
+- Existing localhost server: HTTP 200; no new dev server started.
+- About dev-server module: HTTP 200, frame IDs and 100% image sizing present.
+- College dev-server module: HTTP 200, frame IDs and 100% image sizing present.
+- SHS dev-server module: HTTP 200, frame IDs and 100% image sizing present.
+- npx vue-tsc --noEmit: PASS.
+- npm run build: PASS; Vite transformed 1831 modules and built successfully.
+- git diff --check: PASS.
+- Visual comparison against design reference: Belum dilakukan because design/ is absent. Appearance preservation was verified through exact existing values, geometry comparison, renderer inspection, and SVG-body comparison.
+
+### Files Modified In This Request
+- src/data/default/visual/about.ts
+- src/sections/about/AboutSection.vue
+- src/data/default/visual/college.ts
+- src/sections/education/college/CollegeSection.vue
+- src/data/default/visual/shs.ts
+- src/sections/education/shs/SHSSection.vue
+- PROJECT-IMPLEMENTATION-LOG.md (mandatory log)
+
+### Files Created / Deleted
+- None.
+
+### Explicitly Not Implemented
+- Admin UI/selection.
+- Upload/replace/remove workflow.
+- Media registry.
+- Supabase/Storage/PostgreSQL schema.
+- Persistence/draft/publish.
+
+### Final Verdict
+READY
+
+---
+
+## Request #061
+
+### Date
+2026-08-17 (Asia/Jakarta)
+
+### User Instruction
+Perform the final read-only verification for PHASE FRAME-PURE-INDEPENDENCE-005. Audit the seven About/College/SHS photo frames for complete independent config and renderer chains, removed shared/legacy state, non-persisting mutation isolation, preservation against HEAD, runtime rendering on the existing localhost server, typecheck/build/diff-check, and Admin/decoration preservation. Do not repair or implement anything.
+
+### Execution Mode / Scope
+- Read-only audit of source/config/renderer/runtime and Git state.
+- No source, Admin, config, decoration, SVG, or implementation changes.
+- No Vite server was started or stopped.
+- One Chrome headless process created by the audit was used without repository screenshots/profile artifacts and then stopped.
+- PROJECT-IMPLEMENTATION-LOG.md updated only because project instructions require one entry per request.
+
+### Context Consulted
+- Latest 200 lines of PROJECT-IMPLEMENTATION-LOG.md.
+- AGENTS.md supplied for this request.
+- Relevant visual configs and renderers for About, College, and SHS.
+- Relevant md/ specifications: unavailable because md/ is absent.
+- Relevant design references: unavailable because design/ is absent.
+
+### Audit Results
+- Seven stable IDs found exactly once at runtime: about-frame-back-1, about-frame-back-2, about-frame-main, college-frame-back, college-frame-front, shs-frame-back, shs-frame-front.
+- Every frame has its own config branch for position, width, height, rotation, z-index, backgroundColor, border, borderRadius, boxShadow, plus its own image source/objectFit/objectPosition branch.
+- Every renderer binds the matching frame ID and matching visual config, and addresses the matching image config key through a non-stateful helper.
+- Repository search excluding history/build dependencies: vConfig.polaroid=0, frameImages=0, lisa-profile=0, legacy frameImage=0, sharedFrameImage/globalFrameImage/educationFrameImage/sharedImage=0.
+- In-memory mutations were not written to disk: College Back background changed with all other frames unchanged; SHS Back width changed with all other frames unchanged; About Main source changed with About Back 1/2 unchanged; About Back 1 source changed with About Back 2/Main unchanged.
+- Images use width:100%, height:100%, and frame-specific objectFit/objectPosition. The photo container is inside its frame and uses overflow:hidden with 2px radius.
+- Empty image sources correctly rendered existing fallbacks: About boundary placeholders and College/SHS existing inline SVG artwork.
+
+### Runtime Verification
+- Existing localhost http://localhost:5173/: HTTP 200.
+- Chrome headless loaded http://localhost:5173/#/ with document.readyState=complete.
+- All seven frame IDs existed exactly once; all were display:flex, visibility:visible, opacity:1, with positive configured dimensions and non-empty content.
+- All seven photo containers existed; fallback content dimensions matched their photo-container dimensions; clipping was overflow:hidden with 2px radius.
+- No renderer/config empty-frame error was detected. Intentional rotated frame bounding boxes and z-index layering remained active.
+- Image-based comparison to a design reference: Belum dilakukan because design/ is absent.
+
+### Preservation Against HEAD
+- Existing frame width/height/position/rotation value changes: 0.
+- SVG artwork body path/rect/shape changes: 0; College/SHS opening SVG tags only gained v-else for existing fallback selection.
+- College/SHS decoration config block changes: 0.
+- Admin changed files: 0.
+- No repository temporary artifacts were created.
+
+### Validation
+- npx vue-tsc --noEmit: PASS.
+- npm run build: PASS; Vite transformed 1831 modules and built successfully.
+- git diff --check: PASS.
+
+### Files Modified By This Audit
+- PROJECT-IMPLEMENTATION-LOG.md only (mandatory audit record).
+
+### Errors Encountered
+- Two initial read-only PowerShell audit attempts had command/syntax errors; both stopped without modifying files. Corrected checks were rerun successfully.
+
+### Final Verdict
+READY
