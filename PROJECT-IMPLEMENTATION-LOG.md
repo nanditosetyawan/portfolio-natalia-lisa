@@ -2953,3 +2953,86 @@ Rear About frame is now higher and horizontally wider in both directions; portra
 ### Files Modified In This Request
 - `src/data/default/visual/about.ts`.
 - `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+---
+
+## Request #073
+
+**Date:** 2026-08-18
+**Instruction:** PHASE COLLEGE-FRAME-VISUAL-RECOMPOSITION-001 - recompose three College frames against `college.png`, preserving all College frame identities/images and unrelated sections.
+**Execution mode:** Mandatory pre-edit source/reference/runtime audit; implementation paused due authoritative-source conflict.
+
+### Sources Inspected
+- Latest 200 lines of `PROJECT-IMPLEMENTATION-LOG.md`.
+- `AGENTS.md`.
+- `college.png`, opened directly and visually inspected.
+- `src/data/default/visual/college.ts`.
+- `src/sections/education/college/CollegeSection.vue`.
+- `src/data/default/college.ts`.
+- Runtime `http://localhost:5173/`, College section at 1440x900.
+
+### Audit Findings
+- `college.png` visibly contains two photo frames: one large landscape rear frame and one smaller portrait foreground frame.
+- Source defines exactly two frame configs and two independent image configs: `frameBack/frameBackImage` and `frameFront/frameFrontImage`.
+- Renderer contains exactly two `.polaroid` elements and no third frame renderer/config/image state.
+- Runtime contains exactly two unique stable IDs, each once: `college-frame-back` and `college-frame-front`.
+- `college-frame-back`: x=665.266, y=170.930, 350.344x385.171, center=(840.437,363.516), rotation -7deg, z-index 1.
+- `college-frame-front`: x=1043.401, y=392.782, 274.324x310.685, center=(1180.563,548.125), rotation 5deg, z-index 3.
+- Both current frames are portrait and their intersection area is 0.
+- Runtime screenshot: `%TEMP%/college-recomposition-baseline.png`.
+- Horizontal overflow false.
+
+### Conflict / Decision Required
+- Requested target requires preserving three frame entities and validating three stable IDs.
+- Actual reference, config, renderer, and runtime all contain only two photo-frame entities.
+- Creating a third frame would require inventing a new stable ID, frame config, image config, renderer, and visual geometry not present in `college.png`; this is outside evidence-based implementation rules.
+- Treating an existing decoration as the third frame would violate the locked decoration requirement.
+- No College source file was modified pending user clarification.
+
+### Baseline Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; 1831 modules transformed.
+- `git diff --check`: PASS.
+
+### Files Modified In This Request
+- `PROJECT-IMPLEMENTATION-LOG.md` only (mandatory audit record).
+
+### Status
+BLOCKED pending user choice: recompose the two existing frames to match `college.png`, or explicitly authorize/specify creation of a third independent College frame.
+## Request #074 - PHASE COLLEGE-FRAME-VISUAL-RECOMPOSITION-002
+
+- Date: 2026-08-18 (Asia/Jakarta)
+- Execution mode: implementation, College-only visual recomposition.
+- User instruction: Continue the Phase 001 audit with exactly two existing College frames; make `college-frame-front` a portrait foreground and `college-frame-back` a landscape background with positive overlap, using `college.png` and runtime evidence; do not create a third frame or alter other sections.
+- Context consulted: latest 200 lines of this log; repository `AGENTS.md`; `src/data/default/visual/college.ts`; `src/sections/education/college/CollegeSection.vue`; `src/data/default/college.ts`; runtime DOM at `http://localhost:5173/`; visual reference `college.png` (opened before implementation and reopened during final comparison).
+- Scope: College frame geometry only.
+- Runtime baseline (1440x900): back `(x 665.266, y 170.930, w 350.344, h 385.171, z 1)`; front `(x 1043.401, y 392.782, w 274.324, h 310.685, z 3)`; overlap `0 px2`; both rendered portrait.
+- Work completed: changed only the independent geometry fields in `src/data/default/visual/college.ts`. Back changed from `310x350`, `top 5%`, `left 5%` to `480x360`, `top 25%`, `left 7%`. Front changed from `250x290`, `bottom 8%`, `right 5%` to `280x350`, `bottom 20%`, `right 1%`. Existing rotations (`-7deg`, `5deg`) and z-index values (`1`, `3`) were preserved.
+- Files modified by this request: `src/data/default/visual/college.ts`; `PROJECT-IMPLEMENTATION-LOG.md` (this required entry).
+- Files created/deleted: none. `college.png` was pre-existing and remains untracked/unchanged.
+- Explicitly protected and unchanged: `CollegeSection.vue` renderer (byte-identical to the pre-edit snapshot), College text, College decorations, SVG artwork, image sources/config, stable IDs, About, SHS, Education outside College, Admin, navbar, and frame-independence architecture.
+- Runtime final (1440x900): `college-frame-back` `(x 679.071, y 276.609, w 520.295, h 415.814, center 939.219/484.516, rotation -7deg, z 1)`; `college-frame-front` `(x 1038.406, y 261.980, w 309.439, h 373.072, center 1193.125/448.516, rotation 5deg, z 3)`.
+- Runtime assertions: exactly two `.polaroid` frame nodes; each stable ID occurs once; no third ID; both visible with positive dimensions; back is landscape; front is portrait; front is above/right and layered over back; intersection area `57,695.252 px2`; no horizontal overflow.
+- Visual verification: baseline screenshot `C:\Users\VivoBook\AppData\Local\Temp\college-recomposition-002-before.png`; final screenshot `C:\Users\VivoBook\AppData\Local\Temp\college-recomposition-002-final.png`. The final runtime was directly inspected and compared again with `college.png`; it matches the required two-frame landscape-back/portrait-front clustered composition and preserves the explicit front-above/right target.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS; `git diff --check` PASS (line-ending warnings only, no whitespace errors).
+- Current status: PHASE COLLEGE-FRAME-VISUAL-RECOMPOSITION-002 completed and runtime-verified. No third College frame was created.
+- Next step: stop at this phase boundary and await user direction.
+## Request #075 - PHASE COLLEGE-FRAME-POSITION-ADJUSTMENT-003
+
+- Date: 2026-08-18 (Asia/Jakarta)
+- Execution mode: runtime-measured College-only vertical-position adjustment.
+- User instruction: move only `college-frame-back` upward and `college-frame-front` downward; preserve horizontal position, size, rotation, z-index, image, styling, identity, and every non-College element; retain and strengthen overlap.
+- Context consulted: latest 200 lines of this log; repository `AGENTS.md`; current `src/data/default/visual/college.ts`; runtime DOM and screenshots at `http://localhost:5173/`. The repository has no `md/` or `design/` directories available for this request.
+- Scope: exactly two existing College vertical-position properties.
+- Runtime baseline (Chrome viewport 1422x804): back `(x 670.071167, y 228.999298, w 520.295166, h 415.813873, rotation matrix for -7deg, z 1)`; front `(x 1029.405518, y 214.370377, w 309.438965, h 373.071777, rotation matrix for 5deg, z 3)`; overlap `57,695.254 px2`; overflow false.
+- Work completed: changed only `frameBack.top` from `25%` to `20%` and `frameFront.bottom` from `20%` to `17%` in `src/data/default/visual/college.ts`.
+- Runtime final (same viewport): back `(x 670.071167, y 199.999298, w 520.295166, h 415.813934, rotation unchanged, z 1)`; front `(x 1029.405518, y 231.776627, w 309.438965, h 373.071777, rotation unchanged, z 3)`.
+- Runtime deltas: back `deltaX 0`, `deltaY -29.000`; front `deltaX 0`, `deltaY +17.406`. Back's 0.000061px bounding-height variance is subpixel measurement noise; its CSS width/height were not changed. Front dimensions are numerically identical.
+- Overlap increased from `57,695.254 px2` to `60,049.937 px2`; both stable IDs occur once; exactly two College polaroids remain; no horizontal overflow.
+- Visual verification: before screenshot `C:\Users\VivoBook\AppData\Local\Temp\college-position-003-before.png`; after screenshot `C:\Users\VivoBook\AppData\Local\Temp\college-position-003-after.png`; both were directly inspected. Final screenshot confirms back moved up, front moved down, and both remain visibly overlapped.
+- Phase-isolation proof: snapshot diff contains exactly two lines (`top` and `bottom`). Width, height, horizontal properties, rotations, z-index values, image configs, stable IDs, styling, renderer, College text/decorations/SVG, About, SHS, Admin, navbar, and all other files were untouched by this phase.
+- Files modified by this request: `src/data/default/visual/college.ts`; `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+- Files created/deleted in repository: none.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1831 modules transformed); `git diff --check` PASS (line-ending warnings only, no whitespace errors).
+- Current status: PHASE COLLEGE-FRAME-POSITION-ADJUSTMENT-003 completed and runtime-verified.
+- Next step: stop at this phase boundary and await user direction.
+- Browser automation cleanup: the single OS-temp Chrome profile was removed successfully; before/after screenshots were retained in OS temp for reporting.
