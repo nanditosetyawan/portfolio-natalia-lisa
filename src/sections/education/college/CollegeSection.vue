@@ -20,33 +20,7 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
         gap: vConfig.container.gap
       }"
     >
-      <!-- Dot grid top-left -->
-      <div class="college-dot-grid dots-tl" aria-hidden="true" :style="{
-        width: `${vConfig.dotGrid.width}`,
-        height: `${vConfig.dotGrid.height}`,
-        opacity: vConfig.dotGrid.opacity,
-        top: vConfig.dotGridTopLeft.top,
-        left: vConfig.dotGridTopLeft.left
-      }"></div>
-      <!-- Dot grid bottom-right -->
-      <div class="college-dot-grid dots-br" aria-hidden="true" :style="{
-        width: `${vConfig.dotGrid.width}`,
-        height: `${vConfig.dotGrid.height}`,
-        opacity: vConfig.dotGrid.opacity,
-        bottom: vConfig.dotGridBottomRight.bottom,
-        right: vConfig.dotGridBottomRight.right
-      }"></div>
-      <!-- Subtle circle bottom-right -->
-      <div class="college-circle" aria-hidden="true" :style="{
-        width: `${vConfig.circleDecor.width}`,
-        height: `${vConfig.circleDecor.height}`,
-        bottom: vConfig.circleDecor.bottom,
-        right: vConfig.circleDecor.right,
-        boxShadow: vConfig.circleDecor.boxShadow
-      }"></div>
-
-        <div
-        class="college-content"
+      <div class="college-content"
         :style="{
           flexBasis: vConfig.content.flexBasis
         }"
@@ -80,7 +54,7 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
         {{ defaultCollege.items[0].school }}
       </h2>
 
-<div
+      <div
         class="college-calendar"
         :style="{
           gap: vConfig.calendar.gap,
@@ -109,10 +83,10 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
           }">
             {{ defaultCollege.items[0].description }}
           </p>
-        </div>
+      </div>
 
       <!-- Right visual - polaroid frames -->
-      <div class="college-visual" :style="{
+<div class="college-visual" :style="{
         flexBasis: vConfig.visual.flexBasis,
         height: vConfig.visual.height
       }">
@@ -178,34 +152,6 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
             transform: `rotate(${vConfig.tapeBr.transformRotate})`
           }"></div>
         </div>
-      </div>
-
-      <!-- Decorative COLLEGE text (large, rotated, top-right) -->
-      <div class="college-deco-text" aria-hidden="true" :style="{
-        top: vConfig.decoText.top,
-        right: vConfig.decoText.right,
-        transform: `rotate(${vConfig.decoText.transformRotate})`,
-        color: vConfig.decoText.color,
-        fontSize: vConfig.decoText.fontSize,
-        fontWeight: vConfig.decoText.fontWeight,
-        fontFamily: vConfig.decoText.fontFamily
-      }">
-        <span>C</span><span>O</span><span>L</span><span>L</span><span>E</span><span>G</span><span>E</span>
-        <div class="deco-lines">
-          <span></span><span></span><span></span>
-        </div>
-      </div>
-
-      <!-- Curved arrow decoration -->
-      <div class="college-arrow" aria-hidden="true" :style="{
-        right: vConfig.arrow.right,
-        top: vConfig.arrow.top,
-        opacity: vConfig.arrow.opacity
-      }">
-        <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
-          <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
-          <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
       </div>
     </div>
   </section>
@@ -389,61 +335,5 @@ import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/co
 
 .frame-front .polaroid-photo {
   flex: 1;
-}
-
-/* ===== Decorative COLLEGE text ===== */
-.college-deco-text {
-  position: absolute;
-  top: 4%;
-  right: 2%;
-  z-index: 4;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0;
-  transform: rotate(14deg);
-}
-
-.college-deco-text span {
-  color: #FF9A86;
-  font-size: 4.5rem;
-  font-weight: 800;
-  line-height: 0.85;
-  font-family: 'Inter', system-ui, sans-serif;
-  text-shadow: 2px 2px 0 rgba(141, 54, 58, 0.15);
-}
-
-.deco-lines {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-  margin-left: auto;
-}
-
-.deco-lines span {
-  width: 3px;
-  height: 18px;
-  background: #FF9A86;
-  border-radius: 2px;
-  transform: rotate(-15deg);
-}
-
-.deco-lines span:nth-child(2) {
-  height: 14px;
-  transform: rotate(0deg);
-}
-
-.deco-lines span:nth-child(3) {
-  height: 10px;
-  transform: rotate(15deg);
-}
-
-/* ===== Curved arrow ===== */
-.college-arrow {
-  position: absolute;
-  right: 18%;
-  top: 46%;
-  z-index: 4;
-  opacity: 0.8;
 }
 </style>

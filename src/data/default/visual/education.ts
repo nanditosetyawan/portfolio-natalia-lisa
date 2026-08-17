@@ -93,7 +93,7 @@ container: {
     },
     scrollIndicator: {
       color: '#8D363A',
-      gap: '0rem',
+      gap: '2.5rem',
       bottom: '3rem'
     },
    decorPill: {
