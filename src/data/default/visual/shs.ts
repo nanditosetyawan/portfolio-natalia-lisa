@@ -123,6 +123,51 @@ export interface SHSVisualConfig {
     right: string;
     opacity: number;
   };
+  dotGrid3: {
+    id: string;
+    width: string;
+    height: string;
+    opacity: number;
+    color: string;
+    iconSize: number;
+    strokeWidth: number;
+    top: string;
+    left: string;
+    zIndex: number;
+  };
+  organicShape2: {
+    id: string;
+    top: string;
+    left: string;
+    width: string;
+    height: string;
+    opacity: number;
+    color: string;
+    iconSize: number;
+    strokeWidth: number;
+    zIndex: number;
+  };
+  sparkles2: {
+    id: string;
+    bottom: string;
+    right: string;
+    color: string;
+    opacity: number;
+    transformRotate: string;
+    primarySize: number;
+    secondarySize: number;
+    zIndex: number;
+  };
+  arrow2: {
+    id: string;
+    top: string;
+    left: string;
+    width: number;
+    height: number;
+    transformRotate: string;
+    opacity: number;
+    zIndex: number;
+  };
 }
 
 export const defaultSHSConfig: SHSVisualConfig = {
@@ -240,5 +285,50 @@ export const defaultSHSConfig: SHSVisualConfig = {
     top: '42%',
     right: '8%',
     opacity: 0.85
+  },
+  dotGrid3: {
+    id: 'shs-dot-grid-003',
+    width: '64px',
+    height: '64px',
+    opacity: 0.6,
+    color: '#FF9A86',
+    iconSize: 46,
+    strokeWidth: 1.5,
+    top: '78%',
+    left: '45%',
+    zIndex: 1
+  },
+  organicShape2: {
+    id: 'shs-organic-002',
+    top: '74%',
+    left: '3%',
+    width: '72px',
+    height: '72px',
+    opacity: 0.55,
+    color: '#FF9A86',
+    iconSize: 48,
+    strokeWidth: 1.5,
+    zIndex: 0
+  },
+  sparkles2: {
+    id: 'shs-sparkles-002',
+    bottom: '64%',
+    right: '3%',
+    color: '#FF9A86',
+    opacity: 0.65,
+    transformRotate: '18deg',
+    primarySize: 46,
+    secondarySize: 34,
+    zIndex: 1
+  },
+  arrow2: {
+    id: 'shs-arrow-002',
+    top: '63%',
+    left: '3%',
+    width: 58,
+    height: 58,
+    transformRotate: '-118deg',
+    opacity: 0.65,
+    zIndex: 1
   }
 }

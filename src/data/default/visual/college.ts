@@ -114,6 +114,60 @@ export interface CollegeVisualConfig {
     top: string;
     opacity: number;
   };
+  dotGrid3: {
+    id: string;
+    width: string;
+    height: string;
+    opacity: number;
+    color: string;
+    iconSize: number;
+    strokeWidth: number;
+    top: string;
+    left: string;
+    zIndex: number;
+  };
+  dotGrid4: {
+    id: string;
+    width: string;
+    height: string;
+    opacity: number;
+    color: string;
+    iconSize: number;
+    strokeWidth: number;
+    top: string;
+    right: string;
+    zIndex: number;
+  };
+  circleDecor2: {
+    id: string;
+    width: string;
+    height: string;
+    top: string;
+    left: string;
+    opacity: number;
+    boxShadow: string;
+    zIndex: number;
+  };
+  arrow2: {
+    id: string;
+    top: string;
+    left: string;
+    width: number;
+    height: number;
+    transformRotate: string;
+    opacity: number;
+    zIndex: number;
+  };
+  arrow3: {
+    id: string;
+    top: string;
+    right: string;
+    width: number;
+    height: number;
+    transformRotate: string;
+    opacity: number;
+    zIndex: number;
+  };
 }
 
 export const defaultCollegeConfig: CollegeVisualConfig = {
@@ -229,5 +283,59 @@ export const defaultCollegeConfig: CollegeVisualConfig = {
     right: '18%',
     top: '46%',
     opacity: 0.8
+  },
+  dotGrid3: {
+    id: 'college-dot-grid-003',
+    width: '64px',
+    height: '64px',
+    opacity: 0.58,
+    color: '#FF9A86',
+    iconSize: 46,
+    strokeWidth: 1.5,
+    top: '24%',
+    left: '2%',
+    zIndex: 1
+  },
+  dotGrid4: {
+    id: 'college-dot-grid-004',
+    width: '62px',
+    height: '62px',
+    opacity: 0.55,
+    color: '#FF9A86',
+    iconSize: 44,
+    strokeWidth: 1.5,
+    top: '55%',
+    right: '2%',
+    zIndex: 1
+  },
+  circleDecor2: {
+    id: 'college-circle-002',
+    width: '70px',
+    height: '70px',
+    top: '43%',
+    left: '2%',
+    opacity: 0.9,
+    boxShadow: 'inset 0 0 0 1.5px rgba(220, 190, 170, 0.14)',
+    zIndex: 0
+  },
+  arrow2: {
+    id: 'college-arrow-002',
+    top: '32%',
+    left: '2%',
+    width: 58,
+    height: 58,
+    transformRotate: '-32deg',
+    opacity: 0.68,
+    zIndex: 1
+  },
+  arrow3: {
+    id: 'college-arrow-003',
+    top: '22%',
+    right: '2%',
+    width: 56,
+    height: 56,
+    transformRotate: '142deg',
+    opacity: 0.66,
+    zIndex: 1
   }
 }

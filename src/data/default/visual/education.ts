@@ -66,26 +66,42 @@ export interface EducationVisualConfig {
       left: string;
     };
     decorSparkle3: {
-      top: string;
-      right: string;
-      color: string;
-    };
-    decorSparkle4: {
+      id: string;
       top: string;
       left: string;
       color: string;
+      size: number;
+      strokeWidth: number;
+      opacity: number;
+      zIndex: number;
+    };
+    decorSparkle4: {
+      id: string;
+      top: string;
+      left: string;
+      color: string;
+      size: number;
+      strokeWidth: number;
+      opacity: number;
+      zIndex: number;
     };
     decorRing3: {
+      id: string;
       width: string;
       height: string;
       top: string;
       left: string;
+      opacity: number;
+      zIndex: number;
     };
     decorRing4: {
+      id: string;
       width: string;
       height: string;
       bottom: string;
       right: string;
+      opacity: number;
+      zIndex: number;
     };
 }
 
@@ -155,25 +171,41 @@ export const defaultEducationConfig: EducationVisualConfig = {
       left: '-60px'
     },
     decorSparkle3: {
-      top: '15%',
-      right: '15%',
-      color: 'rgba(141, 54, 58, 0.32)'
+      id: 'education-sparkle-003',
+      top: '12%',
+      left: '8%',
+      color: 'rgba(141, 54, 58, 0.32)',
+      size: 46,
+      strokeWidth: 1.5,
+      opacity: 1,
+      zIndex: 1
     },
     decorSparkle4: {
-      top: '65%',
+      id: 'education-sparkle-004',
+      top: '68%',
       left: '12%',
-      color: 'rgba(141, 54, 58, 0.3)'
+      color: 'rgba(141, 54, 58, 0.3)',
+      size: 42,
+      strokeWidth: 1.5,
+      opacity: 1,
+      zIndex: 1
     },
     decorRing3: {
-      width: '240px',
-      height: '240px',
-      top: '-60px',
-      left: '-40px'
+      id: 'education-ring-003',
+      width: '70px',
+      height: '70px',
+      top: '12%',
+      left: '28%',
+      opacity: 0.9,
+      zIndex: 0
     },
     decorRing4: {
-      width: '180px',
-      height: '180px',
-      bottom: '-40px',
-      right: '15%'
+      id: 'education-ring-004',
+      width: '66px',
+      height: '66px',
+      bottom: '15%',
+      right: '18%',
+      opacity: 0.88,
+      zIndex: 0
     }
 }

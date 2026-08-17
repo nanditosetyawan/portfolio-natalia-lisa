@@ -59,6 +59,41 @@ import { defaultSHSConfig as shsVConfig } from '../data/default/visual/shs'
           bottom: vConfig.decorRing2.bottom,
           left: vConfig.decorRing2.left
         }"></div>
+
+        <div class="decor-sparkle sparkle-3" :data-decoration-id="vConfig.decorSparkle3.id" :style="{
+          top: vConfig.decorSparkle3.top,
+          left: vConfig.decorSparkle3.left,
+          color: vConfig.decorSparkle3.color,
+          opacity: vConfig.decorSparkle3.opacity,
+          zIndex: vConfig.decorSparkle3.zIndex
+        }">
+          <Sparkles :size="vConfig.decorSparkle3.size" :stroke-width="vConfig.decorSparkle3.strokeWidth" />
+        </div>
+        <div class="decor-sparkle sparkle-4" :data-decoration-id="vConfig.decorSparkle4.id" :style="{
+          top: vConfig.decorSparkle4.top,
+          left: vConfig.decorSparkle4.left,
+          color: vConfig.decorSparkle4.color,
+          opacity: vConfig.decorSparkle4.opacity,
+          zIndex: vConfig.decorSparkle4.zIndex
+        }">
+          <Sparkles :size="vConfig.decorSparkle4.size" :stroke-width="vConfig.decorSparkle4.strokeWidth" />
+        </div>
+        <div class="decor-ring ring-3" :data-decoration-id="vConfig.decorRing3.id" :style="{
+          width: vConfig.decorRing3.width,
+          height: vConfig.decorRing3.height,
+          top: vConfig.decorRing3.top,
+          left: vConfig.decorRing3.left,
+          opacity: vConfig.decorRing3.opacity,
+          zIndex: vConfig.decorRing3.zIndex
+        }"></div>
+        <div class="decor-ring ring-4" :data-decoration-id="vConfig.decorRing4.id" :style="{
+          width: vConfig.decorRing4.width,
+          height: vConfig.decorRing4.height,
+          bottom: vConfig.decorRing4.bottom,
+          right: vConfig.decorRing4.right,
+          opacity: vConfig.decorRing4.opacity,
+          zIndex: vConfig.decorRing4.zIndex
+        }"></div>
       </div>
 
       <!-- College decoration coordinate area -->
@@ -105,6 +140,66 @@ import { defaultSHSConfig as shsVConfig } from '../data/default/visual/shs'
           opacity: collegeVConfig.arrow.opacity
         }">
           <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
+            <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+
+        <div class="college-dot-grid" :data-decoration-id="collegeVConfig.dotGrid3.id" :style="{
+          width: collegeVConfig.dotGrid3.width,
+          height: collegeVConfig.dotGrid3.height,
+          opacity: collegeVConfig.dotGrid3.opacity,
+          color: collegeVConfig.dotGrid3.color,
+          top: collegeVConfig.dotGrid3.top,
+          left: collegeVConfig.dotGrid3.left,
+          zIndex: collegeVConfig.dotGrid3.zIndex
+        }">
+          <Sparkles :size="collegeVConfig.dotGrid3.iconSize" :stroke-width="collegeVConfig.dotGrid3.strokeWidth" />
+        </div>
+        <div class="college-dot-grid" :data-decoration-id="collegeVConfig.dotGrid4.id" :style="{
+          width: collegeVConfig.dotGrid4.width,
+          height: collegeVConfig.dotGrid4.height,
+          opacity: collegeVConfig.dotGrid4.opacity,
+          color: collegeVConfig.dotGrid4.color,
+          top: collegeVConfig.dotGrid4.top,
+          right: collegeVConfig.dotGrid4.right,
+          zIndex: collegeVConfig.dotGrid4.zIndex
+        }">
+          <Sparkles :size="collegeVConfig.dotGrid4.iconSize" :stroke-width="collegeVConfig.dotGrid4.strokeWidth" />
+        </div>
+        <div class="college-circle" :data-decoration-id="collegeVConfig.circleDecor2.id" :style="{
+          width: collegeVConfig.circleDecor2.width,
+          height: collegeVConfig.circleDecor2.height,
+          top: collegeVConfig.circleDecor2.top,
+          left: collegeVConfig.circleDecor2.left,
+          opacity: collegeVConfig.circleDecor2.opacity,
+          boxShadow: collegeVConfig.circleDecor2.boxShadow,
+          zIndex: collegeVConfig.circleDecor2.zIndex
+        }"></div>
+        <div class="college-arrow" :data-decoration-id="collegeVConfig.arrow2.id" :style="{
+          top: collegeVConfig.arrow2.top,
+          left: collegeVConfig.arrow2.left,
+          width: `${collegeVConfig.arrow2.width}px`,
+          height: `${collegeVConfig.arrow2.height}px`,
+          transform: `rotate(${collegeVConfig.arrow2.transformRotate})`,
+          opacity: collegeVConfig.arrow2.opacity,
+          zIndex: collegeVConfig.arrow2.zIndex
+        }">
+          <svg viewBox="0 0 64 64" :width="collegeVConfig.arrow2.width" :height="collegeVConfig.arrow2.height" fill="none">
+            <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div class="college-arrow" :data-decoration-id="collegeVConfig.arrow3.id" :style="{
+          top: collegeVConfig.arrow3.top,
+          right: collegeVConfig.arrow3.right,
+          width: `${collegeVConfig.arrow3.width}px`,
+          height: `${collegeVConfig.arrow3.height}px`,
+          transform: `rotate(${collegeVConfig.arrow3.transformRotate})`,
+          opacity: collegeVConfig.arrow3.opacity,
+          zIndex: collegeVConfig.arrow3.zIndex
+        }">
+          <svg viewBox="0 0 64 64" :width="collegeVConfig.arrow3.width" :height="collegeVConfig.arrow3.height" fill="none">
             <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
             <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -163,6 +258,54 @@ import { defaultSHSConfig as shsVConfig } from '../data/default/visual/shs'
           opacity: shsVConfig.arrow.opacity
         }">
           <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
+            <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+
+        <div class="shs-dot-grid" :data-decoration-id="shsVConfig.dotGrid3.id" :style="{
+          width: shsVConfig.dotGrid3.width,
+          height: shsVConfig.dotGrid3.height,
+          opacity: shsVConfig.dotGrid3.opacity,
+          color: shsVConfig.dotGrid3.color,
+          top: shsVConfig.dotGrid3.top,
+          left: shsVConfig.dotGrid3.left,
+          zIndex: shsVConfig.dotGrid3.zIndex
+        }">
+          <Sparkles :size="shsVConfig.dotGrid3.iconSize" :stroke-width="shsVConfig.dotGrid3.strokeWidth" />
+        </div>
+        <div class="shs-organic" :data-decoration-id="shsVConfig.organicShape2.id" :style="{
+          top: shsVConfig.organicShape2.top,
+          left: shsVConfig.organicShape2.left,
+          width: shsVConfig.organicShape2.width,
+          height: shsVConfig.organicShape2.height,
+          opacity: shsVConfig.organicShape2.opacity,
+          color: shsVConfig.organicShape2.color,
+          zIndex: shsVConfig.organicShape2.zIndex
+        }">
+          <Sparkles :size="shsVConfig.organicShape2.iconSize" :stroke-width="shsVConfig.organicShape2.strokeWidth" />
+        </div>
+        <div class="shs-sparkles" :data-decoration-id="shsVConfig.sparkles2.id" :style="{
+          bottom: shsVConfig.sparkles2.bottom,
+          right: shsVConfig.sparkles2.right,
+          color: shsVConfig.sparkles2.color,
+          opacity: shsVConfig.sparkles2.opacity,
+          transform: `rotate(${shsVConfig.sparkles2.transformRotate})`,
+          zIndex: shsVConfig.sparkles2.zIndex
+        }">
+          <Sparkles :size="shsVConfig.sparkles2.primarySize" :stroke-width="1.5" />
+          <Sparkles :size="shsVConfig.sparkles2.secondarySize" :stroke-width="1.5" />
+        </div>
+        <div class="shs-arrow" :data-decoration-id="shsVConfig.arrow2.id" :style="{
+          top: shsVConfig.arrow2.top,
+          left: shsVConfig.arrow2.left,
+          width: `${shsVConfig.arrow2.width}px`,
+          height: `${shsVConfig.arrow2.height}px`,
+          transform: `rotate(${shsVConfig.arrow2.transformRotate})`,
+          opacity: shsVConfig.arrow2.opacity,
+          zIndex: shsVConfig.arrow2.zIndex
+        }">
+          <svg viewBox="0 0 64 64" :width="shsVConfig.arrow2.width" :height="shsVConfig.arrow2.height" fill="none">
             <path d="M16 48 Q 16 22 44 20" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" />
             <path d="M44 20 L 36 12 M44 20 L 35 27" stroke="#FF9A86" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
