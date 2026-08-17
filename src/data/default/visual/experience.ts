@@ -139,7 +139,7 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
     width: '100px',
     height: '100px',
     top: '8rem',
-    left: '50%',
+    left: 'calc(100% - 8rem)',
     transformTranslateX: '-50%',
     color: '#FF9A86',
     opacity: 0.35

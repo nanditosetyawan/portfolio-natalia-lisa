@@ -365,8 +365,8 @@ const dotTopVh = computed(() => {
   .timeline-line {
     position: absolute;
     left: 0;
-    top: 18vh;
-    bottom: 10vh;
+    top: 32vh;
+    bottom: 24vh;
     width: 2px;
     transform: translateX(-50%);
     background: linear-gradient(

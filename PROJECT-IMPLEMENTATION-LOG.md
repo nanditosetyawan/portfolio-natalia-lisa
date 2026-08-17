@@ -3056,3 +3056,62 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Browser automation cleanup: the single OS-temp Chrome profile was removed; before/final screenshots remain in OS temp for reporting.
 - Current status: PHASE SHS-FRAME-VISUAL-RECOMPOSITION-002 completed and runtime-verified.
 - Next step: stop at this phase boundary and await user direction.
+## Request #077 - PHASE SHS-CONTENT-CONTAINER-AUDIT-003
+
+- Date: 2026-08-18 (Asia/Jakarta)
+- Execution mode: read-only source and runtime DOM audit.
+- User instruction: determine from source and actual runtime DOM whether the SHS label, school name, year, and description share one content container, and whether both frames share one photo container; do not modify implementation.
+- Context consulted: latest 200 lines of this log; relevant `AGENTS.md` read-only/logging rules; `src/sections/education/shs/SHSSection.vue`; `src/data/default/visual/shs.ts`; `src/data/default/shs.ts`; runtime `http://localhost:5173/` at Chrome viewport 1422x804.
+- Source finding: `.shs-container` is the section-level flex/global container. `.shs-visual` and `.shs-content` are separate direct children of it. `.shs-visual` directly contains the two frame nodes. `.shs-content` directly contains `.shs-label`, `.shs-school`, `.shs-calendar`, `.shs-separator`, and `.shs-desc`; the year span is nested inside `.shs-calendar` alongside the calendar SVG.
+- Runtime hierarchy verified: text lowest common ancestor is `div.shs-content`; frame lowest common ancestor is `div.shs-visual`; content/photo lowest common ancestor is `div.shs-container`. All four target text elements are descendants of `.shs-content`; both frames are direct children of `.shs-visual`.
+- Runtime direct-parent detail: label `span.shs-label` -> `div.shs-content`; school `h2.shs-school` -> `div.shs-content`; year `span` -> `div.shs-calendar` -> `div.shs-content`; description `p.shs-desc` -> `div.shs-content`; both frame nodes -> `div.shs-visual`.
+- Runtime boxes (x/y/w/h): section `0/-100.094/1422/1004`; global container `0/-100.094/1422/804`; content `817.641/168.234/604.359/267.344`; photo container `0/11.906/817.641/580`; label `817.641/168.234/604.359/27.609`; school `817.641/199.844/604.359/67.188`; year `849.234/283.031/87.672/25.188`; description `817.641/353.219/512/82.359`; back frame `103.948/94.372/417.384/373.851`; front frame `355.175/321.638/314.243/295.317`.
+- Runtime counts: one `.shs-section`, one `.shs-container`, one `.shs-content`, one `.shs-visual`, one `shs-frame-back`, and one `shs-frame-front`.
+- Important nuance: grouping is structurally real, not merely visual. However, in DOM source order `.shs-visual` appears before `.shs-content`, with decoration nodes between them. The year is within the common content container but is not its direct child.
+- Conclusion: yes, all four text elements share the single `.shs-content` ancestor and both frames share `.shs-visual`; `.shs-content` and `.shs-visual` are sibling groups under `.shs-container`.
+- Implementation files modified: none. Pre-log `git status --short` and targeted SHS diff were empty.
+- Files modified by this request: `PROJECT-IMPLEMENTATION-LOG.md` only, as required by repository logging policy.
+- Build/typecheck: not run because this was a read-only DOM audit and runtime loaded successfully.
+- Temporary artifacts: no screenshot created; the single OS-temp Chrome profile was removed successfully.
+- Current status: audit complete; no implementation action taken.
+- Next step: await explicit user instruction before making any container/layout change.
+## Request #078 - PHASE SHS-CONTENT-POSITION-004
+
+- Date: 2026-08-18 (Asia/Jakarta)
+- Execution mode: runtime-measured single-wrapper horizontal adjustment.
+- User instruction: move only `.shs-content` left by approximately 1 cm on desktop while preserving its size, internal layout, children, SHS visual/frames, and all unrelated sections; validate runtime, typecheck, build, and diff.
+- Context consulted: latest 200 lines of this log; relevant `AGENTS.md` rules; `src/sections/education/shs/SHSSection.vue`; runtime `http://localhost:5173/` at Chrome viewport 1422x804.
+- Runtime baseline: `.shs-content` `(x 817.640625, y 168.234375, w 604.359375, h 267.34375)` with computed `left: 0px`. Visual `(0, 11.90625, 817.640625, 580)`; back frame `(103.948418, 94.371582, 417.384399, 373.850586)`; front frame `(355.175415, 321.638336, 314.242920, 295.317047)`.
+- Work completed: added exactly `left: -2.5rem` to the existing relative-positioned `.shs-content` rule in `src/sections/education/shs/SHSSection.vue`. At the runtime root font size this resolves to `-40px`, approximately 1.06 cm at 96 CSS px/in.
+- Runtime final: `.shs-content` `(x 777.640625, y 168.234375, w 604.359375, h 267.34375)` with computed `left: -40px`; delta X `-40px`; delta Y/width/height all `0`.
+- Group/isolation verification: label, school, calendar/year, and description each moved exactly `-40px` on X while retaining identical Y/width/height. `.shs-visual`, `shs-frame-back`, and `shs-frame-front` bounding boxes were numerically identical before/after. No horizontal overflow.
+- Screenshots directly inspected: before `C:\Users\VivoBook\AppData\Local\Temp\shs-content-position-004-before.png`; after `C:\Users\VivoBook\AppData\Local\Temp\shs-content-position-004-after.png`.
+- Phase isolation proof: pre-edit snapshot diff contains exactly one added CSS declaration inside `.shs-content`. No content markup, child style, frame config, decoration, College, About, Admin, navbar, or other source was changed.
+- Files modified by this request: `src/sections/education/shs/SHSSection.vue`; `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+- Files created/deleted in repository: none.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1831 modules transformed); `git diff --check` PASS.
+- Browser automation cleanup: the single OS-temp Chrome profile was removed; before/after screenshots remain in OS temp for reporting.
+- Current status: PHASE SHS-CONTENT-POSITION-004 completed and runtime-verified.
+- Next step: stop at this phase boundary and await user direction.
+## Request #079 - PHASE EXPERIENCE-TOP-VISUAL-TUNING-001
+
+- Date: 2026-08-18 (Asia/Jakarta)
+- Execution mode: source-traced, runtime-measured Experience-only visual tuning.
+- User instruction: shorten the center Experience timeline symmetrically while preserving moving-dot/special-scroll behavior, and move the title-area dot grid to the right corner through its existing visual config; preserve all other content/sections.
+- Context consulted: latest 200 lines of this log; relevant `AGENTS.md` visual/motion/logging rules; `src/sections/experience/ExperienceSection.vue`; `src/data/default/visual/experience.ts`; `src/data/default/experience.ts`; runtime `http://localhost:5173/` at Chrome viewport 1422x804. No Experience image reference and no `md/`/`design/` directories were available in the repository.
+- Source tracing: the actual center line is vertical, not horizontal: HTML `div.timeline-line` inside `div.timeline-rail`; it is a 2px CSS gradient line centered by rail `left:50%`. Moving dot is `div.tl-active-dot`, with inline `top: dotTopVh + 'vh'`. `rafProgress` is updated in a requestAnimationFrame loop from `-sectionRect.top / innerHeight`, clamped 0..3. `dotTopVh` uses `50 + 22*sin(pi*t)` and therefore moves 50..72vh independently of line length. The pulse is CSS `dot-pulse` 1.6s infinite and top transition is 0.08s linear.
+- Special-scroll tracing: outer `#experience` is 400vh; `.exp-sticky-viewport` is desktop sticky at top 0; four absolute `.exp-card` nodes translate by `(index - rafProgress) * 100vh`. This mechanism was not edited.
+- Grid tracing: one `div.decor-dots`; size/style are CSS/config-driven and position comes from `defaultExperienceConfig.decorDots`, bound inline in the renderer. Baseline config was `top:8rem`, `left:50%`, `translateX(-50%)`.
+- Runtime baseline: line `(x 710, y 144.719, w 2, h 578.891, bottom 723.609)`, centerY `434.164`; grid `(x 661, y 128, w 100, h 100)` and visually overlapped the centered title glyph area; dot moved from y `394.063` at progress ~0 to y `570.875` at progress 0.5 (delta `176.813px`). Section height `3216px`/400vh, sticky viewport `1422x804`, four cards, no overflow.
+- Line change: `.timeline-line` top `18vh -> 32vh` and bottom `10vh -> 24vh`. Both endpoints moved inward by 14vh (~112.56px). Runtime final line `(x 710, y 257.266, w 2, h 353.781, bottom 611.047)`, centerY `434.156` (subpixel center delta -0.008px). Length reduction `225.109px`; dot range remains inside the new line.
+- Dot verification: start/mid positions and delta remained numerically identical (`394.063 -> 570.875`, +176.813px); computed animation remains `dot-pulse` 1.6s infinite and transition `top 0.08s linear`; both tested dot centers were inside the shortened line.
+- Grid change: only config `decorDots.left` changed from `50%` to `calc(100% - 8rem)`; top, transform, width, height, background spacing 16px, color, and opacity unchanged. Runtime grid moved to `(x 1244, y 128, w 100, h 100)` (delta X +583px), in the upper-right corner. Title glyph range was x `509.188..912.813`; runtime overlap with grid is false.
+- Visual verification: before screenshot `C:\Users\VivoBook\AppData\Local\Temp\experience-top-tuning-001-before.png`; after screenshot `C:\Users\VivoBook\AppData\Local\Temp\experience-top-tuning-001-after.png`; both directly inspected. Final screenshot shows the shorter centered line and unobstructed title with the dot grid at upper-right.
+- Preservation: section height, sticky viewport, card count/transforms at progress 0/0.5, title, Experience content, other decorations, special scroll, About, College, SHS, Admin, navbar, and all other sections were unchanged. The pre-existing SHSSection/log worktree edits were preserved and not modified by this phase.
+- Phase diff: exactly two CSS endpoint values in `ExperienceSection.vue` and one config position value in `visual/experience.ts`.
+- Files modified by this request: `src/sections/experience/ExperienceSection.vue`; `src/data/default/visual/experience.ts`; `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+- Files created/deleted in repository: none.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1831 modules transformed); `git diff --check` PASS.
+- Browser automation cleanup: the single OS-temp Chrome profile was removed; before/after screenshots remain in OS temp for reporting.
+- Current status: PHASE EXPERIENCE-TOP-VISUAL-TUNING-001 completed and runtime-verified.
+- Next step: stop at this phase boundary and await user direction.

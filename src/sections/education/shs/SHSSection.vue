@@ -436,6 +436,7 @@ function imageStyle(key: SHSFrameImageKey) {
   flex: 1 1 40%;
   z-index: 3;
   position: relative;
+  left: -2.5rem;
 }
 
 .shs-label {
