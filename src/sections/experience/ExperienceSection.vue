@@ -168,19 +168,23 @@
           <!-- Photo(s): moves with card as one unit -->
           <div class="exp-image-wrapper">
             <div class="exp-image-frame"
-              :style="{
-                maxWidth: vConfig.imageFrame.maxWidth,
-                borderRadius: vConfig.imageFrame.borderRadius,
-                boxShadow: vConfig.imageFrame.boxShadow
-              }"
+              :data-frame-id="item.frameId"
+              :style="frameStyle(item.frameId)"
             >
-              <div class="exp-image-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none"
-                  stroke="#8D363A" stroke-width="1.5" opacity="0.4">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
+              <div class="exp-frame-photo" :style="{ borderRadius: frameConfig(item.frameId).image.borderRadius }">
+                <img
+                  v-if="imageSource(item.frameId)"
+                  :src="imageSource(item.frameId)"
+                  :alt="`${item.title} photo`"
+                  :style="imageStyle(item.frameId)"
+                />
+                <div v-else class="image-boundary-placeholder" :style="placeholderStyle(item.frameId)">
+                  <span class="boundary-label boundary-top">↑ TOP</span>
+                  <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
+                  <span class="boundary-label boundary-left">← LEFT</span>
+                  <span class="boundary-label boundary-right">→ RIGHT</span>
+                  <span class="boundary-label boundary-center">PHOTO AREA</span>
+                </div>
               </div>
             </div>
           </div>
@@ -192,15 +196,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { defaultExperience } from '../../data/default/experience'
+import { ref, computed, onMounted, onUnmounted, type CSSProperties } from 'vue'
+import { defaultExperience, type ExperienceFrameId } from '../../data/default/experience'
 import { defaultExperienceConfig as vConfig } from '../../data/default/visual/experience'
+import { useExperienceFrameImagesStore } from '../../stores/experienceFrameImages'
 
 // ──────────────────────────────────────────────
 // DATA
 // ──────────────────────────────────────────────
 const items = defaultExperience.items
 const sectionTitle = defaultExperience.title
+const frameImages = useExperienceFrameImagesStore()
+
+const frameConfig = (frameId: ExperienceFrameId) => vConfig.imageFrames[frameId]
+const imageSource = (frameId: ExperienceFrameId) => frameImages.frames[frameId].source
+const frameStyle = (frameId: ExperienceFrameId): CSSProperties => ({
+  position: frameConfig(frameId).position as CSSProperties['position'],
+  width: frameConfig(frameId).width,
+  maxWidth: frameConfig(frameId).maxWidth,
+  aspectRatio: frameConfig(frameId).aspectRatio,
+  backgroundColor: frameConfig(frameId).backgroundColor,
+  border: frameConfig(frameId).border,
+  borderRadius: frameConfig(frameId).borderRadius,
+  padding: frameConfig(frameId).padding,
+  boxShadow: frameConfig(frameId).boxShadow,
+  transform: `rotate(${frameConfig(frameId).transformRotate})`,
+  zIndex: frameConfig(frameId).zIndex
+})
+const imageStyle = (frameId: ExperienceFrameId): CSSProperties => ({
+  width: '100%',
+  height: '100%',
+  objectFit: frameConfig(frameId).image.objectFit as CSSProperties['objectFit'],
+  objectPosition: frameConfig(frameId).image.objectPosition
+})
+const placeholderStyle = (frameId: ExperienceFrameId) => {
+  const placeholder = frameConfig(frameId).image.placeholder
+  return {
+    '--placeholder-color': placeholder.color,
+    '--placeholder-opacity': placeholder.opacity,
+    '--placeholder-border-width': placeholder.borderWidth,
+    '--placeholder-font-size': placeholder.fontSize,
+    '--placeholder-label-offset': placeholder.labelOffset
+  }
+}
 
 // ──────────────────────────────────────────────
 // RAF-DRIVEN SCROLL PROGRESS
@@ -503,22 +541,8 @@ const dotTopVh = computed(() => {
 }
 
 .exp-image-frame {
-  position: relative;
-  width: 100%;
-  max-width: 380px;
-  aspect-ratio: 4 / 3;
-  background: #FFFFFF;
-  border-radius: 8px;
-  padding: 12px;
   box-sizing: border-box;
-  box-shadow:
-    0 20px 40px rgba(61, 40, 34, 0.12),
-    0 8px 16px rgba(61, 40, 34, 0.08);
 }
-
-/* Alternate rotation per card */
-.layout-text-left .exp-image-frame  { transform: rotate(-2deg); }
-.layout-img-left  .exp-image-frame  { transform: rotate(2deg);  }
 
 .exp-image-frame:hover {
   transform: rotate(0deg) scale(1.02) !important;
@@ -528,16 +552,70 @@ const dotTopVh = computed(() => {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.exp-image-placeholder {
+.exp-frame-photo {
   width: 100%;
   height: 100%;
-  border-radius: 4px;
-  background: linear-gradient(135deg, #F4EBDC 0%, #E8DCC8 100%);
-  border: 1.5px dashed rgba(141, 54, 58, 0.25);
+  overflow: hidden;
+}
+
+.exp-frame-photo img {
+  display: block;
+}
+
+.image-boundary-placeholder {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: var(--placeholder-border-width, 2px) dashed var(--placeholder-color, #8D363A);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  position: relative;
+  pointer-events: none;
+  opacity: var(--placeholder-opacity, 0.5);
+}
+
+.image-boundary-placeholder .boundary-label {
+  position: absolute;
+  font-size: var(--placeholder-font-size, 0.65rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Inter', system-ui, sans-serif;
+  pointer-events: none;
+  color: var(--placeholder-color, #8D363A);
+}
+
+.image-boundary-placeholder .boundary-top {
+  top: var(--placeholder-label-offset, 0.45rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.image-boundary-placeholder .boundary-bottom {
+  bottom: var(--placeholder-label-offset, 0.45rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.image-boundary-placeholder .boundary-left {
+  left: var(--placeholder-label-offset, 0.45rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.image-boundary-placeholder .boundary-right {
+  right: var(--placeholder-label-offset, 0.45rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.image-boundary-placeholder .boundary-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.7;
 }
 
 /* ══════════════════════════════════════════════════════════════════

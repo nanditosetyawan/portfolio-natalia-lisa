@@ -184,6 +184,50 @@
               </div>
             </div>
           </div>
+
+          <!-- EXPERIENCE PHOTO FRAME FOLD -->
+          <div class="fold">
+            <button class="fold-header" @click="expanded.experience = !expanded.experience" type="button">
+              <span class="fold-title">EXPERIENCE PHOTOS</span>
+              <ChevronDown class="chevron" :class="{ rotated: expanded.experience }" />
+            </button>
+            <div v-show="expanded.experience" class="fold-content">
+              <div class="field-row">
+                <label class="field-label" for="experience-frame-select">Frame</label>
+                <select id="experience-frame-select" v-model="selectedExperienceFrame" class="input-field">
+                  <option v-for="frame in experienceFrames" :key="frame.id" :value="frame.id">
+                    {{ frame.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="field-row upload-row">
+                <label class="field-label">Upload image</label>
+                <input
+                  :key="selectedExperienceFrame"
+                  type="file"
+                  class="input-file"
+                  accept="image/*"
+                  :data-frame-id="selectedExperienceFrame"
+                  @change="uploadExperienceFrameImage(selectedExperienceFrame, $event)"
+                />
+              </div>
+              <div class="field-row experience-image-status" :data-selected-frame-id="selectedExperienceFrame">
+                <span class="field-label">Status</span>
+                <span>{{ selectedExperienceImageSource ? 'Image selected' : 'Placeholder active' }}</span>
+              </div>
+              <button
+                type="button"
+                class="experience-remove-button"
+                :disabled="!selectedExperienceImageSource"
+                @click="removeExperienceFrameImage(selectedExperienceFrame)"
+              >
+                Remove image
+              </button>
+              <p class="experience-session-note">
+                Draft sesi saja. Persistence media belum tersedia pada arsitektur project saat ini.
+              </p>
+            </div>
+          </div>
         </nav>
       </aside>
 
@@ -211,13 +255,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
+import { defaultExperience, type ExperienceFrameId } from '../../data/default/experience'
+import { useExperienceFrameImagesStore } from '../../stores/experienceFrameImages'
 
 const expanded = ref({
   font: true,
   image: false,
+  experience: true,
 })
+
+const experienceFrameImages = useExperienceFrameImagesStore()
+const experienceFrames = defaultExperience.items.map((item) => ({
+  id: item.frameId,
+  label: `${item.title} — ${item.frameId}`
+}))
+const selectedExperienceFrame = ref<ExperienceFrameId>(experienceFrames[0].id)
+const selectedExperienceImageSource = computed(
+  () => experienceFrameImages.frames[selectedExperienceFrame.value].source
+)
+
+function uploadExperienceFrameImage(frameId: ExperienceFrameId, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.addEventListener('load', () => {
+    if (typeof reader.result === 'string') {
+      experienceFrameImages.setSource(frameId, reader.result)
+    }
+  })
+  reader.readAsDataURL(file)
+}
+
+function removeExperienceFrameImage(frameId: ExperienceFrameId) {
+  experienceFrameImages.removeSource(frameId)
+}
 
 const shadowNormalEnabled = ref(false)
 const shadowHoverEnabled = ref(false)
@@ -565,6 +640,38 @@ const Editor3D = {
   outline: none;
   border-color: #5A3E35;
   box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
+}
+
+.experience-image-status {
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(255, 245, 235, 0.65);
+  color: #5A3E35;
+  font-size: 0.75rem;
+}
+
+.experience-remove-button {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(141, 54, 58, 0.25);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #8D363A;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.experience-remove-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.experience-session-note {
+  margin: 0;
+  color: #7B5F3B;
+  font-size: 0.68rem;
+  line-height: 1.45;
 }
 
 /* ===== PREVIEW CANVAS ===== */

@@ -1,4 +1,34 @@
 /* Default Visual Configuration - Experience Section */
+import type { ExperienceFrameId } from '../experience'
+
+export interface ExperienceFrameVisualConfig {
+  id: ExperienceFrameId;
+  position: string;
+  width: string;
+  maxWidth: string;
+  aspectRatio: string;
+  backgroundColor: string;
+  border: string;
+  borderRadius: string;
+  padding: string;
+  boxShadow: string;
+  transformRotate: string;
+  zIndex: string;
+  image: {
+    source: string;
+    objectFit: string;
+    objectPosition: string;
+    borderRadius: string;
+    placeholder: {
+      color: string;
+      opacity: number;
+      borderWidth: string;
+      fontSize: string;
+      labelOffset: string;
+    };
+  };
+}
+
 export interface ExperienceVisualConfig {
   section: {
     backgroundColor: string;
@@ -35,11 +65,7 @@ export interface ExperienceVisualConfig {
     lineHeight: number;
     fontFamily: string;
   };
-  imageFrame: {
-    maxWidth: string;
-    borderRadius: string;
-    boxShadow: string;
-  };
+  imageFrames: Record<ExperienceFrameId, ExperienceFrameVisualConfig>;
   /* Background decorations */
   decorSyringe: {
     width: string;
@@ -114,10 +140,11 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
     lineHeight: 1.75,
     fontFamily: "'Inter', system-ui, sans-serif"
   },
-  imageFrame: {
-    maxWidth: '380px',
-    borderRadius: '8px',
-    boxShadow: '0 20px 40px rgba(61, 40, 34, 0.12), 0 8px 16px rgba(61, 40, 34, 0.08)'
+  imageFrames: {
+    'experience-frame-klinik-1': createExperienceFrameConfig('experience-frame-klinik-1', '-2deg'),
+    'experience-frame-klinik-2': createExperienceFrameConfig('experience-frame-klinik-2', '2deg'),
+    'experience-frame-klinik-3': createExperienceFrameConfig('experience-frame-klinik-3', '-2deg'),
+    'experience-frame-klinik-4': createExperienceFrameConfig('experience-frame-klinik-4', '2deg')
   },
   decorSyringe: {
     width: '80px',
@@ -153,5 +180,38 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
     color: 'rgba(255, 214, 166, 0.2)',
     border: '2px solid rgba(255, 154, 134, 0.15)',
     opacity: 0.9
+  }
+}
+
+function createExperienceFrameConfig(
+  id: ExperienceFrameId,
+  transformRotate: string
+): ExperienceFrameVisualConfig {
+  return {
+    id,
+    position: 'relative',
+    width: '100%',
+    maxWidth: '380px',
+    aspectRatio: '4 / 3',
+    backgroundColor: '#FFFFFF',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px',
+    boxShadow: '0 20px 40px rgba(61, 40, 34, 0.12), 0 8px 16px rgba(61, 40, 34, 0.08)',
+    transformRotate,
+    zIndex: 'auto',
+    image: {
+      source: '',
+      objectFit: 'cover',
+      objectPosition: 'center center',
+      borderRadius: '4px',
+      placeholder: {
+        color: '#8D363A',
+        opacity: 0.5,
+        borderWidth: '2px',
+        fontSize: '0.65rem',
+        labelOffset: '0.45rem'
+      }
+    }
   }
 }

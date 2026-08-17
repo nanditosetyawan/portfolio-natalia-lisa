@@ -1,5 +1,12 @@
+export type ExperienceFrameId =
+  | 'experience-frame-klinik-1'
+  | 'experience-frame-klinik-2'
+  | 'experience-frame-klinik-3'
+  | 'experience-frame-klinik-4'
+
 export interface ExperienceItem {
   id: string
+  frameId: ExperienceFrameId
   title: string
   date: string
   description: string
@@ -16,6 +23,7 @@ export const defaultExperience: DefaultExperience = {
   items: [
     {
       id: 'klinik-1',
+      frameId: 'experience-frame-klinik-1',
       title: 'Praktik Klinik 1',
       date: 'Semester 1 - RSUD',
       description: 'Melaksanakan praktik klinik di RSUD dengan fokus pada asuhan keperawatan pasien, dokumentasi medis, dan kolaborasi tim kesehatan.',
@@ -23,6 +31,7 @@ export const defaultExperience: DefaultExperience = {
     },
     {
       id: 'klinik-2',
+      frameId: 'experience-frame-klinik-2',
       title: 'Praktik Klinik 2',
       date: 'Semester 2 - Puskesmas',
       description: 'Pengalaman praktik di Puskesmas dengan penekanan pada promotif, preventif, dan pelayanan komunitas kesehatan dasar.',
@@ -30,6 +39,7 @@ export const defaultExperience: DefaultExperience = {
     },
     {
       id: 'klinik-3',
+      frameId: 'experience-frame-klinik-3',
       title: 'Praktik Klinik 3',
       date: 'Semester 3 - Klinik Pratama',
       description: 'Praktik di Klinik Pratama dengan pembelajaran asuhan keperawatan masyarakat dan manajemen kasus kesehatan keluarga.',
@@ -37,6 +47,7 @@ export const defaultExperience: DefaultExperience = {
     },
     {
       id: 'klinik-4',
+      frameId: 'experience-frame-klinik-4',
       title: 'Praktik Klinik 4',
       date: 'Semester 4 - Rumah Sakit Jiwa',
       description: 'Pengalaman praktik di Rumah Sakit Jiwa dengan fokus pada asuhan keperawatan kesehatan jiwa dan interaksi terapeutik.',
