@@ -3036,3 +3036,23 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Current status: PHASE COLLEGE-FRAME-POSITION-ADJUSTMENT-003 completed and runtime-verified.
 - Next step: stop at this phase boundary and await user direction.
 - Browser automation cleanup: the single OS-temp Chrome profile was removed successfully; before/after screenshots were retained in OS temp for reporting.
+
+## Request #076 - PHASE SHS-FRAME-VISUAL-RECOMPOSITION-002
+
+- Date: 2026-08-18 (Asia/Jakarta)
+- Execution mode: reference-led, runtime-measured SHS-only visual recomposition.
+- User instruction: recompose exactly two existing SHS frames against `SHS.PNG`; make the back frame a larger upper landscape frame and the front frame a smaller lower landscape frame with positive overlap and higher z-index; preserve all other sections/elements and do not create a third frame.
+- Context consulted: latest 200 lines of this log; relevant `AGENTS.md` rules; `SHS.PNG` opened directly before implementation and reopened during final verification; `src/data/default/visual/shs.ts`; `src/sections/education/shs/SHSSection.vue`; `src/data/default/shs.ts`; runtime DOM/screenshots at `http://localhost:5173/`. No `md/` or `design/` directory exists in the current repository; root `SHS.PNG` was the available explicit reference.
+- Runtime baseline (Chrome viewport 1422x804): `shs-frame-back` `(x 20.703, y 23.321, w 350.344, h 385.171, rotation -7deg matrix, z 6)`; `shs-frame-front` `(x 514.604, y 245.173, w 274.324, h 310.685, rotation 5deg matrix, z 7)`; both portrait; overlap `0 px2`; exactly two frame nodes; overflow false.
+- Work completed: changed only independent frame geometry in `src/data/default/visual/shs.ts`. Back changed from `310x350`, `top 5%`, `left 5%` to `480x330`, `top 18%`, `left 7%`. Front changed from `250x290`, `bottom 8%`, `right 5%` to `360x250`, `bottom 3%`, `right 12%`. Existing rotations (`-7deg`, `5deg`) and z-index values (`6`, `7`) were preserved.
+- Runtime final (same viewport): back `(x 38.915, y 88.278, w 516.639, h 386.038, center 297.234/281.297, z 6)`; front `(x 349.322, y 309.303, w 380.419, h 280.425, center 539.531/449.516, z 7)`.
+- Runtime assertions: each stable ID occurs exactly once; exactly two SHS polaroids; back is larger in both rendered dimensions; both frames are landscape; front center is lower than back; z-index order `7 > 6`; overlap `34,030.861 px2`; all dimensions positive; no horizontal overflow.
+- Visual comparison: reference `SHS.PNG` and final runtime screenshot were both directly inspected. Final composition follows the reference's two-layer structure: large upper/left rear frame plus smaller lower/right foreground frame overlapping its lower portion. Text block remains unobstructed.
+- Screenshots: before `C:\Users\VivoBook\AppData\Local\Temp\shs-recomposition-002-before.png`; final `C:\Users\VivoBook\AppData\Local\Temp\shs-recomposition-002-final.png`.
+- Preservation proof: `SHSSection.vue` renderer is byte-identical to its pre-edit snapshot; `SHS.PNG` hash is unchanged; phase snapshot diff contains only eight geometry values inside the two existing frame configs. Stable IDs, image sources, object-fit/object-position, borders, radius, shadow, placeholder, decorations, SHS text/content, About, College, Admin, navbar, and every other source file were untouched.
+- Files modified by this request: `src/data/default/visual/shs.ts`; `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+- Files created/deleted in repository: none.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1831 modules transformed); `git diff --check` PASS.
+- Browser automation cleanup: the single OS-temp Chrome profile was removed; before/final screenshots remain in OS temp for reporting.
+- Current status: PHASE SHS-FRAME-VISUAL-RECOMPOSITION-002 completed and runtime-verified.
+- Next step: stop at this phase boundary and await user direction.
