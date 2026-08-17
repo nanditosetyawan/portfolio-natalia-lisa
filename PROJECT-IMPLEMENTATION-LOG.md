@@ -2396,3 +2396,350 @@ Perform the final read-only verification for PHASE FRAME-PURE-INDEPENDENCE-005. 
 
 ### Final Verdict
 READY
+
+---
+
+## Request #062
+
+### Date
+2026-08-17 (Asia/Jakarta)
+
+### User Instruction
+PHASE EDUCATION-FRAME-PLACEHOLDER-006 - change only the visual fallback of College Back/Front and SHS Back/Front so it follows the existing About PHOTO AREA placeholder pattern. Preserve all seven frame geometry/image configs, About, decorations, and Admin; validate through the existing localhost, typecheck, build, and git diff check.
+
+### Execution Mode / Scope
+- Incremental visual fallback implementation limited to College/SHS placeholder config, fallback DOM, and placeholder CSS.
+- No Admin/upload/storage/persistence work.
+- No new image assets or SVGs.
+- Existing localhost server reused; no Vite server started or stopped.
+
+### Sources Consulted
+- Latest 200 lines of PROJECT-IMPLEMENTATION-LOG.md.
+- AGENTS.md.
+- src/data/default/visual/about.ts imagePlaceholder tokens and three empty image sources.
+- src/sections/about/AboutSection.vue PHOTO AREA fallback DOM and CSS rules.
+- College/SHS visual configs and section renderers.
+- md/** and design/**: unavailable because both directories are absent.
+- User-mentioned screenshots were not present as accessible attachments in this turn; no unsupported visual detail was inferred.
+
+### About Placeholder Architecture Traced
+- Conditional v-else fallback inside each .polaroid-photo.
+- Independent .image-boundary-placeholder DOM per frame.
+- Five absolute directional labels: TOP, BOTTOM, LEFT, RIGHT, and center PHOTO AREA.
+- Section visual token object imagePlaceholder: #8D363A, opacity 0.5, 2px dashed border, 0.65rem font, 0.45rem label offset, arrowSize 12, zIndex 5.
+- Placeholder and photo area use 100% width/height; .polaroid-photo retains overflow:hidden and 2px radius.
+- About files were not changed.
+
+### Work Completed
+- Added the About-equivalent imagePlaceholder type/default tokens to College and SHS visual configs.
+- Replaced College Back/Front landscape SVG fallback with separate About-pattern PHOTO AREA fallback DOM.
+- Replaced SHS Back/Front landscape SVG fallback with separate About-pattern PHOTO AREA fallback DOM.
+- Replaced only the obsolete landscape-placeholder gradient CSS in College/SHS with the seven About placeholder CSS rules.
+- Kept image source checks and image rendering at width:100%, height:100%, with each frame's existing objectFit/objectPosition.
+
+### Preservation Audit
+Baseline before this phase: 8df278429eebda6d77032be5508167ac1bd60fd3.
+- About config/component changes: 0.
+- College/SHS frame geometry blocks changed: 0.
+- College/SHS image config blocks changed: 0.
+- Decoration config blocks changed: 0.
+- Education decoration files changed: 0.
+- Admin files changed: 0.
+- New assets/SVGs: 0.
+- Seven stable frame IDs and independent frame/image branches preserved.
+
+### Runtime / Visual Verification
+- Existing localhost: HTTP 200.
+- Chrome runtime found each of the four target frame IDs exactly once and visible.
+- Each source-empty photo area rendered one placeholder, five labels, PHOTO AREA center text, zero img elements, and zero SVG fallbacks; no broken image.
+- Placeholder width/height ratio to its own photo container was 1.0 x 1.0 for all four frames.
+- All four retained overflow:hidden and 2px photo radius.
+- Computed College/SHS placeholder border, opacity, font size/weight/family, letter spacing, and color matched About.
+- Two temporary OS screenshots were visually inspected: College and SHS placeholders filled their photo areas, stayed clipped inside frames, and were not undersized. Both screenshots were deleted; no repository artifact remains.
+
+### Validation
+- npx vue-tsc --noEmit: PASS.
+- npm run build: PASS; Vite transformed 1831 modules.
+- git diff --check for the phase range: PASS.
+
+### Git State Note
+While verification was running, an external commit 00f87ce1c14f453c46142da3a313aea95a81c1cb by nanditosetyawan captured exactly the four implementation files. The AI did not commit. Preservation was therefore audited against the prior HEAD 8df2784.
+
+### Files Changed By Phase
+- src/data/default/visual/college.ts
+- src/data/default/visual/shs.ts
+- src/sections/education/college/CollegeSection.vue
+- src/sections/education/shs/SHSSection.vue
+- PROJECT-IMPLEMENTATION-LOG.md (mandatory record)
+
+### Final Verdict
+EDUCATION FRAME PLACEHOLDER STYLE READY
+
+---
+
+## Request #063
+
+### Date
+2026-08-17 (Asia/Jakarta)
+
+### User Instruction
+Initial PHASE ABOUT-FRAME-VISUAL-RECOMPOSITION-006 request: perform browser-first mapping of the three About frames, remove the visually isolated frame, make the overlapping pair square, add gambar1.webp as the foreground entity, verify desktop/tablet/mobile, and preserve unrelated visuals.
+
+### Execution Status
+Interrupted before implementation.
+
+### Work Attempted
+- Read the latest 200 implementation-log lines and relevant AGENTS.md instructions.
+- Confirmed localhost HTTP 200, located src/data/default/template_gambar/gambar1.webp, and confirmed ABOUT.PNG/design references were not present in the repository or accessible as an attachment.
+- First Chrome CDP helper attempt stopped on a PowerShell syntax typo before screenshot creation.
+- Corrected pre-change capture was then aborted by the user before completion.
+
+### Files Modified
+None for this request.
+
+### Validation
+Not reached.
+
+### Status
+Attempted, not completed. Work continued only after the user repeated the phase as Request #064.
+
+---
+
+## Request #064
+
+### Date
+2026-08-17 (Asia/Jakarta)
+
+### User Instruction
+Repeated PHASE ABOUT-FRAME-VISUAL-RECOMPOSITION-006 request with the same browser-first mapping, one-frame removal, two-square-frame overlap, gambar1.webp foreground composition, responsive verification, preservation, and validation requirements.
+
+### Execution Mode / Scope
+- Browser-first visual audit and runtime DOM geometry mapping.
+- Incremental implementation limited to src/data/default/visual/about.ts and src/sections/about/AboutSection.vue.
+- Existing localhost reused; no Vite server started or stopped.
+- No College, SHS, Education, Admin, navbar, text-data, or decoration changes.
+
+### Runtime Evidence Before Modification
+- URL: http://localhost:5173/#/.
+- Desktop viewport: 1440x900; About section captured after runtime rendering.
+- about-frame-back-1: bounding box x=682.4, y=1052.5, 235.2x272.6; overlap area with main=0 and back-2=0.
+- about-frame-back-2: bounding box x=1085.8, y=1379.4, 261.4x298.0; z-index 1.
+- about-frame-main: bounding box x=947.4, y=1142.1, 309.8x387.7; z-index 3.
+- back-2/main bounding overlap area: approximately 25,801 px2.
+- Visual screenshot confirmed back-1 was the isolated upper-left frame, while main overlapped the upper-left area of back-2.
+
+### Mapping Decision
+- Removed: about-frame-back-1, selected from runtime zero-overlap evidence rather than its name.
+- Retained background: about-frame-back-2.
+- Retained foreground frame: about-frame-main.
+
+### Work Completed
+- Removed the complete frameBack1/frameBack1Image config/type branches and its rendered DOM.
+- Preserved separate frameBack2/frameBack2Image and frameMain/frameMainImage branches.
+- Changed about-frame-back-2 outer geometry to a 300x300 square and about-frame-main to a larger 340x340 square with measured right/upper overlap positions.
+- Preserved independent stable IDs, background, border, radius, shadow, source, objectFit, and objectPosition for both remaining frames.
+- Imported the existing src/data/default/template_gambar/gambar1.webp into About visual config.
+- Added foregroundPortrait as a separate configured entity and rendered it once as a direct About-section child with z-index 5, above frame-main z-index 3 and frame-back-2 z-index 1.
+- Added targeted About-only responsive composition rules for tablet and mobile.
+
+### Runtime Evidence After Modification
+Desktop 1440x900 after scrollIntoView:
+- Frame count: 2.
+- about-frame-back-2 rendered bounding box: 325.005x325.005, z-index 1.
+- about-frame-main rendered bounding box: 348.784x348.784, z-index 3.
+- Frame overlap area: approximately 69,467 px2.
+- gambar1 rendered once at 300x544.45, z-index 5; overlapped both frames.
+- Portrait/text collision area: 0.
+- Horizontal overflow: false.
+
+Tablet 1024x768:
+- Both rendered frame bounding boxes square: 270.838x270.838 and 307.750x307.750.
+- Frame overlap positive; portrait overlaps both frames.
+- Text collision: 0; horizontal overflow: false.
+
+Mobile 390x844:
+- Both rendered frame bounding boxes square within rounding: 295.755x295.755 and 328.059x328.059.
+- Frame overlap positive; portrait overlaps both frames and stays within viewport.
+- Text collision: 0; horizontal overflow: false.
+
+### Visual Inspection
+- Pre-change desktop screenshot and post-change desktop/tablet/mobile screenshots were opened and inspected directly.
+- Post-change screenshots showed exactly two overlapping square frames, main larger/in front, back-2 behind, and gambar1 visibly in front of both without text collision.
+- All five screenshots were stored only in OS temp and deleted after inspection; no repository artifacts remain.
+- Direct comparison to ABOUT.PNG: Tidak dapat dipastikan dari gambar because ABOUT.PNG was not present in the repository and no accessible image attachment was available in this turn. Composition was validated against the explicit textual target only.
+
+### Preservation Audit
+- About text data changed: 0.
+- About decoration config blocks changed: 0.
+- About SVG markup changed: 0.
+- College/SHS/Education changed files: 0.
+- Admin changed files: 0.
+- Navbar/header changed files: 0.
+- Remaining frame geometry/image mutation isolation: PASS.
+
+### Validation
+- npx vue-tsc --noEmit: PASS.
+- npm run build: PASS; Vite transformed 1831 modules.
+- git diff --check: PASS.
+
+### Files Modified
+- src/data/default/visual/about.ts.
+- src/sections/about/AboutSection.vue.
+- PROJECT-IMPLEMENTATION-LOG.md (mandatory entries).
+
+### Final Status
+Implementation satisfies the stated runtime composition, square, overlap, stacking, responsive, collision, overflow, independence, and preservation requirements. Formal final verdict remains FAIL only because direct comparison to the mandatory ABOUT.PNG reference could not be performed without the unavailable image.
+
+---
+
+## Request #065
+
+### Date
+2026-08-17 (Asia/Jakarta)
+
+### User Instruction
+PHASE ABOUT-FRAME-COMPOSITION-FIX-007 - browser-first correction of the current About composition using ABOUT.PNG: keep gambar1 above the small square frame above the rear frame, reduce the square to approximately one quarter of its current rendered size, make the rear frame a narrower vertical rectangle while preserving its height, verify desktop/tablet/mobile, and preserve independence and unrelated visuals.
+
+### Execution Mode / Scope
+- Runtime screenshot and CDP geometry audit before source changes.
+- Direct visual inspection of ABOUT.PNG and repeated comparison against post-change browser screenshots.
+- Geometry/position-only composition changes in the existing About visual config and its About-only responsive overrides.
+- No architecture refactor, new frame, asset replacement, or unrelated section changes.
+
+### Reference
+- ABOUT.PNG found: YES.
+- Location: D:/DITO/portfolio_natalia/portfolio-project/ABOUT.PNG.
+- Opened and visually inspected: YES.
+- Direct visual comparison performed before tuning and after two desktop iterations: YES.
+- The untracked reference file was not modified.
+
+### Desktop Runtime Baseline 1440x900
+- URL: http://localhost:5173/#/ after scrollIntoView on About.
+- gambar1: x=1053.75, y=145.80, 300x544.45, z-index 5.
+- about-frame-main square: x=961.45, y=260.80, 348.784x348.784, z-index 3.
+- about-frame-back-2 square: x=897.09, y=202.31, 325.005x325.005, z-index 1.
+- Frame count 2; portrait count 1; no horizontal overflow.
+
+### Reference Comparison / Decision
+- Baseline stacking was already correct at 5 > 3 > 1.
+- Runtime portrait was much too high/right compared with ABOUT.PNG; reference placed the head below the rear-frame top and the body farther left/lower in the cluster.
+- Required main-frame quarter target from runtime: 348.784 / 4 = 87.196 rendered pixels.
+- Rear frame needed a narrower width while keeping approximately the same rendered height and visual anchor.
+
+### Work Completed
+- Kept gambar1 width 300 and z-index 5; changed desktop position to top 33%, right 17%.
+- Changed about-frame-main config from 340x340 to 85x85, preserving square ratio, rotation 1.5deg, z-index 3, stable ID, styling, and independent image config.
+- Repositioned about-frame-main to top 27%, left 61% after visual tuning.
+- Changed about-frame-back-2 from 300x300 to 210x300, preserving its -5deg rotation, z-index 1, stable ID, styling, height, and independent image config.
+- Adjusted rear-frame right offset to 33% so narrowing did not unintentionally move its left visual anchor away from ABOUT.PNG.
+- Updated only existing About responsive geometry overrides to retain the same shape/layering model on tablet/mobile.
+
+### Final Desktop Runtime 1440x900
+- gambar1: x=882.75, y=320.75, 300x544.45, z-index 5.
+- about-frame-main: x=1079.84, y=321.70, 87.196x87.196, z-index 3.
+- Main rendered size ratio to baseline: 0.25; square ratio 1:1.
+- about-frame-back-2: x=898.90, y=206.23, 235.348x317.161 rendered, z-index 1.
+- Rear rendered height remained within approximately 2.4% of baseline while width reduced approximately 27.6%; vertical rectangle confirmed.
+- Frame overlap: approximately 4,745 px2.
+- Portrait overlapped both frames; text collision 0; horizontal overflow false.
+- Final screenshot visually compared with ABOUT.PNG: portrait placement/scale follows the reference cluster, rear frame starts left of portrait, and the small square remains visible at upper right.
+
+### Responsive Runtime
+Tablet 1024x768:
+- Rear frame 196.123x264.301; vertical rectangle; z-index 1.
+- Square 76.938x76.938; z-index 3.
+- Portrait 270x490; z-index 5.
+- Frame overlap positive; portrait overlaps both; text collision 0; overflow false.
+
+Mobile 390x844 after final tuning:
+- Rear frame 237.477x290.656; vertical rectangle; z-index 1.
+- Square 88.013x88.013; z-index 3.
+- Portrait 280.797x509.594; z-index 5.
+- Frame overlap positive; portrait overlaps both; overflow false; all entities visible.
+
+### Independence / Preservation Audit
+- Remaining frame config count: 2 with stable IDs about-frame-back-2 and about-frame-main.
+- frameBack2/frameMain and frameBack2Image/frameMainImage remain separate branches.
+- Shared/legacy frame-state references: 0.
+- Locked About decoration/image/style blocks changed: 0.
+- About text data changes: 0.
+- About SVG changes: 0.
+- College/SHS/Education changed files: 0.
+- Admin changed files: 0.
+- Navbar/header changed files: 0.
+- Third frame restored: NO.
+
+### Validation
+- npx vue-tsc --noEmit: PASS.
+- npm run build: PASS; Vite transformed 1831 modules.
+- git diff --check: PASS.
+- Six OS-temp screenshots were inspected and deleted; repository temp artifacts: 0.
+
+### Errors Encountered
+- One combined static-validation helper had a PowerShell spacing typo. Its result was not claimed; the corrected audit plus typecheck/build were rerun successfully.
+
+### Files Modified In This Phase
+- src/data/default/visual/about.ts.
+- src/sections/about/AboutSection.vue.
+- PROJECT-IMPLEMENTATION-LOG.md (mandatory record).
+
+### Final Verdict
+PASS
+
+---
+
+## Request #066
+
+**Date:** 2026-08-17
+**Instruction:** Revisi sangat terbatas pada `about-frame-back-2`: naikkan berdasarkan pengukuran visual kepala portrait dan lebarkan ke kiri/kanan menjadi horizontal rectangle; portrait `gambar1.webp` dan `about-frame-main` wajib tetap identik.
+**Execution mode:** Implementasi visual terukur dan runtime browser verification.
+
+### Context / Sources Consulted
+- Latest 200 lines of `PROJECT-IMPLEMENTATION-LOG.md`.
+- `AGENTS.md`.
+- Runtime `http://localhost:5173/` pada viewport desktop 1440x900.
+- `ABOUT.PNG` dibuka kembali sebagai referensi visual; file tidak dimodifikasi.
+- `src/data/default/visual/about.ts` dan selector responsif `.frame-back-2` dalam `src/sections/about/AboutSection.vue`.
+
+### Runtime Baseline and Visual Decision
+- Controlled baseline portrait: x=895.203, y=284.750, 300x544.453, z-index 5.
+- Controlled baseline `about-frame-main`: x=1091.574, y=285.699, 87.196x87.196, z-index 3.
+- Controlled baseline `about-frame-back-2`: x=911.139, y=170.232, 235.348x317.161 rendered; CSS 210x300; z-index 1.
+- Runtime head area was visually approximately 160px high; target upward movement was therefore approximately 80px.
+- Target center was preserved while widening so the rear frame expanded visually to both left and right.
+
+### Work Completed
+- Changed only desktop `frameBack2` geometry: width 210px to 430px, height retained 300px, bottom 43% to 55.5%, right 33% to 17%.
+- Preserved `about-frame-back-2` rotation -5deg and z-index 1.
+- Updated only `.frame-back-2` responsive overrides so the rear frame remains horizontal on tablet/mobile.
+- No portrait config/template/responsive rule changed.
+- No `about-frame-main` config/template/responsive rule changed.
+- No text, decoration, College, SHS, Education, Admin, SVG, asset, source, border, radius, shadow, or image behavior changed.
+
+### Controlled Runtime Result 1440x900
+- Portrait after: x=895.203, y=284.750, 300x544.453, z-index 5; exact bounding-box equality with baseline.
+- `about-frame-main` after: x=1091.574, y=285.699, 87.196x87.196, z-index 3; exact bounding-box equality with baseline.
+- `about-frame-back-2` after: x=801.229, y=80.645, 454.510x336.335 rendered; CSS 430x300; z-index 1.
+- Rear frame moved upward 89.587px.
+- Rear bounding left moved 109.910px left and right moved 109.253px right; two-sided widening verified.
+- Horizontal rectangle verified; no horizontal overflow.
+- Final stacking remained portrait 5 > main 3 > back 1.
+- Final screenshot: `%TEMP%/about-back-only-revision-final.png`.
+
+### Source Isolation Evidence
+- Snapshot-to-current diff for `about.ts` contains only four `frameBack2` geometry values.
+- Snapshot-to-current diff for `AboutSection.vue` contains only `.frame-back-2` responsive width/position values.
+- Portrait and main-frame runtime values, source, transform, and z-index were identical before/after in the same browser session.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; Vite transformed 1831 modules.
+- `git diff --check`: PASS (line-ending warnings only; no whitespace error).
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `src/sections/about/AboutSection.vue`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+
+### Final Status
+Rear About frame is now higher and horizontally wider in both directions; portrait and middle frame remain runtime-identical.

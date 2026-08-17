@@ -1,4 +1,6 @@
 /* Default Visual Configuration - About Section */
+import gambar1 from '../template_gambar/gambar1.webp'
+
 export interface AboutVisualConfig {
   section: {
     backgroundColor: string;
@@ -40,11 +42,6 @@ export interface AboutVisualConfig {
     height: string;
   };
   /* Frame image slots */
-  frameBack1Image: {
-    source: string;
-    objectFit: string;
-    objectPosition: string;
-  };
   frameBack2Image: {
     source: string;
     objectFit: string;
@@ -54,6 +51,13 @@ export interface AboutVisualConfig {
     source: string;
     objectFit: string;
     objectPosition: string;
+  };
+  foregroundPortrait: {
+    source: string;
+    width: string;
+    top: string;
+    right: string;
+    zIndex: number;
   };
   /* Tape decoration */
   tape: {
@@ -140,19 +144,6 @@ export interface AboutVisualConfig {
     strokeWidth: number;
   };
   /* Polaroid frames */
-  frameBack1: {
-    id: string;
-    width: string;
-    height: string;
-    top: string;
-    left: string;
-    transformRotate: string;
-    zIndex: number;
-    backgroundColor: string;
-    border: string;
-    borderRadius: string;
-    boxShadow: string;
-  };
   frameBack2: {
     id: string;
     width: string;
@@ -228,11 +219,6 @@ export const defaultAboutConfig: AboutVisualConfig = {
     flexBasis: '56%',
     height: '640px'
   },
-  frameBack1Image: {
-    source: '',
-    objectFit: 'cover',
-    objectPosition: 'center center'
-  },
   frameBack2Image: {
     source: '',
     objectFit: 'cover',
@@ -242,6 +228,13 @@ export const defaultAboutConfig: AboutVisualConfig = {
     source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
+  },
+  foregroundPortrait: {
+    source: gambar1,
+    width: '300px',
+    top: '33%',
+    right: '17%',
+    zIndex: 5
   },
   tape: {
     width: '96px',
@@ -322,26 +315,13 @@ export const defaultAboutConfig: AboutVisualConfig = {
     color: '#FF9A86',
     strokeWidth: 3
   },
-  frameBack1: {
-    id: 'about-frame-back-1',
-    width: '210px',
-    height: '252px',
-    top: '2%',
-    left: '4%',
-    transformRotate: '-6deg',
-    zIndex: 1,
-    backgroundColor: '#FFFFFF',
-    border: 'none',
-    borderRadius: '4px',
-    boxShadow: '0 16px 32px rgba(61, 40, 34, 0.16)'
-  },
   frameBack2: {
     id: 'about-frame-back-2',
-    width: '230px',
-    height: '272px',
-    bottom: '4%',
-    right: '2%',
-    transformRotate: '7deg',
+    width: '430px',
+    height: '300px',
+    bottom: '55.5%',
+    right: '17%',
+    transformRotate: '-5deg',
     zIndex: 1,
     backgroundColor: '#FFFFFF',
     border: 'none',
@@ -350,10 +330,10 @@ export const defaultAboutConfig: AboutVisualConfig = {
   },
   frameMain: {
     id: 'about-frame-main',
-    width: '300px',
-    height: '380px',
-    top: '15%',
-    left: '42%',
+    width: '85px',
+    height: '85px',
+    top: '27%',
+    left: '61%',
     transformRotate: '1.5deg',
     zIndex: 3,
     backgroundColor: '#FFFFFF',

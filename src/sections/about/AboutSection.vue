@@ -3,7 +3,7 @@ import { ArrowDown, ArrowRight, Sparkle } from 'lucide-vue-next'
 import { defaultAbout } from '../../data/default/about'
 import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 
-function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage') {
+function imgStyle(source: 'frameBack2Image' | 'frameMainImage') {
   const cfg = vConfig[source]
   return {
     width: '100%',
@@ -14,7 +14,7 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
   } as any
 }
 
-function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage') {
+function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
   return Boolean(vConfig[source].source)
 }
 </script>
@@ -134,42 +134,7 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
           height: vConfig.visual.height
         }"
       >
-<div
-          class="polaroid frame-back-1"
-          aria-hidden="true"
-          :data-frame-id="vConfig.frameBack1.id"
-          :style="{
-            backgroundColor: vConfig.frameBack1.backgroundColor,
-            border: vConfig.frameBack1.border,
-            borderRadius: vConfig.frameBack1.borderRadius,
-            boxShadow: vConfig.frameBack1.boxShadow,
-            width: vConfig.frameBack1.width,
-            height: vConfig.frameBack1.height,
-            top: vConfig.frameBack1.top,
-            left: vConfig.frameBack1.left,
-            transform: 'rotate(' + vConfig.frameBack1.transformRotate + ')',
-            zIndex: vConfig.frameBack1.zIndex
-          }"
-        >
-          <div class="polaroid-photo">
-            <img v-if="hasSource('frameBack1Image')" :src="vConfig.frameBack1Image.source" alt="Profile photo" :style="imgStyle('frameBack1Image')" />
-            <div v-else class="image-boundary-placeholder" :style="{
-              color: vConfig.imagePlaceholder.color,
-              opacity: vConfig.imagePlaceholder.opacity,
-              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
-              fontSize: vConfig.imagePlaceholder.fontSize,
-              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
-            }">
-              <span class="boundary-label boundary-top">↑ TOP</span>
-              <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
-              <span class="boundary-label boundary-left">← LEFT</span>
-              <span class="boundary-label boundary-right">→ RIGHT</span>
-              <span class="boundary-label boundary-center">PHOTO AREA</span>
-            </div>
-          </div>
-          <div class="polaroid-caption"></div>
-        </div>
-         <div
+        <div
             class="polaroid frame-back-2"
             aria-hidden="true"
             :data-frame-id="vConfig.frameBack2.id"
@@ -255,6 +220,19 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
         </div>
       </div>
     </div>
+
+    <img
+      class="about-foreground-portrait"
+      data-about-foreground="gambar1"
+      :src="vConfig.foregroundPortrait.source"
+      alt="Lisa Natalia"
+      :style="{
+        width: vConfig.foregroundPortrait.width,
+        top: vConfig.foregroundPortrait.top,
+        right: vConfig.foregroundPortrait.right,
+        zIndex: vConfig.foregroundPortrait.zIndex
+      }"
+    />
 
     <!-- Foreground decorative elements -->
     <div class="front-decor" aria-hidden="true">
@@ -560,14 +538,20 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
   opacity: 0.7;
 }
 
-/* Back frame 1 - upper left */
-.frame-back-1 {}
-
 /* Back frame 2 - lower right */
 .frame-back-2 {}
 
 /* Main frame - center front */
 .frame-main {}
+
+.about-foreground-portrait {
+  position: absolute;
+  display: block;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+}
 
 .placeholder-main {
   background: #F4EBDC;
@@ -692,6 +676,82 @@ function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainIma
   }
   50% {
     transform: translateX(-50%) translateY(7px);
+  }
+}
+
+@media (max-width: 1100px) {
+  .about-section {
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+  }
+
+  .about-container {
+    gap: 2rem !important;
+  }
+
+  .frame-back-2 {
+    width: 360px !important;
+    height: 250px !important;
+    bottom: 56% !important;
+    right: 13% !important;
+  }
+
+  .frame-main {
+    width: 75px !important;
+    height: 75px !important;
+    top: 35% !important;
+    left: 60% !important;
+  }
+
+  .about-foreground-portrait {
+    width: 270px !important;
+    right: 12% !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .about-section {
+    padding: 4rem 1.25rem 7rem !important;
+  }
+
+  .about-container {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0 !important;
+  }
+
+  .about-content {
+    flex-basis: auto !important;
+    padding-top: 0 !important;
+  }
+
+  .about-visual {
+    flex-basis: auto !important;
+    width: 100%;
+    height: 520px !important;
+  }
+
+  .frame-back-2 {
+    width: min(77vw, 300px) !important;
+    height: min(70vw, 280px) !important;
+    top: -2.25rem !important;
+    right: 18% !important;
+    bottom: auto !important;
+  }
+
+  .frame-main {
+    width: min(22vw, 88px) !important;
+    height: min(22vw, 88px) !important;
+    top: 9rem !important;
+    left: auto !important;
+    right: 5% !important;
+  }
+
+  .about-foreground-portrait {
+    width: min(72vw, 290px) !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 7rem;
   }
 }
 </style>
