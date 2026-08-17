@@ -78,6 +78,15 @@ export interface SHSVisualConfig {
     objectFit: string;
     objectPosition: string;
   };
+  imagePlaceholder: {
+    color: string;
+    opacity: number;
+    borderWidth: string;
+    fontSize: string;
+    labelOffset: string;
+    arrowSize: number;
+    zIndex: number;
+  };
   /* Decorative "SHS" text */
   decoText: {
     top: string;
@@ -263,6 +272,15 @@ export const defaultSHSConfig: SHSVisualConfig = {
     source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
+  },
+  imagePlaceholder: {
+    color: '#8D363A',
+    opacity: 0.5,
+    borderWidth: '2px',
+    fontSize: '0.65rem',
+    labelOffset: '0.45rem',
+    arrowSize: 12,
+    zIndex: 5
   },
   decoText: {
     top: '14%',

@@ -141,6 +141,15 @@ export interface CollegeVisualConfig {
     objectFit: string;
     objectPosition: string;
   };
+  imagePlaceholder: {
+    color: string;
+    opacity: number;
+    borderWidth: string;
+    fontSize: string;
+    labelOffset: string;
+    arrowSize: number;
+    zIndex: number;
+  };
   dotGrid4: {
     id: string;
     width: string;
@@ -285,6 +294,15 @@ export const defaultCollegeConfig: CollegeVisualConfig = {
     source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
+  },
+  imagePlaceholder: {
+    color: '#8D363A',
+    opacity: 0.5,
+    borderWidth: '2px',
+    fontSize: '0.65rem',
+    labelOffset: '0.45rem',
+    arrowSize: 12,
+    zIndex: 5
   },
   tapeTl: {
     top: '-12px',

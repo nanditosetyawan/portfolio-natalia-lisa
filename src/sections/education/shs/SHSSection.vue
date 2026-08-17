@@ -75,16 +75,21 @@ function imageStyle(key: SHSFrameImageKey) {
           transform: `rotate(${vConfig.frameBack.transformRotate})`,
           zIndex: vConfig.frameBack.zIndex
         }">
-          <div class="polaroid-photo landscape-placeholder">
+          <div class="polaroid-photo">
             <img v-if="hasImage('frameBackImage')" :src="imageSource('frameBackImage')" alt="SHS frame back photo" :style="imageStyle('frameBackImage')" />
-            <svg v-else viewBox="0 0 280 220" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
-              <rect width="280" height="220" fill="#C8E3F4"/>
-              <path d="M0 160 Q 70 120 140 145 Q 210 170 280 130 L280 220 L0 220Z" fill="#6B8F3C"/>
-              <path d="M0 180 Q 60 155 120 170 Q 200 190 280 160 L280 220 L0 220Z" fill="#4A7025"/>
-              <ellipse cx="190" cy="60" rx="22" ry="10" fill="white"/>
-              <ellipse cx="210" cy="55" rx="18" ry="8" fill="white"/>
-              <ellipse cx="100" cy="70" rx="14" ry="6" fill="white"/>
-            </svg>
+            <div v-else class="image-boundary-placeholder" :style="{
+              color: vConfig.imagePlaceholder.color,
+              opacity: vConfig.imagePlaceholder.opacity,
+              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
+              fontSize: vConfig.imagePlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+            }">
+              <span class="boundary-label boundary-top">↑ TOP</span>
+              <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
+              <span class="boundary-label boundary-left">← LEFT</span>
+              <span class="boundary-label boundary-right">→ RIGHT</span>
+              <span class="boundary-label boundary-center">PHOTO AREA</span>
+            </div>
           </div>
           <div class="polaroid-bottom"></div>
         </div>
@@ -102,15 +107,21 @@ function imageStyle(key: SHSFrameImageKey) {
           transform: `rotate(${vConfig.frameFront.transformRotate})`,
           zIndex: vConfig.frameFront.zIndex
         }">
-          <div class="polaroid-photo landscape-placeholder">
+          <div class="polaroid-photo">
             <img v-if="hasImage('frameFrontImage')" :src="imageSource('frameFrontImage')" alt="SHS frame front photo" :style="imageStyle('frameFrontImage')" />
-            <svg v-else viewBox="0 0 240 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
-              <rect width="240" height="180" fill="#C8E3F4"/>
-              <path d="M0 130 Q 60 100 120 120 Q 180 140 240 110 L240 180 L0 180Z" fill="#6B8F3C"/>
-              <path d="M0 150 Q 50 130 110 145 Q 170 160 240 135 L240 180 L0 180Z" fill="#4A7025"/>
-              <ellipse cx="160" cy="50" rx="18" ry="8" fill="white"/>
-              <ellipse cx="80" cy="58" rx="12" ry="5" fill="white"/>
-            </svg>
+            <div v-else class="image-boundary-placeholder" :style="{
+              color: vConfig.imagePlaceholder.color,
+              opacity: vConfig.imagePlaceholder.opacity,
+              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
+              fontSize: vConfig.imagePlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+            }">
+              <span class="boundary-label boundary-top">↑ TOP</span>
+              <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
+              <span class="boundary-label boundary-left">← LEFT</span>
+              <span class="boundary-label boundary-right">→ RIGHT</span>
+              <span class="boundary-label boundary-center">PHOTO AREA</span>
+            </div>
           </div>
           <div class="polaroid-bottom"></div>
         </div>
@@ -266,8 +277,60 @@ function imageStyle(key: SHSFrameImageKey) {
   display: block;
 }
 
-.landscape-placeholder {
-  background: linear-gradient(180deg, #C8E3F4 0%, #DCE8F2 65%, #6B8F3C 65%, #4A7025 100%);
+.image-boundary-placeholder {
+  width: 100%;
+  height: 100%;
+  border: var(--placeholder-border-width, 2px) dashed var(--placeholder-color, #8D363A);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: none;
+  opacity: var(--placeholder-opacity, 0.5);
+}
+
+.image-boundary-placeholder .boundary-label {
+  position: absolute;
+  font-size: var(--placeholder-font-size, 0.65rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Inter', system-ui, sans-serif;
+  pointer-events: none;
+  color: var(--placeholder-color, #8D363A);
+}
+
+.image-boundary-placeholder .boundary-top {
+  top: var(--placeholder-label-offset, 0.45rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.image-boundary-placeholder .boundary-bottom {
+  bottom: var(--placeholder-label-offset, 0.45rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.image-boundary-placeholder .boundary-left {
+  left: var(--placeholder-label-offset, 0.45rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.image-boundary-placeholder .boundary-right {
+  right: var(--placeholder-label-offset, 0.45rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.image-boundary-placeholder .boundary-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--placeholder-font-size, 0.65rem);
+  opacity: 0.7;
 }
 
 .polaroid-bottom {
