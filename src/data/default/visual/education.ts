@@ -74,7 +74,7 @@ section: {
     },
 container: {
       maxWidth: '1200px',
-      padding: '10rem 2rem 4rem',
+      padding: '14rem 2rem 4rem',
       margin: '0 auto'
     },
     title: {
@@ -93,7 +93,7 @@ container: {
     },
     scrollIndicator: {
       color: '#8D363A',
-      gap: '1.5rem',
+      gap: '0rem',
       bottom: '3rem'
     },
    decorPill: {
