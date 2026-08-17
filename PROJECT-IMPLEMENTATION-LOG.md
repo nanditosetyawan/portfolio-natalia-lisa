@@ -2743,3 +2743,115 @@ PASS
 
 ### Final Status
 Rear About frame is now higher and horizontally wider in both directions; portrait and middle frame remain runtime-identical.
+---
+
+## Request #067
+
+**Date:** 2026-08-17
+**Instruction:** Geser sedikit hanya `about-frame-back-2` ke kiri; semua ukuran, bentuk, rotasi, z-index, portrait, main frame, layer, dan responsive rule lain wajib tetap.
+**Execution mode:** Runtime-measured minimal visual adjustment.
+
+### Context Consulted
+- Latest 200 lines of `PROJECT-IMPLEMENTATION-LOG.md`.
+- `AGENTS.md`.
+- Current `src/data/default/visual/about.ts`.
+- Runtime `http://localhost:5173/` at 1440x900.
+
+### Runtime Baseline
+- Portrait: x=895.203, y=284.750, 300x544.453, z-index 5.
+- `about-frame-main`: x=1091.574, y=285.699, 87.196x87.196, z-index 3.
+- `about-frame-back-2`: x=801.229, y=80.645, 454.510x336.335 rendered; CSS 430x300; z-index 1; rotation matrix unchanged.
+- Baseline screenshot: `%TEMP%/about-back-left-shift-before.png`.
+
+### Work Completed
+- Changed exactly one source value under stable ID `about-frame-back-2`: desktop `right` from 17% to 19%.
+- No width, height, vertical position, rotation, z-index, style, image, renderer, or responsive rule changed.
+- No portrait or `about-frame-main` source changed.
+
+### Runtime Result
+- `about-frame-back-2`: x=787.510, y=80.645, 454.510x336.335; horizontal movement -13.719px.
+- Rear frame y, width, height, transform, and z-index remained identical.
+- Portrait bounding box and computed properties remained exactly identical.
+- `about-frame-main` bounding box and computed properties remained exactly identical.
+- Layering remained portrait 5 > main 3 > back 1; horizontal rectangle and no overflow verified.
+- Final screenshot: `%TEMP%/about-back-left-shift-after.png`.
+
+### Source Isolation
+- Snapshot-to-current diff contains exactly one line: `frameBack2.right` 17% to 19%.
+- Files in College, SHS, Education, Admin, decorations, and responsive CSS changed: 0.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; Vite transformed 1831 modules.
+- `git diff --check`: PASS.
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+
+### Final Status
+`about-frame-back-2` shifted slightly left by 13.719px with all protected layers and geometry unchanged.
+---
+
+## Request #068
+
+**Date:** 2026-08-17
+**Instruction:** Geser hanya `about-frame-back-2` lebih jauh ke kiri dari runtime terakhir, tanpa perubahan properti atau layer lain.
+**Execution mode:** Runtime-measured single-property adjustment.
+
+### Runtime Baseline
+- `about-frame-back-2`: x=787.510, y=80.645, 454.510x336.335, z-index 1.
+- Portrait: x=895.203, y=284.750, 300x544.453, z-index 5.
+- Main frame: x=1091.574, y=285.699, 87.196x87.196, z-index 3.
+- Screenshot: `%TEMP%/about-back-further-left-before.png`.
+
+### Work and Result
+- Changed exactly `frameBack2.right` from 19% to 23%.
+- Runtime rear frame after: x=760.104, y=80.645, 454.510x336.335, z-index 1.
+- Horizontal delta: -27.406px.
+- Y, width, height, transform/rotation, and z-index remained identical.
+- Portrait and main-frame bounding boxes remained identical.
+- Horizontal rectangle preserved; overflow false.
+- Final screenshot: `%TEMP%/about-back-further-left-after.png`.
+- Snapshot diff confirmed one source line changed.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; 1831 modules transformed.
+- `git diff --check`: PASS.
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+---
+
+## Request #069
+
+**Date:** 2026-08-17
+**Instruction:** Besarkan hanya layer tengah `about-frame-main` dan pertahankan rasio square, source, rotation, z-index, portrait, rear frame, serta layer lain.
+**Execution mode:** Runtime-measured two-value size adjustment.
+
+### Runtime Baseline
+- Portrait: x=895.203, y=284.750, 300x544.453, z-index 5.
+- Main: x=1091.574, y=285.699, 87.196x87.196 rendered; CSS 85x85; z-index 3.
+- Back: x=725.823, y=99.832, 454.510x336.335, z-index 1.
+- Screenshot: `%TEMP%/about-main-enlarge-before.png`.
+
+### Work and Result
+- Changed only `frameMain.width` and `frameMain.height` from 85px to 130px.
+- Final main bounding box: x=1090.993, y=285.118, 133.3584x133.3585; effective ratio 1:1; z-index 3.
+- Main source/image config, top/left config, rotation 1.5deg, styling, and responsive rules unchanged.
+- Portrait bounding box and computed properties remained exactly identical.
+- Back-frame bounding box and computed properties remained exactly identical.
+- Stacking remained portrait 5 > main 3 > back 1; overflow false.
+- Final screenshot: `%TEMP%/about-main-enlarge-after.png`.
+- Snapshot diff confirmed exactly the two equal main-size values changed.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; 1831 modules transformed.
+- `git diff --check`: PASS.
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
