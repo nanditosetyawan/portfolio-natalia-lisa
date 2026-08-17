@@ -2926,3 +2926,30 @@ Rear About frame is now higher and horizontally wider in both directions; portra
 ### Files Modified In This Request
 - `src/data/default/visual/about.ts`.
 - `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
+---
+
+## Request #072
+
+**Date:** 2026-08-17
+**Instruction:** Shift only `about-frame-main` slightly right; preserve size, Y, rotation, z-index, styling, portrait, and rear frame.
+**Execution mode:** Runtime-measured single-property horizontal adjustment.
+
+### Runtime Baseline and Result 1440x900
+- Main before: x=957.391, y=374.125, 307.7502x307.7503, z-index 3.
+- Changed exactly `frameMain.left` from 41.83% to 44.83%.
+- Main after: x=977.953, y=374.125, 307.7502x307.7503, z-index 3.
+- Horizontal delta: +20.5625px; Y/size/transform unchanged.
+- Portrait remained x=895.203, y=284.750, 300x544.453, z-index 5.
+- Back remained x=725.823, y=99.832, 454.510x336.335, z-index 1.
+- Stacking remained 5 > 3 > 1; overflow false.
+- Screenshots: `%TEMP%/about-main-right-before.png` and `%TEMP%/about-main-right-after.png`.
+- Snapshot diff confirmed one source property changed.
+
+### Validation
+- `npx vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS; 1831 modules transformed.
+- `git diff --check`: PASS.
+
+### Files Modified In This Request
+- `src/data/default/visual/about.ts`.
+- `PROJECT-IMPLEMENTATION-LOG.md` (mandatory request record).
