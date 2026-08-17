@@ -330,10 +330,10 @@ export const defaultAboutConfig: AboutVisualConfig = {
   },
   frameMain: {
     id: 'about-frame-main',
-    width: '130px',
-    height: '130px',
+    width: '390px',
+    height: '390px',
     top: '27%',
-    left: '61%',
+    left: '42%',
     transformRotate: '1.5deg',
     zIndex: 3,
     backgroundColor: '#FFFFFF',
