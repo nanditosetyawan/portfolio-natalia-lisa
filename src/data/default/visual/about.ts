@@ -85,6 +85,16 @@ export interface AboutVisualConfig {
     boxShadow: string;
     zIndex: number;
   };
+  /* Image boundary placeholder (conditional, non-permanent) */
+  imagePlaceholder: {
+    color: string;
+    opacity: number;
+    borderWidth: string;
+    fontSize: string;
+    labelOffset: string;
+    arrowSize: number;
+    zIndex: number;
+  };
   /* Background decorative rings */
   bgRing1: {
     width: string;
@@ -264,6 +274,15 @@ export const defaultAboutConfig: AboutVisualConfig = {
     opacity: 0.75,
     boxShadow: 'inset 0 0 0 1px rgba(255, 214, 166, 0.6)',
     zIndex: 4
+  },
+  imagePlaceholder: {
+    color: '#8D363A',
+    opacity: 0.5,
+    borderWidth: '2px',
+    fontSize: '0.65rem',
+    labelOffset: '0.45rem',
+    arrowSize: 12,
+    zIndex: 5
   },
   bgRing1: {
     width: '260px',

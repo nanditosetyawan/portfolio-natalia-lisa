@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowRight, Sparkle, User } from 'lucide-vue-next'
+import { ArrowDown, ArrowRight, Sparkle } from 'lucide-vue-next'
 import { defaultAbout } from '../../data/default/about'
 import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 
@@ -13,6 +13,10 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
     objectFit: cfg.objectFit,
     objectPosition: cfg.objectPosition
   } as any
+}
+
+function hasSource(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImage' | 'frameImage') {
+  return !!frameImages[vConfig[source].source]
 }
 </script>
 
@@ -131,7 +135,7 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
           height: vConfig.visual.height
         }"
       >
-        <div
+<div
           class="polaroid frame-back-1"
           aria-hidden="true"
           :style="{
@@ -147,10 +151,23 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
           }"
         >
           <div class="polaroid-photo">
-            <img :src="frameImages[vConfig.frameBack1Image.source]" alt="Profile photo" :style="imgStyle('frameBack1Image')" />
+            <img v-if="hasSource('frameBack1Image')" :src="frameImages[vConfig.frameBack1Image.source]" alt="Profile photo" :style="imgStyle('frameBack1Image')" />
+            <div v-else class="image-boundary-placeholder" :style="{
+              color: vConfig.imagePlaceholder.color,
+              opacity: vConfig.imagePlaceholder.opacity,
+              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
+              fontSize: vConfig.imagePlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+            }">
+              <span class="boundary-label boundary-top">↑ TOP</span>
+              <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
+              <span class="boundary-label boundary-left">← LEFT</span>
+              <span class="boundary-label boundary-right">→ RIGHT</span>
+              <span class="boundary-label boundary-center">PHOTO AREA</span>
+            </div>
           </div>
-<div class="polaroid-caption"></div>
-         </div>
+          <div class="polaroid-caption"></div>
+        </div>
          <div
             class="polaroid frame-back-2"
             aria-hidden="true"
@@ -166,11 +183,24 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
               zIndex: vConfig.frameBack2.zIndex
             }"
           >
-            <div class="polaroid-photo">
-              <img :src="frameImages[vConfig.frameBack2Image.source]" alt="Profile photo" :style="imgStyle('frameBack2Image')" />
+          <div class="polaroid-photo">
+            <img v-if="hasSource('frameBack2Image')" :src="frameImages[vConfig.frameBack2Image.source]" alt="Profile photo" :style="imgStyle('frameBack2Image')" />
+            <div v-else class="image-boundary-placeholder" :style="{
+              color: vConfig.imagePlaceholder.color,
+              opacity: vConfig.imagePlaceholder.opacity,
+              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
+              fontSize: vConfig.imagePlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+            }">
+              <span class="boundary-label boundary-top">↑ TOP</span>
+              <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
+              <span class="boundary-label boundary-left">← LEFT</span>
+              <span class="boundary-label boundary-right">→ RIGHT</span>
+              <span class="boundary-label boundary-center">PHOTO AREA</span>
             </div>
-            <div class="polaroid-caption"></div>
-</div>
+          </div>
+          <div class="polaroid-caption"></div>
+        </div>
         <div
           class="polaroid frame-main"
           :style="{
@@ -186,10 +216,19 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
           }"
         >
           <div class="polaroid-photo">
-            <img v-if="frameImages[vConfig.frameMainImage.source]" :src="frameImages[vConfig.frameMainImage.source]" alt="Profile photo" :style="imgStyle('frameMainImage')" />
-            <div v-else class="placeholder-main">
-              <User class="placeholder-icon" :size="44" :stroke-width="1.2" />
-              <span class="placeholder-label">Profile photo<br/>(Pending user asset)</span>
+            <img v-if="hasSource('frameMainImage')" :src="frameImages[vConfig.frameMainImage.source]" alt="Profile photo" :style="imgStyle('frameMainImage')" />
+            <div v-else class="image-boundary-placeholder" :style="{
+              color: vConfig.imagePlaceholder.color,
+              opacity: vConfig.imagePlaceholder.opacity,
+              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
+              fontSize: vConfig.imagePlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+            }">
+              <span class="boundary-label boundary-top">↑ TOP</span>
+              <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
+              <span class="boundary-label boundary-left">← LEFT</span>
+              <span class="boundary-label boundary-right">→ RIGHT</span>
+              <span class="boundary-label boundary-center">PHOTO AREA</span>
             </div>
           </div>
           <div class="polaroid-caption"></div>
@@ -460,6 +499,63 @@ function imgStyle(source: 'frameBack1Image' | 'frameBack2Image' | 'frameMainImag
 
 .polaroid-caption {
   height: 38px;
+}
+
+/* Image boundary placeholder (shown when frame has no image source) */
+.image-boundary-placeholder {
+  width: 100%;
+  height: 100%;
+  border: var(--placeholder-border-width, 2px) dashed var(--placeholder-color, #8D363A);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: none;
+  opacity: var(--placeholder-opacity, 0.5);
+}
+
+.image-boundary-placeholder .boundary-label {
+  position: absolute;
+  font-size: var(--placeholder-font-size, 0.65rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Inter', system-ui, sans-serif;
+  pointer-events: none;
+  color: var(--placeholder-color, #8D363A);
+}
+
+.image-boundary-placeholder .boundary-top {
+  top: var(--placeholder-label-offset, 0.45rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.image-boundary-placeholder .boundary-bottom {
+  bottom: var(--placeholder-label-offset, 0.45rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.image-boundary-placeholder .boundary-left {
+  left: var(--placeholder-label-offset, 0.45rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.image-boundary-placeholder .boundary-right {
+  right: var(--placeholder-label-offset, 0.45rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.image-boundary-placeholder .boundary-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--placeholder-font-size, 0.65rem);
+  opacity: 0.7;
 }
 
 /* Back frame 1 - upper left */
