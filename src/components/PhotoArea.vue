@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { PhotoAreaId } from '../data/default/photoAreas'
-
 const props = defineProps<{
-  frameId: PhotoAreaId
+  frameId: string
   source: string
   alt: string
   objectPosition?: string

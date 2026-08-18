@@ -1,19 +1,27 @@
 <script setup lang="ts">
-import { ref, reactive, onBeforeUnmount } from 'vue'
+import { computed, ref, reactive, onBeforeUnmount, onMounted, watch } from 'vue'
 import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
 import { defaultCertificates, type CertificateCard } from '../../data/default/certificates'
 import { defaultCertificateConfig as vConfig } from '../../data/default/visual/certificate'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
+import { useCertificatesStore } from '../../stores/certificates'
 
 // ===== Card Data =====
 // Add image URLs to the `detailImages` array to replace placeholders.
 // Empty string '' = show placeholder. Replace with actual URL to show real photo.
 // Use default certificates data
-const cards = defaultCertificates.cards
 const certificatesTitle = defaultCertificates.title
 const photoAreaImages = usePhotoAreaImagesStore()
-const photoSource = (id: CertificateCard['thumbnail']['id']) => photoAreaImages.frames[id].source
+const certificatesStore = useCertificatesStore()
+const cards = computed(() => certificatesStore.displayedCards)
+const photoSource = (image: CertificateCard['thumbnail']) => (
+  (image.id in photoAreaImages.frames ? photoAreaImages.frames[image.id as keyof typeof photoAreaImages.frames].source : '')
+  || image.source
+)
+const certificateOrigin = (id: string) => (
+  certificatesStore.databaseCertificates.some((card) => card.id === id) ? 'database' : 'default'
+)
 
 // ===== Expand State =====
 const expandedCards = ref<Set<string>>(new Set())
@@ -40,7 +48,7 @@ function toggleCard(id: string) {
 }
 
 function startAutoSlide(id: string) {
-  const card = cards.find(c => c.id === id)
+  const card = cards.value.find(c => c.id === id)
   if (!card || card.detailImages.length <= 1) return
   clearSlideTimer(id)
   slideTimers[id] = setInterval(() => {
@@ -57,7 +65,7 @@ function clearSlideTimer(id: string) {
 
 function goToSlide(id: string, index: number) {
   currentSlides[id] = index
-  const card = cards.find(c => c.detailImages.length > 1)
+  const card = cards.value.find(c => c.id === id)
   if (card && card.detailImages.length > 1) {
     clearSlideTimer(id)
     startAutoSlide(id)
@@ -65,7 +73,7 @@ function goToSlide(id: string, index: number) {
 }
 
 function downloadCert(card: CertificateCard) {
-  const validImages = card.detailImages.map((image) => photoSource(image.id)).filter(Boolean)
+  const validImages = card.detailImages.map((image) => photoSource(image)).filter(Boolean)
   if (validImages.length === 0) {
     // Placeholder: no actual image files yet
     alert(`Gambar sertifikat "${card.title}" belum tersedia.\nGanti URL di data cards untuk mengaktifkan download.`)
@@ -83,6 +91,15 @@ function downloadCert(card: CertificateCard) {
     document.body.removeChild(a)
   })
 }
+
+onMounted(() => certificatesStore.loadInitial())
+
+watch(cards, (nextCards) => {
+  const visibleIds = new Set(nextCards.map((card) => card.id))
+  Object.keys(slideTimers).forEach((id) => {
+    if (!visibleIds.has(id)) clearSlideTimer(id)
+  })
+})
 
 onBeforeUnmount(() => {
   Object.keys(slideTimers).forEach(id => clearSlideTimer(id))
@@ -279,11 +296,13 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Cards Stack (v-for loop) -->
-      <div class="cards-stack">
+      <div class="cards-stack" :data-certificate-count="cards.length">
         <div
           v-for="card in cards"
           :key="card.id"
           class="certificate-card"
+          :data-certificate-id="card.id"
+          :data-certificate-origin="certificateOrigin(card.id)"
           :class="{ 'is-expanded': isExpanded(card.id) }"
           :style="{ backgroundColor: vConfig.certificateCard.backgroundColor }"
         >
@@ -295,7 +314,7 @@ onBeforeUnmount(() => {
                  <PhotoArea
                    class="thumbnail-image"
                    :frame-id="card.thumbnail.id"
-                   :source="photoSource(card.thumbnail.id)"
+                   :source="photoSource(card.thumbnail)"
                    :alt="`${card.title} - thumbnail`"
                    :object-position="card.thumbnail.image.objectPosition"
                  >
@@ -379,7 +398,7 @@ onBeforeUnmount(() => {
                      <PhotoArea
                        class="cert-photo-area"
                        :frame-id="image.id"
-                       :source="photoSource(image.id)"
+                       :source="photoSource(image)"
                        :alt="`${card.title} - foto ${idx + 1}`"
                        :object-position="image.image.objectPosition"
                      >
@@ -421,10 +440,22 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <p v-if="certificatesStore.isLoading" class="certificate-status" role="status" aria-live="polite">
+      Loading certificates...
+    </p>
+    <p v-else-if="certificatesStore.errorMessage" class="certificate-status certificate-status-error" role="status" aria-live="polite">
+      {{ certificatesStore.errorMessage }}
+    </p>
+
     <!-- Bottom refresh button (kept as-is) -->
     <div class="bottom-action">
-      <button class="refresh-btn" aria-label="Refresh certificates view">
-        <svg class="refresh-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <button
+        class="refresh-btn"
+        :disabled="certificatesStore.isLoading"
+        aria-label="Refresh and show all certificates"
+        @click="certificatesStore.refreshCertificates()"
+      >
+        <svg class="refresh-icon" :class="{ 'is-loading': certificatesStore.isLoading }" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10" />
           <polyline points="1 20 1 14 7 14" />
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -748,6 +779,18 @@ onBeforeUnmount(() => {
   margin-top: 3.5rem;
   z-index: 5;
 }
+.certificate-status {
+  position: relative;
+  z-index: 5;
+  margin: 1.5rem 0 -2rem;
+  color: rgba(54, 45, 37, 0.7);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.82rem;
+  text-align: center;
+}
+.certificate-status-error {
+  color: #8D363A;
+}
 .refresh-btn {
   width: 48px;
   height: 48px;
@@ -762,12 +805,22 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+.refresh-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 .refresh-btn:hover {
   transform: scale(1.08);
   box-shadow: 0 8px 20px rgba(54, 45, 37, 0.16);
 }
 .refresh-icon {
   transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.refresh-icon.is-loading {
+  animation: certificate-refresh-spin 0.8s linear infinite;
+}
+@keyframes certificate-refresh-spin {
+  to { transform: rotate(360deg); }
 }
 .refresh-btn:hover .refresh-icon {
   transform: rotate(180deg);

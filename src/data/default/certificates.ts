@@ -1,5 +1,3 @@
-import type { PhotoAreaId } from './photoAreas'
-
 export interface CertificatePhotoPlaceholder {
   label: string
   hint: string
@@ -8,7 +6,7 @@ export interface CertificatePhotoPlaceholder {
 }
 
 export interface CertificatePhotoArea {
-  id: PhotoAreaId
+  id: string
   source: string
   placeholder: CertificatePhotoPlaceholder
   image: {
@@ -23,6 +21,8 @@ export interface CertificateCard {
   description: string
   thumbnail: CertificatePhotoArea
   detailImages: CertificatePhotoArea[]
+  order?: number
+  active?: boolean
 }
 
 export interface DefaultCertificates {
@@ -59,7 +59,7 @@ export const defaultCertificates: DefaultCertificates = {
   ]
 }
 
-function createCertificatePhotoArea(id: PhotoAreaId, label: string): CertificatePhotoArea {
+export function createCertificatePhotoArea(id: string, label: string): CertificatePhotoArea {
   return {
     id,
     source: '',
@@ -72,6 +72,22 @@ function createCertificatePhotoArea(id: PhotoAreaId, label: string): Certificate
     image: {
       objectPosition: 'center center'
     }
+  }
+}
+
+export function cloneCertificateCard(card: CertificateCard): CertificateCard {
+  return {
+    ...card,
+    thumbnail: {
+      ...card.thumbnail,
+      placeholder: { ...card.thumbnail.placeholder },
+      image: { ...card.thumbnail.image }
+    },
+    detailImages: card.detailImages.map((image) => ({
+      ...image,
+      placeholder: { ...image.placeholder },
+      image: { ...image.image }
+    }))
   }
 }
 

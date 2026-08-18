@@ -225,7 +225,9 @@
                 Remove image
               </button>
               <p class="experience-session-note">
-                Draft sesi saja. Persistence media belum tersedia pada arsitektur project saat ini.
+                {{ selectedPhotoArea.startsWith('cert-')
+                  ? 'Gambar Certificate disimpan pada database Certificate browser.'
+                  : 'Draft sesi saja. Persistence media belum tersedia pada arsitektur project saat ini.' }}
               </p>
             </div>
           </div>
@@ -256,10 +258,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import { photoAreas, type PhotoAreaId } from '../../data/default/photoAreas'
 import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
+import { useCertificatesStore } from '../../stores/certificates'
 
 const expanded = ref({
   font: true,
@@ -268,11 +271,15 @@ const expanded = ref({
 })
 
 const photoAreaImages = usePhotoAreaImagesStore()
+const certificatesStore = useCertificatesStore()
 const allPhotoAreas = photoAreas
 const selectedPhotoArea = ref<PhotoAreaId>(allPhotoAreas[0].id)
 const selectedPhotoAreaSource = computed(
   () => photoAreaImages.frames[selectedPhotoArea.value].source
+    || certificatesStore.photoSource(selectedPhotoArea.value)
 )
+
+onMounted(() => certificatesStore.loadInitial())
 
 function uploadPhotoAreaImage(frameId: PhotoAreaId, event: Event) {
   const input = event.target as HTMLInputElement
@@ -280,16 +287,26 @@ function uploadPhotoAreaImage(frameId: PhotoAreaId, event: Event) {
   if (!file) return
 
   const reader = new FileReader()
-  reader.addEventListener('load', () => {
+  reader.addEventListener('load', async () => {
     if (typeof reader.result === 'string') {
-      photoAreaImages.setSource(frameId, reader.result)
+      if (frameId.startsWith('cert-')) {
+        const persisted = await certificatesStore.updatePhotoAreaSource(frameId, reader.result)
+        if (persisted) photoAreaImages.setSource(frameId, reader.result)
+      } else {
+        photoAreaImages.setSource(frameId, reader.result)
+      }
     }
   })
   reader.readAsDataURL(file)
 }
 
-function removePhotoAreaImage(frameId: PhotoAreaId) {
-  photoAreaImages.removeSource(frameId)
+async function removePhotoAreaImage(frameId: PhotoAreaId) {
+  if (frameId.startsWith('cert-')) {
+    const persisted = await certificatesStore.updatePhotoAreaSource(frameId, '')
+    if (persisted) photoAreaImages.removeSource(frameId)
+  } else {
+    photoAreaImages.removeSource(frameId)
+  }
 }
 
 const shadowNormalEnabled = ref(false)

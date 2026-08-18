@@ -16,6 +16,10 @@ const fixtures = [
   ['F', 'frame-f-100x50.svg', 100, 50]
 ].map(([name, file, width, height]) => ({ name, path: resolve('tests/fixtures', file), width, height }))
 
+function assert(condition, message) {
+  if (!condition) throw new Error(`Acceptance failure: ${message}`)
+}
+
 const pages = await (await fetch('http://127.0.0.1:9237/json')).json()
 const page = pages.find((entry) => entry.type === 'page' && entry.url.includes('127.0.0.1:5173'))
 if (!page) throw new Error('Vite page target not found')
@@ -105,6 +109,7 @@ await send('Runtime.enable')
 await send('DOM.enable')
 await send('Log.enable')
 await send('Page.enable')
+await evaluate(`import('/src/repositories/certificateRepository.ts').then(({certificateRepository}) => certificateRepository.clear())`)
 await send('Emulation.setDeviceMetricsOverride', { width: 1422, height: 804, deviceScaleFactor: 1, mobile: false })
 await send('Page.reload', { ignoreCache: true })
 await waitFor(`document.readyState === 'complete'`)
@@ -113,6 +118,7 @@ await openCertificateCards()
 const empty = await collect()
 const baselineGeometry = structuredClone(empty)
 const results = []
+const responsiveFixtures = []
 let isolationPass = true
 
 for (const fixture of fixtures) {
@@ -139,22 +145,93 @@ for (const fixture of fixtures) {
   })
   results.push({ fixture: fixture.name, expected:[fixture.width,fixture.height], rows,
     count:state.count, unique:state.unique, cards:state.cards, slides:state.slides, horizontalOverflow:state.horizontalOverflow })
+
+  for (const [width, height] of [[1024, 768], [390, 844]]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 500 })
+    await wait(150)
+    const responsiveState = await collect()
+    const responsiveRows = ids.map((id) => {
+      const value = responsiveState.measurements[id]
+      return {
+        id,
+        ratioDelta: Math.abs((value.image[0] / value.image[1]) - (value.natural[0] / value.natural[1])),
+        scale: value.image[0] / value.natural[0],
+        placeholder: value.placeholder
+      }
+    })
+    responsiveFixtures.push({
+      fixture: fixture.name,
+      width,
+      height,
+      count: responsiveState.count,
+      unique: responsiveState.unique,
+      maxRatioDelta: Math.max(...responsiveRows.map((row) => row.ratioDelta)),
+      maxScale: Math.max(...responsiveRows.map((row) => row.scale)),
+      placeholders: responsiveRows.reduce((sum, row) => sum + row.placeholder, 0),
+      horizontalOverflow: responsiveState.horizontalOverflow
+    })
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1422, height: 804, deviceScaleFactor: 1, mobile: false })
+  await wait(150)
 }
 
 const finalStore = await storeSnapshot()
 const spaSourceCount = Object.values(finalStore).filter((frame) => frame.source).length
-const responsive = []
-for (const [width,height] of [[1024,768],[390,844]]) {
-  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 500 })
-  await wait(150)
-  const state = await collect()
-  responsive.push({ width, height, count:state.count, unique:state.unique, horizontalOverflow:state.horizontalOverflow })
+
+const mixedPlan = [
+  ['cert-a-detail-1', fixtures[0]],
+  ['cert-a-detail-2', fixtures[2]],
+  ['cert-a-detail-3', fixtures[3]],
+  ['cert-b-detail-1', fixtures[2]],
+  ['cert-b-detail-2', fixtures[3]]
+]
+await route('#/admin/edit')
+for (const [id, fixture] of mixedPlan) await upload(id, fixture.path)
+await route('#/')
+await openCertificateCards()
+await waitFor(`document.querySelectorAll('.slide-item .photo-area-image').length === 5`)
+const mixedState = await collect()
+const mixedCertificate = {
+  cards: mixedState.cards,
+  slides: mixedState.slides,
+  natural: Object.fromEntries(mixedPlan.map(([id]) => [id, mixedState.measurements[id].natural])),
+  horizontalOverflow: mixedState.horizontalOverflow
 }
+
+assert(empty.count === 17 && empty.unique === 17, 'empty inventory must be 17 unique photo areas')
+assert(Object.values(empty.measurements).every((value) => value.placeholder === 1 && value.image === null), 'every empty frame must show exactly one placeholder and no image')
+assert(!empty.horizontalOverflow, 'empty state must not overflow horizontally')
+assert(isolationPass, 'each Admin upload must mutate only its selected source key')
+assert(spaSourceCount === 17, 'all 17 sources must survive Admin-to-Guest SPA navigation')
+for (const result of results) {
+  assert(result.count === 17 && result.unique === 17, `fixture ${result.fixture} inventory must stay unique`)
+  assert(!result.horizontalOverflow, `fixture ${result.fixture} must not overflow horizontally`)
+  assert(result.rows.every((row) => row.ratioDelta <= 0.001), `fixture ${result.fixture} rendered ratios must match intrinsic ratios`)
+  assert(result.rows.every((row) => row.scale <= 1.000001), `fixture ${result.fixture} must not upscale`)
+  assert(result.rows.every((row) => row.placeholder === 0), `fixture ${result.fixture} placeholders must be absent after upload`)
+  assert(result.rows.every((row) => row.geometryStable), `fixture ${result.fixture} frame geometry must remain stable`)
+  if (['B', 'C', 'D'].includes(result.fixture)) assert(result.rows.every((row) => row.crop), `fixture ${result.fixture} must clip at every frame boundary`)
+  if (['E', 'F'].includes(result.fixture)) {
+    assert(result.rows.every((row) => Math.abs(row.scale - 1) <= 0.000001), `fixture ${result.fixture} scale must equal 1`)
+    assert(result.rows.every((row) => row.whitespace && !row.crop), `fixture ${result.fixture} must keep whitespace without crop`)
+  }
+}
+for (const result of responsiveFixtures) {
+  assert(result.count === 17 && result.unique === 17, `${result.width}x${result.height} fixture ${result.fixture} inventory must stay unique`)
+  assert(result.maxRatioDelta <= 0.001, `${result.width}x${result.height} fixture ${result.fixture} ratio must be preserved`)
+  assert(result.maxScale <= 1.000001, `${result.width}x${result.height} fixture ${result.fixture} must not upscale`)
+  assert(result.placeholders === 0, `${result.width}x${result.height} fixture ${result.fixture} placeholder must be absent`)
+  assert(!result.horizontalOverflow, `${result.width}x${result.height} fixture ${result.fixture} must not overflow horizontally`)
+}
+assert(mixedCertificate.slides.every((slide, index) => Math.abs(slide[1] - baselineGeometry.slides[index][1]) < 0.05 && Math.abs(slide[2] - baselineGeometry.slides[index][2]) < 0.05), 'mixed Certificate ratios must not change sibling slide geometry')
+assert(mixedCertificate.cards.every((card, index) => Math.abs(card[1] - baselineGeometry.cards[index][1]) < 0.05 && Math.abs(card[2] - baselineGeometry.cards[index][2]) < 0.05), 'mixed Certificate ratios must not change card geometry')
+assert(!mixedCertificate.horizontalOverflow, 'mixed Certificate ratios must not overflow horizontally')
+assert(runtimeErrors.length === 0, 'runtime console/errors must be zero')
 await send('Emulation.clearDeviceMetricsOverride')
 
 const report = {
   empty: { count:empty.count, unique:empty.unique, placeholders:Object.values(empty.measurements).filter((m)=>m.placeholder===1).length, horizontalOverflow:empty.horizontalOverflow },
-  isolationPass, spaSourceCount, results, responsive, runtimeErrors
+  isolationPass, spaSourceCount, results, responsiveFixtures, mixedCertificate, runtimeErrors
 }
 const summary = {
   empty: report.empty,
@@ -177,7 +254,8 @@ const summary = {
     slides: result.slides,
     horizontalOverflow: result.horizontalOverflow
   })),
-  responsive,
+  responsiveFixtures,
+  mixedCertificate,
   runtimeErrors
 }
 console.log(JSON.stringify(summary))
