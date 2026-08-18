@@ -78,7 +78,16 @@ export interface SHSVisualConfig {
     objectFit: string;
     objectPosition: string;
   };
-  imagePlaceholder: {
+  frameBackPlaceholder: {
+    color: string;
+    opacity: number;
+    borderWidth: string;
+    fontSize: string;
+    labelOffset: string;
+    arrowSize: number;
+    zIndex: number;
+  };
+  frameFrontPlaceholder: {
     color: string;
     opacity: number;
     borderWidth: string;
@@ -273,15 +282,8 @@ export const defaultSHSConfig: SHSVisualConfig = {
     objectFit: 'cover',
     objectPosition: 'center center'
   },
-  imagePlaceholder: {
-    color: '#8D363A',
-    opacity: 0.5,
-    borderWidth: '2px',
-    fontSize: '0.65rem',
-    labelOffset: '0.45rem',
-    arrowSize: 12,
-    zIndex: 5
-  },
+  frameBackPlaceholder: createSHSPlaceholder(),
+  frameFrontPlaceholder: createSHSPlaceholder(),
   decoText: {
     top: '14%',
     left: '5%',
@@ -381,5 +383,17 @@ export const defaultSHSConfig: SHSVisualConfig = {
     transformRotate: '-118deg',
     opacity: 0.65,
     zIndex: 1
+  }
+}
+
+function createSHSPlaceholder() {
+  return {
+    color: '#8D363A',
+    opacity: 0.5,
+    borderWidth: '2px',
+    fontSize: '0.65rem',
+    labelOffset: '0.45rem',
+    arrowSize: 12,
+    zIndex: 5
   }
 }

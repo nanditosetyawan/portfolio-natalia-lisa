@@ -185,41 +185,42 @@
             </div>
           </div>
 
-          <!-- EXPERIENCE PHOTO FRAME FOLD -->
+          <!-- ALL INDEPENDENT PHOTO AREAS -->
           <div class="fold">
-            <button class="fold-header" @click="expanded.experience = !expanded.experience" type="button">
-              <span class="fold-title">EXPERIENCE PHOTOS</span>
-              <ChevronDown class="chevron" :class="{ rotated: expanded.experience }" />
+            <button class="fold-header" @click="expanded.photoAreas = !expanded.photoAreas" type="button">
+              <span class="fold-title">PHOTO AREAS</span>
+              <ChevronDown class="chevron" :class="{ rotated: expanded.photoAreas }" />
             </button>
-            <div v-show="expanded.experience" class="fold-content">
+            <div v-show="expanded.photoAreas" class="fold-content">
               <div class="field-row">
-                <label class="field-label" for="experience-frame-select">Frame</label>
-                <select id="experience-frame-select" v-model="selectedExperienceFrame" class="input-field">
-                  <option v-for="frame in experienceFrames" :key="frame.id" :value="frame.id">
-                    {{ frame.label }}
+                <label class="field-label" for="photo-area-select">Photo area</label>
+                <select id="photo-area-select" v-model="selectedPhotoArea" class="input-field">
+                  <option v-for="frame in allPhotoAreas" :key="frame.id" :value="frame.id">
+                    {{ frame.section }} — {{ frame.label }} — {{ frame.id }}
                   </option>
                 </select>
               </div>
               <div class="field-row upload-row">
                 <label class="field-label">Upload image</label>
                 <input
-                  :key="selectedExperienceFrame"
+                  :key="selectedPhotoArea"
                   type="file"
                   class="input-file"
                   accept="image/*"
-                  :data-frame-id="selectedExperienceFrame"
-                  @change="uploadExperienceFrameImage(selectedExperienceFrame, $event)"
+                  :data-frame-id="selectedPhotoArea"
+                  :data-photo-area-id="selectedPhotoArea"
+                  @change="uploadPhotoAreaImage(selectedPhotoArea, $event)"
                 />
               </div>
-              <div class="field-row experience-image-status" :data-selected-frame-id="selectedExperienceFrame">
+              <div class="field-row experience-image-status" :data-selected-frame-id="selectedPhotoArea">
                 <span class="field-label">Status</span>
-                <span>{{ selectedExperienceImageSource ? 'Image selected' : 'Placeholder active' }}</span>
+                <span>{{ selectedPhotoAreaSource ? 'Image selected' : 'Placeholder active' }}</span>
               </div>
               <button
                 type="button"
                 class="experience-remove-button"
-                :disabled="!selectedExperienceImageSource"
-                @click="removeExperienceFrameImage(selectedExperienceFrame)"
+                :disabled="!selectedPhotoAreaSource"
+                @click="removePhotoAreaImage(selectedPhotoArea)"
               >
                 Remove image
               </button>
@@ -257,26 +258,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
-import { defaultExperience, type ExperienceFrameId } from '../../data/default/experience'
-import { useExperienceFrameImagesStore } from '../../stores/experienceFrameImages'
+import { photoAreas, type PhotoAreaId } from '../../data/default/photoAreas'
+import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 
 const expanded = ref({
   font: true,
   image: false,
-  experience: true,
+  photoAreas: true,
 })
 
-const experienceFrameImages = useExperienceFrameImagesStore()
-const experienceFrames = defaultExperience.items.map((item) => ({
-  id: item.frameId,
-  label: `${item.title} — ${item.frameId}`
-}))
-const selectedExperienceFrame = ref<ExperienceFrameId>(experienceFrames[0].id)
-const selectedExperienceImageSource = computed(
-  () => experienceFrameImages.frames[selectedExperienceFrame.value].source
+const photoAreaImages = usePhotoAreaImagesStore()
+const allPhotoAreas = photoAreas
+const selectedPhotoArea = ref<PhotoAreaId>(allPhotoAreas[0].id)
+const selectedPhotoAreaSource = computed(
+  () => photoAreaImages.frames[selectedPhotoArea.value].source
 )
 
-function uploadExperienceFrameImage(frameId: ExperienceFrameId, event: Event) {
+function uploadPhotoAreaImage(frameId: PhotoAreaId, event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -284,14 +282,14 @@ function uploadExperienceFrameImage(frameId: ExperienceFrameId, event: Event) {
   const reader = new FileReader()
   reader.addEventListener('load', () => {
     if (typeof reader.result === 'string') {
-      experienceFrameImages.setSource(frameId, reader.result)
+      photoAreaImages.setSource(frameId, reader.result)
     }
   })
   reader.readAsDataURL(file)
 }
 
-function removeExperienceFrameImage(frameId: ExperienceFrameId) {
-  experienceFrameImages.removeSource(frameId)
+function removePhotoAreaImage(frameId: PhotoAreaId) {
+  photoAreaImages.removeSource(frameId)
 }
 
 const shadowNormalEnabled = ref(false)

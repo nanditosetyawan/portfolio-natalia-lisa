@@ -2,21 +2,10 @@
 import { ArrowDown, ArrowRight, Sparkle } from 'lucide-vue-next'
 import { defaultAbout } from '../../data/default/about'
 import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
+import PhotoArea from '../../components/PhotoArea.vue'
+import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 
-function imgStyle(source: 'frameBack2Image' | 'frameMainImage') {
-  const cfg = vConfig[source]
-  return {
-    width: '100%',
-    height: '100%',
-    objectFit: cfg.objectFit,
-    objectPosition: cfg.objectPosition,
-    display: 'block'
-  } as any
-}
-
-function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
-  return Boolean(vConfig[source].source)
-}
+const photoAreaImages = usePhotoAreaImagesStore()
 </script>
 
 <template>
@@ -137,7 +126,6 @@ function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
         <div
             class="polaroid frame-back-2"
             aria-hidden="true"
-            :data-frame-id="vConfig.frameBack2.id"
             :style="{
               backgroundColor: vConfig.frameBack2.backgroundColor,
               border: vConfig.frameBack2.border,
@@ -151,14 +139,13 @@ function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
               zIndex: vConfig.frameBack2.zIndex
             }"
           >
-          <div class="polaroid-photo">
-            <img v-if="hasSource('frameBack2Image')" :src="vConfig.frameBack2Image.source" alt="Profile photo" :style="imgStyle('frameBack2Image')" />
-            <div v-else class="image-boundary-placeholder" :style="{
-              color: vConfig.imagePlaceholder.color,
-              opacity: vConfig.imagePlaceholder.opacity,
-              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
-              fontSize: vConfig.imagePlaceholder.fontSize,
-              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+          <PhotoArea class="polaroid-photo" frame-id="about-frame-back-2" :source="photoAreaImages.frames['about-frame-back-2'].source" alt="About back 2 photo" :object-position="vConfig.frameBack2Image.objectPosition">
+            <div class="image-boundary-placeholder" :style="{
+              color: vConfig.frameBack2Placeholder.color,
+              opacity: vConfig.frameBack2Placeholder.opacity,
+              '--placeholder-border-width': vConfig.frameBack2Placeholder.borderWidth,
+              fontSize: vConfig.frameBack2Placeholder.fontSize,
+              '--placeholder-label-offset': vConfig.frameBack2Placeholder.labelOffset
             }">
               <span class="boundary-label boundary-top">↑ TOP</span>
               <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
@@ -166,12 +153,11 @@ function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
               <span class="boundary-label boundary-right">→ RIGHT</span>
               <span class="boundary-label boundary-center">PHOTO AREA</span>
             </div>
-          </div>
+          </PhotoArea>
           <div class="polaroid-caption"></div>
         </div>
         <div
           class="polaroid frame-main"
-          :data-frame-id="vConfig.frameMain.id"
           :style="{
             backgroundColor: vConfig.frameMain.backgroundColor,
             border: vConfig.frameMain.border,
@@ -185,14 +171,13 @@ function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
             zIndex: vConfig.frameMain.zIndex
           }"
         >
-          <div class="polaroid-photo">
-            <img v-if="hasSource('frameMainImage')" :src="vConfig.frameMainImage.source" alt="Profile photo" :style="imgStyle('frameMainImage')" />
-            <div v-else class="image-boundary-placeholder" :style="{
-              color: vConfig.imagePlaceholder.color,
-              opacity: vConfig.imagePlaceholder.opacity,
-              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
-              fontSize: vConfig.imagePlaceholder.fontSize,
-              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+          <PhotoArea class="polaroid-photo" frame-id="about-frame-main" :source="photoAreaImages.frames['about-frame-main'].source" alt="About main photo" :object-position="vConfig.frameMainImage.objectPosition">
+            <div class="image-boundary-placeholder" :style="{
+              color: vConfig.frameMainPlaceholder.color,
+              opacity: vConfig.frameMainPlaceholder.opacity,
+              '--placeholder-border-width': vConfig.frameMainPlaceholder.borderWidth,
+              fontSize: vConfig.frameMainPlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.frameMainPlaceholder.labelOffset
             }">
               <span class="boundary-label boundary-top">↑ TOP</span>
               <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
@@ -200,7 +185,7 @@ function hasSource(source: 'frameBack2Image' | 'frameMainImage') {
               <span class="boundary-label boundary-right">→ RIGHT</span>
               <span class="boundary-label boundary-center">PHOTO AREA</span>
             </div>
-          </div>
+          </PhotoArea>
           <div class="polaroid-caption"></div>
           <div
             class="tape tape-top"

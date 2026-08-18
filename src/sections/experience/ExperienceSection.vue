@@ -167,25 +167,23 @@
 
           <!-- Photo(s): moves with card as one unit -->
           <div class="exp-image-wrapper">
-            <div class="exp-image-frame"
-              :data-frame-id="item.frameId"
-              :style="frameStyle(item.frameId)"
-            >
-              <div class="exp-frame-photo" :style="{ borderRadius: frameConfig(item.frameId).image.borderRadius }">
-                <img
-                  v-if="imageSource(item.frameId)"
-                  :src="imageSource(item.frameId)"
-                  :alt="`${item.title} photo`"
-                  :style="imageStyle(item.frameId)"
-                />
-                <div v-else class="image-boundary-placeholder" :style="placeholderStyle(item.frameId)">
+            <div class="exp-image-frame" :style="frameStyle(item.frameId)">
+              <PhotoArea
+                class="exp-frame-photo"
+                :frame-id="item.frameId"
+                :source="imageSource(item.frameId)"
+                :alt="`${item.title} photo`"
+                :object-position="frameConfig(item.frameId).image.objectPosition"
+                :style="{ borderRadius: frameConfig(item.frameId).image.borderRadius }"
+              >
+                <div class="image-boundary-placeholder" :style="placeholderStyle(item.frameId)">
                   <span class="boundary-label boundary-top">↑ TOP</span>
                   <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
                   <span class="boundary-label boundary-left">← LEFT</span>
                   <span class="boundary-label boundary-right">→ RIGHT</span>
                   <span class="boundary-label boundary-center">PHOTO AREA</span>
                 </div>
-              </div>
+              </PhotoArea>
             </div>
           </div>
         </div>
@@ -199,14 +197,15 @@
 import { ref, computed, onMounted, onUnmounted, type CSSProperties } from 'vue'
 import { defaultExperience, type ExperienceFrameId } from '../../data/default/experience'
 import { defaultExperienceConfig as vConfig } from '../../data/default/visual/experience'
-import { useExperienceFrameImagesStore } from '../../stores/experienceFrameImages'
+import PhotoArea from '../../components/PhotoArea.vue'
+import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 
 // ──────────────────────────────────────────────
 // DATA
 // ──────────────────────────────────────────────
 const items = defaultExperience.items
 const sectionTitle = defaultExperience.title
-const frameImages = useExperienceFrameImagesStore()
+const frameImages = usePhotoAreaImagesStore()
 
 const frameConfig = (frameId: ExperienceFrameId) => vConfig.imageFrames[frameId]
 const imageSource = (frameId: ExperienceFrameId) => frameImages.frames[frameId].source
@@ -222,12 +221,6 @@ const frameStyle = (frameId: ExperienceFrameId): CSSProperties => ({
   boxShadow: frameConfig(frameId).boxShadow,
   transform: `rotate(${frameConfig(frameId).transformRotate})`,
   zIndex: frameConfig(frameId).zIndex
-})
-const imageStyle = (frameId: ExperienceFrameId): CSSProperties => ({
-  width: '100%',
-  height: '100%',
-  objectFit: frameConfig(frameId).image.objectFit as CSSProperties['objectFit'],
-  objectPosition: frameConfig(frameId).image.objectPosition
 })
 const placeholderStyle = (frameId: ExperienceFrameId) => {
   const placeholder = frameConfig(frameId).image.placeholder

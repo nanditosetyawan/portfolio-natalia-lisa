@@ -20,6 +20,7 @@ import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import Lenis from 'lenis'
 import { defaultNavigation } from '../data/default/navigation'
 import { defaultNavbarConfig as vConfig } from '../data/default/visual/navbar'
+import { useEducationCollegeMagnet } from '../composables/useEducationCollegeMagnet'
 
 // ──────────────────────────────────────────
 // SECTION DEFINITIONS — from DEFAULT content
@@ -72,6 +73,7 @@ const isDarkSection  = ref(true)   // default: Home is dark
 
 // Lenis instance
 let lenis: Lenis | null = null
+const educationCollegeMagnet = useEducationCollegeMagnet()
 
 // Scroll tracking — mirrors dom.ts reference pattern
 let lastScrollY       = 0
@@ -242,7 +244,9 @@ function initLenis() {
     duration: 1.2,
     easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     smoothWheel: true,
+    virtualScroll: educationCollegeMagnet.handleVirtualScroll,
   })
+  educationCollegeMagnet.attachLenis(lenis)
 
   function lenisRaf(time: number) {
     lenis!.raf(time)
@@ -262,6 +266,7 @@ function handleNavClick(event: Event, item: NavItem) {
   downScrollAccumMs = 0
   lastDownScrollAt  = null
   suppressHide     = true
+  educationCollegeMagnet.setProgrammaticNavigation(true)
 
   // Update active state immediately on click
   const sec = sections.find(s => s.id === item.target)
@@ -293,6 +298,7 @@ function handleNavClick(event: Event, item: NavItem) {
   // Release suppress after scroll animation completes (~1300ms + buffer)
   setTimeout(() => {
     suppressHide      = false
+    educationCollegeMagnet.setProgrammaticNavigation(false)
     downScrollAccumMs = 0
     lastDownScrollAt  = null
   }, 1500)
@@ -330,6 +336,7 @@ onUnmounted(() => {
   cancelAnimationFrame(rafId)
   clearPauseTimer()
   observer?.disconnect()
+  educationCollegeMagnet.destroy()
   lenis?.destroy()
 })
 </script>

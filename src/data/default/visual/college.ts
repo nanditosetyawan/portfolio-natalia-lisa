@@ -141,7 +141,16 @@ export interface CollegeVisualConfig {
     objectFit: string;
     objectPosition: string;
   };
-  imagePlaceholder: {
+  frameBackPlaceholder: {
+    color: string;
+    opacity: number;
+    borderWidth: string;
+    fontSize: string;
+    labelOffset: string;
+    arrowSize: number;
+    zIndex: number;
+  };
+  frameFrontPlaceholder: {
     color: string;
     opacity: number;
     borderWidth: string;
@@ -295,15 +304,8 @@ export const defaultCollegeConfig: CollegeVisualConfig = {
     objectFit: 'cover',
     objectPosition: 'center center'
   },
-  imagePlaceholder: {
-    color: '#8D363A',
-    opacity: 0.5,
-    borderWidth: '2px',
-    fontSize: '0.65rem',
-    labelOffset: '0.45rem',
-    arrowSize: 12,
-    zIndex: 5
-  },
+  frameBackPlaceholder: createCollegePlaceholder(),
+  frameFrontPlaceholder: createCollegePlaceholder(),
   tapeTl: {
     top: '-12px',
     left: '10%',
@@ -385,5 +387,17 @@ export const defaultCollegeConfig: CollegeVisualConfig = {
     transformRotate: '142deg',
     opacity: 0.66,
     zIndex: 1
+  }
+}
+
+function createCollegePlaceholder() {
+  return {
+    color: '#8D363A',
+    opacity: 0.5,
+    borderWidth: '2px',
+    fontSize: '0.65rem',
+    labelOffset: '0.45rem',
+    arrowSize: 12,
+    zIndex: 5
   }
 }

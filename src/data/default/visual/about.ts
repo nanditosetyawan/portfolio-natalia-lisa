@@ -72,7 +72,16 @@ export interface AboutVisualConfig {
     zIndex: number;
   };
   /* Image boundary placeholder (conditional, non-permanent) */
-  imagePlaceholder: {
+  frameBack2Placeholder: {
+    color: string;
+    opacity: number;
+    borderWidth: string;
+    fontSize: string;
+    labelOffset: string;
+    arrowSize: number;
+    zIndex: number;
+  };
+  frameMainPlaceholder: {
     color: string;
     opacity: number;
     borderWidth: string;
@@ -247,15 +256,8 @@ export const defaultAboutConfig: AboutVisualConfig = {
     boxShadow: 'inset 0 0 0 1px rgba(255, 214, 166, 0.6)',
     zIndex: 4
   },
-  imagePlaceholder: {
-    color: '#8D363A',
-    opacity: 0.5,
-    borderWidth: '2px',
-    fontSize: '0.65rem',
-    labelOffset: '0.45rem',
-    arrowSize: 12,
-    zIndex: 5
-  },
+  frameBack2Placeholder: createAboutPlaceholder(),
+  frameMainPlaceholder: createAboutPlaceholder(),
   bgRing1: {
     width: '260px',
     height: '260px',
@@ -347,5 +349,17 @@ export const defaultAboutConfig: AboutVisualConfig = {
     border: '2px solid #FF9A86',
     width: '46px',
     height: '46px'
+  }
+}
+
+function createAboutPlaceholder() {
+  return {
+    color: '#8D363A',
+    opacity: 0.5,
+    borderWidth: '2px',
+    fontSize: '0.65rem',
+    labelOffset: '0.45rem',
+    arrowSize: 12,
+    zIndex: 5
   }
 }

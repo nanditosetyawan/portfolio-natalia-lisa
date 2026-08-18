@@ -2,27 +2,10 @@
 import { Calendar, Sparkles } from 'lucide-vue-next'
 import { defaultSHS } from '../../../data/default/shs'
 import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
+import PhotoArea from '../../../components/PhotoArea.vue'
+import { usePhotoAreaImagesStore } from '../../../stores/photoAreaImages'
 
-type SHSFrameImageKey = 'frameBackImage' | 'frameFrontImage'
-
-function imageSource(key: SHSFrameImageKey) {
-  return vConfig[key].source
-}
-
-function hasImage(key: SHSFrameImageKey) {
-  return Boolean(imageSource(key))
-}
-
-function imageStyle(key: SHSFrameImageKey) {
-  const image = vConfig[key]
-
-  return {
-    width: '100%',
-    height: '100%',
-    objectFit: image.objectFit,
-    objectPosition: image.objectPosition
-  } as any
-}
+const photoAreaImages = usePhotoAreaImagesStore()
 </script>
 
 <template>
@@ -63,7 +46,7 @@ function imageStyle(key: SHSFrameImageKey) {
       <!-- Left visual — polaroid frames -->
       <div class="shs-visual">
         <!-- Back frame (larger, rotated left) -->
-        <div class="polaroid frame-back" aria-hidden="true" :data-frame-id="vConfig.frameBack.id" :style="{
+        <div class="polaroid frame-back" aria-hidden="true" :style="{
           backgroundColor: vConfig.frameBack.backgroundColor,
           border: vConfig.frameBack.border,
           borderRadius: vConfig.frameBack.borderRadius,
@@ -75,14 +58,13 @@ function imageStyle(key: SHSFrameImageKey) {
           transform: `rotate(${vConfig.frameBack.transformRotate})`,
           zIndex: vConfig.frameBack.zIndex
         }">
-          <div class="polaroid-photo">
-            <img v-if="hasImage('frameBackImage')" :src="imageSource('frameBackImage')" alt="SHS frame back photo" :style="imageStyle('frameBackImage')" />
-            <div v-else class="image-boundary-placeholder" :style="{
-              color: vConfig.imagePlaceholder.color,
-              opacity: vConfig.imagePlaceholder.opacity,
-              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
-              fontSize: vConfig.imagePlaceholder.fontSize,
-              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+          <PhotoArea class="polaroid-photo" frame-id="shs-frame-back" :source="photoAreaImages.frames['shs-frame-back'].source" alt="SHS frame back photo" :object-position="vConfig.frameBackImage.objectPosition">
+            <div class="image-boundary-placeholder" :style="{
+              color: vConfig.frameBackPlaceholder.color,
+              opacity: vConfig.frameBackPlaceholder.opacity,
+              '--placeholder-border-width': vConfig.frameBackPlaceholder.borderWidth,
+              fontSize: vConfig.frameBackPlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.frameBackPlaceholder.labelOffset
             }">
               <span class="boundary-label boundary-top">↑ TOP</span>
               <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
@@ -90,12 +72,12 @@ function imageStyle(key: SHSFrameImageKey) {
               <span class="boundary-label boundary-right">→ RIGHT</span>
               <span class="boundary-label boundary-center">PHOTO AREA</span>
             </div>
-          </div>
+          </PhotoArea>
           <div class="polaroid-bottom"></div>
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
-        <div class="polaroid frame-front" :data-frame-id="vConfig.frameFront.id" :style="{
+        <div class="polaroid frame-front" :style="{
           backgroundColor: vConfig.frameFront.backgroundColor,
           border: vConfig.frameFront.border,
           borderRadius: vConfig.frameFront.borderRadius,
@@ -107,14 +89,13 @@ function imageStyle(key: SHSFrameImageKey) {
           transform: `rotate(${vConfig.frameFront.transformRotate})`,
           zIndex: vConfig.frameFront.zIndex
         }">
-          <div class="polaroid-photo">
-            <img v-if="hasImage('frameFrontImage')" :src="imageSource('frameFrontImage')" alt="SHS frame front photo" :style="imageStyle('frameFrontImage')" />
-            <div v-else class="image-boundary-placeholder" :style="{
-              color: vConfig.imagePlaceholder.color,
-              opacity: vConfig.imagePlaceholder.opacity,
-              '--placeholder-border-width': vConfig.imagePlaceholder.borderWidth,
-              fontSize: vConfig.imagePlaceholder.fontSize,
-              '--placeholder-label-offset': vConfig.imagePlaceholder.labelOffset
+          <PhotoArea class="polaroid-photo" frame-id="shs-frame-front" :source="photoAreaImages.frames['shs-frame-front'].source" alt="SHS frame front photo" :object-position="vConfig.frameFrontImage.objectPosition">
+            <div class="image-boundary-placeholder" :style="{
+              color: vConfig.frameFrontPlaceholder.color,
+              opacity: vConfig.frameFrontPlaceholder.opacity,
+              '--placeholder-border-width': vConfig.frameFrontPlaceholder.borderWidth,
+              fontSize: vConfig.frameFrontPlaceholder.fontSize,
+              '--placeholder-label-offset': vConfig.frameFrontPlaceholder.labelOffset
             }">
               <span class="boundary-label boundary-top">↑ TOP</span>
               <span class="boundary-label boundary-bottom">↓ BOTTOM</span>
@@ -122,7 +103,7 @@ function imageStyle(key: SHSFrameImageKey) {
               <span class="boundary-label boundary-right">→ RIGHT</span>
               <span class="boundary-label boundary-center">PHOTO AREA</span>
             </div>
-          </div>
+          </PhotoArea>
           <div class="polaroid-bottom"></div>
         </div>
       </div>

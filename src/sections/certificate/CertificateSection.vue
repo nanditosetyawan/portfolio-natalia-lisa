@@ -1,24 +1,19 @@
 <script setup lang="ts">
 import { ref, reactive, onBeforeUnmount } from 'vue'
 import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
-import { defaultCertificates } from '../../data/default/certificates'
+import { defaultCertificates, type CertificateCard } from '../../data/default/certificates'
 import { defaultCertificateConfig as vConfig } from '../../data/default/visual/certificate'
+import PhotoArea from '../../components/PhotoArea.vue'
+import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 
 // ===== Card Data =====
 // Add image URLs to the `detailImages` array to replace placeholders.
 // Empty string '' = show placeholder. Replace with actual URL to show real photo.
-interface CertCard {
-  id: string
-  title: string
-  date: string
-  description: string
-  thumbnailImage: string // URL or '' for placeholder
-  detailImages: string[] // URLs or '' for placeholders
-}
-
 // Use default certificates data
-const cards = reactive(defaultCertificates.cards)
+const cards = defaultCertificates.cards
 const certificatesTitle = defaultCertificates.title
+const photoAreaImages = usePhotoAreaImagesStore()
+const photoSource = (id: CertificateCard['thumbnail']['id']) => photoAreaImages.frames[id].source
 
 // ===== Expand State =====
 const expandedCards = ref<Set<string>>(new Set())
@@ -69,8 +64,8 @@ function goToSlide(id: string, index: number) {
   }
 }
 
-function downloadCert(card: CertCard) {
-  const validImages = card.detailImages.filter(img => img !== '')
+function downloadCert(card: CertificateCard) {
+  const validImages = card.detailImages.map((image) => photoSource(image.id)).filter(Boolean)
   if (validImages.length === 0) {
     // Placeholder: no actual image files yet
     alert(`Gambar sertifikat "${card.title}" belum tersedia.\nGanti URL di data cards untuk mengaktifkan download.`)
@@ -297,18 +292,19 @@ onBeforeUnmount(() => {
 <!-- Thumbnail -->
              <div class="card-thumbnail-wrapper">
                <div class="card-thumbnail">
-                 <div v-if="card.thumbnailImage" class="thumbnail-image">
-                   <img
-                     :src="card.thumbnailImage"
-                     :alt="`${card.title} - thumbnail`"
-                     class="cert-image"
-                   />
-                 </div>
-                 <div v-else class="placeholder">
+                 <PhotoArea
+                   class="thumbnail-image"
+                   :frame-id="card.thumbnail.id"
+                   :source="photoSource(card.thumbnail.id)"
+                   :alt="`${card.title} - thumbnail`"
+                   :object-position="card.thumbnail.image.objectPosition"
+                 >
+                 <div class="placeholder" :style="{ color: card.thumbnail.placeholder.color, opacity: card.thumbnail.placeholder.opacity }">
                    <div class="placeholder-icon"><ImageIcon :size="28" stroke-width="1.5" /></div>
                    <span class="placeholder-label">Thumbnail</span>
                    <span class="placeholder-sublabel">sertif</span>
                  </div>
+                 </PhotoArea>
                </div>
              </div>
 <!-- Info -->
@@ -376,20 +372,23 @@ onBeforeUnmount(() => {
                   >
                    <div
                      class="slide-item"
-                     v-for="(img, idx) in card.detailImages"
-                     :key="idx"
+                     v-for="(image, idx) in card.detailImages"
+                     :key="image.id"
+                     :data-slide-id="image.id"
                    >
-                     <img
-                       v-if="img"
-                       :src="img"
+                     <PhotoArea
+                       class="cert-photo-area"
+                       :frame-id="image.id"
+                       :source="photoSource(image.id)"
                        :alt="`${card.title} - foto ${idx + 1}`"
-                       class="cert-image"
-                     />
-                     <div v-else class="cert-placeholder">
+                       :object-position="image.image.objectPosition"
+                     >
+                     <div class="cert-placeholder" :style="{ color: image.placeholder.color, opacity: image.placeholder.opacity }">
                        <ImageIcon :size="52" stroke-width="1" />
-                       <span>Foto Sertifikat {{ idx + 1 }}</span>
-                       <span class="cert-placeholder-hint">Ganti URL di cards data</span>
+                       <span>{{ image.placeholder.label }}</span>
+                       <span class="cert-placeholder-hint">{{ image.placeholder.hint }}</span>
                      </div>
+                     </PhotoArea>
                    </div>
                   </div>
                 </div>
@@ -655,8 +654,24 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   color: #FFFFFF;
-  padding: 0.5rem;
+  padding: 0;
+  overflow: hidden;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+.placeholder {
+  width: 100%;
+  height: 100%;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .placeholder-icon {
   margin-bottom: 4px;
@@ -814,12 +829,18 @@ onBeforeUnmount(() => {
 /* ===== Card Body (expanded area) ===== */
 .card-body {
   position: relative;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 0 1.8rem 1.8rem;
   border-top: 1px solid rgba(242, 140, 56, 0.12);
 }
 
 /* ===== Slideshow ===== */
 .cert-slideshow {
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -830,6 +851,7 @@ onBeforeUnmount(() => {
 /* Slide container: clips overflow so only 1 slide shows and enforces A4 landscape aspect ratio */
 .slide-container {
   width: 100%;
+  min-width: 0;
   aspect-ratio: 297 / 210; /* A4 Landscape ratio */
   overflow: hidden;
   border-radius: 14px;
@@ -840,30 +862,31 @@ onBeforeUnmount(() => {
 /* Slide track: flex row, translateX for smooth sliding */
 .slide-track {
   display: flex;
+  width: 100%;
+  min-width: 0;
   height: 100%;
   transition: transform 0.45s cubic-bezier(0.25, 1, 0.35, 1);
 }
 
 /* Each slide fills 100% of the container width and height */
 .slide-item {
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   height: 100%;
-  flex-shrink: 0;
+  flex: 0 0 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 
-/* Actual certificate photo: fits fully inside container maintaining its original aspect ratio */
-.cert-image {
+.cert-photo-area {
   width: 100%;
   height: 100%;
-  object-fit: contain;
   border-radius: 14px;
-  display: block;
 }
 
+/* Actual certificate photo: fits fully inside container maintaining its original aspect ratio */
 /* Placeholder when no image URL provided */
 .cert-placeholder {
   width: 100%;
