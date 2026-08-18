@@ -6,9 +6,12 @@ export interface NavSection {
 }
 
 export interface NavItem {
+  id: string
   key: string
   label: string
-  target: string
+  targetSectionId: string
+  offsetMode: 'fixed' | 'align-bottom'
+  offset: number
 }
 
 export interface DefaultNavigation {
@@ -30,10 +33,10 @@ export const defaultNavigation: DefaultNavigation = {
     { id: 'contact',        label: 'Contact',  menuKey: 'contact',     darkBg: true  }
   ],
   navItems: [
-    { key: 'main',     label: 'Main',     target: 'main'     },
-    { key: 'about',    label: 'About',    target: 'about'    },
-    { key: 'activity', label: 'Activity', target: 'experience' },
-    { key: 'contact',  label: 'Contact',  target: 'contact'  }
+    { id: 'navigation-main', key: 'main', label: 'Main', targetSectionId: 'main', offsetMode: 'fixed', offset: 0 },
+    { id: 'navigation-about', key: 'about', label: 'About', targetSectionId: 'about', offsetMode: 'fixed', offset: 20 },
+    { id: 'navigation-activity', key: 'activity', label: 'Activity', targetSectionId: 'experience', offsetMode: 'fixed', offset: 0 },
+    { id: 'navigation-contact', key: 'contact', label: 'Contact', targetSectionId: 'contact', offsetMode: 'align-bottom', offset: 0 }
   ]
 }
 

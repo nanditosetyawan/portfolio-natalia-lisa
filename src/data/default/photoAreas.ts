@@ -1,21 +1,5 @@
-export type PhotoAreaId =
-  | 'about-frame-back-2'
-  | 'about-frame-main'
-  | 'college-frame-back'
-  | 'college-frame-front'
-  | 'shs-frame-back'
-  | 'shs-frame-front'
-  | 'experience-frame-klinik-1'
-  | 'experience-frame-klinik-2'
-  | 'experience-frame-klinik-3'
-  | 'experience-frame-klinik-4'
-  | 'cert-a-thumbnail'
-  | 'cert-a-detail-1'
-  | 'cert-a-detail-2'
-  | 'cert-a-detail-3'
-  | 'cert-b-thumbnail'
-  | 'cert-b-detail-1'
-  | 'cert-b-detail-2'
+/** @deprecated Runtime identity is dynamic. Kept as a compatibility export. */
+export type PhotoAreaId = string
 
 export interface PhotoAreaDefinition {
   id: PhotoAreaId
@@ -43,4 +27,3 @@ export const photoAreas: PhotoAreaDefinition[] = [
   { id: 'cert-b-detail-1', section: 'Certificate', label: 'Sertif B detail 1', source: '' },
   { id: 'cert-b-detail-2', section: 'Certificate', label: 'Sertif B detail 2', source: '' }
 ]
-

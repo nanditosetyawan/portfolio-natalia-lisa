@@ -1,21 +1,27 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ArrowDown, ArrowRight, Sparkle } from 'lucide-vue-next'
-import { defaultAbout } from '../../data/default/about'
-import { defaultAboutConfig as vConfig } from '../../data/default/visual/about'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
+import { useSiteStore } from '../../stores/site'
 
+const site = useSiteStore()
 const photoAreaImages = usePhotoAreaImagesStore()
+const about = site.current.content.about
+const vConfig = site.current.visual.about
+const paragraphs = computed(() => site.aboutParagraphs)
+const foregroundSource = computed(() => site.mediaSourceForUsage('about-foreground-portrait'))
+const photoAreaObjectPosition = (id: string, fallback: string) => site.current.photoAreas.find((area) => area.id === id)?.objectPosition ?? fallback
 </script>
 
 <template>
   <section
     id="about"
+    :data-entity-id="about.id"
     class="about-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
-      minHeight: vConfig.section.minHeight,
-      padding: vConfig.section.padding
+      minHeight: vConfig.section.minHeight
     }"
   >
     <!-- Subtle edge/background decoration -->
@@ -39,18 +45,12 @@ const photoAreaImages = usePhotoAreaImagesStore()
     <div
       class="about-container"
       :style="{
-        maxWidth: vConfig.container.maxWidth,
-        gap: vConfig.container.gap,
-        minHeight: vConfig.container.minHeight
+        maxWidth: vConfig.container.maxWidth
       }"
     >
       <!-- Left content column -->
       <div
         class="about-content"
-        :style="{
-          flexBasis: vConfig.content.flexBasis,
-          paddingTop: vConfig.content.paddingTop
-        }"
       >
         <h2
           class="about-title"
@@ -62,7 +62,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
             fontFamily: vConfig.title.fontFamily
           }"
         >
-          {{ defaultAbout.title }}
+          {{ about.title }}
         </h2>
 
         <!-- Curved decorative lines under title -->
@@ -73,7 +73,11 @@ const photoAreaImages = usePhotoAreaImagesStore()
         </div>
 
         <p
-          class="about-paragraph p1"
+          v-for="paragraph in paragraphs"
+          :key="paragraph.id"
+          class="about-paragraph"
+          :class="`p${paragraph.order + 1}`"
+          :data-entity-id="paragraph.id"
           :style="{
             color: vConfig.paragraph.color,
             fontSize: vConfig.paragraph.fontSize,
@@ -83,25 +87,11 @@ const photoAreaImages = usePhotoAreaImagesStore()
             fontFamily: vConfig.paragraph.fontFamily
           }"
         >
-          {{ defaultAbout.paragraphs[0] }}
-        </p>
-
-        <p
-          class="about-paragraph p2"
-          :style="{
-            color: vConfig.paragraph.color,
-            fontSize: vConfig.paragraph.fontSize,
-            fontWeight: vConfig.paragraph.fontWeight,
-            lineHeight: vConfig.paragraph.lineHeight,
-            maxWidth: vConfig.paragraph.maxWidth,
-            fontFamily: vConfig.paragraph.fontFamily
-          }"
-        >
-          {{ defaultAbout.paragraphs[1] }}
+          {{ paragraph.body }}
         </p>
 
         <a
-          href="#activity"
+          :href="`#${about.cta.targetSectionId}`"
           class="learn-more-btn"
           :style="{
             backgroundColor: vConfig.button.backgroundColor,
@@ -110,7 +100,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
             fontWeight: vConfig.button.fontWeight
           }"
         >
-          <span>LEARN MORE</span>
+          <span>{{ about.cta.text }}</span>
           <ArrowRight :size="16" :stroke-width="2.5" />
         </a>
       </div>
@@ -118,10 +108,6 @@ const photoAreaImages = usePhotoAreaImagesStore()
       <!-- Right visual column -->
       <div
         class="about-visual"
-        :style="{
-          flexBasis: vConfig.visual.flexBasis,
-          height: vConfig.visual.height
-        }"
       >
         <div
             class="polaroid frame-back-2"
@@ -131,15 +117,11 @@ const photoAreaImages = usePhotoAreaImagesStore()
               border: vConfig.frameBack2.border,
               borderRadius: vConfig.frameBack2.borderRadius,
               boxShadow: vConfig.frameBack2.boxShadow,
-              width: vConfig.frameBack2.width,
-              height: vConfig.frameBack2.height,
-              bottom: vConfig.frameBack2.bottom,
-              right: vConfig.frameBack2.right,
               transform: 'rotate(' + vConfig.frameBack2.transformRotate + ')',
               zIndex: vConfig.frameBack2.zIndex
             }"
           >
-          <PhotoArea class="polaroid-photo" frame-id="about-frame-back-2" :source="photoAreaImages.frames['about-frame-back-2'].source" alt="About back 2 photo" :object-position="vConfig.frameBack2Image.objectPosition">
+          <PhotoArea class="polaroid-photo" frame-id="about-frame-back-2" :source="photoAreaImages.frames['about-frame-back-2'].source" alt="About back 2 photo" :object-position="photoAreaObjectPosition('about-frame-back-2', vConfig.frameBack2Image.objectPosition)">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameBack2Placeholder.color,
               opacity: vConfig.frameBack2Placeholder.opacity,
@@ -163,15 +145,11 @@ const photoAreaImages = usePhotoAreaImagesStore()
             border: vConfig.frameMain.border,
             borderRadius: vConfig.frameMain.borderRadius,
             boxShadow: vConfig.frameMain.boxShadow,
-            width: vConfig.frameMain.width,
-            height: vConfig.frameMain.height,
-            top: vConfig.frameMain.top,
-            left: vConfig.frameMain.left,
             transform: 'rotate(' + vConfig.frameMain.transformRotate + ')',
             zIndex: vConfig.frameMain.zIndex
           }"
         >
-          <PhotoArea class="polaroid-photo" frame-id="about-frame-main" :source="photoAreaImages.frames['about-frame-main'].source" alt="About main photo" :object-position="vConfig.frameMainImage.objectPosition">
+          <PhotoArea class="polaroid-photo" frame-id="about-frame-main" :source="photoAreaImages.frames['about-frame-main'].source" alt="About main photo" :object-position="photoAreaObjectPosition('about-frame-main', vConfig.frameMainImage.objectPosition)">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameMainPlaceholder.color,
               opacity: vConfig.frameMainPlaceholder.opacity,
@@ -208,14 +186,13 @@ const photoAreaImages = usePhotoAreaImagesStore()
 
     <img
       class="about-foreground-portrait"
-      data-about-foreground="gambar1"
-      :src="vConfig.foregroundPortrait.source"
+      data-about-foreground="about-foreground-portrait"
+      data-media-usage-id="about-foreground-portrait"
+      :src="foregroundSource"
       alt="Lisa Natalia"
       :style="{
-        width: vConfig.foregroundPortrait.width,
-        top: vConfig.foregroundPortrait.top,
-        right: vConfig.foregroundPortrait.right,
-        zIndex: vConfig.foregroundPortrait.zIndex
+        zIndex: vConfig.foregroundPortrait.zIndex,
+        objectPosition: site.mediaObjectPositionForUsage('about-foreground-portrait')
       }"
     />
 
@@ -294,7 +271,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
   position: relative;
   background: #FFF0BE;
   min-height: 100vh;
-  padding: 6rem 5rem 7.5rem;
+  padding: v-bind('vConfig.section.padding');
   overflow: hidden;
   isolation: isolate;
 }
@@ -359,6 +336,8 @@ const photoAreaImages = usePhotoAreaImagesStore()
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
+  gap: v-bind('vConfig.container.gap');
+  min-height: v-bind('vConfig.container.minHeight');
   align-items: center;
   gap: 3.5rem;
   min-height: calc(100vh - 13.5rem);
@@ -366,9 +345,9 @@ const photoAreaImages = usePhotoAreaImagesStore()
 
 /* ===== Left content ===== */
 .about-content {
-  flex: 1 1 44%;
+  flex: 1 1 v-bind('vConfig.content.flexBasis');
   z-index: 2;
-  padding-top: 2rem;
+  padding-top: v-bind('vConfig.content.paddingTop');
 }
 
 .about-title {
@@ -440,9 +419,9 @@ const photoAreaImages = usePhotoAreaImagesStore()
 
 /* ===== Right visual column ===== */
 .about-visual {
-  flex: 1 1 56%;
+  flex: 1 1 v-bind('vConfig.visual.flexBasis');
   position: relative;
-  height: 640px;
+  height: v-bind('vConfig.visual.height');
   z-index: 2;
 }
 
@@ -524,10 +503,20 @@ const photoAreaImages = usePhotoAreaImagesStore()
 }
 
 /* Back frame 2 - lower right */
-.frame-back-2 {}
+.frame-back-2 {
+  width: v-bind('vConfig.frameBack2.width');
+  height: v-bind('vConfig.frameBack2.height');
+  bottom: v-bind('vConfig.frameBack2.bottom');
+  right: v-bind('vConfig.frameBack2.right');
+}
 
 /* Main frame - center front */
-.frame-main {}
+.frame-main {
+  width: v-bind('vConfig.frameMain.width');
+  height: v-bind('vConfig.frameMain.height');
+  top: v-bind('vConfig.frameMain.top');
+  left: v-bind('vConfig.frameMain.left');
+}
 
 .about-foreground-portrait {
   position: absolute;
@@ -535,6 +524,9 @@ const photoAreaImages = usePhotoAreaImagesStore()
   height: auto;
   max-width: none;
   object-fit: contain;
+  width: v-bind('vConfig.foregroundPortrait.width');
+  top: v-bind('vConfig.foregroundPortrait.top');
+  right: v-bind('vConfig.foregroundPortrait.right');
   pointer-events: none;
 }
 
@@ -666,77 +658,77 @@ const photoAreaImages = usePhotoAreaImagesStore()
 
 @media (max-width: 1100px) {
   .about-section {
-    padding-left: 2.5rem !important;
-    padding-right: 2.5rem !important;
+    padding-left: v-bind('vConfig.responsive.tablet.sectionPaddingLeft');
+    padding-right: v-bind('vConfig.responsive.tablet.sectionPaddingRight');
   }
 
   .about-container {
-    gap: 2rem !important;
+    gap: v-bind('vConfig.responsive.tablet.containerGap');
   }
 
   .frame-back-2 {
-    width: 360px !important;
-    height: 250px !important;
-    bottom: 56% !important;
-    right: 13% !important;
+    width: v-bind('vConfig.responsive.tablet.frameBackWidth');
+    height: v-bind('vConfig.responsive.tablet.frameBackHeight');
+    bottom: v-bind('vConfig.responsive.tablet.frameBackBottom');
+    right: v-bind('vConfig.responsive.tablet.frameBackRight');
   }
 
   .frame-main {
-    width: 75px !important;
-    height: 75px !important;
-    top: 35% !important;
-    left: 60% !important;
+    width: v-bind('vConfig.responsive.tablet.frameMainWidth');
+    height: v-bind('vConfig.responsive.tablet.frameMainHeight');
+    top: v-bind('vConfig.responsive.tablet.frameMainTop');
+    left: v-bind('vConfig.responsive.tablet.frameMainLeft');
   }
 
   .about-foreground-portrait {
-    width: 270px !important;
-    right: 12% !important;
+    width: v-bind('vConfig.responsive.tablet.portraitWidth');
+    right: v-bind('vConfig.responsive.tablet.portraitRight');
   }
 }
 
 @media (max-width: 760px) {
   .about-section {
-    padding: 4rem 1.25rem 7rem !important;
+    padding: v-bind('vConfig.responsive.mobile.sectionPadding');
   }
 
   .about-container {
     flex-direction: column;
     align-items: stretch;
-    min-height: 0 !important;
+    min-height: v-bind('vConfig.responsive.mobile.containerMinHeight');
   }
 
   .about-content {
-    flex-basis: auto !important;
-    padding-top: 0 !important;
+    flex-basis: v-bind('vConfig.responsive.mobile.contentFlexBasis');
+    padding-top: v-bind('vConfig.responsive.mobile.contentPaddingTop');
   }
 
   .about-visual {
-    flex-basis: auto !important;
+    flex-basis: v-bind('vConfig.responsive.mobile.visualFlexBasis');
     width: 100%;
-    height: 520px !important;
+    height: v-bind('vConfig.responsive.mobile.visualHeight');
   }
 
   .frame-back-2 {
-    width: min(77vw, 300px) !important;
-    height: min(70vw, 280px) !important;
-    top: -2.25rem !important;
-    right: 18% !important;
-    bottom: auto !important;
+    width: v-bind('vConfig.responsive.mobile.frameBackWidth');
+    height: v-bind('vConfig.responsive.mobile.frameBackHeight');
+    top: v-bind('vConfig.responsive.mobile.frameBackTop');
+    right: v-bind('vConfig.responsive.mobile.frameBackRight');
+    bottom: v-bind('vConfig.responsive.mobile.frameBackBottom');
   }
 
   .frame-main {
-    width: min(22vw, 88px) !important;
-    height: min(22vw, 88px) !important;
-    top: 9rem !important;
-    left: auto !important;
-    right: 5% !important;
+    width: v-bind('vConfig.responsive.mobile.frameMainWidth');
+    height: v-bind('vConfig.responsive.mobile.frameMainHeight');
+    top: v-bind('vConfig.responsive.mobile.frameMainTop');
+    left: v-bind('vConfig.responsive.mobile.frameMainLeft');
+    right: v-bind('vConfig.responsive.mobile.frameMainRight');
   }
 
   .about-foreground-portrait {
-    width: min(72vw, 290px) !important;
-    top: auto !important;
-    right: 0 !important;
-    bottom: 7rem;
+    width: v-bind('vConfig.responsive.mobile.portraitWidth');
+    top: v-bind('vConfig.responsive.mobile.portraitTop');
+    right: v-bind('vConfig.responsive.mobile.portraitRight');
+    bottom: v-bind('vConfig.responsive.mobile.portraitBottom');
   }
 }
 </style>

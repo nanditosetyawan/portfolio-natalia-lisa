@@ -3,9 +3,12 @@ import { Pill, Syringe, Sparkles } from 'lucide-vue-next'
 import EducationSection from '../sections/education/EducationSection.vue'
 import CollegeSection from '../sections/education/college/CollegeSection.vue'
 import SHSSection from '../sections/education/shs/SHSSection.vue'
-import { defaultEducationConfig as vConfig } from '../data/default/visual/education'
-import { defaultCollegeConfig as collegeVConfig } from '../data/default/visual/college'
-import { defaultSHSConfig as shsVConfig } from '../data/default/visual/shs'
+import { useSiteStore } from '../stores/site'
+
+const site = useSiteStore()
+const vConfig = site.current.visual.education
+const collegeVConfig = site.current.visual.college
+const shsVConfig = site.current.visual.shs
 </script>
 
 <template>

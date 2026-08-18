@@ -1,775 +1,155 @@
-<template>
-  <div class="edit-page">
-    <div class="edit-canvas">
-      <aside class="control-panel">
-        <h2 class="control-panel-title">Control Panel</h2>
-        <nav class="control-nav">
-          <!-- FONT FOLD -->
-          <div class="fold">
-            <button class="fold-header" @click="expanded.font = !expanded.font" type="button">
-              <span class="fold-title">FONT</span>
-              <ChevronDown class="chevron" :class="{ rotated: expanded.font }" />
-            </button>
-            <div v-show="expanded.font" class="fold-content">
-              <!-- Font Family Dropdown -->
-              <div class="field-row">
-                <label class="field-label">Font Family</label>
-                <select class="input-field">
-                  <option>Inter</option>
-                  <option>Poppins</option>
-                  <option>Plus Jakarta Sans</option>
-                </select>
-              </div>
-
-              <!-- Size + Spacing Grid -->
-              <div class="field-row grid-two-col">
-                <div>
-                  <label class="field-label">Size</label>
-                  <input type="number" class="input-field" step="1" placeholder="16" />
-                </div>
-                <div>
-                  <label class="field-label">Spacing</label>
-                  <input type="number" class="input-field" step="0.5" placeholder="0" />
-                </div>
-              </div>
-
-              <!-- Color -->
-              <div class="field-row">
-                <label class="field-label">Color</label>
-                <input type="color" class="input-color" />
-              </div>
-
-              <!-- Shadow Section -->
-              <div class="field-row">
-                <label class="field-label">Shadow</label>
-                <div class="shadow-enable">
-                  <input type="checkbox" id="shadow-normal" v-model="shadowNormalEnabled" />
-                  <label for="shadow-normal">On</label>
-                </div>
-              </div>
-
-              <div v-show="shadowNormalEnabled" class="field-row">
-                <label class="field-label">Shadow Color</label>
-                <input type="color" class="input-color" />
-              </div>
-
-              <div v-show="shadowNormalEnabled" class="field-row grid-two-col">
-                <div>
-                  <label class="field-label">Offset X</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-                <div>
-                  <label class="field-label">Offset Y</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-              </div>
-
-              <div v-show="shadowNormalEnabled" class="field-row grid-two-col">
-                <div>
-                  <label class="field-label">Blur</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-                <div>
-                  <label class="field-label">Spread</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-              </div>
-
-              <!-- Hover Color -->
-              <div class="field-row">
-                <label class="field-label">Hover Color</label>
-                <input type="color" class="input-color" />
-              </div>
-
-              <!-- Hover Shadow -->
-              <div class="field-row">
-                <label class="field-label">Hover Shadow</label>
-                <div class="shadow-enable">
-                  <input type="checkbox" id="shadow-hover" v-model="shadowHoverEnabled" />
-                  <label for="shadow-hover">On</label>
-                </div>
-              </div>
-
-              <div v-show="shadowHoverEnabled" class="field-row">
-                <label class="field-label">Shadow Color</label>
-                <input type="color" class="input-color" />
-              </div>
-
-              <div v-show="shadowHoverEnabled" class="field-row grid-two-col">
-                <div>
-                  <label class="field-label">Offset X</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-                <div>
-                  <label class="field-label">Offset Y</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-              </div>
-
-              <div v-show="shadowHoverEnabled" class="field-row grid-two-col">
-                <div>
-                  <label class="field-label">Blur</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-                <div>
-                  <label class="field-label">Spread</label>
-                  <input type="number" class="input-field" step="1" placeholder="0" />
-                </div>
-              </div>
-
-              <!-- Position -->
-              <div class="field-row">
-                <label class="field-label">Position</label>
-              </div>
-
-              <div class="field-row grid-two-col">
-                <div>
-                  <label class="field-label">X</label>
-                  <input type="number" class="input-field" step="0.5" placeholder="0" />
-                </div>
-                <div>
-                  <label class="field-label">Y</label>
-                  <input type="number" class="input-field" step="0.5" placeholder="0" />
-                </div>
-              </div>
-
-              <!-- Rotate -->
-              <div class="field-row">
-                <label class="field-label">Rotate</label>
-                <input type="number" class="input-field" step="1" placeholder="0" />
-              </div>
-
-              <!-- Z-index -->
-              <div class="field-row">
-                <label class="field-label">Z-index</label>
-                <input type="number" class="input-field" step="1" placeholder="1" />
-              </div>
-            </div>
-          </div>
-
-          <!-- IMAGE FOLD -->
-          <div class="fold">
-            <button class="fold-header" @click="expanded.image = !expanded.image" type="button">
-              <span class="fold-title">IMAGE</span>
-              <ChevronDown class="chevron" :class="{ rotated: expanded.image }" />
-            </button>
-            <div v-show="expanded.image" class="fold-content">
-              <div class="field-row upload-row">
-                <label class="field-label">Upload</label>
-                <input type="file" class="input-file" accept="image/*" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">Hover</label>
-                <input type="color" class="input-color" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">X</label>
-                <input type="number" class="input-field" step="0.5" placeholder="0" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">Y</label>
-                <input type="number" class="input-field" step="0.5" placeholder="0" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">Outline</label>
-                <input type="color" class="input-color" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">Change</label>
-                <input type="file" class="input-file" accept="image/*" />
-              </div>
-              <div class="field-row">
-                <label class="field-label">Rotate</label>
-                <input type="number" class="input-field" step="1" placeholder="0" />
-              </div>
-            </div>
-          </div>
-
-          <!-- ALL INDEPENDENT PHOTO AREAS -->
-          <div class="fold">
-            <button class="fold-header" @click="expanded.photoAreas = !expanded.photoAreas" type="button">
-              <span class="fold-title">PHOTO AREAS</span>
-              <ChevronDown class="chevron" :class="{ rotated: expanded.photoAreas }" />
-            </button>
-            <div v-show="expanded.photoAreas" class="fold-content">
-              <div class="field-row">
-                <label class="field-label" for="photo-area-select">Photo area</label>
-                <select id="photo-area-select" v-model="selectedPhotoArea" class="input-field">
-                  <option v-for="frame in allPhotoAreas" :key="frame.id" :value="frame.id">
-                    {{ frame.section }} — {{ frame.label }} — {{ frame.id }}
-                  </option>
-                </select>
-              </div>
-              <div class="field-row upload-row">
-                <label class="field-label">Upload image</label>
-                <input
-                  :key="selectedPhotoArea"
-                  type="file"
-                  class="input-file"
-                  accept="image/*"
-                  :data-frame-id="selectedPhotoArea"
-                  :data-photo-area-id="selectedPhotoArea"
-                  @change="uploadPhotoAreaImage(selectedPhotoArea, $event)"
-                />
-              </div>
-              <div class="field-row experience-image-status" :data-selected-frame-id="selectedPhotoArea">
-                <span class="field-label">Status</span>
-                <span>{{ selectedPhotoAreaSource ? 'Image selected' : 'Placeholder active' }}</span>
-              </div>
-              <button
-                type="button"
-                class="experience-remove-button"
-                :disabled="!selectedPhotoAreaSource"
-                @click="removePhotoAreaImage(selectedPhotoArea)"
-              >
-                Remove image
-              </button>
-              <p class="experience-session-note">
-                {{ selectedPhotoArea.startsWith('cert-')
-                  ? 'Gambar Certificate disimpan pada database Certificate browser.'
-                  : 'Draft sesi saja. Persistence media belum tersedia pada arsitektur project saat ini.' }}
-              </p>
-            </div>
-          </div>
-        </nav>
-      </aside>
-
-      <main class="canvas-container">
-        <div class="canvas-frame">
-          <div class="canvas-scroll">
-            <div class="canvas-placeholder">
-              <div class="placeholder-3d">
-                <Editor3D />
-              </div>
-              <h2 class="placeholder-title">Mulai mengedit halaman</h2>
-              <div class="placeholder-chips">
-                <span class="chip">Drag</span>
-                <span class="chip">Resize</span>
-                <span class="chip">Position</span>
-                <span class="chip">Rotate</span>
-                <span class="chip">Layer</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { ChevronDown } from 'lucide-vue-next'
-import { photoAreas, type PhotoAreaId } from '../../data/default/photoAreas'
-import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
+import { computed, onMounted, ref, watch } from 'vue'
+import HomePage from '../guest/HomePage.vue'
+import { useAdminEntityRegistry, type RuntimeAdminProperty } from '../../composables/useAdminEntityRegistry'
+import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
 import { useCertificatesStore } from '../../stores/certificates'
+import { useSiteStore } from '../../stores/site'
 
-const expanded = ref({
-  font: true,
-  image: false,
-  photoAreas: true,
+const site = useSiteStore()
+const certificates = useCertificatesStore()
+const entities = useAdminEntityRegistry()
+const photoRegistry = usePhotoAreaRegistry()
+const photoAreas = photoRegistry.areas
+
+const sections = computed(() => [...new Set(entities.value.map((entity) => entity.section))])
+const selectedSection = ref('Portfolio')
+const sectionEntities = computed(() => entities.value.filter((entity) => entity.section === selectedSection.value))
+const selectedEntityId = ref('portfolio-hero')
+const selectedEntity = computed(() => sectionEntities.value.find((entity) => entity.id === selectedEntityId.value) ?? sectionEntities.value[0])
+const selectedPhotoAreaId = ref('about-frame-back-2')
+const selectedPhotoArea = computed(() => photoRegistry.find(selectedPhotoAreaId.value))
+const saveStatus = ref('')
+
+watch(selectedSection, () => { selectedEntityId.value = sectionEntities.value[0]?.id ?? '' })
+watch(() => photoAreas.value.map((area) => area.id).join('|'), () => {
+  if (!photoRegistry.find(selectedPhotoAreaId.value)) selectedPhotoAreaId.value = photoRegistry.areas.value[0]?.id ?? ''
 })
 
-const photoAreaImages = usePhotoAreaImagesStore()
-const certificatesStore = useCertificatesStore()
-const allPhotoAreas = photoAreas
-const selectedPhotoArea = ref<PhotoAreaId>(allPhotoAreas[0].id)
-const selectedPhotoAreaSource = computed(
-  () => photoAreaImages.frames[selectedPhotoArea.value].source
-    || certificatesStore.photoSource(selectedPhotoArea.value)
-)
+onMounted(() => certificates.loadInitial())
 
-onMounted(() => certificatesStore.loadInitial())
+function inputValue(event: Event, property: RuntimeAdminProperty) {
+  const input = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  if (property.control === 'checkbox') return (input as HTMLInputElement).checked
+  if (property.control === 'number') return Number(input.value)
+  return input.value
+}
 
-function uploadPhotoAreaImage(frameId: PhotoAreaId, event: Event) {
+async function writeProperty(property: RuntimeAdminProperty, event: Event) {
+  await property.write(inputValue(event, property))
+}
+
+function uploadPhoto(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
-
+  if (!file || !selectedPhotoAreaId.value) return
   const reader = new FileReader()
   reader.addEventListener('load', async () => {
-    if (typeof reader.result === 'string') {
-      if (frameId.startsWith('cert-')) {
-        const persisted = await certificatesStore.updatePhotoAreaSource(frameId, reader.result)
-        if (persisted) photoAreaImages.setSource(frameId, reader.result)
-      } else {
-        photoAreaImages.setSource(frameId, reader.result)
-      }
-    }
-  })
+    if (typeof reader.result === 'string') await photoRegistry.updateSource(selectedPhotoAreaId.value, reader.result)
+  }, { once: true })
   reader.readAsDataURL(file)
 }
 
-async function removePhotoAreaImage(frameId: PhotoAreaId) {
-  if (frameId.startsWith('cert-')) {
-    const persisted = await certificatesStore.updatePhotoAreaSource(frameId, '')
-    if (persisted) photoAreaImages.removeSource(frameId)
-  } else {
-    photoAreaImages.removeSource(frameId)
-  }
-}
-
-const shadowNormalEnabled = ref(false)
-const shadowHoverEnabled = ref(false)
-
-const Editor3D = {
-  template:
-    '<svg width="64" height="64" viewBox="0 0 48 48" fill="none"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="32" height="32" rx="4"/><path d="M8 20h32M8 28h32M16 8v8M32 8v8"></g></svg>',
+async function saveDraft() {
+  await site.saveDraft()
+  saveStatus.value = 'Draft runtime tersimpan melalui repository adapter.'
 }
 </script>
 
+<template>
+  <div class="edit-page">
+    <aside class="control-panel" aria-label="Canonical entity property editor">
+      <div class="panel-heading">
+        <h1>Edit</h1>
+        <button type="button" class="save-button" @click="saveDraft">Save draft</button>
+      </div>
+
+      <label class="field-label" for="section-select">Section</label>
+      <select id="section-select" v-model="selectedSection" class="input-field">
+        <option v-for="section in sections" :key="section" :value="section">{{ section }}</option>
+      </select>
+
+      <label class="field-label" for="entity-select">Entity / element</label>
+      <select id="entity-select" v-model="selectedEntityId" class="input-field" data-admin-entity-select>
+        <option v-for="entity in sectionEntities" :key="entity.id" :value="entity.id">{{ entity.label }} — {{ entity.id }}</option>
+      </select>
+
+      <section v-if="selectedEntity" class="property-editor" :data-selected-entity-id="selectedEntity.id">
+        <div v-for="group in [...new Set(selectedEntity.properties.map((property) => property.group))]" :key="group" class="property-group">
+          <h2>{{ group }}</h2>
+          <label v-for="property in selectedEntity.properties.filter((candidate) => candidate.group === group)" :key="property.key" class="property-field">
+            <span>{{ property.label }}</span>
+            <textarea
+              v-if="property.control === 'textarea'"
+              :value="String(property.read())"
+              :data-property-key="property.key"
+              @input="writeProperty(property, $event)"
+            />
+            <input
+              v-else-if="property.control === 'checkbox'"
+              type="checkbox"
+              :checked="Boolean(property.read())"
+              :data-property-key="property.key"
+              @change="writeProperty(property, $event)"
+            />
+            <input
+              v-else
+              :type="property.control === 'color' ? 'color' : property.control === 'number' ? 'number' : 'text'"
+              :value="String(property.read())"
+              :data-property-key="property.key"
+              @input="writeProperty(property, $event)"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="property-group media-editor">
+        <h2>Media</h2>
+        <label class="property-field">
+          <span>Photo area</span>
+          <select v-model="selectedPhotoAreaId" data-photo-area-select>
+            <option v-for="area in photoAreas" :key="area.id" :value="area.id">
+              {{ area.section }} — {{ area.label }} — {{ area.id }}
+            </option>
+          </select>
+        </label>
+        <label class="property-field">
+          <span>Image</span>
+          <input :key="selectedPhotoAreaId" type="file" accept="image/*" :data-photo-area-id="selectedPhotoAreaId" @change="uploadPhoto" />
+        </label>
+        <label v-if="selectedPhotoArea" class="property-field">
+          <span>Object position</span>
+          <input :value="selectedPhotoArea.objectPosition" data-media-object-position @input="photoRegistry.updateObjectPosition(selectedPhotoAreaId, ($event.target as HTMLInputElement).value)" />
+        </label>
+        <button type="button" :disabled="!selectedPhotoArea?.source" @click="photoRegistry.updateSource(selectedPhotoAreaId, '')">Remove image</button>
+        <small v-if="selectedPhotoArea">Owner: {{ selectedPhotoArea.ownerType }} / {{ selectedPhotoArea.ownerId }} · {{ selectedPhotoArea.persistence }}</small>
+      </section>
+      <p class="save-status" aria-live="polite">{{ saveStatus }}</p>
+    </aside>
+
+    <main class="canvas-container" aria-label="Live Guest preview">
+      <div class="canvas-label">LIVE CANONICAL RUNTIME PREVIEW</div>
+      <div class="canvas-scroll"><HomePage /></div>
+    </main>
+  </div>
+</template>
+
 <style scoped>
-.edit-page {
-  width: 100%;
-  height: 100%;
-  background-color: #F6F4E8;
-  font-family: 'Inter', system-ui, sans-serif;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* ===== HEADER ===== */
-.edit-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  height: 96px;
-}
-
-.edit-title {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 800;
-  color: #5A3E35;
-  letter-spacing: -0.02em;
-  position: relative;
-  display: inline-block;
-}
-
-.edit-underline {
-  display: inline-block;
-  width: 60px;
-  height: 4px;
-  background-color: #5A3E35;
-  border-radius: 2px;
-  margin-left: 8px;
-  vertical-align: bottom;
-}
-
-/* ===== TOOLBAR ===== */
-.edit-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tbar-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.4rem 0.5rem;
-  border: none;
-  border-radius: 9999px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: not-allowed;
-  opacity: 0.5;
-  transition: all 0.2s ease;
-}
-
-.tbar-btn:disabled {
-  cursor: not-allowed;
-}
-
-.tbar-undo,
-.tbar-redo {
-  background: transparent;
-  color: #7B5F3B;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  justify-content: center;
-}
-
-.tbar-undo:hover:not(:disabled),
-.tbar-redo:hover:not(:disabled) {
-  background: transparent;
-  color: #5A3E35;
-}
-
-.tbar-save {
-  background: rgba(255, 255, 255, 0.8);
-  color: #5A3E35;
-  border: 1px solid rgba(138, 124, 110, 0.3);
-}
-
-.tbar-save:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.tbar-publish {
-  background: #FF9A86;
-  color: #FFFFFF;
-}
-
-.tbar-publish:hover:not(:disabled) {
-  background: #FF8572;
-}
-
-/* ===== MAIN CANVAS AREA ===== */
-.edit-canvas {
-  display: flex;
-  gap: 24px;
-  padding: 1rem;
-  height: 100%;
-  flex: 1;
-  overflow: hidden;
-  align-items: flex-start;
-}
-
-/* ===== CONTROL PANEL ===== */
-.control-panel {
-  width: 320px;
-  flex-shrink: 0;
-  background-color: #FAF9F5; /* Warm white surface */
-  border-radius: 32px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(90, 62, 53, 0.06);
-  border: 1px solid rgba(90, 62, 53, 0.04);
-  overflow-y: auto;
-  height: 100%;
-  min-height: 0;
-}
-
-.control-panel {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(90, 62, 53, 0.35) transparent;
-}
-
-.control-panel::-webkit-scrollbar {
-  width: 3px;
-}
-
-.control-panel::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 4px 0; /* Inset from rounded corners */
-}
-
-.control-panel::-webkit-scrollbar-thumb {
-  background-color: rgba(90, 62, 53, 0.35);
-  border-radius: 3px;
-}
-
-.control-panel::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(90, 62, 53, 0.5);
-}
-
-.control-panel::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-.control-panel-title {
-  margin: 0 0 14px;
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #5A3E35;
-}
-
-.control-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* ===== FOLDS ===== */
-.fold-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: none;
-  background: transparent;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #7B5F3B;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.fold-header:hover {
-  background-color: rgba(90, 62, 53, 0.03);
-  color: #5A3E35;
-}
-
-.fold-title {
-  letter-spacing: 0.1em;
-}
-
-.chevron {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.2s ease;
-  color: #7B5F3B;
-}
-
-.chevron.rotated {
-  transform: rotate(180deg);
-}
-
-.fold-header:hover .chevron {
-  color: #5A3E35;
-}
-
-.fold-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
-  padding-left: 4px;
-}
-
-/* ===== FIELD ROWS ===== */
-.field-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.upload-row {
-  gap: 0.5rem;
-}
-
-.grid-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-
-.field-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #7B5F3B;
-  letter-spacing: 0.05em;
-}
-
-.shadow-enable {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.15rem;
-}
-
-.shadow-enable input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.shadow-enable label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #7B5F3B;
-  cursor: pointer;
-}
-
-/* ===== INPUT FIELDS ===== */
-.input-field {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(90, 62, 53, 0.2);
-  border-radius: 8px;
-  background: #FFFFFF;
-  color: #5A3E35;
-  font-size: 0.85rem;
-  font-family: inherit;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: #5A3E35;
-  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
-}
-
-.input-field::placeholder {
-  color: #A8968A;
-}
-
-.input-color {
-  width: 100%;
-  height: 40px;
-  padding: 2px;
-  border: 1px solid rgba(90, 62, 53, 0.2);
-  border-radius: 8px;
-  background: #FFFFFF;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-}
-
-.input-color:focus {
-  outline: none;
-  border-color: #5A3E35;
-  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
-}
-
-.input-file {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed rgba(90, 62, 53, 0.3);
-  border-radius: 8px;
-  background: rgba(255, 245, 235, 0.5);
-  color: #5A3E35;
-  font-size: 0.8rem;
-  font-family: inherit;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-}
-
-.input-file:hover {
-  border-color: #5A3E35;
-  background: rgba(255, 245, 235, 0.8);
-}
-
-.input-file:focus {
-  outline: none;
-  border-color: #5A3E35;
-  box-shadow: 0 0 0 3px rgba(90, 62, 53, 0.1);
-}
-
-.experience-image-status {
-  padding: 0.55rem 0.65rem;
-  border-radius: 8px;
-  background: rgba(255, 245, 235, 0.65);
-  color: #5A3E35;
-  font-size: 0.75rem;
-}
-
-.experience-remove-button {
-  width: 100%;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid rgba(141, 54, 58, 0.25);
-  border-radius: 8px;
-  background: #FFFFFF;
-  color: #8D363A;
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.experience-remove-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.experience-session-note {
-  margin: 0;
-  color: #7B5F3B;
-  font-size: 0.68rem;
-  line-height: 1.45;
-}
-
-/* ===== PREVIEW CANVAS ===== */
-.canvas-container {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 0;
-}
-
-.canvas-frame {
-  width: 100%;
-  max-width: 800px;
-  background: #FFFFFF;
-  border: 2px dashed rgba(0, 0, 0, 0.10);
-  border-radius: 24px;
-  overflow: hidden;
-  aspect-ratio: 16 / 10;
-  display: flex;
-  flex-direction: column;
-}
-
-.canvas-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px;
-}
-
-.canvas-placeholder {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  text-align: center;
-  padding: 2rem;
-  color: #7B5F3B;
-  box-sizing: border-box;
-}
-
-/* ===== PLACEHOLDER ===== */
-.placeholder-3d {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  background-color: #FFF5EB;
-  color: #7B5F3B;
-  opacity: 0.8;
-}
-
-.placeholder-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #5A3E35;
-  letter-spacing: -0.01em;
-}
-
-.placeholder-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem 0.7rem;
-  border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: #7B5F3B;
-  background-color: rgba(90, 62, 53, 0.05);
-  border: 1px solid rgba(90, 62, 53, 0.1);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
+.edit-page { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; height: calc(100vh - 72px); background: #f6f4e8; color: #49362f; }
+.control-panel { overflow-y: auto; padding: 1.25rem; border-right: 1px solid rgba(73,54,47,.16); }
+.panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.panel-heading h1 { margin: 0; font-size: 1.5rem; }
+.save-button, .property-group button { border: 0; border-radius: 8px; padding: .65rem .8rem; background: #8d363a; color: #fff; cursor: pointer; }
+.field-label, .property-field { display: grid; gap: .35rem; margin-top: .9rem; font-size: .78rem; font-weight: 700; }
+.input-field, .property-field input:not([type='checkbox']), .property-field textarea, .property-field select { width: 100%; border: 1px solid rgba(73,54,47,.22); border-radius: 7px; padding: .6rem; background: #fffdf4; color: inherit; box-sizing: border-box; }
+.property-field textarea { min-height: 84px; resize: vertical; }
+.property-group { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid rgba(73,54,47,.13); }
+.property-group h2 { margin: 0; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; }
+.property-field input[type='color'] { min-height: 40px; padding: .2rem; }
+.media-editor small { display: block; margin-top: .75rem; overflow-wrap: anywhere; }
+.save-status { min-height: 1.2em; font-size: .75rem; }
+.canvas-container { min-width: 0; position: relative; overflow: hidden; background: #ddd6c9; }
+.canvas-label { position: absolute; z-index: 1000; top: .75rem; right: 1rem; padding: .35rem .55rem; border-radius: 999px; background: rgba(35,28,25,.78); color: #fff; font: 600 .68rem/1 system-ui; letter-spacing: .08em; }
+.canvas-scroll { height: 100%; overflow: auto; background: #fff; }
+@media (max-width: 900px) { .edit-page { grid-template-columns: 1fr; height: auto; } .control-panel { max-height: none; } .canvas-container { height: 75vh; } }
 </style>

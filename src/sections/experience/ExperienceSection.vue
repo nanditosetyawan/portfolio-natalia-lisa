@@ -1,6 +1,6 @@
 <template>
   <!--
-    SECTION: 400vh tall on desktop → provides "scroll budget" for 4 cards.
+    SECTION: count-derived scroll budget (100vh per entity) on desktop.
     The inner sticky viewport stays fixed at top:0 while user scrolls through.
     Only .exp-card elements move (translate). Everything else is frozen.
     NO overflow:hidden on the outer section — kills sticky!
@@ -11,7 +11,7 @@
     class="experience-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
-      height: vConfig.section.desktopHeight
+      '--experience-scroll-height': `${site.experienceScrollBudgetVh}vh`
     }"
   >
 
@@ -114,12 +114,15 @@
         <div
           v-for="(item, i) in items"
           :key="item.id"
+          :data-entity-id="item.id"
           class="exp-card"
           :class="item.layout"
           :style="{
-            transform: `translateY(${(i - rafProgress) * 100}vh)`,
-            paddingTop: vConfig.card.paddingTop,
-            paddingBottom: vConfig.card.paddingBottom
+            transform: isDesktop ? `translateY(${(i - rafProgress) * 100}vh)` : 'none',
+            paddingTop: isDesktop ? vConfig.card.paddingTop : '2rem',
+            paddingBottom: isDesktop ? vConfig.card.paddingBottom : '2rem',
+            paddingLeft: isDesktop ? undefined : '1.5rem',
+            paddingRight: isDesktop ? undefined : '1.5rem'
           }"
         >
           <!-- Text: title + date + description — moves with card -->
@@ -173,7 +176,7 @@
                 :frame-id="item.frameId"
                 :source="imageSource(item.frameId)"
                 :alt="`${item.title} photo`"
-                :object-position="frameConfig(item.frameId).image.objectPosition"
+                :object-position="imageObjectPosition(item.frameId)"
                 :style="{ borderRadius: frameConfig(item.frameId).image.borderRadius }"
               >
                 <div class="image-boundary-placeholder" :style="placeholderStyle(item.frameId)">
@@ -195,20 +198,23 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, type CSSProperties } from 'vue'
-import { defaultExperience, type ExperienceFrameId } from '../../data/default/experience'
-import { defaultExperienceConfig as vConfig } from '../../data/default/visual/experience'
+import type { ExperienceFrameId } from '../../data/default/experience'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
+import { useSiteStore } from '../../stores/site'
 
 // ──────────────────────────────────────────────
 // DATA
 // ──────────────────────────────────────────────
-const items = defaultExperience.items
-const sectionTitle = defaultExperience.title
+const site = useSiteStore()
+const items = computed(() => site.experienceEntries)
+const sectionTitle = site.current.content.experience.title
+const vConfig = site.current.visual.experience
 const frameImages = usePhotoAreaImagesStore()
 
 const frameConfig = (frameId: ExperienceFrameId) => vConfig.imageFrames[frameId]
-const imageSource = (frameId: ExperienceFrameId) => frameImages.frames[frameId].source
+const imageSource = (frameId: ExperienceFrameId) => frameImages.frames[frameId]?.source ?? ''
+const imageObjectPosition = (frameId: ExperienceFrameId) => site.current.photoAreas.find((area) => area.id === frameId)?.objectPosition ?? frameConfig(frameId).image.objectPosition
 const frameStyle = (frameId: ExperienceFrameId): CSSProperties => ({
   position: frameConfig(frameId).position as CSSProperties['position'],
   width: frameConfig(frameId).width,
@@ -219,7 +225,7 @@ const frameStyle = (frameId: ExperienceFrameId): CSSProperties => ({
   borderRadius: frameConfig(frameId).borderRadius,
   padding: frameConfig(frameId).padding,
   boxShadow: frameConfig(frameId).boxShadow,
-  transform: `rotate(${frameConfig(frameId).transformRotate})`,
+  '--frame-rotation': isDesktop.value ? frameConfig(frameId).transformRotate : '0deg',
   zIndex: frameConfig(frameId).zIndex
 })
 const placeholderStyle = (frameId: ExperienceFrameId) => {
@@ -241,10 +247,10 @@ const placeholderStyle = (frameId: ExperienceFrameId) => {
 const sectionRef = ref<HTMLElement | null>(null)
 const rafProgress = ref(0)   // drives card transforms
 let rafId = 0
-let isDesktop = false
+const isDesktop = ref(false)
 
 function loop() {
-  if (sectionRef.value && isDesktop) {
+  if (sectionRef.value && isDesktop.value) {
     const rect = sectionRef.value.getBoundingClientRect()
     // scrolled = how many px we've scrolled past the section top
     // When section top == viewport top: scrolled = 0
@@ -252,13 +258,13 @@ function loop() {
     const vh = window.innerHeight
     // Clamp 0..3 (one unit per card)
     const raw = scrolled / vh
-    rafProgress.value = Math.max(0, Math.min(items.length - 1, raw))
+    rafProgress.value = Math.max(0, Math.min(Math.max(0, items.value.length - 1), raw))
   }
   rafId = requestAnimationFrame(loop)
 }
 
 function onResize() {
-  isDesktop = window.innerWidth > 900
+  isDesktop.value = window.innerWidth > 900
 }
 
 onMounted(() => {
@@ -282,7 +288,7 @@ onUnmounted(() => {
 const dotTopVh = computed(() => {
   const p = rafProgress.value
   const t = p - Math.floor(p)           // 0..1 within each interval
-  const lastCard = p >= items.length - 1 // clamped at last card
+  const lastCard = items.value.length === 0 || p >= items.value.length - 1 // clamped at last card
   if (lastCard) return 50
   // 50 = center, 22 = max dip (peaks at t=0.5 → 72vh from top)
   return 50 + 22 * Math.sin(Math.PI * t)
@@ -291,7 +297,7 @@ const dotTopVh = computed(() => {
 
 <style scoped>
 /* ══════════════════════════════════════════════════════════════════
-   OUTER SECTION — scroll budget (400vh desktop / auto mobile)
+   OUTER SECTION — count-derived desktop scroll budget / auto mobile
    MUST NOT have overflow:hidden — it destroys position:sticky
 ══════════════════════════════════════════════════════════════════ */
 .experience-section {
@@ -303,7 +309,7 @@ const dotTopVh = computed(() => {
 
 @media (min-width: 901px) {
   .experience-section {
-    height: 400vh;   /* 4 cards × 100vh each */
+    height: var(--experience-scroll-height);
   }
 }
 
@@ -535,10 +541,11 @@ const dotTopVh = computed(() => {
 
 .exp-image-frame {
   box-sizing: border-box;
+  transform: rotate(var(--frame-rotation, 0deg));
 }
 
 .exp-image-frame:hover {
-  transform: rotate(0deg) scale(1.02) !important;
+  transform: rotate(var(--frame-rotation, 0deg)) scale(1.02);
   box-shadow:
     0 24px 48px rgba(61, 40, 34, 0.16),
     0 10px 20px rgba(61, 40, 34, 0.1);
@@ -636,11 +643,13 @@ const dotTopVh = computed(() => {
     position: relative;
     height: auto;
     min-height: 100svh;
-    flex-direction: column !important;
-    padding: 2rem 1.5rem !important;
-    transform: none !important;
     justify-content: center;
     gap: 2rem;
+  }
+
+  .exp-card.layout-text-left,
+  .exp-card.layout-img-left {
+    flex-direction: column;
   }
 
   .exp-text,
@@ -650,7 +659,6 @@ const dotTopVh = computed(() => {
 
   .exp-image-frame {
     max-width: 100%;
-    transform: none !important;
   }
 
   .decor-syringe,

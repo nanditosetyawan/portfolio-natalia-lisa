@@ -1,15 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Calendar, Sparkles } from 'lucide-vue-next'
-import { defaultSHS } from '../../../data/default/shs'
-import { defaultSHSConfig as vConfig } from '../../../data/default/visual/shs'
 import PhotoArea from '../../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../../stores/photoAreaImages'
+import { useSiteStore } from '../../../stores/site'
 
+const site = useSiteStore()
 const photoAreaImages = usePhotoAreaImagesStore()
+const entries = computed(() => site.shsEntries)
+const vConfig = site.current.visual.shs
 </script>
 
 <template>
   <section
+    v-for="item in entries"
+    :id="item.order === 0 ? 'shs-section' : undefined"
+    :key="item.id"
+    :data-entity-id="item.id"
     class="shs-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
@@ -58,7 +65,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
           transform: `rotate(${vConfig.frameBack.transformRotate})`,
           zIndex: vConfig.frameBack.zIndex
         }">
-          <PhotoArea class="polaroid-photo" frame-id="shs-frame-back" :source="photoAreaImages.frames['shs-frame-back'].source" alt="SHS frame back photo" :object-position="vConfig.frameBackImage.objectPosition">
+          <PhotoArea class="polaroid-photo" :frame-id="item.frameIds.back" :source="photoAreaImages.frames[item.frameIds.back]?.source || ''" :alt="`${item.school} frame back photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.back)?.objectPosition || vConfig.frameBackImage.objectPosition">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameBackPlaceholder.color,
               opacity: vConfig.frameBackPlaceholder.opacity,
@@ -89,7 +96,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
           transform: `rotate(${vConfig.frameFront.transformRotate})`,
           zIndex: vConfig.frameFront.zIndex
         }">
-          <PhotoArea class="polaroid-photo" frame-id="shs-frame-front" :source="photoAreaImages.frames['shs-frame-front'].source" alt="SHS frame front photo" :object-position="vConfig.frameFrontImage.objectPosition">
+          <PhotoArea class="polaroid-photo" :frame-id="item.frameIds.front" :source="photoAreaImages.frames[item.frameIds.front]?.source || ''" :alt="`${item.school} frame front photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.front)?.objectPosition || vConfig.frameFrontImage.objectPosition">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameFrontPlaceholder.color,
               opacity: vConfig.frameFrontPlaceholder.opacity,
@@ -146,7 +153,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
               fontFamily: vConfig.label.fontFamily,
               marginBottom: vConfig.label.marginBottom
             }"
-          >{{ defaultSHS.items[0].label }}</span>
+          >{{ item.label }}</span>
           <h2
             class="shs-school"
             :style="{
@@ -157,7 +164,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
               letterSpacing: vConfig.school.letterSpacing,
               fontFamily: vConfig.school.fontFamily
             }"
-          >{{ defaultSHS.items[0].school }}</h2>
+          >{{ item.school }}</h2>
 
           <div class="shs-calendar" :style="{
             color: vConfig.calendar.color,
@@ -172,7 +179,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
                 fontWeight: vConfig.calendar.fontWeight,
                 fontFamily: vConfig.calendar.family
               }"
-            >{{ defaultSHS.items[0].period }}</span>
+            >{{ item.period }}</span>
           </div>
 
           <div class="shs-separator" aria-hidden="true">
@@ -191,7 +198,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
               fontFamily: vConfig.description.fontFamily
             }"
           >
-            {{ defaultSHS.items[0].description }}
+            {{ item.description }}
           </p>
         </div>
       </div>

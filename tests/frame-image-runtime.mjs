@@ -20,7 +20,8 @@ function assert(condition, message) {
   if (!condition) throw new Error(`Acceptance failure: ${message}`)
 }
 
-const pages = await (await fetch('http://127.0.0.1:9237/json')).json()
+const cdpPort = process.env.CDP_PORT ?? '9237'
+const pages = await (await fetch(`http://127.0.0.1:${cdpPort}/json`)).json()
 const page = pages.find((entry) => entry.type === 'page' && entry.url.includes('127.0.0.1:5173'))
 if (!page) throw new Error('Vite page target not found')
 
@@ -65,22 +66,23 @@ async function waitFor(expression, timeout = 5000) {
 }
 async function route(hash) {
   await evaluate(`location.hash=${JSON.stringify(hash)}`)
-  const selector = hash.includes('admin') ? '#photo-area-select' : '[data-photo-area-id]'
+  const selector = hash.includes('admin') ? '[data-photo-area-select]' : '[data-photo-area-id]'
   await waitFor(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
   await wait(80)
 }
 async function storeSnapshot() {
-  return evaluate(`JSON.parse(JSON.stringify(document.querySelector('#app').__vue_app__.config.globalProperties.$pinia.state.value['photo-area-images'].frames))`)
+  return evaluate(`(()=>{const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;const site=pinia._s.get('site');const cert=pinia._s.get('certificates');return Object.fromEntries([...site.current.photoAreas,...cert.editableCards.flatMap(card=>[card.thumbnail,...card.detailImages])].map(area=>[area.id,{source:area.source}]))})()`)
 }
 async function upload(frameId, filePath) {
-  await evaluate(`(() => { const select=document.querySelector('#photo-area-select'); select.value=${JSON.stringify(frameId)}; select.dispatchEvent(new Event('change',{bubbles:true})); })()`)
+  await evaluate(`(() => { const select=document.querySelector('[data-photo-area-select]'); select.value=${JSON.stringify(frameId)}; select.dispatchEvent(new Event('change',{bubbles:true})); })()`)
   await wait()
   const documentNode = await send('DOM.getDocument', { depth: -1, pierce: true })
   const selector = `input[type=file][data-photo-area-id="${frameId}"]`
   const query = await send('DOM.querySelector', { nodeId: documentNode.root.nodeId, selector })
   if (!query.nodeId) throw new Error(`Upload input missing for ${frameId}`)
   await send('DOM.setFileInputFiles', { nodeId: query.nodeId, files: [filePath] })
-  await waitFor(`document.querySelector('[data-selected-frame-id=${JSON.stringify(frameId)}]')?.textContent.includes('Image selected')`)
+  await waitFor(`(()=>{const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;const site=pinia._s.get('site');const cert=pinia._s.get('certificates');return (site.photoAreaSource(${JSON.stringify(frameId)})||cert.photoSource(${JSON.stringify(frameId)})).length>0})()`)
+  await wait(250)
 }
 async function openCertificateCards() {
   await evaluate(`(() => { document.querySelectorAll('.certificate-card:not(.is-expanded) .card-header').forEach(el => el.click()) })()`)

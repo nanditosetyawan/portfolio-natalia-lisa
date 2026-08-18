@@ -6,7 +6,8 @@ const fixtures = {
   small: resolve('tests/fixtures/frame-e-100x100.svg')
 }
 
-const pages = await (await fetch('http://127.0.0.1:9239/json')).json()
+const cdpPort = process.env.CDP_PORT ?? '9239'
+const pages = await (await fetch(`http://127.0.0.1:${cdpPort}/json`)).json()
 const page = pages.find((entry) => entry.type === 'page' && entry.url.includes('127.0.0.1:5173'))
 if (!page) throw new Error('Certificate test page target not found')
 
@@ -79,7 +80,7 @@ function databaseCertificate(id, order) {
 
 async function route(hash) {
   await evaluate(`location.hash=${JSON.stringify(hash)}`)
-  await waitFor(hash.includes('admin') ? `Boolean(document.querySelector('#photo-area-select'))` : `Boolean(document.querySelector('#certificate'))`)
+  await waitFor(hash.includes('admin') ? `Boolean(document.querySelector('[data-photo-area-select]'))` : `Boolean(document.querySelector('#certificate'))`)
   await wait(100)
 }
 
@@ -107,13 +108,13 @@ async function uiState() {
 
 async function upload(frameId, filePath) {
   await route('#/admin/edit')
-  await evaluate(`(()=>{const select=document.querySelector('#photo-area-select');select.value=${JSON.stringify(frameId)};select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+  await evaluate(`(()=>{const select=document.querySelector('[data-photo-area-select]');select.value=${JSON.stringify(frameId)};select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   await wait()
   const documentNode = await send('DOM.getDocument', { depth: -1, pierce: true })
   const query = await send('DOM.querySelector', { nodeId: documentNode.root.nodeId, selector: `input[type=file][data-photo-area-id="${frameId}"]` })
   if (!query.nodeId) throw new Error(`Admin upload target missing: ${frameId}`)
   await send('DOM.setFileInputFiles', { nodeId: query.nodeId, files: [filePath] })
-  await waitFor(`document.querySelector('[data-selected-frame-id=${JSON.stringify(frameId)}]')?.textContent.includes('Image selected')`)
+  await waitFor(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('certificates').photoSource(${JSON.stringify(frameId)}).length>0`)
   await wait(150)
 }
 
@@ -177,12 +178,12 @@ assert(report.HInitial.cards.every((card) => card.origin === 'database') && repo
 
 await seed([{ id:'incomplete', order:0 }, { id:'inactive', active:false }])
 report.incomplete = await uiState()
-assert(report.incomplete.cards.length === 2 && report.incomplete.cards[0].id === 'incomplete' && report.incomplete.cards[0].title === 'Certificate', 'incomplete data must normalize safely and invalid/duplicate/inactive rows must be ignored')
+assert(report.incomplete.cards.length === 2 && report.incomplete.cards.every((card) => card.origin === 'default'), 'records without persistent media IDs and inactive rows must be rejected safely')
 report.validation = await evaluate(`import('/src/stores/certificates.ts').then(({normalizeDatabaseCertificates}) => {
   const rows=normalizeDatabaseCertificates([{title:'missing id'},{id:'same'},{id:'same',title:'duplicate'},{id:'hidden',active:false}]);
   return rows.map(row=>row.id);
 })`)
-assert(JSON.stringify(report.validation) === JSON.stringify(['same']), 'validator must reject missing IDs, duplicates, and inactive records')
+assert(JSON.stringify(report.validation) === JSON.stringify([]), 'validator must reject missing entity/media IDs, duplicates, and inactive records')
 
 report.databaseFailure = await evaluate(`(async()=>{
   const {certificateRepository}=await import('/src/repositories/certificateRepository.ts');
@@ -210,10 +211,10 @@ assert(report.loading.loading && report.loading.disabled && report.loading.statu
 await seed([])
 await upload('cert-a-thumbnail', fixtures.portrait)
 await route('#/')
-await waitFor(`document.querySelector('[data-certificate-id="cert-a"] .photo-area-image')?.naturalWidth===900`)
+await waitFor(`document.querySelector('[data-photo-area-id="cert-a-thumbnail"] img')?.naturalWidth===900`)
 const portraitBeforeReload = await evaluate(`(()=>{const area=document.querySelector('[data-photo-area-id="cert-a-thumbnail"]');const image=area.querySelector('img');const ir=image.getBoundingClientRect();return {natural:[image.naturalWidth,image.naturalHeight],rendered:[ir.width,ir.height],boundary:[area.clientWidth,area.clientHeight],ratioDelta:Math.abs(ir.width/ir.height-image.naturalWidth/image.naturalHeight),clipped:ir.height>area.clientHeight+0.01,certBPlaceholder:Boolean(document.querySelector('[data-certificate-id="cert-b"] .placeholder'))}})()`)
 await send('Page.reload', { ignoreCache: true })
-await waitFor(`document.querySelector('[data-certificate-id="cert-a"] .photo-area-image')?.naturalWidth===900`)
+await waitFor(`document.querySelector('[data-photo-area-id="cert-a-thumbnail"] img')?.naturalWidth===900`)
 const portraitAfterReload = await evaluate(`(()=>{const image=document.querySelector('[data-photo-area-id="cert-a-thumbnail"] img');return {source:image.src,natural:[image.naturalWidth,image.naturalHeight]}})()`)
 report.I = { beforeReload: portraitBeforeReload, afterReload: portraitAfterReload }
 assert(portraitBeforeReload.ratioDelta <= 0.001 && portraitBeforeReload.clipped && portraitBeforeReload.certBPlaceholder && portraitAfterReload.natural[0] === 900, 'I/K/H: portrait upload must be isolated, clipped, proportional, and persistent')
@@ -239,6 +240,37 @@ await route('#/')
 await waitFor(`document.querySelector('[data-photo-area-id="cert-a-thumbnail"] img')?.naturalWidth===100`)
 report.L = await evaluate(`(()=>{const area=document.querySelector('[data-photo-area-id="cert-a-thumbnail"]');const image=area.querySelector('img');const rect=image.getBoundingClientRect();return {rendered:[rect.width,rect.height],scale:rect.width/image.naturalWidth,ratioDelta:Math.abs(rect.width/rect.height-1),whitespace:rect.width<area.clientWidth&&rect.height<area.clientHeight}})()`)
 assert(report.L.scale === 1 && report.L.ratioDelta <= 0.001 && report.L.whitespace, 'L: small image must remain intrinsic size with whitespace')
+
+const collisionRecord = databaseCertificate('db-collision', 0)
+collisionRecord.thumbnail.id = 'cert-a-thumbnail'
+await seed([collisionRecord])
+report.collision = await uiState()
+assert(report.collision.cards.every((card) => card.origin === 'default'), 'DB/default photo ID collision must reject the conflicting database record')
+
+const reorderA = databaseCertificate('db-reorder-a', 0)
+const reorderB = databaseCertificate('db-reorder-b', 1)
+await seed([reorderA, reorderB], true)
+const idsBeforeReorder = await evaluate(`(()=>{const store=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('certificates');return Object.fromEntries(store.databaseCertificates.map(card=>[card.id,[card.thumbnail.id,...card.detailImages.map(image=>image.id)]]))})()`)
+reorderA.order = 1
+reorderB.order = 0
+await seed([reorderB, reorderA], true)
+const idsAfterReorder = await evaluate(`(()=>{const store=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('certificates');return Object.fromEntries(store.databaseCertificates.map(card=>[card.id,[card.thumbnail.id,...card.detailImages.map(image=>image.id)]]))})()`)
+report.reorder = { before: idsBeforeReorder, after: idsAfterReorder }
+assert(Object.keys(idsBeforeReorder).every((id) => JSON.stringify(idsBeforeReorder[id]) === JSON.stringify(idsAfterReorder[id])), 'reorder must not change persistent image identity')
+
+const dynamicRecord = databaseCertificate('db-dynamic', 0)
+await seed([dynamicRecord])
+await route('#/admin/edit')
+await waitFor(`[...document.querySelectorAll('[data-photo-area-select] option')].some(option=>option.value==='db-dynamic-detail-2')`)
+report.dynamicDiscovery = await evaluate(`[...document.querySelectorAll('[data-photo-area-select] option')].filter(option=>option.value.startsWith('db-dynamic-')).map(option=>option.value)`)
+assert(report.dynamicDiscovery.length === 3, 'Admin must discover every dynamic database photo area')
+await upload('db-dynamic-thumbnail', fixtures.small)
+await evaluate(`document.querySelector('.media-editor button').click()`)
+await waitFor(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('certificates').photoSource('db-dynamic-thumbnail')===''`)
+report.remove = await evaluate(`import('/src/repositories/certificateRepository.ts').then(async({certificateRepository})=>((await certificateRepository.list()).find(card=>card.id==='db-dynamic').thumbnail.source))`)
+assert(report.remove === '', 'removing a dynamic image must persist against the same photo ID')
+
+await route('#/')
 
 report.final = await uiState()
 assert(!report.final.horizontalOverflow && report.final.duplicateIds === 0 && runtimeErrors.length === 0, 'final Certificate runtime must have no overflow, duplicate IDs, or runtime errors')

@@ -18,26 +18,30 @@
 
 import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import Lenis from 'lenis'
-import { defaultNavigation } from '../data/default/navigation'
-import { defaultNavbarConfig as vConfig } from '../data/default/visual/navbar'
 import { useEducationCollegeMagnet } from '../composables/useEducationCollegeMagnet'
+import { useSiteStore } from '../stores/site'
 
 // ──────────────────────────────────────────
 // SECTION DEFINITIONS — from DEFAULT content
 // ──────────────────────────────────────────
-const sections = defaultNavigation.sections
+const site = useSiteStore()
+const sections = site.current.content.navigation.sections
+const vConfig = site.current.visual.navbar
 
 // Brand name from DEFAULT content
-const brandName = computed(() => defaultNavigation.brand)
+const brandName = computed(() => site.current.content.navigation.brand)
 
 // Navigation items from DEFAULT content
-const navItemsData = computed(() => defaultNavigation.navItems)
+const navItemsData = computed(() => site.current.content.navigation.navItems)
 
 // Type for nav items
 interface NavItem {
+  id: string
   key: string
   label: string
-  target: string
+  targetSectionId: string
+  offsetMode: 'fixed' | 'align-bottom'
+  offset: number
 }
 
 // ──────────────────────────────────────────
@@ -269,7 +273,7 @@ function handleNavClick(event: Event, item: NavItem) {
   educationCollegeMagnet.setProgrammaticNavigation(true)
 
   // Update active state immediately on click
-  const sec = sections.find(s => s.id === item.target)
+  const sec = sections.find(s => s.id === item.targetSectionId)
   if (sec) {
     activeKey.value     = sec.menuKey
     isDarkSection.value = sec.darkBg
@@ -279,13 +283,12 @@ function handleNavClick(event: Event, item: NavItem) {
   updatePill(item.key)
 
   // Lenis scroll
-  const targetEl = document.getElementById(item.target)
+  const targetEl = document.getElementById(item.targetSectionId)
   if (targetEl && lenis) {
     // Contact = last section → stop at the very bottom (element bottom = viewport bottom)
-    const contactOffset = targetEl.offsetHeight - window.innerHeight
-    const offset = item.target === 'contact'
-      ? contactOffset
-      : (item.target === 'experience' ? 0 : (item.target === 'main' ? 0 : (item.target === 'about' ? 20 : -20)))
+    const offset = item.offsetMode === 'align-bottom'
+      ? targetEl.offsetHeight - window.innerHeight + item.offset
+      : item.offset
     lenis.scrollTo(targetEl, {
       duration: 1.3,
       offset,
@@ -362,9 +365,10 @@ onUnmounted(() => {
 
           <a
             v-for="item in navItemsData"
-            :key="item.key"
-            :href="`#${item.target}`"
+            :key="item.id"
+            :href="`#${item.targetSectionId}`"
             :data-key="item.key"
+            :data-entity-id="item.id"
             :id="`nav-${item.key}`"
             class="nav-link"
             :class="{ 'is-active': isScrolled && activeKey === item.key }"
@@ -394,6 +398,10 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   width: 100%;
+  min-width: 0;
+  max-width: 100vw;
+  box-sizing: border-box;
+  contain: layout paint;
   z-index: 9999;
   background: transparent;
   pointer-events: none; /* Ignore click events outside inner bar */
@@ -412,6 +420,8 @@ onUnmounted(() => {
   pointer-events: auto; /* Enable clicks inside the bar */
   width: 100%;
   max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 1.25rem 2.5rem;
   display: flex;
@@ -452,6 +462,7 @@ onUnmounted(() => {
 .navbar-menu {
   position: relative;
   display: flex;
+  min-width: 0;
   align-items: stretch; /* Match children height exactly for vertical symmetry */
   gap: 1.75rem;          /* Wider spacing between menu items */
   transition: gap 0.35s ease;
@@ -645,8 +656,13 @@ onUnmounted(() => {
    RESPONSIVE — Mobile
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  .guest-navbar {
+    overflow: hidden;
+  }
+
   .navbar-inner {
     padding: 1.25rem 1.5rem;
+    overflow: hidden;
   }
 
   .guest-navbar.is-scrolled .navbar-inner {

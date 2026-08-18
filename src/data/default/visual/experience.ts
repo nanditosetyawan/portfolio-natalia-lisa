@@ -32,7 +32,6 @@ export interface ExperienceFrameVisualConfig {
 export interface ExperienceVisualConfig {
   section: {
     backgroundColor: string;
-    desktopHeight: string;
   };
   title: {
     color: string;
@@ -106,8 +105,7 @@ export interface ExperienceVisualConfig {
 
 export const defaultExperienceConfig: ExperienceVisualConfig = {
   section: {
-    backgroundColor: '#FFF0BE',
-    desktopHeight: '400vh'
+    backgroundColor: '#FFF0BE'
   },
   title: {
     color: '#8D363A',
@@ -183,7 +181,7 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
   }
 }
 
-function createExperienceFrameConfig(
+export function createExperienceFrameConfig(
   id: ExperienceFrameId,
   transformRotate: string
 ): ExperienceFrameVisualConfig {

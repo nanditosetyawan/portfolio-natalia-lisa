@@ -2,7 +2,8 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-const pages = await (await fetch('http://127.0.0.1:9237/json')).json()
+const cdpPort = process.env.CDP_PORT ?? '9237'
+const pages = await (await fetch(`http://127.0.0.1:${cdpPort}/json`)).json()
 const page = pages.find((entry) => entry.type === 'page' && entry.url.includes('127.0.0.1:5173'))
 const socket = new WebSocket(page.webSocketDebuggerUrl)
 await new Promise((done) => socket.addEventListener('open', done, { once: true }))
@@ -26,7 +27,8 @@ await send('Log.enable')
 await evaluate(`import('/src/repositories/certificateRepository.ts').then(({certificateRepository}) => certificateRepository.clear())`)
 await send('Emulation.setDeviceMetricsOverride', { width:1422, height:804, deviceScaleFactor:1, mobile:false })
 await evaluate(`location.hash='#/'`)
-await wait(300)
+await send('Page.reload', { ignoreCache:true })
+await wait(450)
 
 const configIsolation = await evaluate(`(async()=>{
   const [about,college,shs,cert]=await Promise.all([
@@ -45,7 +47,7 @@ const configIsolation = await evaluate(`(async()=>{
 })()`)
 
 const screenshots = []
-for (const [name, selector] of [['about','#about'],['college','#college'],['shs','.shs-section'],['experience','#experience'],['certificate','#certificate']]) {
+for (const [name, selector] of [['about','#about'],['college','#college-section'],['shs','.shs-section'],['experience','#experience'],['certificate','#certificate']]) {
   await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView()`)
   if (name === 'certificate') await evaluate(`document.querySelectorAll('.certificate-card:not(.is-expanded) .card-header').forEach(e=>e.click())`)
   await wait(550)
@@ -61,22 +63,22 @@ const experienceBefore = await evaluate(`({transforms:[...document.querySelector
 await evaluate(`window.scrollTo(0, document.querySelector('#experience').offsetTop + 500)`)
 await wait(180)
 const experienceAfter = await evaluate(`({transforms:[...document.querySelectorAll('.exp-card')].map(e=>getComputedStyle(e).transform),dot:document.querySelector('.tl-active-dot').getBoundingClientRect().top,height:document.querySelector('#experience').getBoundingClientRect().height})`)
-const structure = await evaluate(`({navbar:Boolean(document.querySelector('.guest-navbar')),collegeIds:document.querySelectorAll('#college').length,educationIds:document.querySelectorAll('#education').length,experienceCards:document.querySelectorAll('.exp-card').length,lenisRoots:document.querySelectorAll('html.lenis').length})`)
+const structure = await evaluate(`({navbar:Boolean(document.querySelector('.guest-navbar')),collegeIds:document.querySelectorAll('#college-section').length,educationIds:document.querySelectorAll('#education').length,experienceCards:document.querySelectorAll('.exp-card').length,lenisRoots:document.querySelectorAll('html.lenis').length})`)
 
 await evaluate(`document.querySelector('a[href="#experience"]')?.click()`)
 await wait(1400)
 const navbarNavigation = await evaluate(`Math.abs(document.querySelector('#experience').getBoundingClientRect().top) <= 2`)
 
 await send('Emulation.setEmulatedMedia', { features:[{name:'prefers-reduced-motion',value:'reduce'}] })
-await evaluate(`(() => { const college=document.querySelector('#college'); const top=college.getBoundingClientRect().top+scrollY; window.scrollTo(0,top-innerHeight*0.60) })()`)
+await evaluate(`(() => { const college=document.querySelector('#college-section'); const top=college.getBoundingClientRect().top+scrollY; window.scrollTo(0,top-innerHeight*0.60) })()`)
 await wait(100)
 await send('Input.dispatchMouseEvent', { type:'mouseWheel', x:500, y:400, deltaX:0, deltaY:60 })
 await wait(1400)
-const reducedMotion = await evaluate(`({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,collegeTop:document.querySelector('#college').getBoundingClientRect().top})`)
+const reducedMotion = await evaluate(`({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,collegeTop:document.querySelector('#college-section').getBoundingClientRect().top})`)
 await send('Emulation.setEmulatedMedia', { features:[] })
 
 await send('Emulation.setDeviceMetricsOverride', { width:390, height:844, deviceScaleFactor:1, mobile:true, screenWidth:390, screenHeight:844 })
-await evaluate(`window.scrollTo(0,document.querySelector('#college').offsetTop-500)`)
+await evaluate(`window.scrollTo(0,document.querySelector('#college-section').offsetTop-500)`)
 await wait(100)
 await evaluate(`window.__photoAreaTouchPrevented=[];window.addEventListener('touchmove',(event)=>window.__photoAreaTouchPrevented.push(event.defaultPrevented),{capture:true,once:true})`)
 const touchBefore = await evaluate(`scrollY`)

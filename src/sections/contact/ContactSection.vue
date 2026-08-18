@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { defaultContact } from '../../data/default/contact'
-import { defaultContactConfig as vConfig } from '../../data/default/visual/contact'
-import gambar1Image from '../../data/default/template_gambar/gambar1.webp'
+import { useSiteStore } from '../../stores/site'
 
-const contactImages: Record<string, string> = {
-  gambar1: gambar1Image
-}
-const contactImageSrc = contactImages[defaultContact.imageUrl] ?? gambar1Image
+const site = useSiteStore()
+const contact = site.current.content.contact
+const vConfig = site.current.visual.contact
+const contactImageSrc = computed(() => site.mediaSourceForUsage(contact.personMediaUsageId))
 
 // SVG decoration transform helper
 const decorTransform = (dec: { translateX: number; translateY: number; rotation: number }) =>
@@ -36,6 +34,7 @@ const contentStyle = computed(() => ({
 <template>
   <section
     id="contact"
+    :data-entity-id="contact.id"
     class="contact-section"
     aria-label="Contact section"
     :style="sectionStyle"
@@ -140,11 +139,13 @@ const contentStyle = computed(() => ({
             display: vConfig.title.display
           }"
         >
-          <span class="contact-line1" :style="{ fontSize: vConfig.line1.fontSize, letterSpacing: vConfig.line1.letterSpacing, whiteSpace: vConfig.line1.whiteSpace, display: vConfig.line1.display }">{{ defaultContact.line1 }}</span>
-          <span class="contact-line2" :style="{ fontSize: vConfig.line2.fontSize, letterSpacing: vConfig.line2.letterSpacing, whiteSpace: vConfig.line2.whiteSpace, display: vConfig.line2.display }">{{ defaultContact.line2 }}</span>
+          <span class="contact-line1" :style="{ fontSize: vConfig.line1.fontSize, letterSpacing: vConfig.line1.letterSpacing, whiteSpace: vConfig.line1.whiteSpace, display: vConfig.line1.display }">{{ contact.line1 }}</span>
+          <span class="contact-line2" :style="{ fontSize: vConfig.line2.fontSize, letterSpacing: vConfig.line2.letterSpacing, whiteSpace: vConfig.line2.whiteSpace, display: vConfig.line2.display }">{{ contact.line2 }}</span>
         </h2>
         <a
-          :href="defaultContact.cta.href"
+          :href="contact.cta.href || undefined"
+          :aria-disabled="!contact.cta.href"
+          @click="!contact.cta.href && $event.preventDefault()"
           class="contact-cta"
           id="contact-click-here"
           :style="{
@@ -164,17 +165,18 @@ const contentStyle = computed(() => ({
             '--underline-height': vConfig.ctaUnderline.height
           }"
         >
-          {{ defaultContact.cta.text }}
+          {{ contact.cta.text }}
         </a>
       </div>
 
       <!-- Right: person image -->
       <div class="contact-person" aria-label="Person image">
-        <img :src="contactImageSrc" alt="Person image" class="contact-person-image" :style="{
+        <img :src="contactImageSrc" alt="Person image" class="contact-person-image" :data-media-usage-id="contact.personMediaUsageId" :style="{
           width: vConfig.personImage.width,
           height: vConfig.personImage.height,
           filter: vConfig.personImage.filter,
-          zIndex: vConfig.personImage.zIndex
+          zIndex: vConfig.personImage.zIndex,
+          objectPosition: site.mediaObjectPositionForUsage(contact.personMediaUsageId)
         }"/>
       </div>
     </div>

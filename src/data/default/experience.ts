@@ -1,11 +1,8 @@
-export type ExperienceFrameId =
-  | 'experience-frame-klinik-1'
-  | 'experience-frame-klinik-2'
-  | 'experience-frame-klinik-3'
-  | 'experience-frame-klinik-4'
+export type ExperienceFrameId = string
 
 export interface ExperienceItem {
   id: string
+  order: number
   frameId: ExperienceFrameId
   title: string
   date: string
@@ -14,15 +11,18 @@ export interface ExperienceItem {
 }
 
 export interface DefaultExperience {
+  id: string
   title: string
   items: ExperienceItem[]
 }
 
 export const defaultExperience: DefaultExperience = {
+  id: 'experience-section',
   title: 'Experience',
   items: [
     {
       id: 'klinik-1',
+      order: 0,
       frameId: 'experience-frame-klinik-1',
       title: 'Praktik Klinik 1',
       date: 'Semester 1 - RSUD',
@@ -31,6 +31,7 @@ export const defaultExperience: DefaultExperience = {
     },
     {
       id: 'klinik-2',
+      order: 1,
       frameId: 'experience-frame-klinik-2',
       title: 'Praktik Klinik 2',
       date: 'Semester 2 - Puskesmas',
@@ -39,6 +40,7 @@ export const defaultExperience: DefaultExperience = {
     },
     {
       id: 'klinik-3',
+      order: 2,
       frameId: 'experience-frame-klinik-3',
       title: 'Praktik Klinik 3',
       date: 'Semester 3 - Klinik Pratama',
@@ -47,6 +49,7 @@ export const defaultExperience: DefaultExperience = {
     },
     {
       id: 'klinik-4',
+      order: 3,
       frameId: 'experience-frame-klinik-4',
       title: 'Praktik Klinik 4',
       date: 'Semester 4 - Rumah Sakit Jiwa',

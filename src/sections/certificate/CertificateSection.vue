@@ -1,24 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onBeforeUnmount, onMounted, watch } from 'vue'
 import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
-import { defaultCertificates, type CertificateCard } from '../../data/default/certificates'
-import { defaultCertificateConfig as vConfig } from '../../data/default/visual/certificate'
+import type { CertificateCard } from '../../data/default/certificates'
 import PhotoArea from '../../components/PhotoArea.vue'
-import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 import { useCertificatesStore } from '../../stores/certificates'
+import { useSiteStore } from '../../stores/site'
 
 // ===== Card Data =====
 // Add image URLs to the `detailImages` array to replace placeholders.
 // Empty string '' = show placeholder. Replace with actual URL to show real photo.
 // Use default certificates data
-const certificatesTitle = defaultCertificates.title
-const photoAreaImages = usePhotoAreaImagesStore()
+const site = useSiteStore()
+const certificatesTitle = site.current.content.certificate.title
+const vConfig = site.current.visual.certificate
 const certificatesStore = useCertificatesStore()
 const cards = computed(() => certificatesStore.displayedCards)
-const photoSource = (image: CertificateCard['thumbnail']) => (
-  (image.id in photoAreaImages.frames ? photoAreaImages.frames[image.id as keyof typeof photoAreaImages.frames].source : '')
-  || image.source
-)
+const photoSource = (image: CertificateCard['thumbnail']) => image.source
 const certificateOrigin = (id: string) => (
   certificatesStore.databaseCertificates.some((card) => card.id === id) ? 'database' : 'default'
 )
@@ -48,12 +45,13 @@ function toggleCard(id: string) {
 }
 
 function startAutoSlide(id: string) {
+  if (!site.current.behavior.certificate.autoplay) return
   const card = cards.value.find(c => c.id === id)
   if (!card || card.detailImages.length <= 1) return
   clearSlideTimer(id)
   slideTimers[id] = setInterval(() => {
     currentSlides[id] = ((currentSlides[id] ?? 0) + 1) % card.detailImages.length
-  }, 3000)
+  }, site.current.behavior.certificate.slideshowIntervalMs)
 }
 
 function clearSlideTimer(id: string) {

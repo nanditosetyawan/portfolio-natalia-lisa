@@ -440,30 +440,6 @@ export interface CertificateVisualConfig {
   refreshIcon: {
     transition: string;
   };
-  expandEnterActive: {
-    transition: string;
-    overflow: string;
-  };
-  expandLeaveActive: {
-    transition: string;
-    overflow: string;
-  };
-  expandEnterFrom: {
-    maxHeight: string;
-    opacity: number;
-  };
-  expandLeaveTo: {
-    maxHeight: string;
-    opacity: number;
-  };
-  expandEnterTo: {
-    maxHeight: string;
-    opacity: number;
-  };
-  expandLeaveFrom: {
-    maxHeight: string;
-    opacity: number;
-  };
 }
 
 export const defaultCertificateConfig: CertificateVisualConfig = {
@@ -902,29 +878,5 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
   },
   refreshIcon: {
     transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-  },
-  expandEnterActive: {
-    transition: 'max-height 0.45s cubic-bezier(0.25, 1, 0.35, 1), opacity 0.3s ease',
-    overflow: 'hidden',
-  },
-  expandLeaveActive: {
-    transition: 'max-height 0.35s cubic-bezier(0.4, 0, 1, 1), opacity 0.25s ease',
-    overflow: 'hidden',
-  },
-  expandEnterFrom: {
-    maxHeight: '0 !important',
-    opacity: 0,
-  },
-  expandLeaveTo: {
-    maxHeight: '600px',
-    opacity: 1,
-  },
-  expandEnterTo: {
-    maxHeight: '600px',
-    opacity: 1,
-  },
-  expandLeaveFrom: {
-    maxHeight: '0 !important',
-    opacity: 0,
   },
 }

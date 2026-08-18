@@ -1,11 +1,13 @@
 export interface DefaultProfile {
+  id: string
   name: string
-  imageUrl: string
+  mediaUsageId: string
 }
 
 export const defaultProfile: DefaultProfile = {
+  id: 'profile-lisa-natalia',
   name: 'Lisa Natalia',
-  imageUrl: 'gambar1'
+  mediaUsageId: 'portfolio-profile-media'
 }
 
 export default defaultProfile

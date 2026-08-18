@@ -1,25 +1,25 @@
+import { computed } from 'vue'
 import { defineStore } from 'pinia'
-import { photoAreas, type PhotoAreaId } from '../data/default/photoAreas'
+import type { PhotoAreaId } from '../data/default/photoAreas'
+import { useSiteStore } from './site'
 
 export interface PhotoAreaImageState {
   source: string
 }
 
-function createDefaultState(): Record<PhotoAreaId, PhotoAreaImageState> {
-  return Object.fromEntries(
-    photoAreas.map((area) => [area.id, { source: area.source }])
-  ) as Record<PhotoAreaId, PhotoAreaImageState>
-}
+export const usePhotoAreaImagesStore = defineStore('photo-area-images', () => {
+  const site = useSiteStore()
+  const frames = computed<Record<PhotoAreaId, PhotoAreaImageState>>(() => Object.fromEntries(
+    site.current.photoAreas.map((area) => [area.id, { source: area.source }])
+  ))
 
-export const usePhotoAreaImagesStore = defineStore('photo-area-images', {
-  state: () => ({ frames: createDefaultState() }),
-  actions: {
-    setSource(frameId: PhotoAreaId, source: string) {
-      this.frames[frameId].source = source
-    },
-    removeSource(frameId: PhotoAreaId) {
-      this.frames[frameId].source = ''
-    }
+  function setSource(frameId: PhotoAreaId, source: string) {
+    site.setPhotoAreaSource(frameId, source)
   }
-})
 
+  function removeSource(frameId: PhotoAreaId) {
+    site.setPhotoAreaSource(frameId, '')
+  }
+
+  return { frames, setSource, removeSource }
+})

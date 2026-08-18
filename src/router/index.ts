@@ -1,11 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import HomePage from '../pages/guest/HomePage.vue'
-import AdminLayout from '../pages/admin/AdminLayout.vue'
-import AdminDashboard from '../pages/admin/AdminDashboard.vue'
-import AdminEdit from '../pages/admin/AdminEdit.vue'
-import AdminMedia from '../pages/admin/AdminMedia.vue'
-import AdminMaintenance from '../pages/admin/AdminMaintenance.vue'
-import AdminMessages from '../pages/admin/AdminMessages.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -17,32 +11,32 @@ const router = createRouter({
     },
     {
       path: '/admin',
-      component: AdminLayout,
+      component: () => import('../pages/admin/AdminLayout.vue'),
       children: [
         {
           path: '',
           name: 'admin-dashboard',
-          component: AdminDashboard
+          component: () => import('../pages/admin/AdminDashboard.vue')
         },
         {
           path: 'edit',
           name: 'admin-edit',
-          component: AdminEdit
+          component: () => import('../pages/admin/AdminEdit.vue')
         },
         {
           path: 'media',
           name: 'admin-media',
-          component: AdminMedia
+          component: () => import('../pages/admin/AdminMedia.vue')
         },
         {
           path: 'maintenance',
           name: 'admin-maintenance',
-          component: AdminMaintenance
+          component: () => import('../pages/admin/AdminMaintenance.vue')
         },
         {
           path: 'messages',
           name: 'admin-messages',
-          component: AdminMessages
+          component: () => import('../pages/admin/AdminMessages.vue')
         }
       ]
     }

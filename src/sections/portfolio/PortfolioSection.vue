@@ -2,15 +2,13 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import GuestNavbar from '../../components/GuestNavbar.vue'
 import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
-import { defaultPortfolioConfig as vConfig } from '../../data/default/visual/portfolio'
-import { defaultProfile } from '../../data/default/profile'
-import { defaultPortfolioContent } from '../../data/default/portfolio'
-import gambar1Image from '../../data/default/template_gambar/gambar1.webp'
+import { useSiteStore } from '../../stores/site'
 
-const profileImages: Record<string, string> = {
-  gambar1: gambar1Image
-}
-const profileImageSrc = profileImages[defaultProfile.imageUrl] ?? gambar1Image
+const site = useSiteStore()
+const vConfig = site.current.visual.portfolio
+const portfolio = site.current.content.portfolio
+const profile = site.current.content.profile
+const profileImageSrc = computed(() => site.mediaSourceForUsage(profile.mediaUsageId))
 
 // Breakpoint detection for responsive image geometry
 const isMobile = ref(false)
@@ -64,7 +62,7 @@ const wrapperTransform = computed(() => {
     }"
   >
     <GuestNavbar />
-    <main id="main" class="main-content">
+    <main id="main" class="main-content" :data-entity-id="portfolio.id">
       <div class="portfolio-layout">
         <h1
           class="portfolio-title"
@@ -78,7 +76,7 @@ const wrapperTransform = computed(() => {
             fontFamily: vConfig.title.fontFamily
           }"
         >
-          {{ defaultPortfolioContent.title }}
+          {{ portfolio.title }}
         </h1>
 
         <div class="profile-image-wrapper" :style="{
@@ -87,12 +85,13 @@ const wrapperTransform = computed(() => {
           transform: wrapperTransform,
           zIndex: vConfig.profileImageWrapper.zIndex
         }">
-          <img :src="profileImageSrc" :alt="defaultProfile.name" class="profile-image" :style="{
+          <img :src="profileImageSrc" :alt="profile.name" class="profile-image" :data-entity-id="profile.id" :data-media-usage-id="profile.mediaUsageId" :style="{
             width: imgWidth,
             height: vConfig.profileImage.height,
             maxWidth: vConfig.profileImage.maxWidth,
             maxHeight: imgMaxHeight,
-            borderRadius: vConfig.profileImage.borderRadius
+            borderRadius: vConfig.profileImage.borderRadius,
+            objectPosition: site.mediaObjectPositionForUsage(profile.mediaUsageId)
           }" />
         </div>
       </div>

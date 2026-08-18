@@ -1,16 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Calendar, Sparkles } from 'lucide-vue-next'
-import { defaultCollege } from '../../../data/default/college'
-import { defaultCollegeConfig as vConfig } from '../../../data/default/visual/college'
 import PhotoArea from '../../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../../stores/photoAreaImages'
+import { useSiteStore } from '../../../stores/site'
 
+const site = useSiteStore()
 const photoAreaImages = usePhotoAreaImagesStore()
+const entries = computed(() => site.collegeEntries)
+const vConfig = site.current.visual.college
 </script>
 
 <template>
   <section
-    id="college"
+    v-for="item in entries"
+    :id="item.order === 0 ? 'college-section' : undefined"
+    :key="item.id"
+    :data-entity-id="item.id"
     class="college-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
@@ -45,7 +51,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
             marginBottom: vConfig.label.marginBottom
           }"
         >
-          {{ defaultCollege.items[0].label }}
+          {{ item.label }}
         </span>
           <h2
         class="college-school"
@@ -56,7 +62,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
           fontFamily: vConfig.school.fontFamily
         }"
       >
-        {{ defaultCollege.items[0].school }}
+        {{ item.school }}
       </h2>
 
       <div
@@ -75,7 +81,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
             fontFamily: vConfig.calendar.fontFamily
           }"
         >
-          {{ defaultCollege.items[0].period }}
+          {{ item.period }}
         </span>
       </div>
 
@@ -86,7 +92,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
             lineHeight: vConfig.description.lineHeight,
             fontFamily: vConfig.description.fontFamily
           }">
-            {{ defaultCollege.items[0].description }}
+            {{ item.description }}
           </p>
       </div>
 
@@ -108,7 +114,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
           transform: `rotate(${vConfig.frameBack.transformRotate})`,
           zIndex: vConfig.frameBack.zIndex
         }">
-          <PhotoArea class="polaroid-photo" frame-id="college-frame-back" :source="photoAreaImages.frames['college-frame-back'].source" alt="College frame back photo" :object-position="vConfig.frameBackImage.objectPosition">
+          <PhotoArea class="polaroid-photo" :frame-id="item.frameIds.back" :source="photoAreaImages.frames[item.frameIds.back]?.source || ''" :alt="`${item.school} frame back photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.back)?.objectPosition || vConfig.frameBackImage.objectPosition">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameBackPlaceholder.color,
               opacity: vConfig.frameBackPlaceholder.opacity,
@@ -146,7 +152,7 @@ const photoAreaImages = usePhotoAreaImagesStore()
           transform: `rotate(${vConfig.frameFront.transformRotate})`,
           zIndex: vConfig.frameFront.zIndex
         }">
-          <PhotoArea class="polaroid-photo" frame-id="college-frame-front" :source="photoAreaImages.frames['college-frame-front'].source" alt="College frame front photo" :object-position="vConfig.frameFrontImage.objectPosition">
+          <PhotoArea class="polaroid-photo" :frame-id="item.frameIds.front" :source="photoAreaImages.frames[item.frameIds.front]?.source || ''" :alt="`${item.school} frame front photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.front)?.objectPosition || vConfig.frameFrontImage.objectPosition">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameFrontPlaceholder.color,
               opacity: vConfig.frameFrontPlaceholder.opacity,

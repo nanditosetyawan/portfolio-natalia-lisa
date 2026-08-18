@@ -56,8 +56,6 @@ export interface ContactVisualConfig {
     display: string;
   };
   cta: {
-    text: string;
-    href: string;
     display: string;
     marginTop: string;
     alignSelf: string;
@@ -183,8 +181,6 @@ export const defaultContactConfig: ContactVisualConfig = {
     display: 'block',
   },
   cta: {
-    text: 'CLICK HERE',
-    href: 'mailto:contact@example.com',
     display: 'inline-block',
     marginTop: '7.5rem',
     alignSelf: 'flex-start',

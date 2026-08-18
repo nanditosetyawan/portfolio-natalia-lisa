@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ArrowDown } from 'lucide-vue-next'
-import { defaultEducation } from '../../data/default/education'
-import { defaultEducationConfig as vConfig } from '../../data/default/visual/education'
+import { useSiteStore } from '../../stores/site'
+
+const site = useSiteStore()
+const education = site.current.content.education
+const vConfig = site.current.visual.education
 </script>
 
 <template>
   <section
     id="education"
+    :data-entity-id="education.id"
     class="education-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
@@ -44,7 +48,7 @@ import { defaultEducationConfig as vConfig } from '../../data/default/visual/edu
             fontFamily: vConfig.title.fontFamily
           }"
         >
-          {{ defaultEducation.title }}
+          {{ education.title }}
         </h1>
       </div>
 

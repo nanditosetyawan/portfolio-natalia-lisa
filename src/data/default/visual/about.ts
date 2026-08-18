@@ -1,5 +1,4 @@
 /* Default Visual Configuration - About Section */
-import gambar1 from '../template_gambar/gambar1.webp'
 
 export interface AboutVisualConfig {
   section: {
@@ -43,17 +42,14 @@ export interface AboutVisualConfig {
   };
   /* Frame image slots */
   frameBack2Image: {
-    source: string;
     objectFit: string;
     objectPosition: string;
   };
   frameMainImage: {
-    source: string;
     objectFit: string;
     objectPosition: string;
   };
   foregroundPortrait: {
-    source: string;
     width: string;
     top: string;
     right: string;
@@ -186,6 +182,21 @@ export interface AboutVisualConfig {
     width: string;
     height: string;
   };
+  responsive: {
+    tablet: {
+      sectionPaddingLeft: string; sectionPaddingRight: string; containerGap: string;
+      frameBackWidth: string; frameBackHeight: string; frameBackBottom: string; frameBackRight: string;
+      frameMainWidth: string; frameMainHeight: string; frameMainTop: string; frameMainLeft: string;
+      portraitWidth: string; portraitRight: string;
+    };
+    mobile: {
+      sectionPadding: string; containerMinHeight: string; contentFlexBasis: string; contentPaddingTop: string;
+      visualFlexBasis: string; visualHeight: string;
+      frameBackWidth: string; frameBackHeight: string; frameBackTop: string; frameBackRight: string; frameBackBottom: string;
+      frameMainWidth: string; frameMainHeight: string; frameMainTop: string; frameMainLeft: string; frameMainRight: string;
+      portraitWidth: string; portraitTop: string; portraitRight: string; portraitBottom: string;
+    };
+  };
 }
 
 export const defaultAboutConfig: AboutVisualConfig = {
@@ -229,17 +240,14 @@ export const defaultAboutConfig: AboutVisualConfig = {
     height: '640px'
   },
   frameBack2Image: {
-    source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
   },
   frameMainImage: {
-    source: '',
     objectFit: 'cover',
     objectPosition: 'center center'
   },
   foregroundPortrait: {
-    source: gambar1,
     width: '300px',
     top: '33%',
     right: '17%',
@@ -349,6 +357,21 @@ export const defaultAboutConfig: AboutVisualConfig = {
     border: '2px solid #FF9A86',
     width: '46px',
     height: '46px'
+  },
+  responsive: {
+    tablet: {
+      sectionPaddingLeft: '2.5rem', sectionPaddingRight: '2.5rem', containerGap: '2rem',
+      frameBackWidth: '360px', frameBackHeight: '250px', frameBackBottom: '56%', frameBackRight: '13%',
+      frameMainWidth: '75px', frameMainHeight: '75px', frameMainTop: '35%', frameMainLeft: '60%',
+      portraitWidth: '270px', portraitRight: '12%'
+    },
+    mobile: {
+      sectionPadding: '4rem 1.25rem 7rem', containerMinHeight: '0', contentFlexBasis: 'auto', contentPaddingTop: '0',
+      visualFlexBasis: 'auto', visualHeight: '520px',
+      frameBackWidth: 'min(77vw, 300px)', frameBackHeight: 'min(70vw, 280px)', frameBackTop: '-2.25rem', frameBackRight: '18%', frameBackBottom: 'auto',
+      frameMainWidth: 'min(22vw, 88px)', frameMainHeight: 'min(22vw, 88px)', frameMainTop: '9rem', frameMainLeft: 'auto', frameMainRight: '5%',
+      portraitWidth: 'min(72vw, 290px)', portraitTop: 'auto', portraitRight: '0', portraitBottom: '7rem'
+    }
   }
 }
 

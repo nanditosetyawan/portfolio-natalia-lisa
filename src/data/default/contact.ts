@@ -1,21 +1,25 @@
 export interface DefaultContact {
+  id: string
   line1: string
   line2: string
   cta: {
+    id: string
     text: string
     href: string
   }
-  imageUrl: string
+  personMediaUsageId: string
 }
 
 export const defaultContact: DefaultContact = {
+  id: 'contact',
   line1: "LET'S WORK",
   line2: 'TOGETHER',
   cta: {
+    id: 'contact-cta',
     text: 'CLICK HERE',
-    href: 'mailto:contact@example.com'
+    href: ''
   },
-  imageUrl: 'gambar1'
+  personMediaUsageId: 'contact-person-media'
 }
 
 export default defaultContact
