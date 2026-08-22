@@ -3508,3 +3508,23 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
   - npx vue-tsc --noEmit: PASS (0 errors).
   - npm run build: PASS (1856 modules, 1.92s).
 - Status: COMPLETED.
+
+## Request #093 - GUEST CONTACT DETAIL PAGE REVISIONS (PART 2)
+
+- Tanggal: 2026-08-23 (Asia/Jakarta).
+- Mode eksekusi: revisi layout dan elemen halaman guest baru.
+- Instruksi pengguna: Naikkan jarak antara foto dan konten di sisi kanan pada contact2, perbaiki foto di message kanan agar sesuai jadi placeholder seperti di contact 2 dan tingginya sesuai card textme, pastikan kedua gambar dan placeholder independen (kode terpisah).
+- File dimodifikasi:
+  - src/pages/guest/ContactDetail.vue (update template, script, dan style)
+- Perubahan utama:
+  - Gap .contact2-container dinaikkan ke 3.5rem.
+  - Carousel dihapus sepenuhnya dari script dan template.
+  - Ditambahkan .message-photo-frame dan .message-photo-placeholder di sisi kanan Section 2.
+  - Layout .message-container diatur lign-items: stretch dan .message-photo-frame diatur height: 100% agar tinggi placeholder mengikuti tinggi card 	ext me secara dinamis.
+  - Kode dan class untuk kedua placeholder dibuat benar-benar independen:
+    - Contact2: .contact2-photo-frame, .contact2-photo-placeholder
+    - Message: .message-photo-frame, .message-photo-placeholder
+- Validasi:
+  - npx vue-tsc --noEmit: PASS (0 errors).
+  - npm run build: PASS (1856 modules, 1.98s).
+- Status: COMPLETED.

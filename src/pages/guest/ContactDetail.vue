@@ -10,11 +10,11 @@
       <div class="contact2-container">
         <!-- Left Side: Responsive Photo Placeholder / Input Image -->
         <div class="contact2-left">
-          <div class="tall-photo-frame">
-            <img v-if="adminInputImage" :src="adminInputImage" alt="Lisa Natalia" class="portrait-image-tall" />
-            <div v-else class="tall-photo-placeholder">
-              <div class="placeholder-decor-line"></div>
-              <span class="placeholder-text">Photo Area</span>
+          <div class="contact2-photo-frame">
+            <img v-if="adminInputImage" :src="adminInputImage" alt="Lisa Natalia" class="contact2-portrait-image" />
+            <div v-else class="contact2-photo-placeholder">
+              <div class="contact2-placeholder-decor-line"></div>
+              <span class="contact2-placeholder-text">Photo Area</span>
             </div>
           </div>
         </div>
@@ -45,7 +45,7 @@
       </div>
     </section>
 
-    <!-- SECTION 2: MESSAGE (Form 2/3 and Carousel 1/3) -->
+    <!-- SECTION 2: MESSAGE (Form 2/3 and Image/Placeholder 1/3) -->
     <section id="message-section" class="section-message">
       <div class="message-container">
         <!-- Left Column: Card Form (2/3 Width) -->
@@ -125,36 +125,13 @@
           </div>
         </div>
 
-        <!-- Right Column: Tall Photo Carousel (1/3 Width) -->
+        <!-- Right Column: Tall Photo Box matching Card Height (1/3 Width) -->
         <div class="message-right-column">
-          <div class="carousel-container">
-            <div class="carousel-wrapper">
-              <div 
-                v-for="(slide, index) in carouselSlides" 
-                :key="index" 
-                class="carousel-slide"
-                :class="{ active: currentSlide === index }"
-              >
-                <img 
-                  :src="slide.image" 
-                  :alt="'Carousel Slide ' + (index + 1)" 
-                  class="carousel-image" 
-                  :style="slide.style"
-                />
-                <div class="carousel-overlay"></div>
-              </div>
-            </div>
-
-            <!-- Dots Indicators -->
-            <div class="carousel-dots">
-              <button 
-                v-for="(_, index) in carouselSlides" 
-                :key="index" 
-                class="dot-btn"
-                :class="{ active: currentSlide === index }"
-                @click="setSlide(index)"
-                :aria-label="'Slide ' + (index + 1)"
-              ></button>
+          <div class="message-photo-frame">
+            <img v-if="messageInputImage" :src="messageInputImage" alt="Message illustration" class="message-portrait-image" />
+            <div v-else class="message-photo-placeholder">
+              <div class="message-placeholder-decor-line"></div>
+              <span class="message-placeholder-text">Photo Area</span>
             </div>
           </div>
         </div>
@@ -164,12 +141,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { ArrowLeft, Send } from 'lucide-vue-next'
-import profileImage from '../../data/default/template_gambar/gambar1.webp'
 
 // Admin inputs can bind here in the future
 const adminInputImage = ref('')
+const messageInputImage = ref('')
 
 // Form State
 const form = reactive({
@@ -182,47 +159,10 @@ const form = reactive({
 const isClicked = ref(false)
 const showSuccessAlert = ref(false)
 
-// Carousel State
-const currentSlide = ref(0)
-const carouselSlides = [
-  { image: profileImage, style: {} },
-  { image: profileImage, style: { filter: 'sepia(0.4) brightness(0.9) contrast(1.1)' } },
-  { image: profileImage, style: { filter: 'hue-rotate(50deg) saturate(1.2)' } }
-]
-
 // Inline SVGs as data URIs matching the theme's red (#7B2329) and gold (#D4C4B4 / #E8DED0) tones
 const waLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'></path></svg>"
 const linkedinLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z'></path><rect x='2' y='9' width='4' height='12'></rect><circle cx='4' cy='4' r='2'></circle></svg>"
 const cvLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path><polyline points='14 2 14 8 20 8'></polyline><line x1='16' y1='13' x2='8' y2='13'></line><line x1='16' y1='17' x2='8' y2='17'></line><polyline points='10 9 9 9 8 9'></polyline></svg>"
-
-let carouselInterval: ReturnType<typeof setInterval> | null = null
-
-const startCarousel = () => {
-  carouselInterval = setInterval(() => {
-    currentSlide.value = (currentSlide.value + 1) % carouselSlides.length
-  }, 4000)
-}
-
-const stopCarousel = () => {
-  if (carouselInterval) {
-    clearInterval(carouselInterval)
-    carouselInterval = null
-  }
-}
-
-const setSlide = (idx: number) => {
-  currentSlide.value = idx
-  stopCarousel()
-  startCarousel()
-}
-
-onMounted(() => {
-  startCarousel()
-})
-
-onUnmounted(() => {
-  stopCarousel()
-})
 
 // Form Action
 const handleMouseDown = () => {
@@ -311,7 +251,7 @@ const handleSubmit = () => {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 2.2rem; /* Reduced gap to shift right side to the left */
+  gap: 3.5rem; /* Increased gap between photo and right content */
 }
 
 /* Left side - Portrait Tall Photo Frame (Height Reduced) */
@@ -321,9 +261,9 @@ const handleSubmit = () => {
   justify-content: flex-start;
 }
 
-.tall-photo-frame {
-  width: 350px; /* Reduced width */
-  aspect-ratio: 3/4.2; /* Less tall aspect ratio */
+.contact2-photo-frame {
+  width: 350px; /* Target width as modified by user */
+  aspect-ratio: 3/4.2;
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -331,15 +271,15 @@ const handleSubmit = () => {
   display: flex;
 }
 
-.portrait-image-tall {
+.contact2-portrait-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-/* Kotak Kosong Placeholder */
-.tall-photo-placeholder {
+/* Kotak Kosong Placeholder - Contact 2 specific */
+.contact2-photo-placeholder {
   flex: 1;
   border: 2px dashed rgba(232, 222, 208, 0.25);
   border-radius: 20px;
@@ -352,13 +292,13 @@ const handleSubmit = () => {
   background: rgba(255, 255, 255, 0.03);
 }
 
-.placeholder-decor-line {
+.contact2-placeholder-decor-line {
   width: 32px;
   height: 2px;
   background: rgba(232, 222, 208, 0.2);
 }
 
-.placeholder-text {
+.contact2-placeholder-text {
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -452,6 +392,7 @@ const handleSubmit = () => {
   max-width: 1200px;
   width: 100%;
   display: flex;
+  align-items: stretch; /* Stretch children horizontally to align heights */
   gap: 3.5rem;
   margin: 0 auto;
 }
@@ -468,17 +409,18 @@ const handleSubmit = () => {
 .message-card {
   background: #ffffff;
   border-radius: 24px;
-  padding: 2.2rem 2.5rem; /* Reduced padding */
+  padding: 2.2rem 2.5rem;
   box-shadow: 0 12px 36px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.03);
-  max-height: 90vh; /* Prevents overflow */
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  height: 100%; /* Stretches to container height */
 }
 
 .message-card-title {
   font-family: 'Impact', 'Arial Black', sans-serif;
-  font-size: 2rem; /* Sized down */
+  font-size: 2rem;
   text-transform: uppercase;
   color: #7B2329;
   margin: 0 0 1.2rem 0;
@@ -488,7 +430,7 @@ const handleSubmit = () => {
 .message-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem; /* Compact layout gaps */
+  gap: 1rem;
 }
 
 .form-row-grid {
@@ -534,7 +476,7 @@ const handleSubmit = () => {
 }
 
 .form-textarea {
-  resize: none; /* Disables manual sizing that breaks viewport */
+  resize: none;
 }
 
 /* Submit Button & Active Outline */
@@ -589,84 +531,63 @@ const handleSubmit = () => {
   font-weight: 600;
 }
 
-/* Right Column: Carousel Photo (1/3 Width) */
+/* Right Column: Tall Photo Frame matching Card Height (1/3 Width) */
 .message-right-column {
   flex: 1; /* 1/3 */
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: stretch;
+  align-items: stretch;
 }
 
-.carousel-container {
-  position: relative;
+/* Independent styling for Message specific placeholder box matching textme height */
+.message-photo-frame {
+  height: 100%;
   width: 100%;
-  max-width: 270px; /* Reduced width */
-  aspect-ratio: 3/4.2; /* Balanced with left side photo frame */
-  border-radius: 20px;
+  max-width: 320px;
+  border-radius: 24px;
   overflow: hidden;
   box-shadow: 0 12px 30px -8px rgba(90, 62, 53, 0.15);
+  background: #FAF9F5;
+  border: 1px solid #E8DED0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
-.carousel-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.carousel-slide {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.8s ease-in-out;
-  z-index: 1;
-}
-
-.carousel-slide.active {
-  opacity: 1;
-  z-index: 2;
-}
-
-.carousel-image {
+.message-portrait-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-.carousel-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(123, 35, 41, 0.15) 0%, transparent 100%);
-  pointer-events: none;
-}
-
-.carousel-dots {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
+/* Kotak Kosong Placeholder - Message specific */
+.message-photo-placeholder {
+  flex: 1;
+  border: 2px dashed rgba(123, 35, 41, 0.2);
+  border-radius: 18px;
+  margin: 12px;
   display: flex;
-  gap: 6px;
-  padding: 5px 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 20px;
-  backdrop-filter: blur(4px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(123, 35, 41, 0.01);
 }
 
-.dot-btn {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.25s ease;
+.message-placeholder-decor-line {
+  width: 32px;
+  height: 2px;
+  background: rgba(123, 35, 41, 0.15);
 }
 
-.dot-btn.active {
-  background: #ffffff;
-  transform: scale(1.3);
+.message-placeholder-text {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(123, 35, 41, 0.3);
+  font-weight: 600;
 }
 
 /* ================= RESPONSIVE ================= */
@@ -676,7 +597,7 @@ const handleSubmit = () => {
   }
 
   .contact2-container {
-    gap: 1.5rem;
+    gap: 2.5rem;
   }
 }
 
@@ -692,7 +613,7 @@ const handleSubmit = () => {
     gap: 2rem;
   }
 
-  .tall-photo-frame {
+  .contact2-photo-frame {
     max-width: 280px;
   }
 
@@ -724,10 +645,11 @@ const handleSubmit = () => {
   .message-right-column {
     flex: 1;
     width: 100%;
+    height: 380px; /* Set mobile height for placeholder so it doesn't collapse */
   }
 
-  .carousel-container {
-    max-width: 240px;
+  .message-photo-frame {
+    max-width: 280px;
     margin: 0 auto;
   }
 
