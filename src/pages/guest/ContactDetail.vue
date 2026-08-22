@@ -251,7 +251,7 @@ const handleSubmit = () => {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 3.5rem; /* Increased gap between photo and right content */
+  gap: 6rem; /* Increased spacing between photo and content */
 }
 
 /* Left side - Portrait Tall Photo Frame (Height Reduced) */
@@ -393,7 +393,7 @@ const handleSubmit = () => {
   width: 100%;
   display: flex;
   align-items: stretch; /* Stretch children horizontally to align heights */
-  gap: 3.5rem;
+  gap: 1.8rem; /* Reduced gap between form card and placeholder */
   margin: 0 auto;
 }
 

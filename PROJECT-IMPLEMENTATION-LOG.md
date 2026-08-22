@@ -3528,3 +3528,18 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
   - npx vue-tsc --noEmit: PASS (0 errors).
   - npm run build: PASS (1856 modules, 1.98s).
 - Status: COMPLETED.
+
+## Request #094 - GUEST CONTACT DETAIL SPACING REVISIONS
+
+- Tanggal: 2026-08-23 (Asia/Jakarta).
+- Mode eksekusi: penyesuaian CSS layout.
+- Instruksi pengguna: Naikkan lagi jarak antara foto dan teks di contact2, dan kurangi jarak antar card di message.
+- File dimodifikasi:
+  - src/pages/guest/ContactDetail.vue (update CSS rules)
+- Perubahan utama:
+  - Gap .contact2-container diubah dari 3.5rem menjadi 6rem.
+  - Gap .message-container diubah dari 3.5rem menjadi 1.8rem.
+- Validasi:
+  - npx vue-tsc --noEmit: PASS (0 errors).
+  - npm run build: PASS (1856 modules, 1.87s).
+- Status: COMPLETED.
