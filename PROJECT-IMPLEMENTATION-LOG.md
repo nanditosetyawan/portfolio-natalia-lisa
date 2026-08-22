@@ -3392,3 +3392,92 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Persistence result/limitation: Certificate records and the seven current Admin-uploaded image data sources survive hard refresh in the same browser profile through IndexedDB. There is no remote synchronization, authentication, published/draft separation, multi-device persistence, or Supabase Storage because that future backend remains unapproved/unimplemented. A later approved Supabase phase should migrate binary media to Storage and keep only metadata/references in PostgreSQL.
 - Final phase status: PASS WITH LIMITATIONS. All requested local runtime/database/fallback/refresh/image/persistence acceptance tests pass; limitation is the absence of the planned remote Supabase publish/storage infrastructure.
 - Next step: stop at this request boundary and await user direction.
+
+## Request #089 - ADMIN MANAGE MEDIA PAGE LAYOUT REVISI
+
+- Tanggal: 2026-08-23 (Asia/Jakarta).
+- Mode eksekusi: implementasi langsung, hanya menyentuh src/pages/admin/AdminMedia.vue.
+- Instruksi pengguna (multi-request dalam satu sesi):
+  1. Hapus card Media Favorit dan Sampah dari halaman /admin/media. Urutkan card Upload di atas sendiri dengan lebar penuh (3 kolom / grid-column: 1 / -1). Warna card Upload dibedakan dengan tone sage green soft. Sisa 3 card (Gambar, Video, Dokumen) tetap berjejer 3 kolom.
+  2. Ubah card Upload menjadi seluruh area card sebagai tombol (hapus tombol 'Upload Media' di dalam card, buat area card clickable dengan cursor pointer dan accessibility role/tabindex/keydown).
+  3. Buat halaman upload workspace baru di dalam view yang sama (v-if/v-else) dengan split 2 kolom: kiri dropzone drag-and-drop, kanan daftar file upload. Batasan: max 5 file, format webp/pdf/gif, max 2MB untuk webp/pdf, max 10MB untuk gif. Mock submit ke Supabase (belum diimplementasikan, biarkan alert simulasi).
+  4. Hapus tombol back dan teks 'Upload Control Panel'. Naikkan height kolom ke 520px. Jadikan tombol kirim berbentuk pil muncul di kanan bawah queue card hanya saat list terisi.
+  5. Saat berada di upload workspace dan klik menu Manage Media di sidebar, kembali ke view card media (bukan tetap di upload workspace).
+
+- File dimodifikasi: src/pages/admin/AdminMedia.vue saja. Tidak ada file lain yang disentuh.
+
+- Perubahan yang dilakukan:
+  - Hapus kategori 'favorites' dan 'trash' dari mediaCategories ref.
+  - Pindahkan kategori 'upload' ke index pertama array.
+  - Tambahkan class 'media-card-upload' untuk styling card Upload: grid-column 1/-1, background sage green (#E8EFE8), border, cursor pointer, padding 30px 20px.
+  - Card Upload menjadi seluruh area clickable (role=button, tabindex, @click, @keydown.enter, @keydown.space.prevent). Tombol dalam card dihapus untuk card upload (v-if="category.id !== 'upload'").
+  - Tambahkan v-if/v-else untuk 2 view: view card media (isUploading=false) dan upload workspace (isUploading=true).
+  - Upload workspace: 2 kolom (dropzone kiri, queue kanan), min-height 520px masing-masing.
+  - Dropzone: dashed border, icon +, hover/drag-active highlight, hidden file input, drag-and-drop handlers.
+  - Validasi file: format (webp/pdf/gif), ukuran (webp/pdf max 2MB, gif max 10MB), jumlah (max 5), deduplication by name.
+  - Queue list: icon per tipe (webp=hijau, pdf=merah, gif=biru), nama, ukuran, type, tombol X per baris.
+  - Error banner slide-in saat validasi gagal.
+  - Tombol 'Kirim' berbentuk pil (border-radius: 9999px), muncul hanya saat uploadedFiles.length > 0, di kanan bawah queue card.
+  - Tidak ada header workspace atau tombol back (dihapus).
+  - Transisi fade (opacity 0.25s) antara kedua view.
+  - Fix navigasi sidebar: router.afterEach hook yang mereset isUploading=false dan membersihkan queue saat route 'admin-media' diakses kembali. Hook di-cleanup saat onUnmounted.
+  - Import: onUnmounted, useRouter dari vue-router ditambahkan ke script setup.
+  - Dihapus: import Heart, Trash2, ArrowLeft (tidak lagi digunakan).
+
+- Validasi:
+  - TypeScript (npx vue-tsc --noEmit): PASS (0 errors) - dikonfirmasi 3 kali sepanjang request.
+  - Vite build (npm run build): PASS (1844 modules, AdminMedia CSS 9.38 kB).
+  - Guest View: tidak tersentuh.
+  - File lain admin: tidak tersentuh.
+
+- Status: COMPLETED. Halaman /admin/media memiliki layout card yang direvisi + upload workspace dengan drag-and-drop, validasi, queue list, dan reset navigasi sidebar yang benar.
+
+- Next step: stop di batas request ini. Tunggu instruksi berikutnya.
+
+## Request #090 - ADMIN MEDIA LIBRARY PAGES (GAMBAR, VIDEO, DOKUMEN)
+
+- Tanggal: 2026-08-23 (Asia/Jakarta).
+- Mode eksekusi: implementasi penuh berdasarkan implementation plan yang disetujui user.
+- Instruksi pengguna: Buat 3 halaman baru saat klik card Gambar/Video/Dokumen di halaman Manage Media. Masing-masing independen, pertahankan header dan sidebar, isi 3 kolom card grid, preview media dengan gradient gelap bawah 1/4 + nama file, hover darkens seluruh card + 3 tombol aksi (hapus/lihat/ubah nama), popup untuk hapus, rename, dan view modal.
+
+- File dibuat:
+  - src/pages/admin/AdminMediaImages.vue (baru)
+  - src/pages/admin/AdminMediaVideos.vue (baru)
+  - src/pages/admin/AdminMediaDocuments.vue (baru)
+
+- File dimodifikasi:
+  - src/router/index.ts: tambah 3 route baru (admin-media-images, admin-media-videos, admin-media-documents) sebagai child route di bawah /admin.
+  - src/pages/admin/AdminMedia.vue: semua card (bukan hanya upload) menjadi clickable; handleCardAction diperbarui untuk router.push ke halaman masing-masing.
+
+- Detail implementasi per halaman:
+  - Layout: 3-column CSS grid, aspect-ratio 4/3 per card, max-width 1200px.
+  - Preview card: latar warna gradient per item (placeholder karena Supabase belum terhubung).
+  - Gradient overlay: linear-gradient bottom 0 ke top, menutupi 40% bawah card, untuk letak nama file.
+  - Nama file: posisi absolute bottom, text-overflow ellipsis.
+  - Hover overlay: rgba(0,0,0,0.45) dengan opacity transition 0.2s, pure CSS (bukan v-if).
+  - 3 tombol aksi per card: delete (merah #C0392B), view (biru #1565C0), edit (amber #B8860B).
+  - Tombol aksi: translateY slide-in saat hover, tooltip teks di atas tombol saat hover tombol.
+  - Modal hapus: konfirmasi dialog dengan ikon, nama file, tombol Batal + Hapus (merah).
+  - Modal rename: input field pre-filled nama lama, tombol Batal + Simpan (hijau).
+  - Modal view:
+    - Gambar: lightbox 680px 16/9 dengan preview gambar.
+    - Video: placeholder video player dengan play icon + catatan Supabase belum terhubung.
+    - Dokumen: 640px modal dengan header nama/ukuran dan scrollable mock document page.
+  - Semua modal: position fixed, backdrop blur, modal-pop animation cubic-bezier.
+  - TODO komentar di setiap confirmDelete dan confirmEdit untuk Supabase API.
+  - Mock data: 6 item gambar, 4 item video, 5 item dokumen dengan nama dan ukuran realistis.
+  - Semua operasi lokal (delete/rename) langsung memperbarui ref array.
+  - Data tidak persisten (belum ada Supabase).
+
+- Perubahan AdminMedia.vue:
+  - Sebelum: hanya card 'upload' yang clickable, card lain memiliki tombol di dalam card.
+  - Sesudah: semua card memiliki role=button, tabindex=0, @click, @keydown.enter, @keydown.space.
+  - handleCardAction: ditambahkan router.push untuk images, videos, documents.
+
+- Validasi:
+  - npx vue-tsc --noEmit: PASS (0 errors).
+  - npm run build: PASS (1853 modules, 1.60s). Semua 3 halaman muncul di dist/assets.
+
+- Status: COMPLETED. 3 halaman media library berfungsi dengan navigasi dari /admin/media, grid card, hover actions, dan 3 jenis modal. Data mock. Supabase integration ditunda ke fase berikutnya.
+
+- Next step: stop di batas request ini. Tunggu instruksi berikutnya.

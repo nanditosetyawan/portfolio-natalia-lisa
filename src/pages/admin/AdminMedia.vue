@@ -11,11 +11,11 @@
             'media-card-selected': category.selected,
             'media-card-upload': category.id === 'upload'
           }"
-          :role="category.id === 'upload' ? 'button' : undefined"
-          :tabindex="category.id === 'upload' ? 0 : undefined"
-          @click="category.id === 'upload' ? handleCardAction(category) : undefined"
-          @keydown.enter="category.id === 'upload' ? handleCardAction(category) : undefined"
-          @keydown.space.prevent="category.id === 'upload' ? handleCardAction(category) : undefined"
+          role="button"
+          tabindex="0"
+          @click="handleCardAction(category)"
+          @keydown.enter="handleCardAction(category)"
+          @keydown.space.prevent="handleCardAction(category)"
         >
           <div class="card-illustration">
             <component :is="category.icon" class="illustration-icon" />
@@ -148,7 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { 
   Image, 
   FileText, 
@@ -222,6 +223,18 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 
+// Reset to view 1 whenever the user clicks 'Manage Media' in the sidebar
+// router.afterEach fires even on same-route navigation (sidebar re-click)
+const router = useRouter()
+const removeAfterEach = router.afterEach((to) => {
+  if (to.name === 'admin-media' && isUploading.value) {
+    isUploading.value = false
+    uploadedFiles.value = []
+    errorMessage.value = ''
+  }
+})
+onUnmounted(() => removeAfterEach())
+
 interface UploadedFileItem {
   id: string
   name: string
@@ -236,6 +249,12 @@ const uploadedFiles = ref<UploadedFileItem[]>([])
 const handleCardAction = (category: MediaCategory) => {
   if (category.id === 'upload') {
     isUploading.value = true
+  } else if (category.id === 'images') {
+    router.push({ name: 'admin-media-images' })
+  } else if (category.id === 'videos') {
+    router.push({ name: 'admin-media-videos' })
+  } else if (category.id === 'documents') {
+    router.push({ name: 'admin-media-documents' })
   }
 }
 

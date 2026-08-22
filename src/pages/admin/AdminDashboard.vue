@@ -121,6 +121,24 @@
             <p class="card-favorite-desc">Description placeholder</p>
           </div>
         </div>
+
+        <!-- Message Card -->
+        <div class="card card-message" role="button" tabindex="0" @click="goToMessages" @keydown.enter="goToMessages" @keydown.space.prevent="goToMessages">
+          <div class="card-image card-image-message">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="illustration-message" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="card-content">
+            <h3 class="card-message-title">Pesan</h3>
+            <p class="card-message-desc">Lihat pesan masuk</p>
+            <div class="card-message-arrow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -128,6 +146,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const goToMessages = () => router.push({ name: 'admin-messages' })
 
 const clockTime = ref('-- : -- : --')
 let timer: ReturnType<typeof setInterval> | null = null
@@ -233,7 +255,7 @@ onUnmounted(() => {
 
 .dashboard-row2 {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1.2fr 1fr 1fr;
   gap: 20px;
 }
 
@@ -383,7 +405,6 @@ onUnmounted(() => {
   color: #7B5F3B;
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
   .dashboard-main {
     padding: 1.5rem;
@@ -396,7 +417,70 @@ onUnmounted(() => {
   }
 
   .dashboard-row2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-row2 {
     grid-template-columns: 1fr;
   }
+}
+
+/* Message Card */
+.card-message {
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(135deg, #EAF4FF 0%, #F0F7FF 100%);
+  border: 1px solid #C8E0FF;
+}
+
+.card-message:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -10px rgba(21, 101, 192, 0.2), 0 0 0 1px rgba(21, 101, 192, 0.12);
+}
+
+.card-image-message {
+  background-color: #DCEEFF;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 14px;
+}
+
+.illustration-message {
+  color: #1565C0;
+  opacity: 0.85;
+}
+
+.card-message-title {
+  margin: 0 0 2px 0;
+  font-weight: 700;
+  color: #1565C0;
+  font-size: 0.9rem;
+}
+
+.card-message-desc {
+  margin: 0 0 6px 0;
+  font-size: 0.75rem;
+  color: #4A7DB5;
+}
+
+.card-message-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1565C0;
+  color: #FFFFFF;
+  transition: transform 0.2s ease;
+}
+
+.card-message:hover .card-message-arrow {
+  transform: translateX(3px);
 }
 </style>

@@ -29,6 +29,21 @@ const router = createRouter({
           component: () => import('../pages/admin/AdminMedia.vue')
         },
         {
+          path: 'media/images',
+          name: 'admin-media-images',
+          component: () => import('../pages/admin/AdminMediaImages.vue')
+        },
+        {
+          path: 'media/videos',
+          name: 'admin-media-videos',
+          component: () => import('../pages/admin/AdminMediaVideos.vue')
+        },
+        {
+          path: 'media/documents',
+          name: 'admin-media-documents',
+          component: () => import('../pages/admin/AdminMediaDocuments.vue')
+        },
+        {
           path: 'maintenance',
           name: 'admin-maintenance',
           component: () => import('../pages/admin/AdminMaintenance.vue')
