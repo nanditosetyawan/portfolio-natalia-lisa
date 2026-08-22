@@ -3496,3 +3496,15 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
   - npx vue-tsc --noEmit: PASS (0 errors).
   - npm run build: PASS (1856 modules).
 - Status: COMPLETED.
+
+## Request #092 - GUEST CONTACT DETAIL PAGE REVISIONS
+
+- Tanggal: 2026-08-23 (Asia/Jakarta).
+- Mode eksekusi: revisi halaman guest baru.
+- Instruksi pengguna: Hilangkan teks "kembali" di tombol back (hanya panah saja), ganti gambar kiri dengan placeholder kotak kosong bertone tema (yang nanti akan diganti dengan input admin), kurangi tinggi gambar tersebut, geser letak gambar dan teks kanan agak ke kiri sedikit, hapus tombol send message lama dan ganti dengan tombol sosial media (WhatsApp, LinkedIn, CV) berbentuk lingkaran berisi logo gambar (SVG inline) bertone tema secara horizontal tanpa teks, kecilkan tinggi card form "text me" agar pas 1 viewport (bisa membesar di layar besar).
+- File dimodifikasi:
+  - src/pages/guest/ContactDetail.vue (update template, script, dan style)
+- Validasi:
+  - npx vue-tsc --noEmit: PASS (0 errors).
+  - npm run build: PASS (1856 modules, 1.92s).
+- Status: COMPLETED.

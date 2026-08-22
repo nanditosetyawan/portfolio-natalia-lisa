@@ -3,20 +3,23 @@
     <!-- Floating Back Button (Back to Home) -->
     <button class="back-home-btn" @click="$router.push('/')" aria-label="Kembali ke Beranda">
       <ArrowLeft class="back-icon" />
-      <span>Kembali</span>
     </button>
 
     <!-- SECTION 1: CONTACT2 (1 Viewport Height) -->
     <section class="section-contact2">
       <div class="contact2-container">
-        <!-- Left Side: Responsive Tall Photo -->
+        <!-- Left Side: Responsive Photo Placeholder / Input Image -->
         <div class="contact2-left">
           <div class="tall-photo-frame">
-            <img :src="profileImage" alt="Lisa Natalia" class="portrait-image-tall" />
+            <img v-if="adminInputImage" :src="adminInputImage" alt="Lisa Natalia" class="portrait-image-tall" />
+            <div v-else class="tall-photo-placeholder">
+              <div class="placeholder-decor-line"></div>
+              <span class="placeholder-text">Photo Area</span>
+            </div>
           </div>
         </div>
 
-        <!-- Right Side: Text & Welcome Content -->
+        <!-- Right Side: Text & Social Welcome Box -->
         <div class="contact2-right">
           <div class="welcome-box">
             <h1 class="welcome-title">Lisa Natalia</h1>
@@ -24,9 +27,18 @@
             <p class="welcome-desc">
               Hii, Thanks a lot for choose me, I am dedicated to providing high-quality healthcare services and professional support. Feel free to contact me or send a message below.
             </p>
-            <div class="scroll-down-hint" @click="scrollToMessage">
-              <span>Send Message</span>
-              <ChevronDown class="bounce-arrow" />
+            
+            <!-- Horizontal Social Circle Buttons -->
+            <div class="social-circle-buttons">
+              <a href="https://wa.me/#" target="_blank" class="social-circle-btn" aria-label="WhatsApp">
+                <img :src="waLogo" alt="WhatsApp" class="social-logo-img" />
+              </a>
+              <a href="https://linkedin.com/in/#" target="_blank" class="social-circle-btn" aria-label="LinkedIn">
+                <img :src="linkedinLogo" alt="LinkedIn" class="social-logo-img" />
+              </a>
+              <a href="#" target="_blank" class="social-circle-btn" aria-label="CV / Resume">
+                <img :src="cvLogo" alt="CV" class="social-logo-img" />
+              </a>
             </div>
           </div>
         </div>
@@ -42,28 +54,30 @@
             <h3 class="message-card-title">text me</h3>
             
             <form @submit.prevent="handleSubmit" class="message-form">
-              <div class="form-group">
-                <label for="name">Nama</label>
-                <input 
-                  type="text" 
-                  id="name" 
-                  v-model="form.name" 
-                  placeholder="Masukkan nama lengkap Anda" 
-                  required 
-                  class="form-input" 
-                />
-              </div>
+              <div class="form-row-grid">
+                <div class="form-group">
+                  <label for="name">Nama</label>
+                  <input 
+                    type="text" 
+                    id="name" 
+                    v-model="form.name" 
+                    placeholder="Nama lengkap Anda" 
+                    required 
+                    class="form-input" 
+                  />
+                </div>
 
-              <div class="form-group">
-                <label for="email">Email</label>
-                <input 
-                  type="email" 
-                  id="email" 
-                  v-model="form.email" 
-                  placeholder="name@example.com" 
-                  required 
-                  class="form-input" 
-                />
+                <div class="form-group">
+                  <label for="email">Email</label>
+                  <input 
+                    type="email" 
+                    id="email" 
+                    v-model="form.email" 
+                    placeholder="name@example.com" 
+                    required 
+                    class="form-input" 
+                  />
+                </div>
               </div>
 
               <div class="form-group">
@@ -84,7 +98,7 @@
                   id="message" 
                   v-model="form.message" 
                   placeholder="Tulis pesan Anda di sini..." 
-                  rows="5" 
+                  rows="3" 
                   required 
                   class="form-textarea"
                 ></textarea>
@@ -151,8 +165,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { ArrowLeft, Send, ChevronDown } from 'lucide-vue-next'
+import { ArrowLeft, Send } from 'lucide-vue-next'
 import profileImage from '../../data/default/template_gambar/gambar1.webp'
+
+// Admin inputs can bind here in the future
+const adminInputImage = ref('')
 
 // Form State
 const form = reactive({
@@ -173,6 +190,11 @@ const carouselSlides = [
   { image: profileImage, style: { filter: 'hue-rotate(50deg) saturate(1.2)' } }
 ]
 
+// Inline SVGs as data URIs matching the theme's red (#7B2329) and gold (#D4C4B4 / #E8DED0) tones
+const waLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'></path></svg>"
+const linkedinLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z'></path><rect x='2' y='9' width='4' height='12'></rect><circle cx='4' cy='4' r='2'></circle></svg>"
+const cvLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path><polyline points='14 2 14 8 20 8'></polyline><line x1='16' y1='13' x2='8' y2='13'></line><line x1='16' y1='17' x2='8' y2='17'></line><polyline points='10 9 9 9 8 9'></polyline></svg>"
+
 let carouselInterval: ReturnType<typeof setInterval> | null = null
 
 const startCarousel = () => {
@@ -190,7 +212,6 @@ const stopCarousel = () => {
 
 const setSlide = (idx: number) => {
   currentSlide.value = idx
-  // Reset auto play timer on user manual interaction
   stopCarousel()
   startCarousel()
 }
@@ -203,21 +224,12 @@ onUnmounted(() => {
   stopCarousel()
 })
 
-// Scroll helper
-const scrollToMessage = () => {
-  const target = document.getElementById('message-section')
-  if (target) {
-    target.scrollIntoView({ behavior: 'smooth' })
-  }
-}
-
 // Form Action
 const handleMouseDown = () => {
   isClicked.value = true
 }
 
 const handleMouseUp = () => {
-  // Let outline stay brief for visual click response
   setTimeout(() => {
     isClicked.value = false
   }, 350)
@@ -229,7 +241,6 @@ const handleMouseLeave = () => {
 
 const handleSubmit = () => {
   showSuccessAlert.value = true
-  // Reset Form
   form.name = ''
   form.email = ''
   form.institution = ''
@@ -250,7 +261,7 @@ const handleSubmit = () => {
   overflow-x: hidden;
 }
 
-/* Floating Back Button */
+/* Floating Back Button (Perfect Circle) */
 .back-home-btn {
   position: fixed;
   top: 24px;
@@ -258,14 +269,13 @@ const handleSubmit = () => {
   z-index: 100;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
   background: rgba(250, 249, 245, 0.9);
   border: 1px solid rgba(232, 222, 208, 0.6);
   color: #5A3E35;
-  border-radius: 30px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(8px);
@@ -280,8 +290,8 @@ const handleSubmit = () => {
 }
 
 .back-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 /* ================= SECTION 1: CONTACT2 ================= */
@@ -289,10 +299,10 @@ const handleSubmit = () => {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   background-color: #7B2329;
   color: #ffffff;
-  padding: 4rem 2rem;
+  padding: 4rem 4% 4rem 8%;
   box-sizing: border-box;
 }
 
@@ -301,25 +311,24 @@ const handleSubmit = () => {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 4.5rem;
-  margin: 0 auto;
+  gap: 2.2rem; /* Reduced gap to shift right side to the left */
 }
 
-/* Left side - Portrait Tall Photo Frame */
+/* Left side - Portrait Tall Photo Frame (Height Reduced) */
 .contact2-left {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .tall-photo-frame {
-  width: 100%;
-  max-width: 380px;
-  aspect-ratio: 9/14;
-  border-radius: 24px;
+  width: 350px; /* Reduced width */
+  aspect-ratio: 3/4.2; /* Less tall aspect ratio */
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  background: #5C1A1E;
+  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: #5c1a1e;
+  display: flex;
 }
 
 .portrait-image-tall {
@@ -329,21 +338,49 @@ const handleSubmit = () => {
   display: block;
 }
 
-/* Right side - Typography */
+/* Kotak Kosong Placeholder */
+.tall-photo-placeholder {
+  flex: 1;
+  border: 2px dashed rgba(232, 222, 208, 0.25);
+  border-radius: 20px;
+  margin: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.placeholder-decor-line {
+  width: 32px;
+  height: 2px;
+  background: rgba(232, 222, 208, 0.2);
+}
+
+.placeholder-text {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(232, 222, 208, 0.35);
+  font-weight: 600;
+}
+
+/* Right side - Typography & Social Circles */
 .contact2-right {
-  flex: 1.2;
+  flex: 1;
 }
 
 .welcome-box {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1.2rem;
+  gap: 1rem;
 }
 
 .welcome-title {
   font-family: 'Impact', 'Arial Black', sans-serif;
-  font-size: clamp(3.2rem, 5.5vw, 5.5rem);
+  font-size: clamp(3.2rem, 5.2vw, 5.2rem);
   text-transform: uppercase;
   line-height: 1.0;
   margin: 0;
@@ -352,7 +389,7 @@ const handleSubmit = () => {
 }
 
 .welcome-subtitle {
-  font-size: clamp(1.2rem, 2vw, 1.8rem);
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
   font-weight: 500;
   color: #E8DED0;
   letter-spacing: 0.1em;
@@ -361,44 +398,44 @@ const handleSubmit = () => {
 }
 
 .welcome-desc {
-  font-size: clamp(0.95rem, 1.1vw, 1.15rem);
-  line-height: 1.65;
+  font-size: clamp(0.92rem, 1vw, 1.1rem);
+  line-height: 1.6;
   color: #F5EAE6;
-  margin: 0 0 1rem 0;
-  max-width: 520px;
+  margin: 0 0 0.8rem 0;
+  max-width: 480px;
 }
 
-.scroll-down-hint {
-  display: inline-flex;
+/* Horizontal Social Circles */
+.social-circle-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.social-circle-btn {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #FAF9F5;
+  border: 1px solid rgba(123, 35, 41, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.scroll-down-hint:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
+.social-circle-btn:hover {
+  transform: translateY(-2px);
+  background-color: #E8DED0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
-.bounce-arrow {
-  width: 16px;
-  height: 16px;
-  animation: bounce 2s infinite;
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-5px); }
-  60% { transform: translateY(-2px); }
+.social-logo-img {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 /* ================= SECTION 2: MESSAGE ================= */
@@ -407,7 +444,7 @@ const handleSubmit = () => {
   background-color: #F6F4E8;
   display: flex;
   align-items: center;
-  padding: 5rem 2rem;
+  padding: 3rem 2rem;
   box-sizing: border-box;
 }
 
@@ -415,7 +452,7 @@ const handleSubmit = () => {
   max-width: 1200px;
   width: 100%;
   display: flex;
-  gap: 4rem;
+  gap: 3.5rem;
   margin: 0 auto;
 }
 
@@ -427,36 +464,47 @@ const handleSubmit = () => {
   justify-content: center;
 }
 
+/* Reduced height of card and form, optimized for 1 viewport */
 .message-card {
   background: #ffffff;
-  border-radius: 28px;
-  padding: 3.5rem 3rem;
-  box-shadow: 0 16px 45px -15px rgba(90, 62, 53, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.04);
+  border-radius: 24px;
+  padding: 2.2rem 2.5rem; /* Reduced padding */
+  box-shadow: 0 12px 36px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.03);
+  max-height: 90vh; /* Prevents overflow */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .message-card-title {
   font-family: 'Impact', 'Arial Black', sans-serif;
-  font-size: 2.4rem;
+  font-size: 2rem; /* Sized down */
   text-transform: uppercase;
   color: #7B2329;
-  margin: 0 0 2rem 0;
+  margin: 0 0 1.2rem 0;
   letter-spacing: 0.02em;
 }
 
 .message-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem; /* Compact layout gaps */
+}
+
+.form-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .form-group label {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -466,11 +514,11 @@ const handleSubmit = () => {
 .form-input,
 .form-textarea {
   width: 100%;
-  padding: 14px 16px;
+  padding: 11px 14px;
   background: #FAF9F5;
   border: 1.5px solid #E8DED0;
-  border-radius: 12px;
-  font-size: 0.9rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
   font-family: inherit;
   color: #5A3E35;
   outline: none;
@@ -482,29 +530,29 @@ const handleSubmit = () => {
 .form-textarea:focus {
   border-color: #7B2329;
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(123, 35, 41, 0.08);
+  box-shadow: 0 0 0 3px rgba(123, 35, 41, 0.06);
 }
 
 .form-textarea {
-  resize: vertical;
+  resize: none; /* Disables manual sizing that breaks viewport */
 }
 
-/* Submit Button & Interactive Outline Toggling */
+/* Submit Button & Active Outline */
 .btn-submit {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 32px;
+  gap: 8px;
+  padding: 13px 28px;
   background-color: #7B2329;
   color: #ffffff;
   border: 2px solid #7B2329;
-  border-radius: 14px;
-  font-size: 0.9rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -513,10 +561,9 @@ const handleSubmit = () => {
   background-color: #5C1A1E;
   border-color: #5C1A1E;
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(123, 35, 41, 0.25);
+  box-shadow: 0 6px 16px rgba(123, 35, 41, 0.2);
 }
 
-/* Click / Active state: transparent with border outline */
 .btn-submit:active,
 .btn-submit.btn-clicked {
   background-color: transparent !important;
@@ -527,18 +574,18 @@ const handleSubmit = () => {
 }
 
 .send-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .success-alert {
-  margin-top: 1.5rem;
-  padding: 14px 18px;
+  margin-top: 1rem;
+  padding: 10px 14px;
   background: #E8EFE8;
   border: 1px solid #C0D6C0;
-  border-radius: 12px;
+  border-radius: 10px;
   color: #3E543E;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
@@ -553,11 +600,11 @@ const handleSubmit = () => {
 .carousel-container {
   position: relative;
   width: 100%;
-  max-width: 320px;
-  aspect-ratio: 9/14;
-  border-radius: 24px;
+  max-width: 270px; /* Reduced width */
+  aspect-ratio: 3/4.2; /* Balanced with left side photo frame */
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 16px 40px -10px rgba(90, 62, 53, 0.2);
+  box-shadow: 0 12px 30px -8px rgba(90, 62, 53, 0.15);
 }
 
 .carousel-wrapper {
@@ -583,7 +630,6 @@ const handleSubmit = () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: filter 0.8s ease;
 }
 
 .carousel-overlay {
@@ -593,24 +639,23 @@ const handleSubmit = () => {
   pointer-events: none;
 }
 
-/* Carousel dots position indicators */
 .carousel-dots {
   position: absolute;
-  bottom: 20px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.3);
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 20px;
   backdrop-filter: blur(4px);
 }
 
 .dot-btn {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.5);
   border: none;
@@ -626,14 +671,12 @@ const handleSubmit = () => {
 
 /* ================= RESPONSIVE ================= */
 @media (max-width: 1024px) {
-  .contact2-container {
-    gap: 2.5rem;
-    padding: 0 1rem;
+  .section-contact2 {
+    padding: 4rem 4%;
   }
-  
-  .message-container {
-    gap: 2.5rem;
-    padding: 0 1rem;
+
+  .contact2-container {
+    gap: 1.5rem;
   }
 }
 
@@ -641,16 +684,16 @@ const handleSubmit = () => {
   /* Section 1 Mobile */
   .section-contact2 {
     min-height: auto;
-    padding: 6rem 1.5rem 4rem;
+    padding: 6rem 1.5rem 3rem;
   }
 
   .contact2-container {
     flex-direction: column;
-    gap: 3rem;
+    gap: 2rem;
   }
 
   .tall-photo-frame {
-    max-width: 320px;
+    max-width: 280px;
   }
 
   .welcome-box {
@@ -665,12 +708,12 @@ const handleSubmit = () => {
 
   /* Section 2 Mobile */
   .section-message {
-    padding: 4rem 1.5rem;
+    padding: 3rem 1.5rem;
   }
 
   .message-container {
     flex-direction: column-reverse;
-    gap: 3rem;
+    gap: 2.5rem;
   }
 
   .message-left-column {
@@ -684,12 +727,17 @@ const handleSubmit = () => {
   }
 
   .carousel-container {
-    max-width: 280px;
+    max-width: 240px;
     margin: 0 auto;
   }
 
   .message-card {
-    padding: 2.5rem 1.5rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .form-row-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .btn-submit {
