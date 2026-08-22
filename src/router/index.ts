@@ -10,6 +10,11 @@ const router = createRouter({
       component: HomePage
     },
     {
+      path: '/contact-detail',
+      name: 'contact-detail',
+      component: () => import('../pages/guest/ContactDetail.vue')
+    },
+    {
       path: '/admin',
       component: () => import('../pages/admin/AdminLayout.vue'),
       children: [

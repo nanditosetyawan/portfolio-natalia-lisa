@@ -143,9 +143,8 @@ const contentStyle = computed(() => ({
           <span class="contact-line2" :style="{ fontSize: vConfig.line2.fontSize, letterSpacing: vConfig.line2.letterSpacing, whiteSpace: vConfig.line2.whiteSpace, display: vConfig.line2.display }">{{ contact.line2 }}</span>
         </h2>
         <a
-          :href="contact.cta.href || undefined"
-          :aria-disabled="!contact.cta.href"
-          @click="!contact.cta.href && $event.preventDefault()"
+          href="#"
+          @click.prevent="$router.push({ name: 'contact-detail' })"
           class="contact-cta"
           id="contact-click-here"
           :style="{

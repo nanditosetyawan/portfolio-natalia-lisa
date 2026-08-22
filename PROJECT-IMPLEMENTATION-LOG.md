@@ -3481,3 +3481,18 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Status: COMPLETED. 3 halaman media library berfungsi dengan navigasi dari /admin/media, grid card, hover actions, dan 3 jenis modal. Data mock. Supabase integration ditunda ke fase berikutnya.
 
 - Next step: stop di batas request ini. Tunggu instruksi berikutnya.
+
+## Request #091 - GUEST CONTACT DETAIL PAGE
+
+- Tanggal: 2026-08-23 (Asia/Jakarta).
+- Mode eksekusi: implementasi halaman guest baru sesuai instruksi.
+- Instruksi pengguna: Buat halaman baru fresh dari hasil klik "click here" di contact section guest view, tanpa navbar, terdiri dari section contact2 (viewport height, foto kiri tinggi, kanan isi Lisa Natalia, Nurse, deskripsi) dan section message (kiri card form 2/3 lebar dengan field nama/email/institusi/pesan dan tombol kirim transparan outline saat klik; kanan carousel foto persegi panjang ke bawah dengan dot indicator).
+- File dibuat:
+  - src/pages/guest/ContactDetail.vue (baru)
+- File dimodifikasi:
+  - src/router/index.ts (tambah route '/contact-detail')
+  - src/sections/contact/ContactSection.vue (update action click here ke router push)
+- Validasi:
+  - npx vue-tsc --noEmit: PASS (0 errors).
+  - npm run build: PASS (1856 modules).
+- Status: COMPLETED.
