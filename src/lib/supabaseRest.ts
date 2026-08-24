@@ -47,8 +47,8 @@ export async function supabaseRestRequest<T>(
   return await response.json() as T
 }
 
-export async function supabaseTableRows<T>(table: string): Promise<T[]> {
-  return supabaseRestRequest<T[]>(table, { query: '?select=*' })
+export async function supabaseTableRows<T>(table: string, query = '?select=*'): Promise<T[]> {
+  return supabaseRestRequest<T[]>(table, { query })
 }
 
 export async function supabaseUpsert<T>(table: string, rows: T[]): Promise<void> {
@@ -64,6 +64,10 @@ export async function supabaseDeleteByIds(table: string, ids: string[]): Promise
   if (!ids.length) return
   const encoded = ids.map((id) => `"${id.replaceAll('"', '\\"')}"`).join(',')
   await supabaseRestRequest(table, { method: 'DELETE', query: `?id=in.(${encoded})`, prefer: 'return=minimal' })
+}
+
+export async function supabaseRpc<T>(functionName: string, body: unknown = {}): Promise<T> {
+  return supabaseRestRequest<T>(`rpc/${functionName}`, { method: 'POST', body })
 }
 
 export const supabaseRestInfo = {

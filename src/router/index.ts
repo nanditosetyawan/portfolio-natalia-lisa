@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import HomePage from '../pages/guest/HomePage.vue'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -13,6 +14,16 @@ const router = createRouter({
       path: '/contact-detail',
       name: 'contact-detail',
       component: () => import('../pages/guest/ContactDetail.vue')
+    },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('../pages/admin/AdminLogin.vue')
+    },
+    {
+      path: '/admin/bootstrap',
+      name: 'admin-bootstrap',
+      component: () => import('../pages/admin/AdminBootstrap.vue')
     },
     {
       path: '/admin',
@@ -61,6 +72,13 @@ const router = createRouter({
       ]
     }
   ]
+})
+
+router.beforeEach(async (to) => {
+  if (!to.path.startsWith('/admin') || to.name === 'admin-login' || to.name === 'admin-bootstrap') return true
+  const auth = useAuthStore()
+  await auth.initialize()
+  return auth.isAdmin ? true : { name: 'admin-login', query: { redirect: to.fullPath } }
 })
 
 export default router

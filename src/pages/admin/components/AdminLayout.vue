@@ -46,11 +46,13 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Undo, Redo, Save } from 'lucide-vue-next'
+import { useAuthStore } from '../../../stores/auth'
 import AdminSidebar from './AdminSidebar.vue'
 import AdminHeader from './AdminHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const sidebarOpen = ref(false)
 
 const sidebarItems = [
@@ -61,8 +63,9 @@ const sidebarItems = [
   { path: '/admin/messages', label: 'Messages', icon: 'mail' },
 ]
 
-const handleLogout = () => {
-  router.push('/')
+const handleLogout = async () => {
+  await auth.logout()
+  await router.replace('/')
 }
 
 const pageTitle = computed(() => {

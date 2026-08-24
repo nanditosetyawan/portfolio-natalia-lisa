@@ -3708,3 +3708,78 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Not proven: authenticated Admin create/update/delete/reorder, Auth, Storage upload/replace/delete, hard refresh after mutation, and multi-session because no client Auth flow/session or Storage mutation tool is available. No test fixture rows or production content were inserted.
 - Final status: `PARTIAL`.
 - Next exact step: provide/configure an authenticated Supabase client flow and supported Storage API, then run controlled fixtures and full Admin→DB→Guest, hard-refresh, multi-session, and media tests without changing schema unless a concrete runtime mismatch appears.
+
+## Request #106 - PHASE SUPABASE-AUTH-STORAGE-PERSISTENCE-E2E-020
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: targeted Auth/runtime integration; no schema redesign or database reset.
+- User instruction: complete Auth, Admin authorization, PostgreSQL persistence, Storage, RLS, hard-refresh, multi-session, and E2E verification using the existing Phase 018/019 baseline.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Sources consulted: latest 200 log lines, Phase 018/019 reports, targeted Auth/Storage/repository/Admin/router files, and existing migration context.
+- Runtime baseline: Node `v26.3.0`, npm `11.16.0`, Vite and Chromium available; `vue-tsc`, build, and diff checks passed.
+- Implemented locally: `src/lib/supabaseAuth.ts` with password login/session restore/refresh/logout; `src/stores/auth.ts` with admin membership authorization; `src/pages/admin/AdminLogin.vue`; router `/admin` guard; Admin logout integration; query support in `supabaseTableRows`.
+- Cloud change: added/applied only `supabase/migrations/0009_admin_membership_api_read.sql` to grant authenticated SELECT on `admin_memberships`; RLS remains the authorization control. No user, password, bucket, object, or content fixture was created.
+- Runtime evidence: anonymous `/admin/edit` redirected to `/admin/login?redirect=/admin/edit`; login form booted without console exceptions. Guest/public read and anonymous write-denial evidence from Phase 019 remain valid.
+- Blockers: no valid Admin account/credential or user-management creation tool; no supported Storage bucket/object mutation tool. Authenticated Admin CRUD, Storage, hard refresh after mutation, multi-session, and full RLS matrix remain unverified.
+- Files created: `src/lib/supabaseAuth.ts`, `src/stores/auth.ts`, `src/pages/admin/AdminLogin.vue`, `supabase/migrations/0009_admin_membership_api_read.sql`, `PHASE-SUPABASE-AUTH-STORAGE-PERSISTENCE-E2E-020-FINAL-REPORT.md`.
+- Files modified: `src/lib/supabaseRest.ts`, `src/router/index.ts`, `src/pages/admin/components/AdminLayout.vue`, and this log.
+- Final status: `PARTIAL`.
+- Next exact step: provide a real Supabase Admin account through a secure external Auth flow and a supported Storage API, then execute controlled fixtures and complete the remaining E2E matrix without changing schema unless a concrete runtime defect appears.
+
+## Request #107 - PHASE SUPABASE-AUTH-STORAGE-E2E-EXECUTION-021
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: direct Auth/Storage implementation; no schema reset or broad audit.
+- User instruction: resolve the Phase 020 Admin-account and Storage blockers and continue until real E2E PASS or an exact external blocker.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Implemented Auth: `src/lib/supabaseAuth.ts` now supports browser login, signup, session restore, refresh-token recovery, logout, and token propagation; `src/stores/auth.ts` performs membership authorization; `/admin/login` and one-time `/admin/bootstrap` are available; `/admin` route guard protects Admin pages.
+- Implemented bootstrap: applied `0010_first_admin_bootstrap.sql`, a narrowly scoped authenticated-only first-membership function accepting no UUID/password input. Anonymous RPC runtime test returned `401`.
+- Implemented Storage: installed project-local `@supabase/supabase-js`; added `src/lib/supabaseClient.ts` and `src/repositories/mediaRepository.ts` with image validation, deterministic paths, upload, public URL, and delete; Admin upload now uses the media repository instead of Base64/data URLs and reports failures explicitly.
+- Cloud storage policy: applied `0011_portfolio_storage_policies.sql` for bucket `portfolio-media`; no storage table insert was performed.
+- Storage blocker evidence: read-only bucket list returned empty; supported `supabase-js storage.createBucket()` with publishable key was rejected by Supabase with `new row violates row-level security policy`. No service-role key, Dashboard mutation, or unsafe SQL fallback was used.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1925 modules); `git diff --check` PASS; bootstrap route and anonymous Admin guard browser smoke PASS.
+- Files created: `src/lib/supabaseClient.ts`, `src/repositories/mediaRepository.ts`, `src/pages/admin/AdminBootstrap.vue`, `supabase/migrations/0010_first_admin_bootstrap.sql`, `supabase/migrations/0011_portfolio_storage_policies.sql`, `PHASE-SUPABASE-AUTH-STORAGE-E2E-EXECUTION-021-FINAL-REPORT.md`.
+- Files modified: `package.json`, `package-lock.json`, `src/lib/supabaseAuth.ts`, `src/lib/supabaseRest.ts`, `src/stores/auth.ts`, `src/router/index.ts`, `src/pages/admin/AdminEdit.vue`, and this log.
+- Not completed: real Admin account/login, authenticated CRUD/reorder, bucket creation, upload/replace/delete, hard refresh after mutation, multi-session, and full authenticated RLS/Storage matrices. No users, fixture rows, objects, or production content were created.
+- Final status: `PARTIAL` due two external capabilities: a real Admin credential must be entered through the browser bootstrap flow, and bucket creation requires a project-admin/Storage management capability not available to the publishable-key client.
+
+## Request #108 - TARGETED AUTH BOOTSTRAP/LOGIN BUG FIX
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: targeted Auth source trace and local implementation; no broad repository audit and no cloud mutation.
+- User instruction: trace `/admin/bootstrap`, `/admin/login`, signup, password login, session restore, and `admin_memberships`; identify the source-backed cause of `invalid_credentials`; provide and apply the required patch.
+- Sources consulted: latest 200 log lines, `AGENTS.md`, `src/lib/supabaseAuth.ts`, `src/stores/auth.ts`, `src/pages/admin/AdminBootstrap.vue`, `src/pages/admin/AdminLogin.vue`, and `src/lib/supabaseClient.ts`. No repository ZIP was present as a file in the workspace; the active root source was used.
+- Findings: the forms pass the password value unchanged; the 400 is raised by Supabase Auth before membership/RPC logic. The implementation had two competing session paths (manual `/auth/v1` REST plus SDK `setSession`) and bootstrap swallowed every signup error before silently trying password login. Bootstrap also had no password confirmation, allowing a valid account to be created with an unintended password.
+- Files modified: `src/lib/supabaseAuth.ts`, `src/stores/auth.ts`, `src/pages/admin/AdminBootstrap.vue`, and this log.
+- Patch: Auth now uses the official `supabaseClient.auth.signInWithPassword`, `signUp`, `getSession`, and `signOut` boundary; the REST/SDK duplicate session state was removed; bootstrap no longer converts arbitrary signup failures into login attempts; bootstrap now validates password confirmation.
+- Cloud boundary: no database, migration, membership row, Auth user, bucket, object, policy, or project setting was created or changed.
+- Validation: `git diff --check` completed without whitespace errors. `vue-tsc`/build could not execute because the current shell has no Node executable (`node` not found by the local command shims), so no typecheck/build PASS is claimed.
+- Remaining limitation: source code cannot reveal the password actually entered during the prior browser signup, so it cannot prove which credential value was stored for the existing Auth user. The code-backed mismatch risk is the missing confirmation field; the server-generated `invalid_credentials` occurs before `admin_memberships` is consulted.
+- Final status: targeted Auth patch applied; runtime credential verification remains pending an environment with Node/browser and the existing account's user-entered credentials.
+
+## Request #109 - ADMIN MEMBERSHIP BOOTSTRAP FLOW FIX
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: targeted Auth/bootstrap source trace and local implementation; no broad audit, manual INSERT, migration, or cloud mutation.
+- User instruction: determine why a successfully authenticated user was not inserted into `public.admin_memberships`, trace the existing RPC flow, and fix first-admin bootstrap automatically.
+- Sources consulted: latest 200 log lines, `src/stores/auth.ts`, `src/lib/supabaseRest.ts`, `src/lib/supabaseAuth.ts`, `supabase/migrations/0010_first_admin_bootstrap.sql`, `supabase/migrations/0009_admin_membership_api_read.sql`, and the relevant RLS policies.
+- Root cause: `bootstrap()` called the RPC only when `signUp()` returned a session. With email confirmation enabled, `signUp()` returns no session, so the RPC was never called. After verification, normal `login()` only checked `admin_memberships`; it did not retry the existing bootstrap RPC. Therefore the Auth user existed while the membership table remained empty.
+- Existing INSERT authority: `public.bootstrap_first_admin()` in migration `0010_first_admin_bootstrap.sql`; it uses `auth.uid()`, inserts the caller as `admin`, is `security definer`, and grants execute only to `authenticated`. No repository INSERT and no new migration are required.
+- Files modified: `src/stores/auth.ts` and this log.
+- Patch: added `bootstrapFirstAdmin()` to call the existing RPC and refresh authorization; `login()` now invokes it only when authentication succeeds but membership is absent; the existing `/admin/bootstrap` flow uses the same helper. The SQL function remains one-time and returns false once any membership exists.
+- Cloud boundary: no manual INSERT, SQL execution, migration, Auth user, membership row, table, policy, or project setting was changed by this request.
+- Validation: source trace completed; `git diff --check` should be run after this entry. Full runtime verification depends on the available authenticated browser/session environment.
+- Final status: local flow fix applied; after the next successful login by the first authenticated user, the existing RPC should create the membership automatically and authorization should pass.
+
+## Request #110 - AUTH LOGIN BOOTSTRAP RUNTIME TRACE FIX
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: targeted Auth login-flow instrumentation and ordering fix; no database mutation, manual INSERT, migration, or schema redesign.
+- User instruction: trace the actual login order, prove whether `bootstrapFirstAdmin()` is called, expose RPC response/error, and ensure bootstrap runs before unauthorized-login rejection.
+- Source finding: the previous code depended on mutable `this.isAdmin` after a `void`-returning `refreshAuthorization()` and hid membership-query errors. `bootstrapFirstAdmin()` also performed its own second refresh, making the required login sequence opaque.
+- Files modified: `src/stores/auth.ts` and this log.
+- Patch: `refreshAuthorization()` now returns an explicit boolean; `bootstrapFirstAdmin()` now only calls the existing RPC and logs its response or original error; `login()` now traces and enforces the sequence sign-in → first authorization query → `isAdmin` decision → RPC when unauthorized → second authorization query → authorization result. The rejection is now after the RPC attempt.
+- Runtime trace labels: `[auth.login] 1` through `[auth.login] 6`, plus `[auth.bootstrapFirstAdmin] RPC response/error`.
+- Cloud boundary: no remote operation was executed by Codex in this request; the patch only changes client flow and diagnostics.
+- Validation: `git diff --check` should be run after this log entry. Browser runtime output remains required to capture the actual RPC response/error from the user's session.
+- Final status: flow ordering and runtime observability fixed locally; the next login console must show whether the RPC is called and its exact response/error.

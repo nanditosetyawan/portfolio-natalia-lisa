@@ -5,6 +5,7 @@ import { useAdminEntityRegistry, type RuntimeAdminProperty } from '../../composa
 import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
 import { useCertificatesStore } from '../../stores/certificates'
 import { useSiteStore } from '../../stores/site'
+import { uploadPortfolioMedia } from '../../repositories/mediaRepository'
 
 const site = useSiteStore()
 const certificates = useCertificatesStore()
@@ -39,20 +40,31 @@ async function writeProperty(property: RuntimeAdminProperty, event: Event) {
   await property.write(inputValue(event, property))
 }
 
-function uploadPhoto(event: Event) {
+async function uploadPhoto(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || !selectedPhotoAreaId.value) return
-  const reader = new FileReader()
-  reader.addEventListener('load', async () => {
-    if (typeof reader.result === 'string') await photoRegistry.updateSource(selectedPhotoAreaId.value, reader.result)
-  }, { once: true })
-  reader.readAsDataURL(file)
+  const target = selectedPhotoAreaId.value ? photoRegistry.find(selectedPhotoAreaId.value) : undefined
+  if (!file || !target) return
+  saveStatus.value = 'Uploading image…'
+  try {
+    const uploaded = await uploadPortfolioMedia({ file, entityType: target.ownerType, entityId: target.ownerId, mediaId: target.id })
+    const updated = await photoRegistry.updateSource(target.id, uploaded.publicUrl)
+    if (!updated) throw new Error('Media target could not be updated')
+    saveStatus.value = 'Image uploaded. Save draft to persist the media relation.'
+  } catch (error) {
+    saveStatus.value = error instanceof Error ? error.message : 'Image upload failed.'
+  } finally {
+    input.value = ''
+  }
 }
 
 async function saveDraft() {
-  await site.saveDraft()
-  saveStatus.value = 'Draft runtime tersimpan melalui repository adapter.'
+  try {
+    await site.saveDraft()
+    saveStatus.value = 'Draft runtime tersimpan melalui repository adapter.'
+  } catch (error) {
+    saveStatus.value = error instanceof Error ? error.message : 'Draft save failed.'
+  }
 }
 </script>
 
