@@ -9,10 +9,10 @@ export function usePhotoAreaRegistry() {
 
   const semanticMediaAreas = computed<PhotoAreaEntity[]>(() => site.current.mediaUsages.map((usage) => ({
     id: usage.id,
-    ownerType: usage.id === 'portfolio-profile-media' ? 'profile' : usage.id === 'contact-person-media' ? 'contact' : 'about',
+    ownerType: usage.ownerType,
     ownerId: usage.ownerId,
     role: usage.role,
-    section: usage.id === 'portfolio-profile-media' ? 'Portfolio' : usage.id === 'contact-person-media' ? 'Contact' : 'About',
+    section: usage.ownerType === 'profile' ? 'Portfolio' : usage.ownerType === 'contact' ? 'Contact' : 'About',
     label: usage.role,
     source: site.mediaSourceForUsage(usage.id),
     objectPosition: usage.objectPosition,

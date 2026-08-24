@@ -39,3 +39,16 @@ Status: implementation and verification completed on 2026-08-19. The repository 
 - The static repository keeps an in-memory draft boundary only; only Certificate retains IndexedDB through its repository adapter.
 - The Admin schema covers the canonical, evidence-backed editable subset, not every one of the 492 Audit #010 C/V candidates. Structural and decorative CSS are not exposed as database fields.
 - Existing mobile composition limitations remain where remediation would require unavailable design evidence. No horizontal document overflow or runtime error remains.
+
+## Phase 016 implementation checkpoint
+
+- [x] Supabase database schema migrations applied to project ref `anyhuqqnjliepllrkebo`
+- [x] Application tables created from canonical entity model
+- [x] RLS enabled and admin-only write policies applied
+- [x] Database indexes applied
+- [x] Generated Supabase TypeScript types captured in `src/types/database.generated.ts`
+- [ ] Storage bucket and Storage policies
+- [ ] Auth bootstrap/admin membership
+- [ ] Supabase repository adapter
+- [ ] Admin persistence migration
+- [ ] Final end-to-end audit

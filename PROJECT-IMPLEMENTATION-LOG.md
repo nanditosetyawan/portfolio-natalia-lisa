@@ -3556,3 +3556,155 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1856 modules); focused runtime suites from the committed phase were previously PASS (collections 0/1/2/5, Experience 1/4/7/20, Certificate DB 0/1/2/5, Admin mutation/isolation, responsive, frame preservation); final `git diff --check` PASS. The only current worktree changes are this log and the report evidence update.
 - Database boundary: no remote provider, migration, SQL, authentication, storage bucket, or backend was created. Phase remains `READY WITH LIMITED REMEDIATION`; next phase may select a backend/schema after resolving the documented 367 raw-but-unexposed C/V candidates.
 - Phase 011 checkpoint: Completed = canonical IDs, canonical runtime/store/repository, Guest/Admin mappings, dynamic collections/media, Certificate rules, tests, report, TODO. Remaining = backend/provider/schema decision and product approval for unexposed properties. Next exact task = begin a separate database architecture phase only after user approval.
+
+## Request #096 - PHASE SUPABASE-CONNECTION-AUDIT-012
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: read-only Supabase connection/infrastructure audit.
+- User instruction: verify authenticated Supabase MCP/project access for exact ref `anyhuqqnjieplrkebo`, inspect database/storage/auth/Data API/free-plan/CLI state, map the Phase 011 canonical model without creating schema, and write `SUPABASE-CONNECTION-AUDIT-012.md`.
+- Skill used: project Supabase skill `.agents/skills/supabase/SKILL.md`.
+- Work performed: inspected the installed Supabase plugin/skill, session tool inventory, project-local MCP/CLI/config presence, Phase 011 report/TODO and repository boundary, and attempted one read-only project endpoint reachability check.
+- Evidence: Supabase MCP tools were not available in the session tool inventory; project `.mcp.json` was absent; `supabase` CLI was not installed; the exact project hostname failed DNS resolution in sandbox and approved network attempts. Remote account, organization, database, storage, Auth, Data API, and usage state therefore remain UNKNOWN rather than inferred.
+- Files created: `SUPABASE-CONNECTION-AUDIT-012.md`.
+- Files modified: this implementation log only, per project convention. No production source, CSS, config, store, Admin, database, migration, bucket, policy, user, setting, or remote resource was changed.
+- Validation: report written to root; no mutation command executed. Final `git status --short` and `git diff --check` are required after this append.
+- Final status: BLOCKED — authenticated Supabase MCP/CLI access and endpoint resolution must be restored before infrastructure can be declared clean or database implementation can begin.
+- Next exact step: re-run this same audit after Supabase MCP OAuth/authentication is available; do not create schema or resources before then.
+
+## Request #097 - PHASE SUPABASE-MCP-ACTIVATION-013
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: MCP activation only; zero cloud mutation and no production implementation.
+- User instruction: activate project-scoped Supabase Remote MCP for exact ref `anyhuqqnjieplrkebo`, use OAuth/browser authentication if supported, verify tools/project read access, and do not create schema/resources.
+- Skill used: `.agents/skills/supabase/SKILL.md`.
+- Work performed: inspected installed plugin templates and official Supabase Remote MCP documentation; confirmed plugin version `0.1.15`; added root `.mcp.json` with official project-scoped `read_only=true` URL and database/storage/docs feature scope; checked Remote MCP HTTP reachability and OAuth metadata read-only.
+- Remote evidence: MCP endpoint returned HTTP 401 with an OAuth challenge (expected without token); protected-resource metadata returned HTTP 200; OAuth authorization server metadata returned HTTP 200. Current Codex `ALL_TOOLS` still contains no Supabase MCP tools, so authentication/tool loading is not complete.
+- Files created: `.mcp.json`, `SUPABASE-MCP-ACTIVATION-013.md`.
+- Files modified: this implementation log only. No production source, database, table, migration, bucket, policy, user, setting, or remote resource changed.
+- CLI status: `supabase`, `node`, `npm`, and `npx` were unavailable on the current shell PATH; no dependency or CLI installation was attempted.
+- Final status: MCP BLOCKED pending Codex client/session reload and browser OAuth flow. Exact project/database read verification is deferred until Supabase tools become visible.
+- Next exact step: reload/restart the Codex client/session, complete OAuth for the scoped server, then run read-only project-ref/database/storage/Auth checks. Do not start Phase 014 yet.
+
+## Request #098 - PHASE SUPABASE-MCP-ACTIVATION-013 SESSION RELOAD VERIFICATION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: read-only MCP activation verification after session reload; zero cloud mutation.
+- User instruction: load the existing root `.mcp.json`, verify Supabase MCP visibility/authentication, and if connected perform only read-only project/database/storage/Auth checks for `portfolio-natalia` / `anyhuqqnjieplrkebo`.
+- Skill used: `.agents/skills/supabase/SKILL.md`.
+- Work performed: read the latest project log context, read the Supabase skill, loaded and inspected root `.mcp.json`, searched the current session tool inventory, and attempted a read-only MCP resource listing for server `supabase`.
+- Configuration result: `.mcp.json` is present with official project-scoped URL, exact project ref `anyhuqqnjieplrkebo`, `read_only=true`, and features `database,storage,docs`.
+- Session result: no Supabase MCP tools are present in `ALL_TOOLS`; `list_mcp_resources({server:"supabase"})` returned `unknown MCP server 'supabase'`. OAuth could not be triggered through the current session because the configured server was not loaded into the MCP inventory and no Supabase OAuth tool/browser handoff was available.
+- Read-only checks: not run because MCP server/tool access is unavailable. Project name/ref, database objects/migrations, Storage buckets, and Auth/provider status remain UNVERIFIED.
+- Mutation boundary: no database, migration, bucket, policy, Auth user, Storage object, project setting, credential, or secret was created/changed.
+- Files modified: `PROJECT-IMPLEMENTATION-LOG.md` only. `.mcp.json` was inspected and not changed.
+- Final status: BLOCKED; do not proceed to database phase.
+- Next exact step: make the Codex client load the root `.mcp.json` as an active MCP configuration and expose the Supabase server, then complete the official OAuth flow if prompted and rerun this read-only verification.
+
+## Request #099 - SUPABASE-MCP-WRITE-VERIFICATION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: read-only verification plus local MCP configuration update; zero cloud mutation.
+- User instruction: use WRITE mode for `portfolio-natalia` / `anyhuqqnjieplrkebo`, verify MCP inventory, OAuth, exact project identity, read-only database/migration/storage/Auth state, and write-capable tool availability; do not create schema or resources.
+- Skill used: `.agents/skills/supabase/SKILL.md`; plugin-management skill used to inspect whether a Supabase connector was installed.
+- Work performed: read latest project log; read Supabase skill; inspected `ALL_TOOLS`; inspected `.mcp.json`; changed only the local URL flag from `read_only=true` to `read_only=false`; performed a read-only endpoint reachability check; inspected Supabase plugin installation state.
+- Configuration result: `.mcp.json` now contains project ref `anyhuqqnjieplrkebo`, `read_only=false`, and features `database,storage,docs`.
+- Session result: `ALL_TOOLS` contains no Supabase MCP tools. Plugin-management reports Supabase is not installed. MCP endpoint returned HTTP 401 Unauthorized, so the server is reachable but OAuth/authentication is not active in this session.
+- Read-only cloud checks: list tables, list migrations, list storage buckets, Auth/project state, exact project name/ref, and write-tool availability were NOT RUN because the authenticated Supabase MCP server is unavailable in the current session. No values were inferred.
+- Mutation boundary: no schema, table, migration, SQL, bucket, object, policy, Auth user, project setting, or other cloud resource was created or changed.
+- Files modified: `.mcp.json` and this log only.
+- Final status: BLOCKED pending Supabase MCP installation/loading and OAuth authentication in a reloaded session. Write mode is configured locally but not verified as active through MCP.
+- Next exact step: reload the client/session, authenticate the configured Supabase MCP server, then rerun the requested read-only checks and tool inventory verification.
+
+## Request #100 - SUPABASE-DATABASE-READONLY-AUDIT-014
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: read-only Supabase MCP database/storage/auth audit; zero cloud mutation.
+- User instruction: verify exact project identity for `portfolio-natalia` / `anyhuqqnjliepllrkebo`, audit database/migrations/extensions/RLS, Storage, Auth, Free Plan safety, map canonical Phase 009/010/011 sources, and write `SUPABASE-DATABASE-READONLY-AUDIT-014.md`; do not create schema or resources.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Specifications/context consulted: latest 200 log lines, `AGENTS.md`, `GUEST-ADMIN-DATABASE-REVERSE-AUDIT-010.md`, `PHASE-ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011-FINAL-REPORT.md`, `PHASE-ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011-TODO.md`, and canonical site type/default/store/repository/media files. The Phase 009 final report file was not present; this is recorded in the audit report.
+- MCP evidence: exact URL `https://anyhuqqnjliepllrkebo.supabase.co` does **not** match expected ref `anyhuqqnjlieplrkebo` (extra `l` in returned hostname); `list_tables` shows no public application tables; `list_migrations` is empty; no Storage buckets/objects; Auth users/identities/sessions/instances counts are zero; `pg_policies` returned empty; performance advisors empty; security advisors warn on `public.rls_auto_enable()` for anon/authenticated execution.
+- Verification limitation: current MCP inventory has no project-name, plan/billing, dedicated Storage, or dedicated Auth metadata tool. Project name and Free Plan therefore remain unverified, not inferred.
+- Files created: `SUPABASE-DATABASE-READONLY-AUDIT-014.md`.
+- Files modified: this implementation log only. No production source, specification, design reference, database, migration, bucket, object, policy, Auth user, project setting, or remote resource was changed.
+- Final status: BLOCKED because the returned project ref mismatches the expected ref, and exact project name and Free Plan status could not be independently verified from available MCP tools. Per safety rule, stop without mutation.
+- Next exact step: verify project name and Free Plan metadata through an exposed read-only project-management/dashboard tool, then approve a separate database architecture/schema phase. Do not implement schema in this phase.
+
+## Request #101 - SUPABASE-PROJECT-IDENTITY-VERIFY-015
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: read-only Supabase MCP identity/database/storage/Auth verification; zero cloud mutation.
+- User instruction: replace old ref with candidate `anyhuqqnjliepllrkebo` if needed, verify exact ref/name, recheck empty database/migrations/storage/Auth, document `public.rls_auto_enable()` warnings and Free Plan availability, and write `SUPABASE-PROJECT-IDENTITY-VERIFY-015.md`.
+- Skill used: `.agents/skills/supabase/SKILL.md`.
+- Configuration: `.mcp.json` changed locally from old ref `anyhuqqnjieplrkebo` and `read_only=false` to candidate ref `anyhuqqnjliepllrkebo` and `read_only=true`; no cloud configuration was changed.
+- Runtime evidence: `get_project_url` returned `https://anyhuqqnjliepllrkebo.supabase.co`, verifying the candidate ref. Public application table count 0; migration count 0; Storage bucket/object counts 0/0; Auth user/identity/session counts 0/0/0. Security advisor repeated two existing warnings for `public.rls_auto_enable()`; performance advisor empty.
+- Verification limits: exact project name and Free Plan status are `UNVERIFIED BY CURRENT MCP TOOLS`; warning origin as Supabase default is also unverified. No inference was made.
+- Files created: `SUPABASE-PROJECT-IDENTITY-VERIFY-015.md`.
+- Files modified: `.mcp.json` and this implementation log. No production source, database, migration, bucket, object, policy, Auth user, or project setting changed.
+- Final status: BLOCKED because exact project name and Free Plan status remain unverified, despite candidate ref and empty-state checks passing.
+- Next exact step: obtain read-only project metadata/billing visibility for exact name and plan, then rerun identity gate before database architecture planning.
+
+## Request #102 - PHASE SUPABASE-DATABASE-STORAGE-RLS-IMPLEMENTATION-016
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: direct implementation, project-scoped Supabase MCP, no manual Dashboard actions.
+- User instruction: implement canonical database, migrations, RLS, Storage, Auth architecture, repository integration, and verification for ref `anyhuqqnjliepllrkebo`; remain Free-plan compatible; write final report and update Phase 011 TODO.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Runtime target verification: `get_project_url` repeatedly returned `https://anyhuqqnjliepllrkebo.supabase.co` before remote migrations.
+- Local MCP configuration: `.mcp.json` changed to write mode, exact candidate ref, and features `docs,database,debugging,development,storage`.
+- Canonical sources consulted: Phase 011 final report/TODO, `src/types/site.ts`, `src/data/default/site.ts`, `src/repositories/siteRepository.ts`, `src/stores/site.ts`, `src/repositories/certificateRepository.ts`, and directly relevant default entity files.
+- Completed cloud work: six migrations applied (`initial_schema`, `rls_policies`, `indexes`, `security_hardening`, `rls_policy_consolidation`, `foreign_key_indexes`); 17 public application tables created; RLS enabled; 33 policies verified; indexes verified; generated types produced.
+- Correction evidence: first initial-schema attempt failed atomically on reserved `offset`; public table and migration counts remained zero, then corrected `offset_value` migration applied successfully.
+- Security evidence: migration-created mutable-search-path warning was fixed; remaining advisor warnings are pre-existing `public.rls_auto_enable()` SECURITY DEFINER exposure for anon/authenticated. No pre-existing warning was changed.
+- Not completed: Storage bucket/policies because no Storage mutation tool was exposed and Node/npm/CLI were unavailable; Auth bootstrap, repository adapter, Admin persistence, Guest persistence, hard-refresh, multi-session, and runtime application tests remain pending.
+- Files created: six migration files, `src/types/database.generated.ts`, `PHASE-SUPABASE-DATABASE-STORAGE-RLS-IMPLEMENTATION-016-FINAL-REPORT.md`.
+- Files modified: `.mcp.json`, `PHASE-ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011-TODO.md`, and this log. No design/specification file changed.
+- Final status: DATABASE IMPLEMENTATION PARTIAL.
+- Next exact step: expose a supported Storage API mutation tool or install/use an approved local Supabase client/CLI, create and verify `portfolio-media`, then implement the repository adapter and Auth/Admin persistence boundary.
+
+## Request #103 - SUPABASE-CANONICAL-ENTITY-REPOSITORY-AUDIT-017
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: read-only audit of six migrations/17 live tables plus local repository implementation; no database mutation.
+- User instruction: audit every table/column against Phase 011 canonical entities and then implement Supabase repository integration without direct component queries; verify hard refresh where possible; preserve the 17-table architecture.
+- Sources consulted: latest log tail, `AGENTS.md`, Supabase skills, all six migration files, live `list_tables` output, generated database types, Phase 011 report/TODO, canonical site types/default/site/store/repository, Admin entity registry, media registry, and directly relevant render/store files.
+- Audit result: all 17 tables and columns were mapped to canonical owner, Guest/Admin consumers, repository field, keys, consumption status, missing fields, dead metadata, type/order/identity issues, and duplicate source-of-truth risks in `SUPABASE-CANONICAL-ENTITY-REPOSITORY-AUDIT-017.md`.
+- Database boundary: no migration, SQL, table, policy, index, bucket, object, or database setting was changed in this request.
+- Local implementation: added `src/lib/supabaseRest.ts`, `src/repositories/supabaseSiteRepository.ts`, Supabase selection in `src/repositories/siteRepository.ts`, Supabase/IndexedDB selection in `src/repositories/certificateRepository.ts`, bootstrap load in `src/main.ts`, `.env.example`, and generated adapter mapping/fallback behavior.
+- Source-of-truth safeguards: no Vue component calls Supabase; adapter merges persisted content into canonical snapshot, preserves default fallback, maps `offset_value` to canonical `offset`, sorts by `order_index`, persists only mapped visual config fields, and rejects data-URL persistence until Storage upload exists.
+- Validation: `git diff --check` PASS; Node/npm unavailable, so typecheck/build/browser hard-refresh could not be run. Live DB remains empty, so no persisted row was created for a hard-refresh comparison.
+- Files created: `SUPABASE-CANONICAL-ENTITY-REPOSITORY-AUDIT-017.md`, `src/lib/supabaseRest.ts`, `src/repositories/supabaseSiteRepository.ts`, `.env.example`.
+- Files modified: `src/repositories/siteRepository.ts`, `src/repositories/certificateRepository.ts`, `src/main.ts`, and this log. No database/specification/design file modified.
+- Final status: PARTIAL — column audit complete and adapter implemented locally; runtime hard-refresh verification remains pending environment/runtime availability.
+- Next exact step: run typecheck/build and browser hard-refresh with `VITE_SUPABASE_URL`/publishable key configured and persisted test data available, then resolve only evidence-backed schema gaps if required.
+
+## Request #104 - PHASE SUPABASE-PERSISTENCE-VERIFICATION-018
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: evidence-backed schema-gap implementation and repository integration; no database reset or broad refactor.
+- User instruction: continue from Audit 017, fix only proven persistence gaps, preserve existing tables/migrations, update repository, and prove Admin→DB→Guest persistence where runtime permits.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Sources consulted: latest 200 log lines, relevant Phase 011/017 reports, six existing migrations, generated types, canonical site/default/store/repository files, College/SHS Guest sections, GuestNavbar, Certificate section/store, Admin registry, and photo-area registry.
+- Evidence result: College/SHS frame IDs and labels are canonical; `photo_frames` section/label/object position are consumed; navigation brand/section metadata lacks an owner; certificate autoplay/interval persist while current slide/expanded/loading remain UI-only; `entity_media.owner_type` existed remotely but was previously inferred in runtime.
+- Files created: `supabase/migrations/0007_canonical_persistence_gaps.sql`, `PHASE-SUPABASE-PERSISTENCE-VERIFICATION-018-FINAL-REPORT.md`.
+- Files modified: `src/types/site.ts`, `src/data/default/site.ts`, `src/composables/usePhotoAreaRegistry.ts`, `src/repositories/supabaseSiteRepository.ts`, regenerated `src/types/database.generated.ts`, and this log.
+- Cloud work: applied only migration `canonical_persistence_gaps` to project ref `anyhuqqnjliepllrkebo`; no old migration was edited; no existing table was dropped; 17 old application tables remain and `navigation_config` was added as the evidence-backed single owner for navigation metadata.
+- Verification: remote project URL, migration history, live columns/nullability/defaults, RLS, and security advisors were rechecked; generated types were refreshed; `git diff --check` PASS.
+- Not verified: Authenticated Admin write, Guest browser load, hard refresh, second session, Storage upload/policy, typecheck/build, and desktop/tablet/mobile runtime because `node`, `npm`, `npx`, browser, and Storage/Auth mutation tools are unavailable. No test rows were inserted to avoid leaving unverified content in the empty project.
+- Final status: `PARTIAL`; schema and repository work is complete, but the required end-to-end runtime proof is outstanding.
+- Next exact step: provide a Node/npm/browser-capable environment plus supported Auth/Storage mechanisms, then run controlled test data and Admin/Guest/hard-refresh/multi-session/media tests without changing the migration history.
+
+## Request #105 - PHASE LOCAL-RUNTIME-BACKEND-INTEGRATION-019
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: local runtime bootstrap and targeted backend integration verification; no schema redesign.
+- User instruction: activate Node/npm/Vite/browser, verify Guest/Admin/repository/Supabase persistence, Auth, Storage, RLS, responsive runtime, and write the Phase 019 final report.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Environment evidence: Node `v26.3.0`, npm `11.16.0`, existing `node_modules`, Vite at `http://127.0.0.1:5173/`, Chromium/CDP available. Local `.env` used target URL and publishable key only; `.env` remains Git-ignored.
+- Runtime evidence: Guest boot/read PASS against the empty database with fallback; Admin route/read PASS; REST reads reached `https://anyhuqqnjliepllrkebo.supabase.co`; responsive smoke checks ran at 1422x804, 1024x768, and 390x844.
+- Runtime discovery: Admin save reached the repository but anonymous POSTs failed with `401/42501` because Data API table privileges were absent. Added and applied evidence-backed `supabase/migrations/0008_data_api_role_grants.sql`; anon SELECT and authenticated DML privileges were granted while RLS remained restrictive. Anonymous writes remained denied after the fix.
+- Files created: `supabase/migrations/0008_data_api_role_grants.sql`, `PHASE-LOCAL-RUNTIME-BACKEND-INTEGRATION-019-FINAL-REPORT.md`, local ignored `.env`.
+- Files modified: `src/repositories/supabaseSiteRepository.ts` (typecheck fixes and Experience layout fallback) and this log.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1858 modules); `git diff --check` PASS. Admin route emitted an existing Vue runtime-template warning but booted.
+- Not proven: authenticated Admin create/update/delete/reorder, Auth, Storage upload/replace/delete, hard refresh after mutation, and multi-session because no client Auth flow/session or Storage mutation tool is available. No test fixture rows or production content were inserted.
+- Final status: `PARTIAL`.
+- Next exact step: provide/configure an authenticated Supabase client flow and supported Storage API, then run controlled fixtures and full Admin→DB→Guest, hard-refresh, multi-session, and media tests without changing schema unless a concrete runtime mismatch appears.

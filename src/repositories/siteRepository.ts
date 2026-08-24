@@ -1,4 +1,6 @@
 import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/site'
+import { isSupabaseConfigured } from '../lib/supabaseRest'
+import { SupabaseSiteRepository } from './supabaseSiteRepository'
 
 export interface PortfolioRepository { loadPortfolio(): Promise<SiteSnapshot['content']['portfolio']> }
 export interface AboutRepository { loadAbout(): Promise<SiteSnapshot['content']['about']> }
@@ -25,4 +27,6 @@ export class StaticSiteRepository implements SiteRepository {
   }
 }
 
-export const siteRepository: SiteRepository = new StaticSiteRepository()
+export const siteRepository: SiteRepository = isSupabaseConfigured()
+  ? new SupabaseSiteRepository()
+  : new StaticSiteRepository()

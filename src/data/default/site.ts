@@ -35,9 +35,9 @@ export function createDefaultSiteSnapshot() {
     mimeType: 'image/webp'
   }]
   const mediaUsages: MediaUsage[] = [
-    { id: 'portfolio-profile-media', ownerId: defaultProfile.id, role: 'profile-image', mediaAssetId: 'media-profile-primary', objectPosition: '50% 50%' },
-    { id: 'about-foreground-portrait', ownerId: about.id, role: 'foreground-portrait', mediaAssetId: 'media-profile-primary', objectPosition: '50% 50%' },
-    { id: 'contact-person-media', ownerId: defaultContact.id, role: 'person-image', mediaAssetId: 'media-profile-primary', objectPosition: '50% 50%' }
+    { id: 'portfolio-profile-media', ownerType: 'profile', ownerId: defaultProfile.id, role: 'profile-image', mediaAssetId: 'media-profile-primary', objectPosition: '50% 50%' },
+    { id: 'about-foreground-portrait', ownerType: 'about', ownerId: about.id, role: 'foreground-portrait', mediaAssetId: 'media-profile-primary', objectPosition: '50% 50%' },
+    { id: 'contact-person-media', ownerType: 'contact', ownerId: defaultContact.id, role: 'person-image', mediaAssetId: 'media-profile-primary', objectPosition: '50% 50%' }
   ]
 
   const photoAreas: PhotoAreaEntity[] = [

@@ -18,6 +18,7 @@ export interface MediaAsset {
 
 export interface MediaUsage {
   id: EntityId
+  ownerType: Extract<PhotoAreaOwnerType, 'profile' | 'about' | 'contact'>
   ownerId: EntityId
   role: string
   mediaAssetId: EntityId
