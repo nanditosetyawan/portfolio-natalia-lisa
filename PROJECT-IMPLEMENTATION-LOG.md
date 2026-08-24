@@ -3543,3 +3543,16 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
   - npx vue-tsc --noEmit: PASS (0 errors).
   - npm run build: PASS (1856 modules, 1.87s).
 - Status: COMPLETED.
+
+## Request #095 - CONTINUE PHASE ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011
+
+- Date: 2026-08-24 (Asia/Jakarta).
+- Execution mode: targeted continuation after usage-limit interruption; no restart and no broad repository scan.
+- Resume point: the complete Phase 011 implementation and report were already present in commit `29c6880` (`connecting`), including canonical site model, repository/store boundary, collection renderers, dynamic Certificate registry, functional Admin Edit, semantic media copy-on-write, tests, TODO, and final report. The working tree was clean at resume.
+- Work already completed before resume: all Phase 011 checklist items were implemented and the report classified the result `READY WITH LIMITED REMEDIATION`; no production remediation was reimplemented.
+- Work completed after resume: verified the committed report/TODO/source state, confirmed semantic media registry and copy-on-write paths, added resume evidence to `PHASE-ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011-FINAL-REPORT.md`, appended this continuation checkpoint, and ran final typecheck/build/diff/status gates.
+- Files changed in this continuation: `PROJECT-IMPLEMENTATION-LOG.md` and the existing phase report only. No production source, CSS, config, store, Admin, database, migration, or design/specification file was changed.
+- Targeted source evidence: canonical media usage and copy-on-write in `src/types/site.ts`, `src/data/default/site.ts`, `src/stores/site.ts`, and `src/composables/usePhotoAreaRegistry.ts`; Admin census and semantic isolation assertions in `tests/entity-admin-source-runtime.mjs`; report in `PHASE-ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011-FINAL-REPORT.md`; checklist in `PHASE-ENTITY-ADMIN-SOURCE-OF-TRUTH-REMEDIATION-011-TODO.md`.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1856 modules); focused runtime suites from the committed phase were previously PASS (collections 0/1/2/5, Experience 1/4/7/20, Certificate DB 0/1/2/5, Admin mutation/isolation, responsive, frame preservation); final `git diff --check` PASS. The only current worktree changes are this log and the report evidence update.
+- Database boundary: no remote provider, migration, SQL, authentication, storage bucket, or backend was created. Phase remains `READY WITH LIMITED REMEDIATION`; next phase may select a backend/schema after resolving the documented 367 raw-but-unexposed C/V candidates.
+- Phase 011 checkpoint: Completed = canonical IDs, canonical runtime/store/repository, Guest/Admin mappings, dynamic collections/media, Certificate rules, tests, report, TODO. Remaining = backend/provider/schema decision and product approval for unexposed properties. Next exact task = begin a separate database architecture phase only after user approval.

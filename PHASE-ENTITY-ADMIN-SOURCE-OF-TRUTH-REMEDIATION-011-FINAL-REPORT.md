@@ -6,6 +6,18 @@ Final status: **READY WITH LIMITED REMEDIATION**
 
 No remote database, Supabase client, SQL migration, authentication, storage bucket, or backend provider was created. The repository did not contain `md/` or `design/`; therefore specification/design-image comparison was **Tidak ditemukan dalam specification** / unavailable. Visual preservation was assessed against the existing runtime and preservation harnesses.
 
+## Resume checkpoint
+
+Execution resumed on 2026-08-24 after a Codex usage-limit interruption. The implementation was already present in commit `29c6880` (`connecting`), and the working tree was clean; this continuation did not restart or redesign the phase.
+
+### Work already completed before resume
+
+Canonical entity/store/repository architecture, stable IDs, collection renderers, dynamic Certificate/photo registry, Certificate collision/fallback rules, functional metadata-driven Admin Edit, semantic media identity/copy-on-write, focused runtime suites, the phase TODO, and this report were already implemented and verified. These existing changes were preserved.
+
+### Work completed after resume
+
+The continuation performed targeted state reconstruction, confirmed the semantic media registry and copy-on-write source paths, appended the required Phase 011 implementation-log checkpoint, revalidated the final typecheck/build/diff/status gates, and added this resume evidence to the report. No production implementation was changed during the continuation.
+
 ## 1. Problems addressed from Audit #009/#010
 
 | Audit problem | Remediation | Result |
