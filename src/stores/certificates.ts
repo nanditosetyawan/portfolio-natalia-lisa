@@ -243,6 +243,36 @@ export const useCertificatesStore = defineStore('certificates', {
       })
       certificateMutationQueue = operation.then(() => undefined, () => undefined)
       return operation
+    },
+    async createCertificate(certificate: CertificateCard): Promise<boolean> {
+      try {
+        await certificateRepository.put(certificate)
+        await this.refreshCertificates()
+        return true
+      } catch {
+        this.errorMessage = 'Sertifikat belum dapat dibuat.'
+        return false
+      }
+    },
+    async deleteCertificate(cardId: string): Promise<boolean> {
+      try {
+        await certificateRepository.delete(cardId)
+        await this.refreshCertificates()
+        return true
+      } catch {
+        this.errorMessage = 'Sertifikat belum dapat dihapus.'
+        return false
+      }
+    },
+    async reorderCertificates(ids: string[]): Promise<boolean> {
+      try {
+        await certificateRepository.reorder(ids)
+        await this.refreshCertificates()
+        return true
+      } catch {
+        this.errorMessage = 'Urutan sertifikat belum dapat disimpan.'
+        return false
+      }
     }
   }
 })

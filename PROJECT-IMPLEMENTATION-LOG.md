@@ -3783,3 +3783,16 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Cloud boundary: no remote operation was executed by Codex in this request; the patch only changes client flow and diagnostics.
 - Validation: `git diff --check` should be run after this log entry. Browser runtime output remains required to capture the actual RPC response/error from the user's session.
 - Final status: flow ordering and runtime observability fixed locally; the next login console must show whether the RPC is called and its exact response/error.
+
+## Request #111 - PHASE 022 AUTHENTICATED POSTGRES CRUD
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: targeted repository CRUD implementation; no broad audit, schema change, migration, manual SQL INSERT, or Dashboard mutation.
+- User instruction: execute authenticated CRUD/reorder for College, SHS, Experience, and Certificate through the repository, then verify database, hard refresh, Guest, stable IDs, and sibling isolation.
+- Relevant sources consulted: latest 200 log lines, current `siteRepository`, `supabaseSiteRepository`, `certificateRepository`, `site` store, `certificates` store, Admin editor, and canonical College/SHS/Experience/Certificate types.
+- Local implementation: extended `SiteRepository` and `SupabaseSiteRepository` with create/update/delete/reorder methods for College, SHS, and Experience; added certificate delete/reorder repository methods and certificate store CRUD wrappers. All remote mutations use the existing authenticated REST repository boundary and stable IDs.
+- Files modified: `src/repositories/siteRepository.ts`, `src/repositories/supabaseSiteRepository.ts`, `src/repositories/certificateRepository.ts`, `src/stores/certificates.ts`, and this log.
+- Cloud boundary: no remote CRUD operation was executed because the current session has no Node/npm executable, no Vite listener, and no CDP/browser runtime attached to the authenticated Admin session. No test rows were created or deleted.
+- Validation: `git diff --check` PASS. Required `npx vue-tsc --noEmit` and `npm run build` could not run because Node is unavailable in the current shell; no PASS is claimed.
+- Runtime status: CRUD, hard-refresh, Guest, sibling-isolation, and stable-ID requirements remain unverified in this session. Storage was not started because Phase 022 CRUD acceptance was not proven.
+- Final status: PARTIAL; repository CRUD boundary is implemented, but authenticated runtime proof is blocked by unavailable Node/browser session.

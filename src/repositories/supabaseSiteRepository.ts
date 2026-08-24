@@ -1,7 +1,10 @@
 import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/site'
 import type { Database, Tables } from '../types/database.generated'
 import type { MediaAsset, MediaUsage, PhotoAreaEntity } from '../types/site'
-import { supabaseTableRows, supabaseUpsert } from '../lib/supabaseRest'
+import { supabaseRestRequest, supabaseTableRows, supabaseUpsert } from '../lib/supabaseRest'
+import type { CollegeItem } from '../data/default/college'
+import type { SHSItem } from '../data/default/shs'
+import type { ExperienceItem } from '../data/default/experience'
 import type { SiteRepository } from './siteRepository'
 
 type TableRow<Name extends keyof Database['public']['Tables']> = Tables<Name>
@@ -159,6 +162,31 @@ function mediaRows(snapshot: SiteSnapshot) {
 }
 
 export class SupabaseSiteRepository implements SiteRepository {
+  private async patchOrder(table: string, ids: string[]): Promise<void> {
+    await Promise.all(ids.map((id, order_index) => supabaseRestRequest(table, {
+      method: 'PATCH', query: `?id=eq.${encodeURIComponent(id)}`, body: { order_index }, prefer: 'return=minimal'
+    })))
+  }
+
+  private async deleteById(table: string, id: string): Promise<void> {
+    await supabaseRestRequest(table, { method: 'DELETE', query: `?id=eq.${encodeURIComponent(id)}`, prefer: 'return=minimal' })
+  }
+
+  async createCollege(item: CollegeItem) { await this.updateCollege(item) }
+  async updateCollege(item: CollegeItem) { await supabaseUpsert('college_entries', [{ id: item.id, label: item.label, school: item.school, period: item.period, description: item.description, frame_back_id: item.frameIds.back, frame_front_id: item.frameIds.front, order_index: item.order, active: true }]) }
+  async deleteCollege(id: string) { await this.deleteById('college_entries', id) }
+  async reorderCollege(ids: string[]) { await this.patchOrder('college_entries', ids) }
+
+  async createShs(item: SHSItem) { await this.updateShs(item) }
+  async updateShs(item: SHSItem) { await supabaseUpsert('shs_entries', [{ id: item.id, label: item.label, school: item.school, period: item.period, description: item.description, frame_back_id: item.frameIds.back, frame_front_id: item.frameIds.front, order_index: item.order, active: true }]) }
+  async deleteShs(id: string) { await this.deleteById('shs_entries', id) }
+  async reorderShs(ids: string[]) { await this.patchOrder('shs_entries', ids) }
+
+  async createExperience(item: ExperienceItem) { await this.updateExperience(item) }
+  async updateExperience(item: ExperienceItem) { await supabaseUpsert('experiences', [{ id: item.id, title: item.title, date: item.date, description: item.description, frame_id: item.frameId, order_index: item.order, active: true }]) }
+  async deleteExperience(id: string) { await this.deleteById('experiences', id) }
+  async reorderExperience(ids: string[]) { await this.patchOrder('experiences', ids) }
+
   async load(): Promise<SiteSnapshot> {
     const [
       profiles, aboutSections, paragraphs, education, college, shs, experiences,

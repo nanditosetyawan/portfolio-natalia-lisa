@@ -9,6 +9,8 @@ const CERTIFICATE_STORE = 'certificates'
 export interface CertificateRepository {
   list(): Promise<unknown[]>
   put(certificate: CertificateCard): Promise<void>
+  delete(id: string): Promise<void>
+  reorder(ids: string[]): Promise<void>
   replaceAll(certificates: CertificateCard[]): Promise<void>
   clear(): Promise<void>
 }
@@ -65,6 +67,17 @@ const indexedDbCertificateRepository: CertificateRepository = {
   list,
   put(certificate) {
     return runTransaction('readwrite', (store) => store.put(structuredClone(certificate)))
+  },
+  delete(id) {
+    return runTransaction('readwrite', (store) => store.delete(id))
+  },
+  reorder(ids) {
+    return runTransaction('readwrite', (store) => {
+      ids.forEach((id, order) => {
+        const request = store.get(id)
+        request.onsuccess = () => { if (request.result) store.put({ ...(request.result as CertificateCard), order }) }
+      })
+    })
   },
   replaceAll(certificates) {
     return runTransaction('readwrite', (store) => {
@@ -162,6 +175,13 @@ const supabaseCertificateRepository: CertificateRepository = {
     await supabaseUpsert('media_assets', rows.assets)
     await supabaseUpsert('certificates', [rows.certificate])
     await supabaseUpsert('certificate_images', rows.images)
+  },
+  async delete(id) {
+    await supabaseRestRequest('certificate_images', { method: 'DELETE', query: `?certificate_id=eq.${encodeURIComponent(id)}`, prefer: 'return=minimal' })
+    await supabaseRestRequest('certificates', { method: 'DELETE', query: `?id=eq.${encodeURIComponent(id)}`, prefer: 'return=minimal' })
+  },
+  async reorder(ids) {
+    await Promise.all(ids.map((id, order_index) => supabaseRestRequest('certificates', { method: 'PATCH', query: `?id=eq.${encodeURIComponent(id)}`, body: { order_index }, prefer: 'return=minimal' })))
   },
   async replaceAll(certificates) {
     for (const certificate of certificates) await this.put(certificate)
