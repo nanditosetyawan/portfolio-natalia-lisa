@@ -3796,3 +3796,56 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Validation: `git diff --check` PASS. Required `npx vue-tsc --noEmit` and `npm run build` could not run because Node is unavailable in the current shell; no PASS is claimed.
 - Runtime status: CRUD, hard-refresh, Guest, sibling-isolation, and stable-ID requirements remain unverified in this session. Storage was not started because Phase 022 CRUD acceptance was not proven.
 - Final status: PARTIAL; repository CRUD boundary is implemented, but authenticated runtime proof is blocked by unavailable Node/browser session.
+
+## Request #112 - PHASE SUPABASE-STORAGE-AUTHENTICATED-E2E-FIX-022 FULL RUNTIME EXECUTION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: full runtime attempt against the open project; no schema redesign, migration, manual SQL data mutation, or Auth-flow change.
+- User instruction: execute authenticated CRUD for College/SHS/Experience/Certificate, verify PostgreSQL/hard refresh/Guest/reorder/isolation, then continue to Storage and run final validation.
+- Environment commands executed: `node --version; npm --version; npx --version; where.exe node; where.exe npm; where.exe npx`; initial shell output showed all PATH commands unavailable. The standard installed executable was then executed with the exact paths `C:\Program Files\nodejs\node.exe`, `npm.cmd`, and `npx.cmd`, returning Node `v26.3.0`, npm `11.16.0`, and npx `11.16.0`.
+- Vite runtime: launched a fresh Vite process on port 5174; log reported Vite v8.2.1 ready; `Invoke-WebRequest http://127.0.0.1:5174/` returned HTTP 200; `/admin/login` returned HTTP 200.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1925 modules; `git diff --check` PASS.
+- Browser evidence: checked listening ports 9000–9999 and found no CDP endpoint; no attachable authenticated Admin browser session was available. Existing Chrome processes were present, but no usable CDP port/session was exposed. No Admin credentials were available to create a new session, and no account was created.
+- Authenticated CRUD: NOT EXECUTED; therefore College/SHS/Experience/Certificate create/update/delete/reorder, PostgreSQL row verification, hard refresh, Guest read, ID stability, sibling isolation, and multi-session are not claimed PASS.
+- Storage: NOT STARTED because the required authenticated CRUD acceptance gate was not proven and no attachable Admin session existed. No bucket/object mutation was attempted.
+- Cloud boundary: no test rows, production rows, bucket, object, or other cloud resource was mutated in this request.
+- Final status: `FAIL` for the requested full E2E execution, with one concrete blocker: no browser/CDP session authenticated as the existing Admin account was available to perform the required authenticated mutations.
+
+## Request #113 - ISOLATED BROWSER AUTOMATION BOOTSTRAP
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: isolated browser runtime setup for Phase 022 continuation; no database or Storage mutation.
+- User instruction: do not attach to an existing browser; launch browser automation independently and allow interactive Admin credential entry if needed.
+- Playwright check: project dependency tree contains no `playwright`, `playwright-core`, or `@playwright/test`; local Chromium automation binary is available.
+- Browser action: launched a new Chrome process with temporary profile `%TEMP%\portfolio-natalia-e2e-022-profile`, independent from existing Chrome, at `http://127.0.0.1:5174/admin/login`, with CDP port `9333`. `/json/version` returned Chrome 151 and a valid debugger WebSocket URL.
+- Credentials: not read or stored by Codex. Interactive Admin credential entry is pending in the newly launched browser.
+- Cloud boundary: no remote mutation performed.
+- Final status: waiting for interactive Admin login in the isolated browser before CRUD/Storage execution can continue.
+
+## Request #114 - PHASE 022 ISOLATED AUTHENTICATED CRUD EXECUTION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: full isolated Chromium/CDP runtime execution; no existing browser attachment, no manual SQL data mutation, and no schema/migration change.
+- Browser evidence: isolated Chromium at CDP port `9333` authenticated successfully; session user `924f87dd-b496-4f14-8ee6-ec9e8dcb27e4`; `authenticated=true`, `isAdmin=true`.
+- Runtime CRUD evidence: repository-driven College, SHS, Experience, and Certificate create/update/delete/reorder all passed. PostgreSQL-backed repository reloads showed changed values and order; IDs remained stable; sibling rows remained unchanged; E2E fixtures were removed through repository methods.
+- Hard refresh/Guest evidence: after refresh, persisted entity values and order were returned; Guest store snapshots showed updated College/SHS/Experience values from the database.
+- Concrete runtime fixes discovered and applied: `supabaseRestRequest` now accepts successful empty write responses instead of parsing empty JSON; `main.ts` now restores Auth on app startup so authenticated repository writes remain authenticated after refresh/Guest navigation. The original run exposed 401 role `anon` on SHS delete before this fix.
+- Storage evidence: `supabaseClient.storage.listBuckets()` returned an empty array. No browser `createBucket`, direct storage SQL, service-role key, or unsafe fallback was used. The trusted Supabase CLI check did not complete within the command window and was terminated; no bucket mutation occurred.
+- Multi-session evidence: second-tab automation did not produce a second page target, so multi-session is not claimed PASS.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1925 modules); `git diff --check` PASS.
+- Files created: `tests/phase-022-cdp-run.mjs`, `tests/phase-022-cdp-result.json`, `tests/phase-022-multisession-cdp.mjs`, and the updated phase final report.
+- Files modified: `src/lib/supabaseRest.ts`, `src/main.ts`, and this log.
+- Final status: authenticated CRUD PASS; overall phase `FAIL` because Storage bucket is absent and multi-session/RLS matrix remain unproven.
+
+## Request #115 - PHASE 023 STORAGE COMPLETION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: Storage-only trusted-path verification; no application code, Auth, CRUD, repository, PostgreSQL schema, migration, or manual storage SQL change.
+- Bucket evidence: read-only `supabaseClient.storage.listBuckets()` returned `[]` with no error; `portfolio-media` is absent.
+- CLI evidence: `npx --yes supabase --version` returned `2.115.0`. `npx --yes supabase projects list` failed with `LegacyPlatformAuthRequiredError: Access token not provided`, exit code 1.
+- Credential evidence: `SUPABASE_ACCESS_TOKEN_PRESENT=False`; `SUPABASE_SERVICE_ROLE_KEY_PRESENT=False`; only Vite URL/publishable key are configured.
+- MCP evidence: current Supabase MCP inventory exposes no Storage mutation tool. Database/read tools remain available, but no bucket mutation was attempted through them.
+- Operations not run: bucket creation, upload, replace, delete, metadata verification, Guest image read. No bucket/object exists to test.
+- Safety: no browser `createBucket()`, no INSERT into `storage.buckets`/`storage.objects`, no service-role frontend use, no code change, and no migration.
+- Files created: `PHASE-023-STORAGE-COMPLETION-FINAL-REPORT.md`.
+- Final status: `BLOCKED`; exact blocker is missing trusted management authorization/tooling for bucket creation.

@@ -43,8 +43,9 @@ export async function supabaseRestRequest<T>(
     throw new Error(`Supabase ${options.method ?? 'GET'} ${table} failed (${response.status}): ${detail}`)
   }
 
-  if (response.status === 204) return undefined as T
-  return await response.json() as T
+  const responseText = await response.text()
+  if (!responseText.trim()) return undefined as T
+  return JSON.parse(responseText) as T
 }
 
 export async function supabaseTableRows<T>(table: string, query = '?select=*'): Promise<T[]> {
