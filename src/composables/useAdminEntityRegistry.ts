@@ -2,10 +2,14 @@ import { computed, type ComputedRef } from 'vue'
 import { useCertificatesStore } from '../stores/certificates'
 import { useSiteStore } from '../stores/site'
 import type { AdminPropertyDefinition } from '../types/site'
+import { ensurePropertyMetadata } from '../editor/propertyRegistry'
+import type { PropertyRegistryEntry } from '../types/editor'
 
 export interface RuntimeAdminProperty extends AdminPropertyDefinition {
   read(): string | number | boolean
   write(value: string | number | boolean): void | Promise<unknown>
+  target?: Record<string, unknown>
+  metadata: PropertyRegistryEntry
 }
 
 export interface RuntimeAdminEntity {
@@ -24,6 +28,8 @@ function property(
   return {
     ...definition,
     path: key,
+    target: owner,
+    metadata: ensurePropertyMetadata({ propertyKey: definition.key, category: definition.group, label: definition.label, control: definition.control, propertyPath: key }),
     read: () => owner[key] as string | number | boolean,
     write: (value) => { owner[key] = value }
   }
@@ -42,6 +48,7 @@ function certificateContentProperty(
 ): RuntimeAdminProperty {
   return {
     key, label, group: 'Content', control, path: key,
+    metadata: ensurePropertyMetadata({ propertyKey: key, category: 'Content', label, control, propertyPath: key }),
     read: () => certificates.editableCards.find((card) => card.id === cardId)?.[key] ?? '',
     write: (value) => certificates.updateCertificateContent(cardId, { [key]: String(value) })
   }

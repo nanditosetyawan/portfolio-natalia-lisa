@@ -3983,3 +3983,87 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Screenshot evidence: no Phase 027 screenshots retained. The browser-only visual harness was attempted but router protection redirected to Admin Login because no safe disposable Admin session was available. No fake screenshot was reported and no harness data entered Cloud/source.
 - Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1926 modules; `git diff --check` PASS.
 - Final status: `PARTIAL / IMPLEMENTED`; requested code and read-state change are complete. Admin runtime screenshot evidence remains blocked solely by missing safe Admin session.
+
+## Request #125 - PHASE-028-EDITOR-LAYOUT-UX-REFINEMENT
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: editor layout and UX refinement only. Database, repository, Auth, CRUD, Storage, Message Center, and routing were protected and unchanged.
+- User instruction: remove duplicate Save Draft, make header Save functional with unsaved/saved status, constrain the sidebar, isolate sidebar/preview scrolling, scale the full preview, hide editor body overflow, add responsive layouts and spacing, validate, and provide screenshots.
+- Sources consulted: latest 200 project-log lines, `AGENTS.md`, current Admin layout/header/editor files, and existing runtime/project structure. No relevant design reference or Markdown specification for this editor-specific request was present in the repository; the explicit Phase 028 requirements were authoritative.
+- Files created: `src/composables/useEditorSession.ts`, `PHASE-028-EDITOR-UX.md`.
+- Files modified: `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/AdminHeader.vue`, `src/pages/admin/components/AdminLayout.vue`, and this log.
+- UI work: removed the left Save Draft control; connected the header Save button to the existing `saveDraft` operation; added `Unsaved Changes`/`Saved` state; made the header sticky; constrained the responsive sidebar; isolated panel and preview scrolling; added a scaled full-page preview frame; added bottom spacing, section grouping, and tablet/mobile rules.
+- Protected scope: no database, migration, repository, Auth, CRUD, Storage, Message Center, or routing changes.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1,927 modules transformed); `git diff --check` PASS.
+- Screenshot evidence: before/after, desktop, tablet, sidebar-scroll, and preview-scroll screenshots were not captured because the Admin editor route requires an authenticated session and no safe Admin browser session was available. No fabricated screenshot was produced.
+- Final status: `PARTIAL / IMPLEMENTED`; requested layout source changes and build are complete, but screenshot evidence remains unverified in this environment.
+
+## Request #126 - PHASE-028B-EDITOR-VIEWPORT-FIX
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: editor viewport and native scrolling correction only. Backend, database, repository, Auth, CRUD, Storage, Message Center, and routing were protected.
+- User instruction: fit the complete editor to one dynamic viewport below the header, make sidebar/preview native scroll containers, preserve full preview scaling without crop, and validate the result.
+- Sources consulted: latest 200 project-log lines, `AGENTS.md`, current `AdminLayout.vue`, `AdminHeader.vue`, `AdminEdit.vue`, and global viewport styles.
+- Files created: `PHASE-028B-EDITOR-VIEWPORT-FIX.md`.
+- Files modified: `src/pages/admin/components/AdminLayout.vue`, `src/pages/admin/AdminEdit.vue`, and this log.
+- Layout work: changed the editor shell to `100dvh`; set editor content to `calc(100dvh - 72px)`; retained body/editor clipping; changed sidebar and preview to `overflow:auto` native scroll containers with `min-height:0`, `overscroll-behavior:contain`, and touch pan support; preserved viewport-based preview scaling and bottom spacing.
+- Protected scope: no backend, database, repository, Auth, CRUD, Storage, Message Center, or routing changes.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1,927 modules transformed); `git diff --check` PASS.
+- Runtime verification: mouse wheel, touchpad two-finger, horizontal touchpad, Magic Mouse, preview scroll, and sidebar scroll were not interactively executed because no safe authenticated Admin browser session was available. They remain `UNVERIFIED`, not PASS.
+- Final status: `PARTIAL / IMPLEMENTED`; viewport source correction and validation are complete, while interactive browser verification remains pending.
+
+## Request #127 - PHASE-029B-EDITOR-V2-FOUNDATION
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: incremental local implementation of the supplied Phase 029A/029B editor architecture; existing normalized CRUD, Auth, Storage objects, Message Center, routing, and design/specification sources were protected.
+- User constraint: Property Registry must remain extensible; every property is metadata-driven; the Property Panel must use a generic control renderer and must not add hardcoded UI branches for future categories/types.
+- Sources consulted: latest 200 project-log lines, `AGENTS.md`, supplied Phase 029A architecture plan, current editor/layout/registry/store/repository files, and Supabase/Postgres skill guidance. `md/` and `design/` directories are absent in the current checkout, so visual verification was not applicable.
+- Files created: `src/types/editor.ts`, `src/editor/propertyRegistry.ts`, `src/stores/editor.ts`, `src/pages/admin/components/PropertyControl.vue`, and `supabase/migrations/0014_site_revisions.sql`.
+- Files modified: `src/composables/useAdminEntityRegistry.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/AdminLayout.vue`, and this log.
+- Completed implementation: typed editor command/revision/media metadata; extensible property registry with category, control, dependency, visibility, enabled, order, and command metadata; generic `PropertyControl` renderer; native disabled support path; command-based draft mutation with maximum 10 undo entries, redo invalidation after new commands, and editor selection metadata hook; functional toolbar Undo/Redo; initial `site_revisions` schema with admin RLS/grants and revision/base-revision columns.
+- Protected: existing normalized-table repository materialization remains unchanged; no remote migration, bucket policy, Storage object, Auth, or publish activation was performed.
+- Validation: `vue-tsc --noEmit` PASS after editor integration; `git diff --check` PASS. Production build was attempted but could not run in the final shell because `node`/`npm` were unavailable on PATH (`npm`/`node` not recognized). No build PASS is claimed. Browser runtime and visual comparison: `Belum dilakukan.`
+- Unresolved/next required: connect the revision repository to an atomic server-side save/publish RPC, migrate Guest to `GuestPublishedRepository`, add draft/published Storage prefix policies and batch promotion, and run authenticated/browser plus remote Supabase acceptance. These are not claimed complete in this request.
+- Final status: `PARTIAL / IMPLEMENTED`; local editor foundation and migration draft are present, while cloud cutover and full Phase 029B acceptance remain pending.
+
+## Request #128 - PHASE-029C-REPOSITORY-LAYER
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: repository-layer-only implementation.
+- User boundary: no publish execution, Storage, Guest runtime integration, media promotion, UI redesign, or migration change.
+- Skills used: `.agents/skills/supabase/SKILL.md` for Supabase repository access guidance.
+- Files created: `src/repositories/editorRevisionRepository.ts` and `tests/editor-repository-runtime.mjs`.
+- Files modified: this log only. Existing UI/editor changes from the preceding request were not expanded or redesigned.
+- Completed: `EditorDraftRepository` interface plus in-memory and Supabase draft adapters; `GuestPublishedRepository` interface plus in-memory and Supabase published-snapshot read adapters; `EditorPublishRepository` validation-only interface plus in-memory and Supabase validation adapters; typed revision records; draft status; media-reference transport in the draft boundary; revision conflict error; snapshot validation.
+- Explicitly not implemented: publish mutation or activation, publish RPC, Storage access/promotion, Guest store/runtime wiring, media validation against Storage, schema/migration changes, and UI changes.
+- Runtime test coverage authored: published read isolation, draft save/reload/status, stale base-revision rejection, validation-only publish boundary, and discard. The CDP test was not executed because no active Vite/Node runtime target was available in this environment; runtime result is `UNVERIFIED`, not PASS.
+- Static validation: `git diff --check` PASS. Typecheck/build were not executable in the final environment because Node/npm were unavailable on PATH.
+- Final status: `PARTIAL / IMPLEMENTED`; repository boundary is present, runtime execution remains pending an active application runtime.
+
+## Request #129 - PHASE-029D-EDITOR-SNAPSHOT-MODEL
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: typed EditorSnapshot model and repository integration only.
+- User boundary: no Storage, publish, Guest runtime, media promotion, UI redesign, or database/migration changes.
+- Sources consulted: latest 200 log lines, `AGENTS.md`, current Phase 029C repository boundary, existing `SiteSnapshot` type/default model, and Supabase repository guidance.
+- Files created: `src/types/editorSnapshot.ts`, `src/editor/editorSnapshot.ts`, `PHASE-029D-SNAPSHOT-MODEL.md`.
+- Files modified: `src/repositories/editorRevisionRepository.ts`, `tests/editor-repository-runtime.mjs`, and this log.
+- Completed: strongly typed EditorSnapshot envelope; separate typography/layout/media/background/button/animation models; entity references; media references/assignments; schema and reader compatibility metadata; validation; JSON serialization/deserialization; repository snapshot typing and validation integration; runtime test coverage for round-trip serialization.
+- Protected: Storage, publish execution/activation, Guest runtime wiring, media promotion, UI, and database migrations were not changed.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,930 modules transformed; `git diff --check` PASS. Browser/CDP runtime execution was not run because no active runtime target was available; this is not claimed PASS.
+- Deliverable: `PHASE-029D-SNAPSHOT-MODEL.md` created.
+- Final status: `PASS / IMPLEMENTED` for the requested local snapshot-model scope; remote/runtime acceptance remains outside this phase.
+
+## Request #130 - PHASE-029E-PROPERTY-BINDING-LIVE-EDITOR
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: editor-only property binding and live preview implementation.
+- User boundary: no Storage, publish, Guest runtime, media promotion, migration, or non-editor UI redesign.
+- Sources consulted: latest 200 log lines, `AGENTS.md`, current EditorSnapshot model, editor store, Property Registry, runtime entity registry, PropertyControl, and AdminEdit.
+- Files created: `PHASE-029E-PROPERTY-BINDING.mdv`.
+- Files modified: `src/types/editor.ts`, `src/editor/propertyRegistry.ts`, `src/composables/useAdminEntityRegistry.ts`, `src/stores/editor.ts`, `src/pages/admin/components/PropertyControl.vue`, `src/pages/admin/AdminEdit.vue`, and this log.
+- Completed: EditorSnapshot-backed editor store initialization; live synchronization of content/visual/behavior changes into the editor preview state; metadata attached to every runtime property; metadata lookup tables for generic control rendering; dependency-aware disabled controls; accordion category state; preview entity decoration and selection; automatic entity/section/category selection; command-based property updates with existing 10-command history and live undo/redo synchronization.
+- Protected: no Storage, publish, Guest runtime, media promotion, migration, or repository boundary changes.
+- Validation: `npm run build` PASS (vue-tsc included; 1,933 modules transformed); `git diff --check` PASS. Standalone `npx vue-tsc --noEmit` was attempted but the final shell reported `npx` unavailable on PATH; equivalent typecheck passed through build.
+- Deliverable: `PHASE-029E-PROPERTY-BINDING.mdv` created.
+- Final status: `PASS / IMPLEMENTED` for the requested editor binding scope.

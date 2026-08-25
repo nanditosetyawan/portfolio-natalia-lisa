@@ -36,6 +36,10 @@ defineEmits(['toggle-sidebar'])
 
 <style scoped>
 .admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex: 0 0 72px;
   height: 72px;
   background: #F6F4E8;
   border-bottom: 1px solid #E8DED0;
@@ -46,6 +50,7 @@ defineEmits(['toggle-sidebar'])
 }
 
 .header-left {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -77,8 +82,10 @@ defineEmits(['toggle-sidebar'])
 }
 
 .header-right {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: nowrap;
 }
 </style>

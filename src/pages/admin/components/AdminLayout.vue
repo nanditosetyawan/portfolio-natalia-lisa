@@ -19,15 +19,18 @@
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
       >
         <template v-if="isEditPage">
-          <button class="tbar-btn tbar-undo" title="Undo" disabled>
+          <button class="tbar-btn tbar-undo" title="Undo" :disabled="!editor.canUndo" @click="handleUndo">
             <Undo />
           </button>
-          <button class="tbar-btn tbar-redo" title="Redo" disabled>
+          <button class="tbar-btn tbar-redo" title="Redo" :disabled="!editor.canRedo" @click="handleRedo">
             <Redo />
           </button>
-          <button class="tbar-btn tbar-save" disabled>
+          <span v-if="editorSaveStatus" class="editor-save-status" :class="{ 'editor-save-status--dirty': editorHasChanges }">
+            {{ editorSaveStatus }}
+          </span>
+          <button class="tbar-btn tbar-save" :disabled="isSaving" @click="handleEditorSave">
             <Save />
-            <span>Save</span>
+            <span>{{ isSaving ? 'Saving…' : 'Save' }}</span>
           </button>
           <button class="tbar-btn tbar-publish" disabled>
             <Publish />
@@ -35,7 +38,7 @@
           </button>
         </template>
       </AdminHeader>
-      <main class="admin-content">
+      <main class="admin-content" :class="{ 'admin-content--editor': isEditPage }">
         <router-view />
       </main>
     </div>
@@ -49,11 +52,15 @@ import { Undo, Redo, Save } from 'lucide-vue-next'
 import { useAuthStore } from '../../../stores/auth'
 import AdminSidebar from './AdminSidebar.vue'
 import AdminHeader from './AdminHeader.vue'
+import { editorHasChanges, editorSaveStatus, saveEditor } from '../../../composables/useEditorSession'
+import { useEditorStore } from '../../../stores/editor'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const sidebarOpen = ref(false)
+const isSaving = ref(false)
+const editor = useEditorStore()
 
 const sidebarItems = [
   { path: '/admin', label: 'Dashboard', icon: 'layout-dashboard' },
@@ -67,6 +74,18 @@ const handleLogout = async () => {
   await auth.logout()
   await router.replace('/')
 }
+
+const handleEditorSave = async () => {
+  isSaving.value = true
+  try {
+    await saveEditor()
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleUndo = () => editor.undo()
+const handleRedo = () => editor.redo()
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
@@ -90,14 +109,15 @@ const Publish = {
 <style scoped>
 .admin-layout {
   position: relative;
-  height: 100vh;
+  --admin-header-height: 72px;
+  height: 100dvh;
   min-height: 0;
   background-color: #F6F4E8;
   overflow: hidden;
 }
 
 .dashboard-content {
-  height: 100%;
+  height: 100dvh;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -115,6 +135,14 @@ const Publish = {
   min-height: 0;
 }
 
+.admin-content--editor {
+  flex: 0 0 auto;
+  height: calc(100dvh - var(--admin-header-height));
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 .tbar-btn {
   display: inline-flex;
   align-items: center;
@@ -124,13 +152,25 @@ const Publish = {
   border-radius: 9999px;
   font-size: 0.8rem;
   font-weight: 500;
-  cursor: not-allowed;
-  opacity: 0.5;
+  cursor: pointer;
+  opacity: 1;
   transition: all 0.2s ease;
 }
 
 .tbar-btn:disabled {
-  cursor: not-allowed;
+  cursor: wait;
+  opacity: .62;
+}
+
+.editor-save-status {
+  color: #7B5F3B;
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.editor-save-status--dirty {
+  color: #B45F04;
 }
 
 .tbar-undo,
