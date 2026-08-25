@@ -74,22 +74,9 @@
                     id="email" 
                     v-model="form.email" 
                     placeholder="name@example.com" 
-                    required 
                     class="form-input" 
                   />
                 </div>
-              </div>
-
-              <div class="form-group">
-                <label for="institution">Institusi</label>
-                <input 
-                  type="text" 
-                  id="institution" 
-                  v-model="form.institution" 
-                  placeholder="Nama instansi atau institusi Anda" 
-                  required 
-                  class="form-input" 
-                />
               </div>
 
               <div class="form-group">
@@ -107,19 +94,20 @@
               <button 
                 type="submit" 
                 class="btn-submit"
+                :disabled="isSubmitting"
                 :class="{ 'btn-clicked': isClicked }"
                 @mousedown="handleMouseDown"
                 @mouseup="handleMouseUp"
                 @mouseleave="handleMouseLeave"
               >
-                <span>Kirim Pesan</span>
+                <span>{{ isSubmitting ? 'Mengirim…' : 'Kirim Pesan' }}</span>
                 <Send v-if="!isClicked" class="send-icon" />
               </button>
             </form>
 
             <Transition name="fade">
-              <div v-if="showSuccessAlert" class="success-alert">
-                <span>Pesan berhasil terkirim! (Supabase Database belum terhubung)</span>
+              <div v-if="showSuccessAlert || submitError" class="success-alert" :class="{ 'success-alert--error': submitError }" role="status" aria-live="polite">
+                <span>{{ submitError || 'Pesan berhasil terkirim!' }}</span>
               </div>
             </Transition>
           </div>
@@ -143,6 +131,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ArrowLeft, Send } from 'lucide-vue-next'
+import { messageRepository } from '../../repositories/messageRepository'
 
 // Admin inputs can bind here in the future
 const adminInputImage = ref('')
@@ -152,12 +141,13 @@ const messageInputImage = ref('')
 const form = reactive({
   name: '',
   email: '',
-  institution: '',
   message: ''
 })
 
 const isClicked = ref(false)
 const showSuccessAlert = ref(false)
+const isSubmitting = ref(false)
+const submitError = ref('')
 
 // Inline SVGs as data URIs matching the theme's red (#7B2329) and gold (#D4C4B4 / #E8DED0) tones
 const waLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'></path></svg>"
@@ -179,16 +169,25 @@ const handleMouseLeave = () => {
   isClicked.value = false
 }
 
-const handleSubmit = () => {
-  showSuccessAlert.value = true
-  form.name = ''
-  form.email = ''
-  form.institution = ''
-  form.message = ''
-  
-  setTimeout(() => {
-    showSuccessAlert.value = false
-  }, 4000)
+const handleSubmit = async () => {
+  isSubmitting.value = true
+  submitError.value = ''
+  showSuccessAlert.value = false
+  try {
+    await messageRepository.create({ name: form.name, email: form.email, message: form.message })
+    showSuccessAlert.value = true
+    form.name = ''
+    form.email = ''
+    form.message = ''
+    setTimeout(() => { showSuccessAlert.value = false }, 4000)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Pesan belum dapat dikirim.'
+    submitError.value = message.includes("You have reached today's message limit")
+      ? "You have reached today's message limit. Please try again tomorrow."
+      : message
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -506,6 +505,13 @@ const handleSubmit = () => {
   box-shadow: 0 6px 16px rgba(123, 35, 41, 0.2);
 }
 
+.btn-submit:disabled {
+  opacity: .65;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+}
+
 .btn-submit:active,
 .btn-submit.btn-clicked {
   background-color: transparent !important;
@@ -529,6 +535,12 @@ const handleSubmit = () => {
   color: #3E543E;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.success-alert--error {
+  background: #fff1ef;
+  border-color: #efc4bd;
+  color: #a33d32;
 }
 
 /* Right Column: Tall Photo Frame matching Card Height (1/3 Width) */

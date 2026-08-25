@@ -468,6 +468,51 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          created_at: string
+          email: string | null
+          expires_at: string | null
+          id: string
+          ip_hash: string
+          is_saved: boolean
+          message: string
+          name: string
+          read_at: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_hash?: string
+          is_saved?: boolean
+          message: string
+          name: string
+          read_at?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_hash?: string
+          is_saved?: boolean
+          message?: string
+          name?: string
+          read_at?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       navigation_config: {
         Row: {
           brand: string
@@ -794,4 +839,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

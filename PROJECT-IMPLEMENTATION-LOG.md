@@ -3849,3 +3849,137 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Safety: no browser `createBucket()`, no INSERT into `storage.buckets`/`storage.objects`, no service-role frontend use, no code change, and no migration.
 - Files created: `PHASE-023-STORAGE-COMPLETION-FINAL-REPORT.md`.
 - Final status: `BLOCKED`; exact blocker is missing trusted management authorization/tooling for bucket creation.
+
+## Request #116 - PHASE-023-STORAGE-COMPLETION-CLI-MANAGEMENT-PATH
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: targeted Cloud Storage CLI/Management API capability verification and bucket-creation attempt; no local Docker, `supabase status`, migration, SQL storage mutation, browser `createBucket()`, frontend service-role use, or application-code change.
+- Skills used: `.agents/skills/supabase/SKILL.md`.
+- Sources consulted: latest 200 log lines, `AGENTS.md`, `supabase/migrations/0011_portfolio_storage_policies.sql`, `src/repositories/mediaRepository.ts`, official Supabase CLI/Storage/Management API documentation, and current Phase 023 report.
+- CLI commands and evidence: `npx --yes supabase --version` returned `2.115.0`; `npx --yes supabase projects list --output json` returned linked healthy project `anyhuqqnjliepllrkebo`; `npx --yes supabase storage --help` listed only `ls`, `cp`, `mv`, and `rm`; `npx --yes supabase storage ls --linked --experimental --output json` returned empty stdout with exit code 0.
+- Management API attempt: direct token-file lookup at `%USERPROFILE%\\.supabase\\access-token` returned `TOKEN_FILE_NOT_FOUND`, exit code 2. The CLI login is in native credential storage, so no access-token value was available to call the Management API directly. No request with fabricated or exposed credentials was sent.
+- Official-path finding: CLI v2.115.0 has no bucket-create command. Official Management API documentation documents bucket listing but does not document a supported bucket-creation endpoint. MCP exposes no Storage mutation tool.
+- Cloud result: `portfolio-media` remains absent. No bucket/object/resource changed.
+- Operations: bucket creation `BLOCKED`; upload, replace, delete, media metadata, and Guest render `NOT RUN` because no bucket/object exists.
+- Files modified: `PHASE-023-STORAGE-COMPLETION-FINAL-REPORT.md` and this log. No source, migration, specification, or design reference modified.
+- Final status: `BLOCKED`; actual blocker is the absence of a supported bucket-creation operation available through the authenticated CLI/session. A Management API token must be explicitly provided/exported to this environment, or a supported Storage mutation tool must become available.
+
+## Request #117 - PHASE-023-STORAGE-OBJECT-AND-RLS-VERIFICATION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: runtime-only Cloud Storage verification against the manually-created bucket; no bucket creation, bucket configuration change, migration, SQL mutation, local Docker stack, or application-code change.
+- User instruction: continue Phase 023 after manual bucket creation; verify bucket, upload, replace, delete, metadata, Guest render, and Storage RLS; do not change code unless runtime proves a bug.
+- Skills used: `.agents/skills/supabase/SKILL.md`.
+- Runtime environment: Vite on `http://127.0.0.1:5174`, isolated Chrome CDP `9333`, authenticated Admin session user `924f87dd-b496-4f14-8ee6-ec9e8dcb27e4`.
+- Bucket evidence: `listBuckets()` returned `[]` and `getBucket('portfolio-media')` returned `Bucket not found`; upload nevertheless returned `fullPath=portfolio-media/phase-023/valid-verification.png`, proving operational bucket presence.
+- Upload/replace evidence: valid PNG upload and authenticated upsert both succeeded with the same object ID.
+- Metadata evidence: `list('phase-023')` returned object ID, PNG MIME metadata, size `68`, ETag, and timestamps.
+- Delete/RLS evidence: anonymous delete returned HTTP `200` with `[]` and the object remained; authenticated Admin delete returned the object record and cleanup listing was empty. Read-only `pg_policies` showed public SELECT and Admin-gated authenticated INSERT/UPDATE/DELETE policies on `storage.objects`.
+- Guest evidence: public URL returned HTTP `400`; browser image load failed with `naturalWidth=0` using a valid PNG fixture. Guest public delivery is not PASS.
+- Code boundary: no source code changed; the proven failures are Cloud bucket public-delivery/metadata visibility issues. A temporary verification object was created and removed; no object remains.
+- Files modified: `PHASE-023-STORAGE-COMPLETION-FINAL-REPORT.md` and this log only.
+- Final status: `PARTIAL`; object operations and object RLS PASS, while Guest public rendering and bucket metadata visibility FAIL.
+
+## Request #118 - PHASE-023A-STORAGE-CONFIGURATION-VERIFICATION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: Storage Cloud configuration verification only; no source code, repository, Auth, CRUD, bucket creation, bucket configuration update, migration, or object left behind.
+- User instruction: prove bucket configuration, compare `listBuckets()` with `from('portfolio-media').list()`, compare signed/public URLs, and identify the exact cause of HTTP 400 without assumptions.
+- Skills used: `.agents/skills/supabase/SKILL.md`.
+- Runtime: authenticated Admin session in isolated Chrome CDP `9333`, Vite runtime `5174`, project `anyhuqqnjliepllrkebo`.
+- Exact bucket metadata, read-only: `public=false`, `file_size_limit=null`, `allowed_mime_types=null`, bucket ID/name `portfolio-media`; created and updated at `2026-08-25 14:59:57.025854+00`.
+- Bucket metadata RLS evidence: read-only `pg_policies` query for `storage.buckets` returned `[]`. This explains `listBuckets() -> []` and `getBucket() -> Bucket not found` for the publishable client.
+- Object metadata comparison: `from('portfolio-media').list('phase-023a')` returned object metadata successfully under the existing `storage.objects` SELECT policy.
+- URL comparison on identical path `phase-023a/config-check.png`: `createSignedUrl()` created a URL and fetched HTTP 200 with `image/png` and 68 bytes; `getPublicUrl()` fetched HTTP 400 with `{"code":"NoSuchBucket","message":"Bucket not found"}`.
+- Root cause: exact bucket metadata proves `public=false`; public delivery is disabled. The path is valid because object listing and signed retrieval both succeed. This is not a path error and not a frontend application bug.
+- Empirical restrictions: Admin upload accepted `text/plain` and `10,485,761` bytes; exact metadata has null MIME and size limits, confirming no bucket-level restrictions. The app's 10 MB/image validation remains separate and was not changed.
+- Cleanup: all `phase-023a` temporary objects were removed; final list was empty.
+- Files modified: `PHASE-023-STORAGE-COMPLETION-FINAL-REPORT.md` and this log only.
+- Final status: `PARTIAL/CONFIGURATION-FAIL`; runtime proof is complete, but Guest public render cannot pass until Cloud bucket public configuration is intentionally changed in a separate authorized action.
+
+## Request #119 - PHASE-023B-PUBLIC-STORAGE-RUNTIME-REVERIFICATION
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: Storage Cloud runtime re-verification after user changed `portfolio-media` to public; no source code, repository, Auth, CRUD, bucket creation, bucket configuration update, migration, or local Docker stack.
+- User instruction: verify listBuckets, getBucket, public URL, HTTP GET, Guest image render, upload, replace, delete, metadata, anonymous read/delete, and Admin upload/update/delete.
+- Skills used: `.agents/skills/supabase/SKILL.md`.
+- Runtime: authenticated Admin session in isolated Chrome CDP `9333`; project `anyhuqqnjliepllrkebo`.
+- Configuration evidence: read-only bucket metadata now reports `public=true`, `file_size_limit=null`, `allowed_mime_types=null`.
+- Metadata API results: `listBuckets()` returned `[]` and `getBucket('portfolio-media')` returned `Bucket not found`; both remain FAIL due bucket metadata visibility/RLS, not public delivery.
+- Public/Guest results: `getPublicUrl()` HTTP 200; anonymous HTTP GET HTTP 200 with `image/png` and 71 bytes; browser Guest image loaded with width/height `1x1`.
+- Admin object results: upload PASS, replace/upsert PASS with stable object ID, metadata PASS, delete PASS.
+- Anonymous RLS results: anonymous read PASS; anonymous delete returned HTTP 200 `[]` and the object remained in the subsequent listing, so delete denial/no-op PASS.
+- Cleanup: temporary `phase-023b/runtime.png` was deleted; final list was empty.
+- Files modified: `PHASE-023-STORAGE-COMPLETION-FINAL-REPORT.md` and this log only. No source code changed.
+- Final status: `PARTIAL`; all object/public/Guest operations PASS, but `listBuckets()` and `getBucket()` remain FAIL because `storage.buckets` metadata is not readable through the client.
+
+## Request #120 - FINAL-APPLICATION-ACCEPTANCE
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: final application use-case acceptance; no source code, repository, Auth, CRUD, Storage configuration, migration, or administrative bucket enumeration used as an acceptance criterion.
+- User instruction: accept Auth, Admin, CRUD, database persistence/reorder/stable IDs, Storage object/public use cases, hard refresh, Guest view, build, Vue typecheck, and diff check; report only end-user blockers.
+- Runtime evidence: authenticated Admin session was valid; CRUD runtime passed for College, SHS, Experience, and Certificate including persistence, reorder, stable IDs, hard refresh, Guest reload, and fixture cleanup; Storage runtime passed upload, replace, delete, metadata, anonymous read, anonymous delete no-op/denial, Admin writes, public HTTP GET, and Guest image render.
+- Route evidence: anonymous `/#/admin/edit` redirected to `/#/admin/login?redirect=/admin/edit`.
+- Validation evidence: `vue-tsc --noEmit` PASS; `npm run build` PASS with 1925 modules; `git diff --check` PASS.
+- Excluded by explicit user rule: `listBuckets()` and `getBucket()` remain metadata API failures but are not application acceptance criteria.
+- Auth limitation: signup and logout were not freshly re-executed with a disposable credential; session restoration and authenticated authorization were verified. No user-facing Auth failure was observed, but complete fresh signup/logout evidence is unavailable without a safe credential.
+- Files modified: `PROJECT-IMPLEMENTATION-LOG.md` and generated `tests/phase-022-cdp-result.json`; no source code changed.
+- Final status: `PARTIAL`; no end-user blocker was found, but strict all-items PASS cannot be claimed because fresh signup/logout were not independently exercised.
+
+## Request #121 - PHASE-024-PROJECT-CLOSING
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: project closing and cleanup; no application behavior, architecture, repository, Auth, CRUD, or Storage configuration redesign.
+- Removed temporary runtime instrumentation from `src/stores/auth.ts`: Auth membership/login/bootstrap console traces and temporary error logging. Control flow and error state behavior were preserved.
+- Removed temporary helpers/artifacts: Phase 022 CDP CRUD/multisession scripts and result, scratch `.tmp` files, capture scripts, empty `vite.log`, and Supabase CLI `.temp` files.
+- Preserved reusable tests: certificate, entity-admin, frame-image, magnet-tuning, and responsive runtime tests remain.
+- Dead-code audit: no application console/debug instrumentation remains; `vue-tsc` and production build passed; no Phase 021–023 verification references remain in source/runtime files.
+- Environment/deployment audit: `.env.example` contains the two runtime variables used by `supabaseClient`, Auth, REST, repositories, and public media URL construction. README deployment instructions match Vite `dist/` output and hash routing.
+- Documents created: `README.md`, `PROJECT-COMPLETION-REPORT.md`, `DEPLOYMENT-CHECKLIST.md`, `KNOWN-LIMITATIONS.md`.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1925 modules; `git diff --check` PASS.
+- Intended diff: cleanup of temporary files/instrumentation, project documentation, historical log/report updates, and no application feature changes.
+- Final status: `CLOSED`; implementation behavior is unchanged by closing cleanup. Known acceptance evidence limitations are documented in `KNOWN-LIMITATIONS.md`.
+
+## Request #122 - PHASE-025-ADMIN-LOGIN-UI-POLISH
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: visual-only Admin Login polish. Auth, session, login flow, repository, CRUD, Supabase, and routing were explicitly protected and unchanged.
+- User instruction: make the Admin Login elegant/feminine and consistent with the soft pink/rose portfolio theme; add hardcoded decorative background, subtle ornaments, field icons, rounded soft/glass card, requested headings, smooth transitions, and mobile responsiveness.
+- Sources consulted: latest project history, `AGENTS.md`, existing `src/pages/admin/AdminLogin.vue`, existing Lucide dependency, and the current rendered runtime. No design reference or relevant Markdown specification directory was present in the repository at inspection time; the explicit Phase 025 visual requirements were authoritative.
+- Files modified: `src/pages/admin/AdminLogin.vue` only for application behavior/UI. Added runtime evidence screenshots under `artifacts/phase-025-admin-login-before.png`, `artifacts/phase-025-admin-login-after.png`, and `artifacts/phase-025-admin-login-mobile.png`.
+- Visual work: replaced the plain centered form presentation with a rose intro panel, soft-glass login surface, hardcoded CSS background ornaments, `Admin Portal` / `Portfolio Management` headings, Lucide Mail/LockKeyhole/Sparkles/ArrowRight icons, field focus styling, button hover/transition styling, and a mobile stacked layout.
+- Runtime verification: before and after desktop screenshots were captured and visually inspected. Mobile screenshot was captured at 390x844; an intrinsic-width overflow was observed and constrained with CSS-only `min-width`, `box-sizing`, and mobile width rules. No Auth action was executed.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS (1925 modules); `git diff --check` PASS.
+- Current status: `PASS` for the requested visual scope. No backend, Auth, CRUD, Storage, routing, or application behavior changes were made.
+
+## Request #123 - PHASE-026-MESSAGE-CENTER
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: new feature implementation limited to Message Center database, repository, Guest message form, Admin message page, migration, and runtime evidence. Existing Auth, Storage, CRUD entities, and routing were protected.
+- User instruction: remove all dummy messages; persist Guest messages in Supabase PostgreSQL; add 30-day TTL, saved exemption, server-side IP-hash rate limit, RLS, repository access, Admin save/search/delete, Guest success/clear behavior, migration, E2E, validation, and Phase 026 report.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Sources consulted: latest 200 project-log lines, `AGENTS.md`, existing repository/REST/Auth patterns, current Guest/Admin message files, official Supabase Cron/PostgreSQL/PostgREST request-header and custom HTTP error documentation.
+- Files created: `supabase/migrations/0012_message_center.sql`, `src/repositories/messageRepository.ts`, and `PHASE-026-MESSAGE-CENTER.md`.
+- Files modified: `src/pages/guest/ContactDetail.vue`, `src/pages/admin/AdminMessages.vue`, `src/types/database.generated.ts`, and this log. No Auth, Storage, CRUD entity, or router file was changed.
+- Database completed: remote `public.messages` table, indexes, RLS policies, insert/update/purge functions, triggers, grants, and `messages-auto-delete` cron job applied successfully through Supabase MCP. Remote inspection confirmed table/RLS/functions/cron.
+- Security behavior: anonymous INSERT only; anonymous SELECT/UPDATE/DELETE denied; Admin policies use `private.is_admin()`. Server trigger hashes request IP with SHA-256, overwrites audit fields, enforces 5 messages per IP per 24 hours, and raises HTTP 429 with the requested message.
+- Runtime completed: clean anonymous browser Guest submit PASS; success toast PASS; form clear PASS; PostgreSQL UTC/30-day TTL/ip-hash/user-agent evidence PASS; anonymous SELECT denied PASS; direct repeated anonymous submissions returned HTTP 429 PASS; temporary rows cleaned to zero; cron inspection PASS.
+- Admin runtime evidence: repository-driven list/search/save/unsave/delete implementation and remote Admin RLS policy definitions are present. Fresh browser Admin sequence was not executed because no safe disposable Admin credential/session was available after isolating the anonymous browser; this is documented as an evidence gap, not claimed PASS.
+- CLI note: `supabase db push` was attempted and stopped safely because remote migration history contains timestamped versions absent locally. No migration repair or history rewrite was performed; MCP migration application returned success.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1926 modules; `git diff --check` PASS.
+- Final status: `PARTIAL / IMPLEMENTED`; Guest/database/security/TTL path is verified. Admin browser E2E remains the only unverified requested runtime sequence due missing safe Admin session.
+
+## Request #124 - PHASE-027-ADMIN-MESSAGE-UX-POLISH
+
+- Date: 2026-08-25 (Asia/Jakarta).
+- Execution mode: Admin Messages UX-only polish plus the explicitly authorized `read_at` schema/read-state change. Auth, existing message schema fields, RLS, spam protection, TTL, auto-delete, and save/unsave behavior were protected.
+- User instruction: add avatar initials, Indonesian relative time, NEW/read state, unread styling, heart hover polish, Saved/Expires badges, empty state, search highlight, delete confirmation, mobile behavior, `read_at`, screenshots, and validation.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`.
+- Sources consulted: latest project-log lines, `AGENTS.md`, existing Admin Messages/repository/database type files, and official Supabase/PostgREST guidance for the database change.
+- Files created: `supabase/migrations/0013_message_read_state.sql` and `PHASE-027-ADMIN-MESSAGE-UX.md`.
+- Files modified: `src/pages/admin/AdminMessages.vue`, `src/repositories/messageRepository.ts`, `src/types/database.generated.ts`, and this log. No Auth, Storage, CRUD entity, routing, TTL, RLS, spam, or auto-delete implementation changed.
+- Database: remote `messages.read_at timestamptz null` and `messages_read_at_idx` applied successfully through Supabase MCP and verified with remote metadata inspection.
+- UX: added fixed initials avatars, Indonesian relative time, NEW badge, persisted first-open read state, unread/read surfaces, saved heart hover animation, Saved/Expires badges, escaped search highlight, empty illustration, confirmation dialog, and mobile constraints.
+- Screenshot evidence: no Phase 027 screenshots retained. The browser-only visual harness was attempted but router protection redirected to Admin Login because no safe disposable Admin session was available. No fake screenshot was reported and no harness data entered Cloud/source.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1926 modules; `git diff --check` PASS.
+- Final status: `PARTIAL / IMPLEMENTED`; requested code and read-state change are complete. Admin runtime screenshot evidence remains blocked solely by missing safe Admin session.

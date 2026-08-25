@@ -36,43 +36,28 @@ export const useAuthStore = defineStore('auth', {
         const memberships = await supabaseTableRows<{ user_id: string }>('admin_memberships', `?select=user_id&user_id=eq.${encodeURIComponent(this.session.user.id)}`)
         this.isAdmin = memberships.some((membership) => membership.user_id === this.session?.user.id)
         return this.isAdmin
-      } catch (error) {
+      } catch {
         this.isAdmin = false
-        console.error('[auth.refreshAuthorization] membership query failed', error)
         return false
       }
     },
     async bootstrapFirstAdmin() {
-      console.info('[auth.bootstrapFirstAdmin] calling bootstrap_first_admin')
-      try {
-        const response = await supabaseRpc<boolean>('bootstrap_first_admin')
-        console.info('[auth.bootstrapFirstAdmin] RPC response', response)
-        return response
-      } catch (error) {
-        console.error('[auth.bootstrapFirstAdmin] RPC error', error)
-        throw error
-      }
+      return await supabaseRpc<boolean>('bootstrap_first_admin')
     },
     async login(email: string, password: string) {
       this.isLoading = true
       this.errorMessage = ''
       try {
         this.session = await signInWithPassword(email, password)
-        console.info('[auth.login] 1 signInWithPassword success', this.session.user.id)
 
         const initiallyAuthorized = await this.refreshAuthorization()
-        console.info('[auth.login] 2 refreshAuthorization result', initiallyAuthorized)
 
-        console.info('[auth.login] 3 isAdmin before bootstrap', this.isAdmin)
         if (!initiallyAuthorized) {
-          console.info('[auth.login] 4 membership absent; calling bootstrapFirstAdmin')
           await this.bootstrapFirstAdmin()
         }
 
         const finallyAuthorized = await this.refreshAuthorization()
-        console.info('[auth.login] 5 refreshAuthorization result', finallyAuthorized)
         if (!finallyAuthorized) throw new Error('Authenticated user is not an authorized Admin')
-        console.info('[auth.login] 6 authorized; route navigation may proceed')
       } catch (error) {
         this.session = null
         this.isAdmin = false
