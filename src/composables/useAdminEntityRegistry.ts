@@ -18,6 +18,8 @@ export interface RuntimeAdminEntity {
   label: string
   kind: 'content' | 'text' | 'frame' | 'media' | 'navigation'
   properties: RuntimeAdminProperty[]
+  capabilities?: string[]
+  photoAreaId?: string
 }
 
 function property(
@@ -50,7 +52,7 @@ function certificateContentProperty(
     key, label, group: 'Content', control, path: key,
     metadata: ensurePropertyMetadata({ propertyKey: key, category: 'Content', label, control, propertyPath: key }),
     read: () => certificates.editableCards.find((card) => card.id === cardId)?.[key] ?? '',
-    write: (value) => certificates.updateCertificateContent(cardId, { [key]: String(value) })
+    write: (value) => certificates.updateLocalCertificateContent(cardId, { [key]: String(value) })
   }
 }
 
@@ -124,7 +126,7 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
     const contact = current.content.contact as unknown as Record<string, unknown>
     entities.push({ id: current.content.contact.id, section: 'Contact', label: 'Contact', kind: 'content', properties: contentProperties(contact, [['line1', 'Line 1', 'text'], ['line2', 'Line 2', 'text']]) })
     entities.push({ id: current.content.contact.cta.id, section: 'Contact', label: 'Contact CTA', kind: 'navigation', properties: contentProperties(current.content.contact.cta as unknown as Record<string, unknown>, [['text', 'Text', 'text'], ['href', 'Href', 'text']]) })
-    entities.push({ id: 'navigation-brand', section: 'Navigation', label: 'Navigation brand', kind: 'text', properties: contentProperties(current.content.navigation as unknown as Record<string, unknown>, [['brand', 'Brand', 'text']]) })
+    entities.push({ id: 'navigation-brand', section: 'Navigation', label: 'Lisa name (navigation brand)', kind: 'text', properties: contentProperties(current.content.navigation as unknown as Record<string, unknown>, [['brand', 'Name', 'text']]) })
     current.content.navigation.navItems.forEach((item) => entities.push({ id: item.id, section: 'Navigation', label: item.label, kind: 'navigation', properties: contentProperties(item as unknown as Record<string, unknown>, [['label', 'Label', 'text'], ['targetSectionId', 'Target section ID', 'text']]) }))
 
     certificates.editableCards.forEach((card) => entities.push({ id: card.id, section: 'Certificate', label: card.title, kind: 'content', properties: [

@@ -2,7 +2,7 @@
   <div class="dashboard">
     <div class="dashboard-main">
       <div class="dashboard-row1">
-        <div class="card card-draft">
+        <div class="card card-draft card-link" role="button" tabindex="0" aria-label="Open Draft Library" @click="goToDrafts" @keydown.enter="goToDrafts" @keydown.space.prevent="goToDrafts">
           <div class="card-image">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
               <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -23,13 +23,8 @@
               </span>
               <h2 class="card-draft-title">Draf</h2>
             </div>
-            <p class="card-draft-desc">3 item draft</p>
-            <div class="card-bottom">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 6L9 17l5 5"></path>
-                </svg>
-                <span>3</span>
-            </div>
+            <p class="card-draft-desc">{{ draftCount }} / 10 drafts</p>
+            <div class="capacity-track" aria-hidden="true"><span :style="{ width: `${Math.min(100, draftCount * 10)}%` }"></span></div>
           </div>
         </div>
 
@@ -55,13 +50,13 @@
               </span>
               <h2 class="card-published-title">Published</h2>
             </div>
-            <p class="card-published-desc">1 publication</p>
+            <p class="card-published-desc">{{ publishedRevision === null ? 'No active Published Snapshot' : `Live revision #${publishedRevision}` }}</p>
             <div class="card-bottom">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 22L12 6L9 9L12 12L15 9L12 6"/>
                   <circle cx="12" cy="10" r="2" fill="currentColor"/>
                 </svg>
-                <span>1</span>
+                <span>{{ publishedRevision ?? '-' }}</span>
             </div>
           </div>
         </div>
@@ -98,7 +93,7 @@
           </div>
         </div>
 
-        <div class="card card-favorite">
+        <div class="card card-favorite card-link" role="button" tabindex="0" aria-label="Open Favorite Drafts" @click="goToFavorites" @keydown.enter="goToFavorites" @keydown.space.prevent="goToFavorites">
           <div class="card-image">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
               <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -118,12 +113,13 @@
               </span>
               <h3 class="card-favorite-title">Favorite</h3>
             </div>
-            <p class="card-favorite-desc">Description placeholder</p>
+            <p class="card-favorite-desc">{{ favoriteCount }} / 8 favorites</p>
+            <div class="capacity-track" aria-hidden="true"><span :style="{ width: `${Math.min(100, favoriteCount * 12.5)}%` }"></span></div>
           </div>
         </div>
 
         <!-- Message Card -->
-        <div class="card card-message" role="button" tabindex="0" @click="goToMessages" @keydown.enter="goToMessages" @keydown.space.prevent="goToMessages">
+        <div class="card card-message card-link" role="button" tabindex="0" aria-label="Open Messages" @click="goToMessages" @keydown.enter="goToMessages" @keydown.space.prevent="goToMessages">
           <div class="card-image card-image-message">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="illustration-message" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -132,11 +128,6 @@
           <div class="card-content">
             <h3 class="card-message-title">Pesan</h3>
             <p class="card-message-desc">Lihat pesan masuk</p>
-            <div class="card-message-arrow">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </div>
           </div>
         </div>
       </div>
@@ -147,9 +138,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { editorDraftRepository, favoriteRepository, guestPublishedRepository } from '../../repositories/editorRevisionRepository'
 
 const router = useRouter()
 const goToMessages = () => router.push({ name: 'admin-messages' })
+const goToDrafts = () => router.push({ name: 'admin-drafts' })
+const goToFavorites = () => router.push({ name: 'admin-favorites' })
+const draftCount = ref(0)
+const favoriteCount = ref(0)
+const publishedRevision = ref<number | null>(null)
 
 const clockTime = ref('-- : -- : --')
 let timer: ReturnType<typeof setInterval> | null = null
@@ -220,6 +217,16 @@ async function syncTime(): Promise<void> {
 }
 
 onMounted(async () => {
+  try {
+    const [drafts, favorites, published] = await Promise.all([
+      editorDraftRepository.countDrafts(),
+      favoriteRepository.countFavorites(),
+      guestPublishedRepository.loadPublishedSnapshot()
+    ])
+    draftCount.value = drafts
+    favoriteCount.value = favorites
+    publishedRevision.value = published?.revision.revision_number ?? null
+  } catch { /* dashboard remains usable while data is unavailable */ }
   await syncTime()
   updateClock()
   timer = setInterval(updateClock, 1000)
@@ -270,6 +277,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 1rem;
 }
+.card-link { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; }
+.card-link:hover, .card-link:focus-visible { transform: translateY(-3px); box-shadow: 0 14px 28px -12px rgba(90,62,53,.24), 0 0 0 2px rgba(184,91,105,.18); outline: none; }
+.capacity-track { width: min(180px, 100%); height: 6px; margin-top: .75rem; overflow: hidden; border-radius: 999px; background: #f1e8dd; }
+.capacity-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d47a82, #ff9a86); transition: width .25s ease; }
 
 .card-draft,
 .card-published {
@@ -433,17 +444,17 @@ onUnmounted(() => {
   align-items: center;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  background: linear-gradient(135deg, #EAF4FF 0%, #F0F7FF 100%);
-  border: 1px solid #C8E0FF;
+  background: linear-gradient(135deg, #FFF5EB 0%, #FFFDF8 100%);
+  border: 1px solid #E8DED0;
 }
 
 .card-message:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px -10px rgba(21, 101, 192, 0.2), 0 0 0 1px rgba(21, 101, 192, 0.12);
+  box-shadow: 0 12px 28px -10px rgba(90, 62, 53, 0.2), 0 0 0 1px rgba(184, 91, 105, 0.12);
 }
 
 .card-image-message {
-  background-color: #DCEEFF;
+  background-color: #FFE4B5;
   width: 56px;
   height: 56px;
   flex-shrink: 0;
@@ -451,21 +462,21 @@ onUnmounted(() => {
 }
 
 .illustration-message {
-  color: #1565C0;
+  color: #8D363A;
   opacity: 0.85;
 }
 
 .card-message-title {
   margin: 0 0 2px 0;
   font-weight: 700;
-  color: #1565C0;
+  color: #8D363A;
   font-size: 0.9rem;
 }
 
 .card-message-desc {
   margin: 0 0 6px 0;
   font-size: 0.75rem;
-  color: #4A7DB5;
+  color: #7B5F3B;
 }
 
 .card-message-arrow {
@@ -475,7 +486,7 @@ onUnmounted(() => {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #1565C0;
+  background: #8D363A;
   color: #FFFFFF;
   transition: transform 0.2s ease;
 }

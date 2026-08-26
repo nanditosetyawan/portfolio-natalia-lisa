@@ -66,6 +66,7 @@ const wrapperTransform = computed(() => {
       <div class="portfolio-layout">
         <h1
           class="portfolio-title"
+          :data-entity-id="portfolio.id"
           :style="{
             fontSize: vConfig.title.fontSize,
             fontWeight: vConfig.title.fontWeight,

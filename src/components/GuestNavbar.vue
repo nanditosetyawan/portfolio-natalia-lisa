@@ -349,7 +349,7 @@ onUnmounted(() => {
     <div class="navbar-inner">
       <!-- Brand -->
       <div class="navbar-brand">
-        <span class="brand-text" :style="{
+        <span class="brand-text" data-entity-id="navigation-brand" :style="{
           fontFamily: vConfig.brand.fontFamily,
           fontSize: vConfig.brand.fontSize,
           fontWeight: vConfig.brand.fontWeight,

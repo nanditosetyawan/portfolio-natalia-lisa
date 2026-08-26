@@ -8,7 +8,7 @@ export const editorSaveStatus = ref('')
 let saveAction: SaveAction | null = null
 
 export function registerEditorSave(action: SaveAction): () => void {
-  saveAction = action
+  saveAction = action 
   return () => {
     if (saveAction === action) saveAction = null
   }
@@ -22,6 +22,4 @@ export function markEditorChanged(): void {
 export async function saveEditor(): Promise<void> {
   if (!saveAction) return
   await saveAction()
-  editorHasChanges.value = false
-  editorSaveStatus.value = 'Saved'
 }

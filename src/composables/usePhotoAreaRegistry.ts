@@ -46,7 +46,7 @@ export function usePhotoAreaRegistry() {
       site.setMediaUsageSource(photoAreaId, source)
       return true
     }
-    if (target.ownerType === 'certificate') return certificates.updatePhotoArea(photoAreaId, { source })
+    if (target.ownerType === 'certificate') { certificates.updateLocalPhotoArea(photoAreaId, { source }); return true }
     site.setPhotoAreaSource(photoAreaId, source)
     return true
   }
@@ -58,7 +58,7 @@ export function usePhotoAreaRegistry() {
       site.setMediaUsageObjectPosition(photoAreaId, objectPosition)
       return true
     }
-    if (target.ownerType === 'certificate') return certificates.updatePhotoArea(photoAreaId, { objectPosition })
+    if (target.ownerType === 'certificate') { certificates.updateLocalPhotoArea(photoAreaId, { objectPosition }); return true }
     site.setPhotoAreaObjectPosition(photoAreaId, objectPosition)
     return true
   }

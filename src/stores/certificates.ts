@@ -181,6 +181,20 @@ export const useCertificatesStore = defineStore('certificates', {
       if (this.isInitialized || this.isLoading) return
       await this.fetchCertificates(false)
     },
+    hydrateEditorCards(cards: CertificateCard[]) {
+      this.databaseCertificates = cards.map((card) => cloneCertificateCard(card))
+      this.isInitialized = true
+    },
+    updateLocalCertificateContent(cardId: string, patch: Partial<Pick<CertificateCard, 'title' | 'date' | 'description'>>) {
+      const card = this.databaseCertificates.find((candidate) => candidate.id === cardId)
+      if (card) Object.assign(card, patch)
+    },
+    updateLocalPhotoArea(photoAreaId: string, patch: { source?: string; objectPosition?: string }) {
+      const card = findCardByPhotoArea(this.databaseCertificates, photoAreaId)
+      if (!card) return
+      if (patch.source !== undefined) setCardPhotoSource(card, photoAreaId, patch.source)
+      if (patch.objectPosition !== undefined) setCardPhotoObjectPosition(card, photoAreaId, patch.objectPosition)
+    },
     async refreshCertificates() {
       await this.fetchCertificates(true)
     },

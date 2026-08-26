@@ -30,7 +30,7 @@
           </span>
           <button class="tbar-btn tbar-save" :disabled="isSaving" @click="handleEditorSave">
             <Save />
-            <span>{{ isSaving ? 'Saving…' : 'Save' }}</span>
+            <span>{{ isSaving ? 'Saving…' : 'Save Draft' }}</span>
           </button>
           <button class="tbar-btn tbar-publish" disabled>
             <Publish />
@@ -52,7 +52,7 @@ import { Undo, Redo, Save } from 'lucide-vue-next'
 import { useAuthStore } from '../../../stores/auth'
 import AdminSidebar from './AdminSidebar.vue'
 import AdminHeader from './AdminHeader.vue'
-import { editorHasChanges, editorSaveStatus, saveEditor } from '../../../composables/useEditorSession'
+import { editorHasChanges, editorSaveStatus, markEditorChanged, saveEditor } from '../../../composables/useEditorSession'
 import { useEditorStore } from '../../../stores/editor'
 
 const route = useRoute()
@@ -65,6 +65,8 @@ const editor = useEditorStore()
 const sidebarItems = [
   { path: '/admin', label: 'Dashboard', icon: 'layout-dashboard' },
   { path: '/admin/edit', label: 'Edit', icon: 'edit' },
+  { path: '/admin/drafts', label: 'Drafts', icon: 'file-text' },
+  { path: '/admin/favorites', label: 'Favorites', icon: 'heart' },
   { path: '/admin/media', label: 'Manage Media', icon: 'image' },
   { path: '/admin/maintenance', label: 'Maintenance', icon: 'wrench' },
   { path: '/admin/messages', label: 'Messages', icon: 'mail' },
@@ -77,20 +79,28 @@ const handleLogout = async () => {
 
 const handleEditorSave = async () => {
   isSaving.value = true
-  try {
-    await saveEditor()
-  } finally {
+  try { await saveEditor() } catch { /* save action owns the visible recoverable error */ } finally {
     isSaving.value = false
   }
 }
 
-const handleUndo = () => editor.undo()
-const handleRedo = () => editor.redo()
+const handleUndo = () => {
+  if (!editor.canUndo) return
+  editor.undo()
+  markEditorChanged()
+}
+const handleRedo = () => {
+  if (!editor.canRedo) return
+  editor.redo()
+  markEditorChanged()
+}
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     '/admin': 'Dashboard',
     '/admin/edit': 'Edit',
+    '/admin/drafts': 'Draft Library',
+    '/admin/favorites': 'Favorite Drafts',
     '/admin/media': 'Manage Media',
     '/admin/maintenance': 'Maintenance',
     '/admin/messages': 'Messages',

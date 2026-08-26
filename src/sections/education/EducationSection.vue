@@ -39,6 +39,7 @@ const vConfig = site.current.visual.education
 
         <h1
           class="edu-title"
+          :data-entity-id="education.id"
           :style="{
             color: vConfig.title.color,
             fontSize: vConfig.title.fontSize,

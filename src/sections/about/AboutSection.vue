@@ -54,6 +54,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
       >
         <h2
           class="about-title"
+          :data-entity-id="about.id"
           :style="{
             color: vConfig.title.color,
             fontSize: vConfig.title.fontSize,
@@ -92,6 +93,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
 
         <a
           :href="`#${about.cta.targetSectionId}`"
+          :data-entity-id="about.cta.id"
           class="learn-more-btn"
           :style="{
             backgroundColor: vConfig.button.backgroundColor,

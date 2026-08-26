@@ -2,29 +2,151 @@ import type { EntityDescriptor, PropertyRegistryEntry, PropertyVisibilityContext
 import type { EditorSnapshot } from '../types/editorSnapshot'
 
 const always = () => true
-
-const absolutePosition: PropertyRegistryEntry['enabledRule'] = ({ values }) => values['layout.positionMode'] === 'absolute'
+const supports = (capability: string): PropertyRegistryEntry['enabledRule'] => ({ entity }) => entity.capabilities.includes(capability)
+const outlineEnabled: PropertyRegistryEntry['enabledRule'] = ({ entity, values }) => (
+  entity.capabilities.includes('media-outline') && values['media.outlineEnabled'] === true
+)
 
 const entries: PropertyRegistryEntry[] = [
-  { propertyKey: 'content', category: 'content', label: 'Content', control: 'textarea', valueType: 'string', order: 10, commandType: 'SET_PROPERTY', capability: 'content', propertyPath: 'content' },
-  { propertyKey: 'fontFamily', category: 'typography', label: 'Font family', control: 'text', valueType: 'string', order: 10, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'fontFamily' },
-  { propertyKey: 'fontSize', category: 'typography', label: 'Font size', control: 'text', valueType: 'string', order: 20, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'fontSize' },
-  { propertyKey: 'fontWeight', category: 'typography', label: 'Font weight', control: 'number', valueType: 'number', order: 30, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'fontWeight' },
-  { propertyKey: 'color', category: 'typography', label: 'Color', control: 'color', valueType: 'color', order: 40, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'color' },
-  { propertyKey: 'lineHeight', category: 'typography', label: 'Line height', control: 'text', valueType: 'string', order: 50, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'lineHeight' },
-  { propertyKey: 'letterSpacing', category: 'typography', label: 'Letter spacing', control: 'text', valueType: 'string', order: 60, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'letterSpacing' },
-  { propertyKey: 'layout.positionMode', category: 'layout', label: 'Position mode', control: 'select', valueType: 'enum', order: 10, commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'positionMode', options: [{ label: 'Flow', value: 'flow' }, { label: 'Absolute', value: 'absolute' }] },
-  { propertyKey: 'layout.x', category: 'layout', label: 'X', control: 'number', valueType: 'number', order: 20, commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'x', enabledRule: absolutePosition, dependencyKeys: ['layout.positionMode'] },
-  { propertyKey: 'layout.y', category: 'layout', label: 'Y', control: 'number', valueType: 'number', order: 30, commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'y', enabledRule: absolutePosition, dependencyKeys: ['layout.positionMode'] },
-  { propertyKey: 'layout.width', category: 'layout', label: 'Width', control: 'text', valueType: 'string', order: 40, commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'width' },
-  { propertyKey: 'layout.height', category: 'layout', label: 'Height', control: 'text', valueType: 'string', order: 50, commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'height' },
-  { propertyKey: 'layout.rotation', category: 'layout', label: 'Rotation', control: 'number', valueType: 'number', order: 60, commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'rotation' },
-  { propertyKey: 'appearance.backgroundColor', category: 'background', label: 'Background color', control: 'color', valueType: 'color', order: 10, commandType: 'SET_PROPERTY', capability: 'background', propertyPath: 'backgroundColor' },
-  { propertyKey: 'appearance.opacity', category: 'background', label: 'Opacity', control: 'number', valueType: 'number', order: 20, commandType: 'SET_PROPERTY', capability: 'background', propertyPath: 'opacity' },
-  { propertyKey: 'appearance.borderRadius', category: 'appearance', label: 'Border radius', control: 'text', valueType: 'string', order: 10, commandType: 'SET_PROPERTY', capability: 'appearance', propertyPath: 'borderRadius' },
-  { propertyKey: 'appearance.filter', category: 'appearance', label: 'Filter', control: 'text', valueType: 'string', order: 20, commandType: 'SET_PROPERTY', capability: 'appearance', propertyPath: 'filter' },
-  { propertyKey: 'appearance.blendMode', category: 'appearance', label: 'Blend mode', control: 'select', valueType: 'enum', order: 30, commandType: 'SET_PROPERTY', capability: 'appearance', propertyPath: 'blendMode', options: [{ label: 'Normal', value: 'normal' }, { label: 'Multiply', value: 'multiply' }, { label: 'Screen', value: 'screen' }] },
-  { propertyKey: 'media.reference', category: 'image', label: 'Media reference', control: 'file', valueType: 'asset', order: 10, commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference' }
+  {
+    propertyKey: 'font.family', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Font type', control: 'text', valueType: 'string', order: 10,
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'fontFamily',
+    binding: { kind: 'snapshot', path: 'typography.{entityId}.fontFamily' },
+    defaultValue: '', placeholder: 'Font family'
+  },
+  {
+    propertyKey: 'font.size', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Size', control: 'text', valueType: 'string', order: 20, rowKey: 'font-size-spacing',
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'fontSize',
+    binding: { kind: 'snapshot', path: 'typography.{entityId}.fontSize' },
+    defaultValue: '', placeholder: 'e.g. 64px'
+  },
+  {
+    propertyKey: 'font.spacing', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Spacing', control: 'text', valueType: 'string', order: 30, rowKey: 'font-size-spacing',
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'letterSpacing',
+    binding: { kind: 'snapshot', path: 'typography.{entityId}.letterSpacing' },
+    defaultValue: '', placeholder: 'e.g. 0.04em'
+  },
+  {
+    propertyKey: 'font.color', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Color', control: 'color', valueType: 'color', order: 40,
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'color',
+    binding: { kind: 'snapshot', path: 'typography.{entityId}.color' }, defaultValue: '#49362f'
+  },
+  {
+    propertyKey: 'font.shadow', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Shadow', control: 'text', valueType: 'string', order: 50,
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'textShadow',
+    binding: { kind: 'snapshot', path: 'typography.{entityId}.textShadow' },
+    defaultValue: '', placeholder: 'CSS text shadow'
+  },
+  {
+    propertyKey: 'font.hover', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Hover', control: 'color', valueType: 'color', order: 60,
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'hoverColor',
+    binding: { kind: 'snapshot', path: 'typography.{entityId}.hoverColor' },
+    defaultValue: '#49362f', enabledRule: supports('font-hover'),
+    helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'font.positionX', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'X', control: 'number', valueType: 'number', order: 70, rowKey: 'font-position',
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'x',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.x' }, defaultValue: 0,
+    enabledRule: supports('position'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'font.positionY', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Y', control: 'number', valueType: 'number', order: 80, rowKey: 'font-position',
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'y',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.y' }, defaultValue: 0,
+    enabledRule: supports('position'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'font.rotate', category: 'font', categoryLabel: 'FONT', categoryOrder: 10,
+    label: 'Rotate', control: 'number', valueType: 'number', order: 90,
+    commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'rotation', unit: 'deg',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.rotation' }, defaultValue: 0,
+    enabledRule: supports('rotate'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.upload', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Upload', control: 'file', valueType: 'asset', order: 10,
+    commandType: 'UPLOAD_MEDIA', capability: 'media', propertyPath: 'reference', accept: 'image/*',
+    binding: { kind: 'action', action: 'upload-media' }, defaultValue: ''
+  },
+  {
+    propertyKey: 'media.choose', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Choose from Media', control: 'button', valueType: 'asset', order: 20,
+    commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference',
+    binding: { kind: 'action', action: 'choose-media' }, defaultValue: '', enabledRule: () => false,
+    helperText: 'Repository-backed media picker is not available yet.'
+  },
+  {
+    propertyKey: 'media.width', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'P (Width)', control: 'text', valueType: 'string', order: 30, rowKey: 'media-size',
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'width',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.width' }, defaultValue: '', placeholder: 'Auto',
+    enabledRule: supports('media-dimensions'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.height', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'L (Height)', control: 'text', valueType: 'string', order: 40, rowKey: 'media-size',
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'height',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.height' }, defaultValue: '', placeholder: 'Auto',
+    enabledRule: supports('media-dimensions'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.hover', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Hover', control: 'checkbox', valueType: 'boolean', order: 50,
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'hoverEnabled',
+    binding: { kind: 'snapshot', path: 'media.styles.{entityId}.hoverEnabled' }, defaultValue: false,
+    enabledRule: supports('media-hover'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.positionX', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'X', control: 'number', valueType: 'number', order: 60, rowKey: 'media-position',
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'x',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.x' }, defaultValue: 0,
+    enabledRule: supports('position'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.positionY', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Y', control: 'number', valueType: 'number', order: 70, rowKey: 'media-position',
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'y',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.y' }, defaultValue: 0,
+    enabledRule: supports('position'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.outlineEnabled', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Outline', control: 'checkbox', valueType: 'boolean', order: 80,
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'outlineEnabled',
+    binding: { kind: 'snapshot', path: 'media.styles.{entityId}.outlineEnabled' }, defaultValue: false,
+    enabledRule: supports('media-outline'), helperText: 'Not available for this element.'
+  },
+  {
+    propertyKey: 'media.outlineWidth', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Outline thickness', control: 'number', valueType: 'number', order: 90,
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'outlineWidth', unit: 'px',
+    binding: { kind: 'snapshot', path: 'media.styles.{entityId}.outlineWidth' }, defaultValue: 1,
+    enabledRule: outlineEnabled, dependencyKeys: ['media.outlineEnabled'],
+    helperText: 'Enable Outline to change thickness.'
+  },
+  {
+    propertyKey: 'media.change', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Change image', control: 'file', valueType: 'asset', order: 100,
+    commandType: 'REPLACE_MEDIA', capability: 'media', propertyPath: 'reference', accept: 'image/*',
+    binding: { kind: 'action', action: 'replace-media' }, defaultValue: ''
+  },
+  {
+    propertyKey: 'media.rotate', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
+    label: 'Rotate', control: 'number', valueType: 'number', order: 110,
+    commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'rotation', unit: 'deg',
+    binding: { kind: 'snapshot', path: 'layout.{entityId}.rotation' }, defaultValue: 0,
+    enabledRule: supports('rotate'), helperText: 'Not available for this element.'
+  }
 ]
 
 export const propertyRegistry = entries
@@ -40,16 +162,20 @@ export function ensurePropertyMetadata(definition: {
 }): PropertyRegistryEntry {
   const existing = entries.find((entry) => entry.propertyKey === definition.propertyKey)
   if (existing) return existing
+  const normalizedCategory = definition.category.toLowerCase()
   const entry: PropertyRegistryEntry = {
     propertyKey: definition.propertyKey,
-    category: definition.category.toLowerCase(),
+    category: normalizedCategory,
+    categoryLabel: definition.category.toUpperCase(),
+    categoryOrder: 100,
     label: definition.label,
     control: definition.control,
     valueType: definition.valueType ?? (definition.control === 'number' ? 'number' : definition.control === 'color' ? 'color' : definition.control === 'checkbox' ? 'boolean' : 'string'),
     order: entries.length + 1,
     commandType: 'SET_PROPERTY',
-    capability: definition.capability ?? definition.category.toLowerCase(),
-    propertyPath: definition.propertyPath ?? definition.propertyKey
+    capability: definition.capability ?? normalizedCategory,
+    propertyPath: definition.propertyPath ?? definition.propertyKey,
+    binding: { kind: 'runtime', path: definition.propertyPath ?? definition.propertyKey }
   }
   entries.push(entry)
   return entry
@@ -66,7 +192,7 @@ export function resolveProperties(entity: EntityDescriptor, snapshot: EditorSnap
   return entries
     .filter((entry) => entity.capabilities.includes(entry.capability))
     .filter((entry) => (entry.visibilityRule ?? always)(context))
-    .sort((left, right) => left.category.localeCompare(right.category) || left.order - right.order)
+    .sort((left, right) => (left.categoryOrder ?? 100) - (right.categoryOrder ?? 100) || left.category.localeCompare(right.category) || left.order - right.order)
 }
 
 export function isPropertyEnabled(entry: PropertyRegistryEntry, context: PropertyVisibilityContext): boolean {

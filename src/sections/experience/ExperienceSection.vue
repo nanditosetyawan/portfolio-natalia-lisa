@@ -78,6 +78,7 @@
       <!-- ── Section title — FROZEN (position:absolute, no transform) ── -->
       <h2
         class="experience-title"
+        :data-entity-id="site.current.content.experience.id"
         :style="{
           color: vConfig.title.color,
           fontSize: vConfig.title.fontSize,

@@ -27,10 +27,12 @@ export const useEditorStore = defineStore('editor', {
     activeAccordion: '' as string,
     draftSnapshot: createEditorSnapshot(createDefaultSiteSnapshot()) as EditorSnapshot,
     draftRevisionNumber: null as number | null,
+    draftLockVersion: null as number | null,
     publishedRevisionNumber: null as number | null,
     baseRevisionNumber: null as number | null,
     draftRevisionId: null as string | null,
     hasUnsavedChanges: false,
+    sessionDirty: false,
     isSavingDraft: false,
     isPublishing: false,
     commandHistory: [] as EditorCommand[],
@@ -40,38 +42,64 @@ export const useEditorStore = defineStore('editor', {
   getters: {
     canUndo: (state) => state.commandHistory.length > 0,
     canRedo: (state) => state.redoHistory.length > 0,
-    revisionState: (state): EditorRevisionState => ({ draftRevisionId: state.draftRevisionId, draftRevisionNumber: state.draftRevisionNumber, publishedRevisionNumber: state.publishedRevisionNumber, baseRevisionNumber: state.baseRevisionNumber })
+    revisionState: (state): EditorRevisionState => ({ draftRevisionId: state.draftRevisionId, draftRevisionNumber: state.draftRevisionNumber, draftLockVersion: state.draftLockVersion, publishedRevisionNumber: state.publishedRevisionNumber, baseRevisionNumber: state.baseRevisionNumber })
   },
   actions: {
     initialize(snapshot: EditorSnapshot, revision: Partial<EditorRevisionState> = {}) {
       this.draftSnapshot = clone(snapshot)
       this.draftRevisionId = revision.draftRevisionId ?? null
       this.draftRevisionNumber = revision.draftRevisionNumber ?? null
+      this.draftLockVersion = revision.draftLockVersion ?? null
       this.publishedRevisionNumber = revision.publishedRevisionNumber ?? null
       this.baseRevisionNumber = revision.baseRevisionNumber ?? revision.publishedRevisionNumber ?? null
+      this.selectedEntityId = this.draftSnapshot.session.selectedEntityId
+      this.activeAccordion = this.draftSnapshot.session.activeAccordion
+      this.selectedSection = this.draftSnapshot.session.selectedSection
       this.hasUnsavedChanges = false
+      this.sessionDirty = false
       this.commandHistory = []
       this.redoHistory = []
     },
     selectEntity(entity: EntityDescriptor) {
       this.selectedEntityId = entity.entityId
       this.selectedSection = entity.section
+      this.draftSnapshot.session.selectedEntityId = entity.entityId
+      this.draftSnapshot.session.selectedSection = entity.section
+      this.draftSnapshot.session.propertySearch = this.draftSnapshot.session.propertySearch ?? ''
+      this.sessionDirty = true
     },
-    setAccordion(category: string) { this.activeAccordion = category },
+    setAccordion(category: string) {
+      this.activeAccordion = category
+      this.draftSnapshot.session.activeAccordion = category
+      this.sessionDirty = true
+    },
+    setViewport(session: Partial<EditorSnapshot['session']>) {
+      this.draftSnapshot.session = { ...this.draftSnapshot.session, ...session }
+      this.sessionDirty = true
+    },
     apply(command: EditorCommand, record = true) {
       const entity = this.draftSnapshot as unknown as Record<string, unknown>
       writePath(entity, command.propertyPath, command.nextValue)
       this.hasUnsavedChanges = true
       if (record) {
+        const coalesceKey = typeof command.metadata?.coalesceKey === 'string' ? command.metadata.coalesceKey : null
+        const previous = this.commandHistory[this.commandHistory.length - 1]
+        if (coalesceKey && previous?.metadata?.coalesceKey === coalesceKey && command.timestamp - previous.timestamp <= 1000) {
+          previous.nextValue = clone(command.nextValue)
+          previous.timestamp = command.timestamp
+          previous.metadata = clone(command.metadata)
+          this.redoHistory = []
+          return
+        }
         this.commandHistory.push(clone(command))
         if (this.commandHistory.length > 10) this.commandHistory.shift()
         this.redoHistory = []
       }
     },
-    setProperty(entityId: string, propertyPath: string, nextValue: EditorValue, type: EditorCommand['type'] = 'SET_PROPERTY') {
+    setProperty(entityId: string, propertyPath: string, nextValue: EditorValue, type: EditorCommand['type'] = 'SET_PROPERTY', metadata?: Record<string, unknown>) {
       const previousValue = readPath(this.draftSnapshot as unknown as Record<string, unknown>, propertyPath)
       if (Object.is(previousValue, nextValue)) return
-      this.apply({ type, entityId, propertyPath, previousValue, nextValue, timestamp: Date.now() })
+      this.apply({ type, entityId, propertyPath, previousValue, nextValue, timestamp: Date.now(), metadata })
     },
     undo() {
       const command = this.commandHistory.pop()
@@ -90,8 +118,10 @@ export const useEditorStore = defineStore('editor', {
     },
     markDraftSaved(revision: Partial<EditorRevisionState> = {}) {
       this.hasUnsavedChanges = false
+      this.sessionDirty = false
       this.draftRevisionId = revision.draftRevisionId ?? this.draftRevisionId
       this.draftRevisionNumber = revision.draftRevisionNumber ?? this.draftRevisionNumber
+      this.draftLockVersion = revision.draftLockVersion ?? this.draftLockVersion
       this.baseRevisionNumber = revision.baseRevisionNumber ?? this.baseRevisionNumber
     }
   }

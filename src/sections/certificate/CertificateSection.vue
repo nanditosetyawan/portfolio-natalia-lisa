@@ -244,6 +244,7 @@ onBeforeUnmount(() => {
       <div class="title-wrapper">
         <h2
           class="certificate-title"
+          :data-entity-id="site.current.content.certificate.id"
           :style="{
             fontFamily: vConfig.certificateTitle.fontFamily,
             fontSize: vConfig.certificateTitle.fontSize,

@@ -128,6 +128,7 @@ const contentStyle = computed(() => ({
       >
         <h2
           class="contact-title"
+          :data-entity-id="contact.id"
           :style="{
             fontFamily: vConfig.title.fontFamily,
             fontSize: vConfig.title.fontSize,
@@ -144,6 +145,7 @@ const contentStyle = computed(() => ({
         </h2>
         <a
           href="#"
+          :data-entity-id="contact.cta.id"
           @click.prevent="$router.push({ name: 'contact-detail' })"
           class="contact-cta"
           id="contact-click-here"

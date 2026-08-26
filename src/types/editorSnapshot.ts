@@ -1,4 +1,5 @@
 import type { SiteSnapshot } from '../data/default/site'
+import type { CertificateCard } from '../data/default/certificates'
 
 export const EDITOR_SNAPSHOT_SCHEMA_VERSION = 1 as const
 export const EDITOR_SNAPSHOT_READER_VERSION = 1 as const
@@ -27,6 +28,8 @@ export interface TypographySettings {
   lineHeight?: string
   letterSpacing?: string
   color?: string
+  textShadow?: string
+  hoverColor?: string
   textAlign?: 'left' | 'center' | 'right' | 'justify'
 }
 
@@ -45,6 +48,8 @@ export interface LayoutSettings {
 export interface SnapshotMediaReference {
   assetId: string
   uri: string
+  bucket?: string
+  storagePath?: string
   mimeType?: string
   width?: number
   height?: number
@@ -61,6 +66,13 @@ export interface MediaAssignment {
 export interface SnapshotMediaModel {
   references: SnapshotMediaReference[]
   assignments: MediaAssignment[]
+  styles: Record<string, MediaStyleSettings>
+}
+
+export interface MediaStyleSettings {
+  hoverEnabled?: boolean
+  outlineEnabled?: boolean
+  outlineWidth?: number
 }
 
 export interface BackgroundSettings {
@@ -88,6 +100,17 @@ export interface AnimationSettings {
   enabled?: boolean
 }
 
+export interface EditorSessionState {
+  selectedEntityId: string
+  selectedSection: string
+  activeAccordion: string
+  previewScrollTop: number
+  previewScrollLeft: number
+  zoom: number
+  userZoom: number | null
+  propertySearch: string
+}
+
 export interface EditorSnapshot {
   compatibility: SnapshotCompatibility
   revision: {
@@ -96,12 +119,14 @@ export interface EditorSnapshot {
   }
   entities: SnapshotEntityReference[]
   content: SiteSnapshot['content']
+  certificateCards: CertificateCard[]
   typography: Record<string, TypographySettings>
   layout: Record<string, LayoutSettings>
   media: SnapshotMediaModel
   backgrounds: Record<string, BackgroundSettings>
   buttons: Record<string, ButtonSettings>
   animations: Record<string, AnimationSettings>
+  session: EditorSessionState
   /** Legacy/domain visual data is retained separately until section cutover. */
   visual: SiteSnapshot['visual']
   behavior: SiteSnapshot['behavior']
@@ -112,4 +137,3 @@ export interface SnapshotValidationResult {
   errors: string[]
   value?: EditorSnapshot
 }
-

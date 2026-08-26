@@ -4067,3 +4067,34 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Validation: `npm run build` PASS (vue-tsc included; 1,933 modules transformed); `git diff --check` PASS. Standalone `npx vue-tsc --noEmit` was attempted but the final shell reported `npx` unavailable on PATH; equivalent typecheck passed through build.
 - Deliverable: `PHASE-029E-PROPERTY-BINDING.mdv` created.
 - Final status: `PASS / IMPLEMENTED` for the requested editor binding scope.
+
+## Request #131 - PHASE-029F-DRAFT-PERSISTENCE-MEDIA-STAGING-EDITOR-RECOVERY
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: editor Draft persistence and recovery only.
+- User boundary: no publish, Published Snapshot activation, Guest runtime cutover, published media promotion, runtime-table replacement, migration, or Storage policy redesign.
+- Sources consulted: latest 200 log lines, `AGENTS.md`, current EditorSnapshot, editor store, AdminEdit, AdminLayout, editor revision repository, media repository, and Supabase skill guidance.
+- Files created: `PHASE-029F-DRAFT-PERSISTENCE.md`.
+- Files modified: `src/types/editorSnapshot.ts`, `src/editor/editorSnapshot.ts`, `src/repositories/editorRevisionRepository.ts`, `src/stores/editor.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/AdminLayout.vue`, `tests/editor-repository-runtime.mjs`, and this log.
+- Completed: Draft session fields; Draft startup recovery; repository-only Draft save; revision-aware conflict state; Save Draft status states; discard reset without object deletion; draft media upload path handling; persisted media references; signed preview URL recovery; replacement retaining old media; preview viewport session persistence.
+- Protected: no publish execution, activation, Guest runtime wiring, published media promotion, migration, Storage policy redesign, or runtime-table replacement.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,933 modules transformed; `git diff --check` PASS.
+- Runtime evidence: repository runtime test source was extended, but CDP execution was not run because no Vite runtime target was listening. Browser/remote persistence and screenshots remain `UNVERIFIED`.
+- Deliverable: `PHASE-029F-DRAFT-PERSISTENCE.md` created.
+- Final status: `PARTIAL / IMPLEMENTED`; local Draft persistence/recovery implementation and validation are complete, while live browser/cloud evidence remains pending.
+
+## Request #132 - PHASE-029F-R2-DRAFT-RECOVERY-DRAFT-LIBRARY-FAVORITES
+
+- Date: 2026-08-26 (Asia/Jakarta).
+- Execution mode: incremental Draft recovery remediation, Draft Library, Favorite relation, dashboard navigation, and editor source loading. Phase 029G Publish was not started.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md`. Supabase changelog fetch was attempted but the web tool rejected its `text/markdown` content type; no current breaking-change guidance was available from that fetch.
+- Sources consulted: latest 200 project-log lines, `AGENTS.md`, current Phase 029F implementation/review findings, existing editor/repository/router/dashboard files, and current `site_revisions` migration.
+- Files created: `src/pages/admin/AdminDrafts.vue`, `src/pages/admin/AdminFavorites.vue`, `supabase/migrations/0015_draft_library_favorites.sql`, `PHASE-029F-R2-DRAFT-LIBRARY-FAVORITES.md`.
+- Files modified: `src/composables/useAdminEntityRegistry.ts`, `src/composables/useEditorSession.ts`, `src/composables/usePhotoAreaRegistry.ts`, `src/editor/editorSnapshot.ts`, `src/pages/admin/AdminDashboard.vue`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/AdminLayout.vue`, `src/repositories/editorRevisionRepository.ts`, `src/router/index.ts`, `src/stores/certificates.ts`, `src/stores/editor.ts`, `src/types/editor.ts`, `src/types/editorSnapshot.ts`, `tests/editor-repository-runtime.mjs`, and this log.
+- Completed: confirmed save failure propagation; session restoration corrections; certificate snapshot routing; semantic media assignment identity; Admin discard RPC boundary; atomic draft-save RPC contract; startup retry surface; stronger snapshot domain validation; repository Draft list/count/create/update/delete contract; Favorite relation and limits; Draft/Favorite pages; dashboard count/navigation cards; editor source modal and Draft query loading; publish-preservation contract documentation.
+- Protected/not implemented: no Publish execution, Published Snapshot activation, Guest Runtime cutover, media promotion, Storage architecture/policy redesign, or normalized-table replacement.
+- Database status: focused migration was authored locally but not applied to remote Supabase in this request. Remote RLS/function verification is therefore pending.
+- Runtime evidence: in-memory CDP repository test source was expanded for same-ID saves, Draft/Favorite limits, favorite removal, delete relation cleanup, stale revision rejection, media fallback URLs, and serialization. Authenticated browser E2E was not executed because no authenticated Admin session or usable local Vite runtime target was available. No screenshot claimed.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,939 modules transformed; `git diff --check` PASS with normal LF/CRLF warnings only.
+- Remaining blockers: apply/verify migration remotely; execute authenticated browser acceptance; consider replacing native switch confirmation with explicit Save/Discard/Cancel modal before phase sign-off; Phase 029G Publish remains pending.
+- Final status: `PARTIAL / IMPLEMENTED`; implementation and static validation are complete, but remote/runtime acceptance evidence is not complete.
