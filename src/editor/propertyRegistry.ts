@@ -79,10 +79,10 @@ const entries: PropertyRegistryEntry[] = [
   },
   {
     propertyKey: 'media.choose', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,
-    label: 'Choose from Media', control: 'button', valueType: 'asset', order: 20,
+    label: 'Choose from Media', control: 'select', valueType: 'asset', order: 20,
     commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference',
-    binding: { kind: 'action', action: 'choose-media' }, defaultValue: '', enabledRule: () => false,
-    helperText: 'Repository-backed media picker is not available yet.'
+    binding: { kind: 'action', action: 'choose-media' }, defaultValue: '',
+    placeholder: 'Select existing media', helperText: 'No repository media is available.'
   },
   {
     propertyKey: 'media.width', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20,

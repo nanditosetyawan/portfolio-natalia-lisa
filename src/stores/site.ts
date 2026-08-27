@@ -15,7 +15,10 @@ export const useSiteStore = defineStore('site', {
   state: () => ({
     current: createDefaultSiteSnapshot(),
     isLoading: false,
-    errorMessage: ''
+    errorMessage: '',
+    publishedRuntimeStatus: 'loading' as 'loading' | 'ready' | 'unavailable' | 'error',
+    publishedRevisionNumber: null as number | null,
+    publishedAt: null as string | null
   }),
   getters: {
     aboutParagraphs: (state) => ordered(state.current.content.about.paragraphs),
@@ -36,6 +39,25 @@ export const useSiteStore = defineStore('site', {
     },
     async saveDraft() {
       await siteRepository.saveDraft(this.current as SiteSnapshot)
+    },
+    hydratePublishedRuntime(snapshot: SiteSnapshot, revision: { revisionNumber: number; publishedAt: string | null }) {
+      this.current = structuredClone(snapshot)
+      this.publishedRevisionNumber = revision.revisionNumber
+      this.publishedAt = revision.publishedAt
+      this.publishedRuntimeStatus = 'ready'
+      this.errorMessage = ''
+    },
+    markPublishedRuntimeUnavailable() {
+      this.publishedRuntimeStatus = 'unavailable'
+      this.publishedRevisionNumber = null
+      this.publishedAt = null
+      this.errorMessage = 'No active Published Snapshot.'
+    },
+    markPublishedRuntimeError(message: string) {
+      this.publishedRuntimeStatus = 'error'
+      this.publishedRevisionNumber = null
+      this.publishedAt = null
+      this.errorMessage = message
     },
     resetToSeed() {
       this.current = createDefaultSiteSnapshot()

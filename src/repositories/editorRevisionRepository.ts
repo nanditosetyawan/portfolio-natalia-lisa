@@ -18,6 +18,11 @@ export interface RevisionRecord {
   created_at: string
   updated_at: string
   published_at: string | null
+  source_draft_revision_id: string | null
+  published_by: string | null
+  publish_note: string | null
+  publication_kind: 'publish' | 'rollback' | null
+  rollback_source_revision_id: string | null
 }
 
 export interface DraftStatus {
@@ -78,6 +83,7 @@ export interface FavoriteRepository {
 
 export interface GuestPublishedRepository {
   loadPublishedSnapshot(): Promise<{ snapshot: EditorSnapshot; revision: RevisionRecord } | null>
+  resolvePublishedMedia(snapshot: EditorSnapshot): Promise<EditorSnapshot>
 }
 
 export interface PublishValidationResult {
@@ -86,9 +92,25 @@ export interface PublishValidationResult {
   draft: RevisionRecord | null
 }
 
-/** Phase 029C deliberately exposes validation only. It has no publish mutation method. */
+export interface PublishDraftInput {
+  draftRevisionId: string
+  expectedPublishedRevision: number | null
+  expectedDraftLockVersion: number
+  note?: string
+}
+
+export interface RollbackRevisionInput {
+  targetRevisionId: string
+  expectedPublishedRevision: number
+  note?: string
+}
+
 export interface EditorPublishRepository {
   validateDraft(draftRevisionId: string): Promise<PublishValidationResult>
+  publishDraft(input: PublishDraftInput): Promise<RevisionRecord>
+  rollbackRevision(input: RollbackRevisionInput): Promise<RevisionRecord>
+  getPublishedRevision(): Promise<RevisionRecord | null>
+  getHistory(): Promise<RevisionRecord[]>
 }
 
 export class RevisionConflictError extends Error {
@@ -109,12 +131,73 @@ export class FavoriteLimitError extends Error {
   constructor() { super('Maximum 8 favorites reached.'); this.name = 'FavoriteLimitError' }
 }
 
+export class PublishConflictError extends Error {
+  readonly code = 'PUBLISH_CONFLICT'
+  constructor(message = 'The Published revision changed. Reload before trying again.') {
+    super(message)
+    this.name = 'PublishConflictError'
+  }
+}
+
+export class PublishValidationError extends Error {
+  readonly code = 'PUBLISH_VALIDATION'
+  readonly errors: string[]
+  constructor(errors: string[]) {
+    super(errors.join(' '))
+    this.name = 'PublishValidationError'
+    this.errors = [...errors]
+  }
+}
+
 function clone<T>(value: T): T { return structuredClone(value) }
 
 function assertSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
   const result = validateEditorSnapshot(snapshot)
   if (!result.valid) throw new Error(`Invalid editor snapshot: ${result.errors.join(' ')}`)
   return result.value as EditorSnapshot
+}
+
+function publishValidationErrors(snapshot: EditorSnapshot, requirePublishedPaths = false): string[] {
+  const errors: string[] = []
+  try { assertSnapshot(snapshot) } catch (error) {
+    return [error instanceof Error ? error.message : 'Invalid EditorSnapshot.']
+  }
+
+  const requiredText: Array<[string, unknown]> = [
+    ['Portfolio title', snapshot.content.portfolio.title],
+    ['Profile name', snapshot.content.profile.name],
+    ['About title', snapshot.content.about.title],
+    ['Education title', snapshot.content.education.title],
+    ['Experience title', snapshot.content.experience.title],
+    ['Certificate title', snapshot.content.certificate.title],
+    ['Contact line 1', snapshot.content.contact.line1],
+    ['Contact line 2', snapshot.content.contact.line2],
+    ['Contact button text', snapshot.content.contact.cta.text]
+  ]
+  for (const [label, value] of requiredText) if (typeof value !== 'string' || !value.trim()) errors.push(`${label} is required.`)
+
+  const entityIds = snapshot.entities.map((entity) => entity.entityId)
+  if (!entityIds.length) errors.push('At least one entity reference is required.')
+  if (new Set(entityIds).size !== entityIds.length) errors.push('Entity references must use unique IDs.')
+
+  const references = snapshot.media.references
+  const referenceIds = references.map((reference) => reference.assetId)
+  if (!references.length) errors.push('At least one media reference is required.')
+  if (new Set(referenceIds).size !== referenceIds.length) errors.push('Media references must use unique asset IDs.')
+  if (references.some((reference) => reference.uri.startsWith('data:') || reference.uri.startsWith('blob:'))) errors.push('Media references may not embed binary or transient browser URLs.')
+  if (requirePublishedPaths && references.some((reference) => reference.bucket !== 'portfolio-media' || !reference.storagePath?.startsWith('published/') || reference.uri !== reference.storagePath)) errors.push('Published media must use portfolio-media/published/* references.')
+
+  const assets = new Set(referenceIds)
+  for (const assignment of snapshot.media.assignments) {
+    if (!assets.has(assignment.assetId)) errors.push(`Media assignment ${assignment.entityId} references missing asset ${assignment.assetId}.`)
+  }
+  const profileUsageId = snapshot.content.profile.mediaUsageId
+  if (!snapshot.media.assignments.some((assignment) => assignment.entityId === profileUsageId)) errors.push('The required profile image is missing.')
+  return [...new Set(errors)]
+}
+
+function publishedRevisionNumber(records: RevisionRecord[]): number | null {
+  return records.filter((record) => record.status === 'published').reduce<number | null>((latest, record) => latest === null || record.revision_number > latest ? record.revision_number : latest, null)
 }
 
 function nextRevision(records: RevisionRecord[]): number {
@@ -136,17 +219,84 @@ function withDraftMedia(snapshot: EditorSnapshot, references: DraftMediaReferenc
   return { ...clone(snapshot), media: { ...clone(snapshot.media), references: [...existing.values()] } }
 }
 
+function extensionForMedia(mimeType: string | undefined, source: string): string {
+  const fromPath = source.split(/[?#]/, 1)[0]?.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (fromPath && fromPath.length <= 8) return fromPath
+  const byMime: Record<string, string> = {
+    'image/avif': 'avif',
+    'image/gif': 'gif',
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/svg+xml': 'svg',
+    'image/webp': 'webp'
+  }
+  return byMime[mimeType ?? ''] ?? 'bin'
+}
+
+function assertUsableMediaBlob(blob: Blob, expectedMimeType: string, label: string): void {
+  if (blob.size <= 0) throw new Error(`${label} is empty.`)
+  if (expectedMimeType && blob.type && blob.type !== expectedMimeType) throw new Error(`${label} MIME mismatch: expected ${expectedMimeType}, received ${blob.type}.`)
+}
+
+async function prepareSupabasePublishedSnapshot(snapshot: EditorSnapshot, revisionNumber: number): Promise<EditorSnapshot> {
+  const prepared = clone(snapshot)
+  const attemptId = crypto.randomUUID()
+  prepared.media.references = await Promise.all(prepared.media.references.map(async (reference) => {
+    const expectedMimeType = reference.mimeType ?? ''
+    if (!expectedMimeType.startsWith('image/')) throw new Error(`Media ${reference.assetId} has an unsupported MIME type.`)
+    if (reference.bucket && reference.bucket !== 'portfolio-media') throw new Error(`Media ${reference.assetId} is stored in an unsupported bucket.`)
+
+    if (reference.storagePath?.startsWith('published/')) {
+      const { data, error } = await supabaseClient.storage.from('portfolio-media').download(reference.storagePath)
+      if (error || !data) throw new Error(`Published media verification failed for ${reference.assetId}: ${error?.message ?? 'object not found'}`)
+      assertUsableMediaBlob(data, expectedMimeType, `Published media ${reference.assetId}`)
+      return { ...reference, uri: reference.storagePath, bucket: 'portfolio-media', storagePath: reference.storagePath }
+    }
+
+    const extension = extensionForMedia(expectedMimeType, reference.storagePath ?? reference.uri)
+    const destination = `published/${revisionNumber}/${reference.assetId}-${attemptId}.${extension}`
+
+    if (reference.storagePath) {
+      if (!reference.storagePath.startsWith('draft/')) throw new Error(`Media ${reference.assetId} is outside the allowed draft/* staging prefix.`)
+      const { data: sourceBlob, error: sourceError } = await supabaseClient.storage.from('portfolio-media').download(reference.storagePath)
+      if (sourceError || !sourceBlob) throw new Error(`Draft media verification failed for ${reference.assetId}: ${sourceError?.message ?? 'object not found'}`)
+      assertUsableMediaBlob(sourceBlob, expectedMimeType, `Draft media ${reference.assetId}`)
+      const { error: copyError } = await supabaseClient.storage.from('portfolio-media').copy(reference.storagePath, destination)
+      if (copyError) throw new Error(`Media preparation failed for ${reference.assetId}: ${copyError.message}`)
+    } else {
+      if (reference.uri.startsWith('data:') || reference.uri.startsWith('blob:')) throw new Error(`Media ${reference.assetId} uses a transient or embedded URL.`)
+      const response = await fetch(reference.uri, { cache: 'no-store' })
+      if (!response.ok) throw new Error(`Media source could not be loaded for ${reference.assetId} (${response.status}).`)
+      const sourceBlob = await response.blob()
+      assertUsableMediaBlob(sourceBlob, expectedMimeType, `Media source ${reference.assetId}`)
+      const { error: uploadError } = await supabaseClient.storage.from('portfolio-media').upload(destination, sourceBlob, { upsert: false, contentType: expectedMimeType })
+      if (uploadError) throw new Error(`Media preparation failed for ${reference.assetId}: ${uploadError.message}`)
+    }
+
+    const { data: preparedBlob, error: preparedError } = await supabaseClient.storage.from('portfolio-media').download(destination)
+    if (preparedError || !preparedBlob) throw new Error(`Prepared media verification failed for ${reference.assetId}: ${preparedError?.message ?? 'object not found'}`)
+    assertUsableMediaBlob(preparedBlob, expectedMimeType, `Prepared media ${reference.assetId}`)
+    return { ...reference, uri: destination, bucket: 'portfolio-media', storagePath: destination }
+  }))
+
+  const errors = publishValidationErrors(prepared, true)
+  if (errors.length) throw new PublishValidationError(errors)
+  return prepared
+}
+
 export class InMemoryEditorRevisionRepository implements EditorDraftRepository, GuestPublishedRepository, EditorPublishRepository, FavoriteRepository {
   private records: RevisionRecord[] = []
   private media = new Map<string, DraftMediaReference[]>()
   private favorites = new Map<string, FavoriteRecord>()
+  private publishedMediaUrls = new Map<string, string>()
   private readonly actorId: string
 
   constructor(actorId = 'runtime-test-admin') { this.actorId = actorId }
 
   seedPublished(snapshot: EditorSnapshot, revisionNumber = 1): void {
     assertSnapshot(snapshot)
-    this.records.push({ id: `published-${revisionNumber}`, revision_number: revisionNumber, lock_version: 1, status: 'published', snapshot: clone(snapshot), base_revision_number: revisionNumber - 1 || null, created_by: this.actorId, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), published_at: new Date().toISOString() })
+    const now = new Date().toISOString()
+    this.records.push({ id: `published-${revisionNumber}`, revision_number: revisionNumber, lock_version: 1, status: 'published', snapshot: clone(snapshot), base_revision_number: revisionNumber - 1 || null, created_by: this.actorId, created_at: now, updated_at: now, published_at: now, source_draft_revision_id: null, published_by: this.actorId, publish_note: null, publication_kind: 'publish', rollback_source_revision_id: null })
   }
 
   async loadDraft(draftRevisionId?: string): Promise<SaveDraftResult | null> {
@@ -172,7 +322,7 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
     const now = new Date().toISOString()
     const revision: RevisionRecord = existing
       ? { ...existing, snapshot: withDraftMedia(input.snapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, lock_version: existing.lock_version + 1, updated_at: now }
-      : { id: `draft-${nextRevision(this.records)}`, revision_number: nextRevision(this.records), lock_version: 1, status: 'draft', snapshot: withDraftMedia(input.snapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, created_by: this.actorId, created_at: now, updated_at: now, published_at: null }
+      : { id: `draft-${nextRevision(this.records)}`, revision_number: nextRevision(this.records), lock_version: 1, status: 'draft', snapshot: withDraftMedia(input.snapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, created_by: this.actorId, created_at: now, updated_at: now, published_at: null, source_draft_revision_id: null, published_by: null, publish_note: null, publication_kind: null, rollback_source_revision_id: null }
     this.records = [...this.records.filter((candidate) => candidate.id !== revision.id), revision]
     this.media.set(revision.id, clone(input.mediaReferences))
     return { revision: clone(revision), mediaReferences: clone(input.mediaReferences) }
@@ -233,13 +383,93 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
     return revision ? { snapshot: clone(revision.snapshot), revision: clone(revision) } : null
   }
 
+  async resolvePublishedMedia(snapshot: EditorSnapshot): Promise<EditorSnapshot> {
+    const resolved = clone(snapshot)
+    resolved.media.references = resolved.media.references.map((reference) => ({
+      ...reference,
+      uri: reference.storagePath ? this.publishedMediaUrls.get(reference.storagePath) ?? reference.uri : reference.uri
+    }))
+    return resolved
+  }
+
   async validateDraft(draftRevisionId: string): Promise<PublishValidationResult> {
     const draft = this.records.find((candidate) => candidate.id === draftRevisionId && candidate.status === 'draft') ?? null
-    const errors = draft ? [] : ['Draft revision was not found.']
-    if (draft) {
-      try { assertSnapshot(draft.snapshot) } catch (error) { errors.push(error instanceof Error ? error.message : 'Invalid snapshot.') }
-    }
+    const errors = draft ? publishValidationErrors(draft.snapshot) : ['Draft revision was not found.']
     return { valid: errors.length === 0, errors, draft: draft ? clone(draft) : null }
+  }
+
+  async publishDraft(input: PublishDraftInput): Promise<RevisionRecord> {
+    const validation = await this.validateDraft(input.draftRevisionId)
+    if (!validation.valid || !validation.draft) throw new PublishValidationError(validation.errors)
+    const currentPublished = publishedRevisionNumber(this.records)
+    if (currentPublished !== input.expectedPublishedRevision) throw new PublishConflictError()
+    if (validation.draft.base_revision_number !== currentPublished) throw new PublishConflictError('This Draft is based on an older Published revision.')
+    if (validation.draft.lock_version !== input.expectedDraftLockVersion) throw new PublishConflictError('The Draft changed while Publish was being prepared.')
+
+    const revisionNumber = (currentPublished ?? 0) + 1
+    const prepared = clone(validation.draft.snapshot)
+    prepared.media.references = prepared.media.references.map((reference) => {
+      const extension = extensionForMedia(reference.mimeType, reference.storagePath ?? reference.uri)
+      const storagePath = `published/${revisionNumber}/${reference.assetId}-${crypto.randomUUID()}.${extension}`
+      this.publishedMediaUrls.set(storagePath, reference.uri)
+      return { ...reference, uri: storagePath, bucket: 'portfolio-media', storagePath }
+    })
+    const preparedErrors = publishValidationErrors(prepared, true)
+    if (preparedErrors.length) throw new PublishValidationError(preparedErrors)
+
+    const now = new Date().toISOString()
+    const revision: RevisionRecord = {
+      id: `published-${revisionNumber}-${crypto.randomUUID()}`,
+      revision_number: revisionNumber,
+      lock_version: 1,
+      status: 'published',
+      snapshot: prepared,
+      base_revision_number: currentPublished,
+      created_by: this.actorId,
+      created_at: now,
+      updated_at: now,
+      published_at: now,
+      source_draft_revision_id: validation.draft.id,
+      published_by: this.actorId,
+      publish_note: input.note?.trim() || null,
+      publication_kind: 'publish',
+      rollback_source_revision_id: null
+    }
+    this.records.push(revision)
+    return clone(revision)
+  }
+
+  async rollbackRevision(input: RollbackRevisionInput): Promise<RevisionRecord> {
+    const currentPublished = publishedRevisionNumber(this.records)
+    if (currentPublished !== input.expectedPublishedRevision) throw new PublishConflictError()
+    const target = this.records.find((record) => record.id === input.targetRevisionId && record.status === 'published')
+    if (!target) throw new PublishValidationError(['Published revision was not found.'])
+    if (target.revision_number >= input.expectedPublishedRevision) throw new PublishValidationError(['Rollback must select an older Published revision.'])
+    const now = new Date().toISOString()
+    const revision: RevisionRecord = {
+      ...clone(target),
+      id: `published-${input.expectedPublishedRevision + 1}-${crypto.randomUUID()}`,
+      revision_number: input.expectedPublishedRevision + 1,
+      base_revision_number: input.expectedPublishedRevision,
+      created_by: this.actorId,
+      created_at: now,
+      updated_at: now,
+      published_at: now,
+      published_by: this.actorId,
+      publish_note: input.note?.trim() || null,
+      publication_kind: 'rollback',
+      rollback_source_revision_id: target.id
+    }
+    this.records.push(revision)
+    return clone(revision)
+  }
+
+  async getPublishedRevision(): Promise<RevisionRecord | null> {
+    return (await this.loadPublishedSnapshot())?.revision ?? null
+  }
+
+  async getHistory(): Promise<RevisionRecord[]> {
+    return this.records.filter((record) => record.status === 'published').sort((left, right) => right.revision_number - left.revision_number).map(clone)
   }
 }
 
@@ -248,7 +478,17 @@ type RevisionRow = Omit<RevisionRecord, 'revision_number' | 'lock_version' | 'sn
 function fromRow(row: RevisionRow): RevisionRecord {
   const snapshot = typeof row.snapshot === 'string' ? deserializeEditorSnapshot(row.snapshot) : row.snapshot
   const normalized = assertSnapshot(snapshot)
-  return { ...row, revision_number: Number(row.revision_number), lock_version: Number(row.lock_version ?? 1), snapshot: clone(normalized) }
+  return {
+    ...row,
+    revision_number: Number(row.revision_number),
+    lock_version: Number(row.lock_version ?? 1),
+    snapshot: clone(normalized),
+    source_draft_revision_id: row.source_draft_revision_id ?? null,
+    published_by: row.published_by ?? null,
+    publish_note: row.publish_note ?? null,
+    publication_kind: row.publication_kind ?? null,
+    rollback_source_revision_id: row.rollback_source_revision_id ?? null
+  }
 }
 
 export class SupabaseEditorDraftRepository implements EditorDraftRepository {
@@ -320,11 +560,22 @@ export class SupabaseEditorDraftRepository implements EditorDraftRepository {
 
 export class SupabaseGuestPublishedRepository implements GuestPublishedRepository {
   async loadPublishedSnapshot(): Promise<{ snapshot: EditorSnapshot; revision: RevisionRecord } | null> {
-    const rows = await supabaseTableRows<RevisionRow>('site_revisions', '?select=*&status=eq.published&order=revision_number.desc&limit=1')
+    const rows = await supabaseRpc<RevisionRow[]>('get_active_published_snapshot')
     const row = rows[0]
     if (!row) return null
     const revision = fromRow(row)
     return { snapshot: clone(revision.snapshot), revision }
+  }
+
+  async resolvePublishedMedia(snapshot: EditorSnapshot): Promise<EditorSnapshot> {
+    const resolved = clone(snapshot)
+    resolved.media.references = resolved.media.references.map((reference) => {
+      if (reference.bucket !== 'portfolio-media' || !reference.storagePath?.startsWith('published/')) throw new Error(`Guest Runtime rejected non-Published media ${reference.assetId}.`)
+      const { data } = supabaseClient.storage.from('portfolio-media').getPublicUrl(reference.storagePath)
+      if (!data.publicUrl) throw new Error(`Published media URL failed for ${reference.assetId}.`)
+      return { ...reference, uri: data.publicUrl }
+    })
+    return resolved
   }
 }
 
@@ -333,11 +584,59 @@ export class SupabaseEditorPublishRepository implements EditorPublishRepository 
     if (!isSupabaseConfigured()) throw new Error('Supabase environment is not configured')
     const rows = await supabaseTableRows<RevisionRow>('site_revisions', `?select=*&id=eq.${encodeURIComponent(draftRevisionId)}&status=eq.draft&limit=1`)
     const draft = rows[0] ? fromRow(rows[0]) : null
-    const errors = draft ? [] : ['Draft revision was not found.']
-    if (draft) {
-      try { assertSnapshot(draft.snapshot) } catch (error) { errors.push(error instanceof Error ? error.message : 'Invalid snapshot.') }
-    }
+    const errors = draft ? publishValidationErrors(draft.snapshot) : ['Draft revision was not found.']
     return { valid: errors.length === 0, errors, draft }
+  }
+
+  async publishDraft(input: PublishDraftInput): Promise<RevisionRecord> {
+    const validation = await this.validateDraft(input.draftRevisionId)
+    if (!validation.valid || !validation.draft) throw new PublishValidationError(validation.errors)
+    if (validation.draft.lock_version !== input.expectedDraftLockVersion) throw new PublishConflictError('The Draft changed while Publish was being prepared.')
+
+    const nextPublishedRevision = (input.expectedPublishedRevision ?? 0) + 1
+    const preparedSnapshot = await prepareSupabasePublishedSnapshot(validation.draft.snapshot, nextPublishedRevision)
+    try {
+      const rows = await supabaseRpc<RevisionRow[]>('publish_editor_draft', {
+        p_draft_id: input.draftRevisionId,
+        p_prepared_snapshot: JSON.parse(serializeEditorSnapshot(preparedSnapshot)),
+        p_expected_published_revision: input.expectedPublishedRevision,
+        p_expected_draft_lock_version: input.expectedDraftLockVersion,
+        p_note: input.note?.trim() || null
+      })
+      if (!rows[0]) throw new Error('Publish did not return an activated revision.')
+      return fromRow(rows[0])
+    } catch (error) {
+      if (error instanceof PublishValidationError) throw error
+      const message = error instanceof Error ? error.message : 'Publish failed.'
+      if (/changed|older Published revision|40001|409/i.test(message)) throw new PublishConflictError(message)
+      if (/Snapshot|media|image|required|invalid|missing|MIME|Draft revision/i.test(message)) throw new PublishValidationError([message])
+      throw error
+    }
+  }
+
+  async rollbackRevision(input: RollbackRevisionInput): Promise<RevisionRecord> {
+    try {
+      const rows = await supabaseRpc<RevisionRow[]>('rollback_published_revision', {
+        p_target_revision_id: input.targetRevisionId,
+        p_expected_published_revision: input.expectedPublishedRevision,
+        p_note: input.note?.trim() || null
+      })
+      if (!rows[0]) throw new Error('Rollback did not return an activated revision.')
+      return fromRow(rows[0])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Rollback failed.'
+      if (/changed|40001|409/i.test(message)) throw new PublishConflictError(message)
+      throw error
+    }
+  }
+
+  async getPublishedRevision(): Promise<RevisionRecord | null> {
+    return (await guestPublishedRepository.loadPublishedSnapshot())?.revision ?? null
+  }
+
+  async getHistory(): Promise<RevisionRecord[]> {
+    const rows = await supabaseTableRows<RevisionRow>('site_revisions', '?select=*&status=eq.published&order=revision_number.desc')
+    return rows.map(fromRow)
   }
 }
 
@@ -369,6 +668,10 @@ export const editorDraftRepository: EditorDraftRepository = isSupabaseConfigured
 
 export const guestPublishedRepository: GuestPublishedRepository = isSupabaseConfigured()
   ? new SupabaseGuestPublishedRepository()
+  : inMemoryRepository
+
+export const editorPublishRepository: EditorPublishRepository = isSupabaseConfigured()
+  ? new SupabaseEditorPublishRepository()
   : inMemoryRepository
 
 export const favoriteRepository: FavoriteRepository = isSupabaseConfigured() ? new SupabaseFavoriteRepository() : inMemoryRepository

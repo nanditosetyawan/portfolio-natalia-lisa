@@ -3,15 +3,20 @@ import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
 import './styles/main.css'
-import { useSiteStore } from './stores/site'
 import { useAuthStore } from './stores/auth'
+import { initializePublishedRuntime } from './runtime/publishedRuntime'
 
 const app = createApp(App)
-
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 
-void useSiteStore().load()
-void useAuthStore().initialize()
+async function bootstrap(): Promise<void> {
+  await Promise.all([
+    useAuthStore().initialize(),
+    initializePublishedRuntime()
+  ])
+  app.mount('#app')
+}
 
-app.mount('#app')
+void bootstrap()

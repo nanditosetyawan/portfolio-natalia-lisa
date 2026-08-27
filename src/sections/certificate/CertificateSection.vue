@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, reactive, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onBeforeUnmount, watch } from 'vue'
 import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
 import type { CertificateCard } from '../../data/default/certificates'
 import PhotoArea from '../../components/PhotoArea.vue'
@@ -89,8 +89,6 @@ function downloadCert(card: CertificateCard) {
     document.body.removeChild(a)
   })
 }
-
-onMounted(() => certificatesStore.loadInitial())
 
 watch(cards, (nextCards) => {
   const visibleIds = new Set(nextCards.map((card) => card.id))

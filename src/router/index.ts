@@ -50,6 +50,11 @@ const router = createRouter({
           component: () => import('../pages/admin/AdminFavorites.vue')
         },
         {
+          path: 'published',
+          name: 'admin-published',
+          component: () => import('../pages/admin/AdminPublishedHistory.vue')
+        },
+        {
           path: 'media',
           name: 'admin-media',
           component: () => import('../pages/admin/AdminMedia.vue')

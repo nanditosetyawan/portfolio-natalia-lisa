@@ -12,7 +12,10 @@ import { useCertificatesStore } from '../../stores/certificates'
 import { useSiteStore } from '../../stores/site'
 import {
   editorDraftRepository,
+  editorPublishRepository,
   guestPublishedRepository,
+  PublishConflictError,
+  PublishValidationError,
   RevisionConflictError
 } from '../../repositories/editorRevisionRepository'
 import {
@@ -25,6 +28,13 @@ import {
 import PropertyControl from './components/PropertyControl.vue'
 import { useEditorStore } from '../../stores/editor'
 import { createEditorSnapshot } from '../../editor/editorSnapshot'
+import {
+  editorPublishErrors,
+  editorPublishStatus,
+  registerEditorPublish,
+  resetEditorPublishFeedback
+} from '../../composables/useEditorPublish'
+import { invalidatePublishedRuntimeCache } from '../../runtime/publishedRuntime'
 import { isPropertyEnabled, resolveProperties } from '../../editor/propertyRegistry'
 import type {
   DraftMediaReference,
@@ -91,6 +101,7 @@ const styleBaselines = new WeakMap<HTMLElement, Record<string, string>>()
 let selectedPreviewElement: HTMLElement | null = null
 let previewObserver: ResizeObserver | null = null
 let unregisterSave: (() => void) | null = null
+let unregisterPublish: (() => void) | null = null
 
 const editorEntities = computed<EditorRuntimeEntity[]>(() => {
   const byId = new Map<string, EditorRuntimeEntity>()
@@ -165,10 +176,28 @@ function descriptorFor(entity: EditorRuntimeEntity): EntityDescriptor {
 }
 
 const selectedDescriptor = computed(() => selectedEntity.value ? descriptorFor(selectedEntity.value) : null)
+const mediaLibraryOptions = computed(() => site.current.mediaAssets
+  .filter((asset) => Boolean(asset.id && asset.source))
+  .map((asset) => ({ label: asset.alt.trim() || asset.id, value: asset.id })))
+
+function resolveRuntimeMetadata(metadata: PropertyRegistryEntry): PropertyRegistryEntry {
+  if (metadata.binding?.kind !== 'action' || metadata.binding.action !== 'choose-media') return metadata
+  const hasMedia = mediaLibraryOptions.value.length > 0
+  return {
+    ...metadata,
+    options: mediaLibraryOptions.value,
+    enabledRule: ({ entity }) => entity.capabilities.includes('media') && hasMedia,
+    helperText: hasMedia ? undefined : 'No repository media is available.'
+  }
+}
+
 const registryPanelProperties = computed<PanelProperty[]>(() => {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return []
-  return resolveProperties(descriptor, editor.draftSnapshot).map((metadata) => ({ key: metadata.propertyKey, metadata }))
+  return resolveProperties(descriptor, editor.draftSnapshot).map((metadata) => {
+    const resolved = resolveRuntimeMetadata(metadata)
+    return { key: resolved.propertyKey, metadata: resolved }
+  })
 })
 const runtimeContentProperties = computed<PanelProperty[]>(() => (selectedEntity.value?.properties ?? [])
   .filter((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')
@@ -259,15 +288,20 @@ async function initializeEditor(): Promise<void> {
   editorReady.value = false
   previewObserver?.disconnect()
   unregisterSave?.()
+  unregisterPublish?.()
   previewObserver = null
   unregisterSave = null
+  unregisterPublish = null
   try {
     await certificates.loadInitial()
     const requestedDraftId = typeof route.query.draft === 'string' ? route.query.draft : undefined
     const savedDraft = requestedDraftId === 'new' ? null : await editorDraftRepository.loadDraft(requestedDraftId)
     if (requestedDraftId && requestedDraftId !== 'new' && !savedDraft) throw new Error('The requested Draft could not be found. Retry or return to the Draft Library.')
     const published = await guestPublishedRepository.loadPublishedSnapshot()
-    const publishedSnapshot = published?.snapshot ?? createEditorSnapshot(toRaw(site.current))
+    if (!published) await site.load()
+    const publishedSnapshot = published
+      ? await guestPublishedRepository.resolvePublishedMedia(published.snapshot)
+      : createEditorSnapshot(toRaw(site.current))
     publishedBaseline.value = structuredClone(publishedSnapshot)
 
     if (savedDraft) {
@@ -275,7 +309,9 @@ async function initializeEditor(): Promise<void> {
         draftRevisionId: savedDraft.revision.id,
         draftRevisionNumber: savedDraft.revision.revision_number,
         draftLockVersion: savedDraft.revision.lock_version,
-        baseRevisionNumber: savedDraft.revision.base_revision_number,
+        baseRevisionNumber: published?.revision.source_draft_revision_id === savedDraft.revision.id
+          ? published.revision.revision_number
+          : savedDraft.revision.base_revision_number,
         publishedRevisionNumber: published?.revision.revision_number ?? savedDraft.revision.base_revision_number
       })
       editor.draftMediaReferences = savedDraft.mediaReferences
@@ -308,6 +344,7 @@ async function initializeEditor(): Promise<void> {
     saveStatus.value = ''
     editorReady.value = true
     unregisterSave = registerEditorSave(saveDraft)
+    unregisterPublish = registerEditorPublish(publishCurrentDraft)
     previewObserver = new ResizeObserver(updatePreviewMetrics)
     if (canvasScroll.value) previewObserver.observe(canvasScroll.value)
     if (previewStage.value) previewObserver.observe(previewStage.value)
@@ -326,6 +363,8 @@ onMounted(() => { void initializeEditor() })
 onBeforeUnmount(() => {
   previewObserver?.disconnect()
   unregisterSave?.()
+  unregisterPublish?.()
+  resetEditorPublishFeedback()
   restoreStyledPreviewElements()
 })
 
@@ -415,6 +454,12 @@ function fallbackRuntimeValue(metadata: PropertyRegistryEntry): EditorValue {
 function readPanelValue(property: PanelProperty): string | number | boolean | null {
   if (property.runtimeProperty) return property.runtimeProperty.read()
   const metadata = property.metadata
+  if (metadata.binding?.kind === 'action' && metadata.binding.action === 'choose-media') {
+    const targetId = selectedPhotoArea.value?.id
+    return targetId
+      ? editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === targetId)?.assetId ?? ''
+      : ''
+  }
   if (metadata.binding?.kind !== 'snapshot' || !selectedEntity.value) return primitiveValue(metadata.defaultValue)
   const value = readPath(editor.draftSnapshot, bindingPath(metadata, selectedEntity.value.id))
   return primitiveValue(value ?? fallbackRuntimeValue(metadata) ?? metadata.defaultValue)
@@ -427,6 +472,10 @@ function primitiveValue(value: EditorValue): string | number | boolean | null {
 async function updatePanelProperty(property: PanelProperty, value: string | number | boolean): Promise<void> {
   const entity = selectedEntity.value
   if (!entity || !isPanelPropertyEnabled(property)) return
+  if (property.metadata.binding?.kind === 'action' && property.metadata.binding.action === 'choose-media') {
+    await chooseExistingMedia(String(value), property.metadata.commandType)
+    return
+  }
   if (property.runtimeProperty) {
     await writeRuntimeProperty(entity, property.runtimeProperty, value)
     return
@@ -472,10 +521,46 @@ async function handlePropertyFile(property: PanelProperty, file: File): Promise<
   await uploadSelectedMedia(file, property.metadata.commandType)
 }
 
-function handlePropertyAction(property: PanelProperty): void {
-  if (property.metadata.binding?.kind === 'action' && property.metadata.binding.action === 'choose-media') {
-    saveStatus.value = 'Repository-backed media picker is not available yet.'
+function handlePropertyAction(_property: PanelProperty): void {}
+
+async function chooseExistingMedia(assetId: string, commandType: EditorCommandType): Promise<void> {
+  const entity = selectedEntity.value
+  const target = selectedPhotoArea.value
+  const asset = site.current.mediaAssets.find((candidate) => candidate.id === assetId)
+  if (!entity?.photoAreaId || !target || !asset?.source) return
+
+  const currentMedia = structuredClone(toRaw(editor.draftSnapshot.media))
+  const currentAssignment = currentMedia.assignments.find((assignment) => assignment.entityId === target.id)
+  const currentReference = currentMedia.references.find((reference) => reference.assetId === asset.id)
+  if (currentAssignment?.assetId === asset.id && currentReference?.uri === asset.source) return
+
+  const nextMedia: SnapshotMediaModel = {
+    ...currentMedia,
+    references: [
+      ...currentMedia.references.filter((reference) => reference.assetId !== asset.id),
+      { assetId: asset.id, uri: asset.source, mimeType: asset.mimeType, alt: asset.alt }
+    ],
+    assignments: [
+      ...currentMedia.assignments.filter((assignment) => assignment.entityId !== target.id),
+      { entityId: target.id, role: target.role, assetId: asset.id, objectPosition: target.objectPosition }
+    ]
   }
+  editor.apply({
+    type: commandType,
+    entityId: entity.id,
+    propertyPath: 'media',
+    previousValue: currentMedia as unknown as EditorValue,
+    nextValue: nextMedia as unknown as EditorValue,
+    timestamp: Date.now(),
+    metadata: { assetId: asset.id, photoAreaId: target.id, source: 'media-library' }
+  })
+  if (isBrowserUrl(asset.source)) mediaPreviewUrls.set(asset.id, asset.source)
+  managedMediaAreaIds.add(target.id)
+  await photoRegistry.updateSource(target.id, asset.source)
+  markEditorChanged()
+  saveStatus.value = 'Existing media selected. Save Draft to persist its reference.'
+  await nextTick()
+  updateSelectedOutline()
 }
 
 async function uploadSelectedMedia(file: File, commandType: EditorCommandType): Promise<void> {
@@ -578,12 +663,56 @@ async function saveDraft(): Promise<void> {
   }
 }
 
+async function publishCurrentDraft(note: string): Promise<void> {
+  editorPublishErrors.value = []
+  if (!editor.draftRevisionId || editor.draftLockVersion === null) {
+    const error = new PublishValidationError(['Save this workspace as a Draft before publishing.'])
+    editorPublishStatus.value = 'Failed'
+    editorPublishErrors.value = error.errors
+    throw error
+  }
+  if (editorHasChanges.value || editor.hasUnsavedChanges) {
+    const error = new PublishValidationError(['Save Draft before publishing unsaved content.'])
+    editorPublishStatus.value = 'Failed'
+    editorPublishErrors.value = error.errors
+    throw error
+  }
+
+  editor.isPublishing = true
+  editorPublishStatus.value = 'Publishing...'
+  try {
+    const validation = await editorPublishRepository.validateDraft(editor.draftRevisionId)
+    if (!validation.valid) throw new PublishValidationError(validation.errors)
+    const published = await editorPublishRepository.publishDraft({
+      draftRevisionId: editor.draftRevisionId,
+      expectedPublishedRevision: editor.publishedRevisionNumber,
+      expectedDraftLockVersion: editor.draftLockVersion,
+      note
+    })
+    editor.publishedRevisionNumber = published.revision_number
+    editor.baseRevisionNumber = published.revision_number
+    editorPublishStatus.value = 'Published'
+    saveStatus.value = `Published revision #${published.revision_number}. You are still editing Draft #${editor.draftRevisionNumber ?? '-'}.`
+    invalidatePublishedRuntimeCache(published.revision_number)
+  } catch (error) {
+    editorPublishStatus.value = 'Failed'
+    if (error instanceof PublishValidationError) editorPublishErrors.value = error.errors
+    else if (error instanceof PublishConflictError) editorPublishErrors.value = [error.message]
+    else editorPublishErrors.value = [error instanceof Error ? error.message : 'Publish failed.']
+    throw error
+  } finally {
+    editor.isPublishing = false
+  }
+}
+
 async function discardDraft(): Promise<void> {
   if (editor.draftRevisionId && !window.confirm('Discard this Draft? The Published site will not be changed.')) return
   try {
     await editorDraftRepository.discardDraft(editor.draftRevisionId ?? undefined)
     const published = await guestPublishedRepository.loadPublishedSnapshot()
-    const snapshot = published?.snapshot ?? publishedBaseline.value ?? createEditorSnapshot(toRaw(site.current))
+    const snapshot = published
+      ? await guestPublishedRepository.resolvePublishedMedia(published.snapshot)
+      : publishedBaseline.value ?? createEditorSnapshot(toRaw(site.current))
     publishedBaseline.value = structuredClone(snapshot)
     editor.initialize(snapshot, {
       publishedRevisionNumber: published?.revision.revision_number ?? null,
@@ -918,7 +1047,7 @@ function cancelLibrarySwitch(): void {
         <div class="preview-frame" :style="previewFrameStyle">
           <div ref="previewStage" class="preview-stage" :style="previewStageStyle">
             <div class="editor-preview-runtime" data-editor-mode="true" @click.capture="selectPreviewEntity">
-              <HomePage />
+              <HomePage editor-preview />
             </div>
           </div>
         </div>

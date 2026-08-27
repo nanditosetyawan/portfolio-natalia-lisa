@@ -28,7 +28,7 @@
           </div>
         </div>
 
-        <div class="card card-published">
+        <div class="card card-published card-link" role="button" tabindex="0" aria-label="Open Publish History" @click="goToPublished" @keydown.enter="goToPublished" @keydown.space.prevent="goToPublished">
           <div class="card-image">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
               <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -51,6 +51,7 @@
               <h2 class="card-published-title">Published</h2>
             </div>
             <p class="card-published-desc">{{ publishedRevision === null ? 'No active Published Snapshot' : `Live revision #${publishedRevision}` }}</p>
+            <p class="card-published-date">{{ publishedAt ? `Published ${formatPublishedDate(publishedAt)}` : 'Open Publish History' }}</p>
             <div class="card-bottom">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 22L12 6L9 9L12 12L15 9L12 6"/>
@@ -144,9 +145,15 @@ const router = useRouter()
 const goToMessages = () => router.push({ name: 'admin-messages' })
 const goToDrafts = () => router.push({ name: 'admin-drafts' })
 const goToFavorites = () => router.push({ name: 'admin-favorites' })
+const goToPublished = () => router.push({ name: 'admin-published' })
 const draftCount = ref(0)
 const favoriteCount = ref(0)
 const publishedRevision = ref<number | null>(null)
+const publishedAt = ref<string | null>(null)
+
+function formatPublishedDate(value: string): string {
+  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Asia/Jakarta' }).format(new Date(value))
+}
 
 const clockTime = ref('-- : -- : --')
 let timer: ReturnType<typeof setInterval> | null = null
@@ -226,6 +233,7 @@ onMounted(async () => {
     draftCount.value = drafts
     favoriteCount.value = favorites
     publishedRevision.value = published?.revision.revision_number ?? null
+    publishedAt.value = published?.revision.published_at ?? null
   } catch { /* dashboard remains usable while data is unavailable */ }
   await syncTime()
   updateClock()
@@ -262,7 +270,7 @@ onUnmounted(() => {
 
 .dashboard-row2 {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
 
@@ -363,11 +371,14 @@ onUnmounted(() => {
 }
 
 .card-clock,
-.card-favorite {
+.card-favorite,
+.card-message {
   min-height: 200px;
   padding-top: 36px;
   padding-bottom: 36px;
 }
+
+.card-published-date { margin: 0; color: #9a7d70; font-size: .75rem; }
 
 .card-clock {
   flex-direction: row;
@@ -392,27 +403,22 @@ onUnmounted(() => {
 }
 
 .card-favorite {
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-direction: row;
+  gap: 1rem;
   align-items: center;
-  text-align: center;
-}
-
-.card-favorite .card-image,
-.card-favorite .card-content {
-  width: 100%;
+  text-align: left;
 }
 
 .card-favorite-title {
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
   color: #5A3E35;
-  font-size: 0.875rem;
+  font-size: 1.125rem;
 }
 
 .card-favorite-desc {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #7B5F3B;
 }
 
@@ -470,12 +476,12 @@ onUnmounted(() => {
   margin: 0 0 2px 0;
   font-weight: 700;
   color: #8D363A;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
 }
 
 .card-message-desc {
   margin: 0 0 6px 0;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #7B5F3B;
 }
 

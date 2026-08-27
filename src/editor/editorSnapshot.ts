@@ -1,4 +1,6 @@
-import type { SiteSnapshot } from '../data/default/site'
+import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/site'
+import type { CertificateCard } from '../data/default/certificates'
+import type { MediaUsage, PhotoAreaEntity } from '../types/site'
 import {
   EDITOR_SNAPSHOT_READER_VERSION,
   EDITOR_SNAPSHOT_SCHEMA_VERSION,
@@ -172,4 +174,107 @@ export function deserializeEditorSnapshot(serialized: string): EditorSnapshot {
   const result = validateEditorSnapshot(parsed)
   if (!result.valid || !result.value) throw new Error(`Invalid EditorSnapshot: ${result.errors.join(' ')}`)
   return result.value
+}
+
+/**
+ * The one canonical EditorSnapshot -> section-runtime adapter. Both preview
+ * hydration and the Published Guest Runtime use the same domain mapping so
+ * snapshot logic is not duplicated in repositories or Vue components.
+ */
+export function editorSnapshotToSiteSnapshot(snapshot: EditorSnapshot): SiteSnapshot {
+  const validation = validateEditorSnapshot(snapshot)
+  if (!validation.valid || !validation.value) throw new Error(`Cannot hydrate invalid EditorSnapshot: ${validation.errors.join(' ')}`)
+  const source = validation.value
+  const defaults = createDefaultSiteSnapshot()
+  const assetsById = new Map(source.media.references.map((reference) => [reference.assetId, reference]))
+  const assignmentsByEntity = new Map(source.media.assignments.map((assignment) => [assignment.entityId, assignment]))
+  const defaultUsages = new Map(defaults.mediaUsages.map((usage) => [usage.id, usage]))
+  const usageIds = new Set([
+    source.content.profile.mediaUsageId,
+    source.content.contact.personMediaUsageId,
+    ...defaults.mediaUsages.map((usage) => usage.id)
+  ])
+
+  const mediaUsages = source.media.assignments.flatMap<MediaUsage>((assignment) => {
+    if (!usageIds.has(assignment.entityId)) return []
+    const fallback = defaultUsages.get(assignment.entityId)
+    const ownerType: MediaUsage['ownerType'] = fallback?.ownerType
+      ?? (assignment.entityId === source.content.profile.mediaUsageId ? 'profile' : assignment.entityId === source.content.contact.personMediaUsageId ? 'contact' : 'about')
+    const ownerId = fallback?.ownerId
+      ?? (ownerType === 'profile' ? source.content.profile.id : ownerType === 'contact' ? source.content.contact.id : source.content.about.id)
+    return [{
+      id: assignment.entityId,
+      ownerType,
+      ownerId,
+      role: assignment.role,
+      mediaAssetId: assignment.assetId,
+      objectPosition: assignment.objectPosition ?? fallback?.objectPosition ?? '50% 50%'
+    }]
+  })
+
+  const photoArea = (area: Omit<PhotoAreaEntity, 'source' | 'objectPosition'> & { objectPosition: string }): PhotoAreaEntity => {
+    const assignment = assignmentsByEntity.get(area.id)
+    const reference = assignment ? assetsById.get(assignment.assetId) : undefined
+    return {
+      ...area,
+      source: reference?.uri ?? '',
+      objectPosition: assignment?.objectPosition ?? area.objectPosition
+    }
+  }
+
+  const photoAreas: PhotoAreaEntity[] = [
+    photoArea({ id: 'about-frame-back-2', ownerType: 'about', ownerId: source.content.about.id, role: 'frame-back', section: 'About', label: 'Back 2', objectPosition: source.visual.about.frameBack2Image.objectPosition, persistence: 'runtime' }),
+    photoArea({ id: 'about-frame-main', ownerType: 'about', ownerId: source.content.about.id, role: 'frame-main', section: 'About', label: 'Main', objectPosition: source.visual.about.frameMainImage.objectPosition, persistence: 'runtime' }),
+    ...source.content.college.items.flatMap((item) => [
+      photoArea({ id: item.frameIds.back, ownerType: 'college-entry', ownerId: item.id, role: 'frame-back', section: 'College', label: `${item.school} back`, objectPosition: source.visual.college.frameBackImage.objectPosition, persistence: 'runtime' }),
+      photoArea({ id: item.frameIds.front, ownerType: 'college-entry', ownerId: item.id, role: 'frame-front', section: 'College', label: `${item.school} front`, objectPosition: source.visual.college.frameFrontImage.objectPosition, persistence: 'runtime' })
+    ]),
+    ...source.content.shs.items.flatMap((item) => [
+      photoArea({ id: item.frameIds.back, ownerType: 'shs-entry', ownerId: item.id, role: 'frame-back', section: 'SHS', label: `${item.school} back`, objectPosition: source.visual.shs.frameBackImage.objectPosition, persistence: 'runtime' }),
+      photoArea({ id: item.frameIds.front, ownerType: 'shs-entry', ownerId: item.id, role: 'frame-front', section: 'SHS', label: `${item.school} front`, objectPosition: source.visual.shs.frameFrontImage.objectPosition, persistence: 'runtime' })
+    ]),
+    ...source.content.experience.items.map((item) => photoArea({
+      id: item.frameId,
+      ownerType: 'experience-entry',
+      ownerId: item.id,
+      role: 'frame',
+      section: 'Experience',
+      label: item.title,
+      objectPosition: source.visual.experience.imageFrames[item.frameId]?.image.objectPosition ?? '50% 50%',
+      persistence: 'runtime'
+    }))
+  ]
+
+  return {
+    content: clone(source.content),
+    visual: clone(source.visual),
+    behavior: clone(source.behavior),
+    mediaAssets: source.media.references.map((reference) => ({
+      id: reference.assetId,
+      source: reference.uri,
+      alt: reference.alt ?? reference.assetId,
+      mimeType: reference.mimeType ?? ''
+    })),
+    mediaUsages,
+    photoAreas
+  }
+}
+
+export function editorSnapshotToCertificateCards(snapshot: EditorSnapshot): CertificateCard[] {
+  const references = new Map(snapshot.media.references.map((reference) => [reference.assetId, reference]))
+  const assignments = new Map(snapshot.media.assignments.map((assignment) => [assignment.entityId, assignment]))
+  const applyMedia = <T extends CertificateCard['thumbnail']>(area: T): T => {
+    const assignment = assignments.get(area.id)
+    const reference = assignment ? references.get(assignment.assetId) : undefined
+    return {
+      ...clone(area),
+      source: reference?.uri ?? area.source,
+      image: { ...clone(area.image), objectPosition: assignment?.objectPosition ?? area.image.objectPosition }
+    }
+  }
+  return snapshot.certificateCards.map((card) => ({
+    ...clone(card),
+    thumbnail: applyMedia(card.thumbnail),
+    detailImages: card.detailImages.map(applyMedia)
+  }))
 }

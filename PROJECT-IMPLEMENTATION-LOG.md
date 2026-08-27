@@ -4098,3 +4098,57 @@ BLOCKED pending user choice: recompose the two existing frames to match `college
 - Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,939 modules transformed; `git diff --check` PASS with normal LF/CRLF warnings only.
 - Remaining blockers: apply/verify migration remotely; execute authenticated browser acceptance; consider replacing native switch confirmation with explicit Save/Discard/Cancel modal before phase sign-off; Phase 029G Publish remains pending.
 - Final status: `PARTIAL / IMPLEMENTED`; implementation and static validation are complete, but remote/runtime acceptance evidence is not complete.
+
+## Request #133 - CONTINUE PHASE-029F-R3 AFTER AI LIMIT RESET
+
+- Date: 2026-08-27 (Asia/Jakarta).
+- Execution mode: resume the interrupted Phase 029F-R3 from repository commit `531cfb8`; no new phase was created and Phase 029G was not started.
+- User instruction: reconstruct the current checkpoint, complete Cloud migration/PGRST205 readiness, editor selection/outline/FONT-MEDIA behavior, Draft/Favorite/dashboard/source-modal acceptance, final static validation, report, and an explicit completeness audit.
+- Skills used: `.agents/skills/supabase/SKILL.md` and `.agents/skills/supabase-postgres-best-practices/SKILL.md` for Cloud metadata, RLS, grants, RPC, atomicity, and migration verification.
+- Sources consulted: latest 200 log lines, supplied `AGENTS.md`, current R3 source files, R2 report, migrations `0014` through `0018`, repository/runtime tests, and the rendered editor/dashboard screenshots. `PHASE-029F-R3-CLOUD-EDITOR-E2E-FIX.md` was absent at resume. No `design/` or relevant editor Markdown specification was present in this checkout.
+- Reconstructed state: worktree was clean because the pre-limit R3 implementation and migrations had already been committed. Cloud migrations, schema-cache reload, atomic-lock/limit/RLS tests, editor selection, outline, metadata panel, libraries, Dashboard, plus modal, and initial in-memory E2E had been completed before the limit; report/log and final reruns remained incomplete.
+- Cloud verification: remote `site_revisions` and `editor_favorites` exist with RLS enabled; expected columns and foreign keys are present; `save_editor_draft`, discard, add Favorite, and remove Favorite RPCs are security-invoker; anon lacks SELECT/EXECUTE while authenticated has required grants; migration history includes all five R3 migrations. The app PostgREST path returns `42501 permission denied` for anonymous, not `PGRST205`, proving schema-cache reachability and anonymous isolation.
+- Pre-limit remote transaction evidence retained: stale `lock_version` rejection, Draft #11 denial, Favorite #9 denial, Favorite-only removal, Draft cascade delete, and rollback cleanup passed without retained fixtures.
+- Files modified during resume: `src/editor/propertyRegistry.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/PropertyControl.vue`, `src/pages/admin/AdminDashboard.vue`, `tests/editor-r3-runtime.mjs`, `artifacts/phase-029f-r3-editor-runtime.png`, and this log.
+- Files created during resume: `PHASE-029F-R3-CLOUD-EDITOR-E2E-FIX.md`, `artifacts/phase-029f-r3-media-panel-runtime.png`, and `artifacts/phase-029f-r3-dashboard-runtime.png`.
+- Resumed implementation: replaced the disabled media-picker placeholder with a repository-backed metadata select using real Site repository assets; added command/live-preview assignment; preserved the generic category-agnostic renderer; improved Favorite Dashboard card consistency; added bootstrap diagnostics and repository-media assertions to the browser harness.
+- Runtime evidence: final isolated browser E2E PASS for preview/manual selection, no typing jump, Certificate snapshot binding, transparent selected outline, FONT/MEDIA order, native dependencies, repository media selection, draft media staging, live preview, Undo/Redo/history limit, same-ID saves, restore, plus modal, Draft/Favorite semantics, and Dashboard counts/navigation. Harness output explicitly records `authenticatedCloudSession:false` and `publishExecuted:false`.
+- Visual evidence: editor, MEDIA panel, selected outline, and Dashboard screenshots were captured and visually inspected. Favorite card inconsistency found in the first dashboard screenshot was corrected and rerendered. Formal design-reference comparison was unavailable because no design reference exists in the checkout.
+- Validation: final `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,939 modules; `git diff --check` PASS.
+- Protected/not implemented: Publish Pipeline, Published Snapshot activation, Guest Runtime cutover, published media promotion, Storage redesign, and normalized runtime-table replacement.
+- Remaining blocker: no authenticated Admin CDP session or safe credential was available. A real Cloud browser Save/refresh/Favorite/delete sequence was therefore not run; no screenshot or Cloud persistence claim was fabricated. Database/RPC readiness and in-memory app behavior are verified, but authenticated Cloud E2E remains pending.
+- Completeness result: Parts A-G, I-K, M-N PASS; Parts H and L PARTIAL only for the missing authenticated Cloud browser sequence. No required step was silently skipped because of the prior AI limit.
+- Final status: `PARTIAL / IMPLEMENTED AND STATICALLY VERIFIED`; PGRST205 and source/runtime issues are resolved, while authenticated Cloud Save Draft E2E remains the sole sign-off blocker.
+
+
+PHASE 029F-R3
+
+Status:
+PASS
+
+Cloud authenticated browser acceptance:
+PASS
+
+Remaining blocker:
+NONE
+
+Ready for Phase 029G.
+
+
+Authenticated Admin Cloud acceptance completed.
+
+Verified:
+
+✓ Save Draft
+✓ Repeat Save updates same Draft
+✓ Reload restores Draft
+✓ Favorite add/remove
+✓ Delete Draft
+✓ Favorite cascade
+✓ Dashboard counters
+✓ Guest runtime unchanged
+
+Verdict:
+
+PASS
+

@@ -131,7 +131,12 @@ try {
   await send('Log.enable')
   await send('Page.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
-  await waitFor(`Boolean(document.querySelector('#app')?.__vue_app__)`)
+  try {
+    await waitFor(`Boolean(document.querySelector('#app')?.__vue_app__)`)
+  } catch (error) {
+    const diagnostics = await evaluate(`({url:location.href,body:document.body.innerText.slice(0,1200),html:document.documentElement.innerHTML.slice(0,1200)})`)
+    throw new Error(`${error.message}; bootstrap=${JSON.stringify(diagnostics)}; vite=${viteErrors}; browser=${browserErrors}; runtime=${runtimeErrors.join(' | ')}`)
+  }
   await evaluate(`(async()=>{
     const authModule=await import('/src/stores/auth.ts');
     const router=(await import('/src/router/index.ts')).default;
@@ -197,6 +202,14 @@ try {
   assert(certificateResult.selected === certificateResult.cardId && certificateResult.section === 'Certificate', 'Certificate preview selection failed')
   assert(certificateResult.snapshotTitle === 'CERTIFICATE R3' && certificateResult.previewTitle === 'CERTIFICATE R3', 'Certificate did not bind through EditorSnapshot/live preview')
 
+  await evaluate(`(()=>{
+    const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;
+    const site=pinia._s.get('site');
+    const source=site.current.mediaAssets[0]?.source;
+    if(source&&!site.current.mediaAssets.some(asset=>asset.id==='media-runtime-secondary'))site.current.mediaAssets.push({id:'media-runtime-secondary',source,alt:'Runtime media library fixture',mimeType:'image/webp'});
+    return true;
+  })()`)
+
   const mediaResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-entity-id="portfolio-profile-media"]'); image.click(); await tick();
@@ -210,6 +223,8 @@ try {
     const after=outlineWidth.disabled;
     const width=document.querySelector('[data-property-key="media.width"]');
     width.value='280px'; width.dispatchEvent(new Event('input',{bubbles:true})); await tick();
+    choose.value='media-runtime-secondary'; choose.dispatchEvent(new Event('change',{bubbles:true})); await tick();
+    const assignment=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media');
     return {
       selected:editor.selectedEntityId,
       section:editor.selectedSection,
@@ -217,6 +232,9 @@ try {
       before,
       after,
       chooseDisabled:choose.disabled,
+      chooseTag:choose.tagName,
+      chooseOptions:choose.options.length,
+      chosenAsset:assignment?.assetId,
       hoverDisabled:hover.disabled,
       width:editor.draftSnapshot.layout['portfolio-profile-media'].width,
       inlineWidth:image.style.width,
@@ -227,7 +245,9 @@ try {
   })()`)
   assert(mediaResult.selected === 'portfolio-profile-media' && mediaResult.section === 'Portfolio' && mediaResult.accordion === 'media', 'media preview selection failed')
   assert(mediaResult.before && !mediaResult.after, 'Outline thickness dependency did not toggle native disabled')
-  assert(mediaResult.chooseDisabled && mediaResult.hoverDisabled, 'unsupported MEDIA controls are not natively disabled')
+  assert(!mediaResult.chooseDisabled && mediaResult.chooseTag === 'SELECT' && mediaResult.chooseOptions >= 2, 'repository-backed media selector is unavailable')
+  assert(mediaResult.chosenAsset === 'media-runtime-secondary' && mediaResult.selected === 'portfolio-profile-media', 'Choose from Media did not update the selected media entity')
+  assert(mediaResult.hoverDisabled, 'unsupported MEDIA Hover is not natively disabled')
   assert(mediaResult.width === '280px' && mediaResult.inlineWidth === '280px', 'MEDIA width did not bind to snapshot/live preview')
   assert(mediaResult.outlined && mediaResult.outlineStyle !== 'none' && mediaResult.outlineWidth === '3px', 'selected media outline is not visible')
   await mkdir(path.join(projectRoot, 'artifacts'), { recursive: true })

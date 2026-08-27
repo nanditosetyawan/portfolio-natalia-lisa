@@ -78,6 +78,7 @@ function onClick() {
     @change="onChange"
     @click="onClick"
   >
+    <option v-if="property.control === 'select' && property.placeholder" value="" disabled>{{ property.placeholder }}</option>
     <option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option>
     <template v-if="property.control === 'button'">{{ property.label }}</template>
   </component>

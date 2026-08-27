@@ -1,1 +1,6 @@
 @import "tailwindcss";
+/* Published Snapshot hover state. This is Guest Runtime styling only; editor
+   selection/hover overlays remain scoped to AdminEdit.vue. */
+.published-runtime-hover-color:hover {
+  color: var(--published-hover-color) !important;
+}
