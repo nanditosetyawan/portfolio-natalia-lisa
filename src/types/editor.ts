@@ -1,7 +1,21 @@
 import type { EditorSnapshot } from './editorSnapshot'
 
 export type EditorValue = string | number | boolean | null | undefined | unknown[] | Record<string, unknown>
-export type EditorControl = 'text' | 'textarea' | 'number' | 'color' | 'select' | 'checkbox' | 'file' | 'button' | 'readonly' | 'custom'
+export type EditorControl =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'color'
+  | 'select'
+  | 'checkbox'
+  | 'file'
+  | 'button'
+  | 'readonly'
+  | 'custom'
+  | 'toggle-text'
+  | 'toggle-color'
+  | 'segmented'
+  | 'thumbnail'
 export type EditorPropertyType = 'string' | 'number' | 'boolean' | 'color' | 'asset' | 'enum' | 'metadata'
 export type BuiltInEditorObjectType = 'Text' | 'Image' | 'Button' | 'Container' | 'Background' | 'Divider' | 'Icon'
 export type EditorObjectType = BuiltInEditorObjectType | (string & {})
@@ -9,7 +23,7 @@ export type EditorObjectType = BuiltInEditorObjectType | (string & {})
 export type PropertyBinding =
   | { kind: 'snapshot'; path: string }
   | { kind: 'runtime'; path: string }
-  | { kind: 'action'; action: 'upload-media' | 'choose-media' | 'replace-media' }
+  | { kind: 'action'; action: 'upload-media' | 'choose-media' | 'replace-media' | 'set-media-crop' | 'set-media-fit' | 'preview-media' }
   | { kind: 'metadata'; field: 'objectId' | 'objectType' | 'capabilities' | 'validationStatus' | 'section' | 'layer' }
 
 export type EditorCommandType =
@@ -19,6 +33,13 @@ export type EditorCommandType =
   | 'REPLACE_MEDIA'
   | 'DELETE_MEDIA'
   | 'PASTE_STYLE'
+  | 'NUDGE'
+  | 'ALIGN'
+  | 'DISTRIBUTE'
+  | 'REORDER'
+  | 'RENAME'
+  | 'DELETE_OBJECT'
+  | 'DUPLICATE_OBJECT'
 
 export interface EditorCommandChange {
   propertyPath: string
@@ -47,6 +68,14 @@ export interface EntityDescriptor {
   parentLayerId: string
   capabilities: string[]
   propertyValues: Record<string, EditorValue>
+  ux?: EditorObjectUxMetadata
+}
+
+export interface EditorObjectUxMetadata {
+  /** Canonical array path used by generic duplicate/delete commands when the object is repeatable. */
+  collectionPath?: string
+  /** Existing canonical visual path used by media fit controls when that object exposes one. */
+  mediaFitPath?: string
 }
 
 export interface EditorObject extends EntityDescriptor {
@@ -135,6 +164,11 @@ export interface PropertyRegistryEntry {
   readOnly?: boolean
   unit?: string
   options?: Array<{ label: string; value: string }>
+  searchTerms?: string[]
+  step?: number
+  minimum?: number
+  maximum?: number
+  enabledValue?: EditorValue
   visibilityRule?: (context: PropertyVisibilityContext) => boolean
   enabledRule?: (context: PropertyVisibilityContext) => boolean
   dependencyKeys?: string[]

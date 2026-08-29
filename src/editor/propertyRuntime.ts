@@ -9,8 +9,10 @@ interface ElementBaseline {
 }
 
 interface RuntimeScope {
-  baselines: WeakMap<HTMLElement, ElementBaseline>
-  touched: Set<HTMLElement>
+  objects: Map<string, {
+    baselines: WeakMap<HTMLElement, ElementBaseline>
+    touched: Set<HTMLElement>
+  }>
 }
 
 const scopes = new WeakMap<HTMLElement, RuntimeScope>()
@@ -18,16 +20,25 @@ const scopes = new WeakMap<HTMLElement, RuntimeScope>()
 function scopeFor(root: HTMLElement): RuntimeScope {
   const existing = scopes.get(root)
   if (existing) return existing
-  const scope: RuntimeScope = { baselines: new WeakMap(), touched: new Set() }
+  const scope: RuntimeScope = { objects: new Map() }
   scopes.set(root, scope)
   return scope
 }
 
-function baselineFor(scope: RuntimeScope, element: HTMLElement): ElementBaseline {
-  const existing = scope.baselines.get(element)
+function objectScopeFor(scope: RuntimeScope, objectId: string) {
+  const existing = scope.objects.get(objectId)
+  if (existing) return existing
+  const created = { baselines: new WeakMap<HTMLElement, ElementBaseline>(), touched: new Set<HTMLElement>() }
+  scope.objects.set(objectId, created)
+  return created
+}
+
+function baselineFor(scope: RuntimeScope, objectId: string, element: HTMLElement): ElementBaseline {
+  const objectScope = objectScopeFor(scope, objectId)
+  const existing = objectScope.baselines.get(element)
   if (existing) return existing
   const baseline: ElementBaseline = { styles: new Map(), classes: new Map() }
-  scope.baselines.set(element, baseline)
+  objectScope.baselines.set(element, baseline)
   return baseline
 }
 
@@ -36,9 +47,11 @@ function elementsForObject(root: HTMLElement, objectId: string): HTMLElement[] {
     .filter((element) => objectDatasetKeys.some((key) => element.dataset[key] === objectId))
 }
 
-function restoreScope(scope: RuntimeScope): void {
-  for (const element of scope.touched) {
-    const baseline = scope.baselines.get(element)
+function restoreObjectScope(scope: RuntimeScope, objectId: string): void {
+  const objectScope = scope.objects.get(objectId)
+  if (!objectScope) return
+  for (const element of objectScope.touched) {
+    const baseline = objectScope.baselines.get(element)
     if (!baseline) continue
     for (const [property, value] of baseline.styles) {
       if (value) element.style.setProperty(property, value)
@@ -46,7 +59,11 @@ function restoreScope(scope: RuntimeScope): void {
     }
     for (const [className, enabled] of baseline.classes) element.classList.toggle(className, enabled)
   }
-  scope.touched.clear()
+  objectScope.touched.clear()
+}
+
+function restoreScope(scope: RuntimeScope): void {
+  for (const objectId of scope.objects.keys()) restoreObjectScope(scope, objectId)
 }
 
 export function restoreRegisteredSnapshotProperties(root: HTMLElement): void {
@@ -58,38 +75,52 @@ export function applyRegisteredSnapshotProperties(root: HTMLElement, snapshot: E
   const scope = scopeFor(root)
   restoreScope(scope)
 
+  const objectIds = new Set<string>()
   for (const property of propertyRegistry) {
     const mapping = property.databaseMapping
     if (mapping.kind !== 'snapshot' || !mapping.path.includes('{entityId}')) continue
     const [recordPrefix] = mapping.path.split('{entityId}')
-    const recordPath = recordPrefix.replace(/\.$/, '')
-    const record = readSnapshotPath(snapshot, recordPath)
+    const record = readSnapshotPath(snapshot, recordPrefix.replace(/\.$/, ''))
     if (!record || typeof record !== 'object' || Array.isArray(record)) continue
+    for (const objectId of Object.keys(record as Record<string, unknown>)) objectIds.add(objectId)
+  }
+  for (const objectId of objectIds) applyRegisteredObjectProperties(root, snapshot, objectId, false)
+}
 
-    for (const objectId of Object.keys(record as Record<string, unknown>)) {
-      const path = resolvePropertyPath(property, objectId)
-      if (!path) continue
-      const rawValue = readSnapshotPath(snapshot, path)
-      if (rawValue === undefined) continue
-      const value = property.serializer.deserialize(rawValue)
-      for (const element of elementsForObject(root, objectId)) {
-        const baseline = baselineFor(scope, element)
-        scope.touched.add(element)
-        property.previewUpdater.update({
-          element,
-          entityId: objectId,
-          snapshot,
-          setStyle: (styleName, nextValue) => {
-            if (!baseline.styles.has(styleName)) baseline.styles.set(styleName, element.style.getPropertyValue(styleName))
-            if (nextValue) element.style.setProperty(styleName, nextValue)
-            else element.style.removeProperty(styleName)
-          },
-          toggleClass: (className, enabled) => {
-            if (!baseline.classes.has(className)) baseline.classes.set(className, element.classList.contains(className))
-            element.classList.toggle(className, enabled)
-          }
-        }, value)
-      }
+export function applyRegisteredObjectProperties(
+  root: HTMLElement,
+  snapshot: EditorSnapshot,
+  objectId: string,
+  restore = true
+): void {
+  const scope = scopeFor(root)
+  if (restore) restoreObjectScope(scope, objectId)
+
+  for (const property of propertyRegistry) {
+    const mapping = property.databaseMapping
+    if (mapping.kind !== 'snapshot' || !mapping.path.includes('{entityId}')) continue
+    const path = resolvePropertyPath(property, objectId)
+    if (!path) continue
+    const rawValue = readSnapshotPath(snapshot, path)
+    if (rawValue === undefined) continue
+    const value = property.serializer.deserialize(rawValue)
+    for (const element of elementsForObject(root, objectId)) {
+      const baseline = baselineFor(scope, objectId, element)
+      objectScopeFor(scope, objectId).touched.add(element)
+      property.previewUpdater.update({
+        element,
+        entityId: objectId,
+        snapshot,
+        setStyle: (styleName, nextValue) => {
+          if (!baseline.styles.has(styleName)) baseline.styles.set(styleName, element.style.getPropertyValue(styleName))
+          if (nextValue) element.style.setProperty(styleName, nextValue)
+          else element.style.removeProperty(styleName)
+        },
+        toggleClass: (className, enabled) => {
+          if (!baseline.classes.has(className)) baseline.classes.set(className, element.classList.contains(className))
+          element.classList.toggle(className, enabled)
+        }
+      }, value)
     }
   }
 }

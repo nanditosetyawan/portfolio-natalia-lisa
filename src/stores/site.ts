@@ -34,6 +34,8 @@ export const useSiteStore = defineStore('site', {
     isLoading: false,
     errorMessage: '',
     publishedRuntimeStatus: 'loading' as 'loading' | 'ready' | 'unavailable' | 'error',
+    guestRuntimeSource: null as 'default' | 'published' | null,
+    defaultRuntimeTemplateVersion: null as number | null,
     publishedRevisionNumber: null as number | null,
     publishedAt: null as string | null
   }),
@@ -59,8 +61,19 @@ export const useSiteStore = defineStore('site', {
     },
     hydratePublishedRuntime(snapshot: SiteSnapshot, revision: { revisionNumber: number; publishedAt: string | null }) {
       hydrateInPlace(this.current, snapshot)
+      this.guestRuntimeSource = 'published'
+      this.defaultRuntimeTemplateVersion = null
       this.publishedRevisionNumber = revision.revisionNumber
       this.publishedAt = revision.publishedAt
+      this.publishedRuntimeStatus = 'ready'
+      this.errorMessage = ''
+    },
+    hydrateDefaultRuntime(snapshot: SiteSnapshot, templateVersion: number) {
+      hydrateInPlace(this.current, snapshot)
+      this.guestRuntimeSource = 'default'
+      this.defaultRuntimeTemplateVersion = templateVersion
+      this.publishedRevisionNumber = null
+      this.publishedAt = null
       this.publishedRuntimeStatus = 'ready'
       this.errorMessage = ''
     },
@@ -74,12 +87,16 @@ export const useSiteStore = defineStore('site', {
     },
     markPublishedRuntimeUnavailable() {
       this.publishedRuntimeStatus = 'unavailable'
+      this.guestRuntimeSource = null
+      this.defaultRuntimeTemplateVersion = null
       this.publishedRevisionNumber = null
       this.publishedAt = null
       this.errorMessage = 'No active Published Snapshot.'
     },
     markPublishedRuntimeError(message: string) {
       this.publishedRuntimeStatus = 'error'
+      this.guestRuntimeSource = null
+      this.defaultRuntimeTemplateVersion = null
       this.publishedRevisionNumber = null
       this.publishedAt = null
       this.errorMessage = message

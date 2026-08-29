@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import PortfolioSection from '../../sections/portfolio/PortfolioSection.vue'
 import AboutSection from '../../sections/about/AboutSection.vue'
 import EducationGlobal from '../../components/EducationGlobal.vue'
@@ -7,27 +7,40 @@ import ExperienceSection from '../../sections/experience/ExperienceSection.vue'
 import CertificateSection from '../../sections/certificate/CertificateSection.vue'
 import ContactSection from '../../sections/contact/ContactSection.vue'
 import { useSiteStore } from '../../stores/site'
-import { activePublishedEditorSnapshot, initializePublishedRuntime } from '../../runtime/publishedRuntime'
+import {
+  activeGuestEditorSnapshot,
+  initializePublishedRuntime,
+  subscribePublishedRuntimeInvalidation
+} from '../../runtime/publishedRuntime'
 import { applyPublishedSnapshotDom } from '../../runtime/publishedSnapshotDom'
 
-defineProps<{ editorPreview?: boolean }>()
+const props = defineProps<{ editorPreview?: boolean }>()
 
 const site = useSiteStore()
 const runtimeRoot = ref<HTMLElement | null>(null)
+let unsubscribeRuntimeInvalidation: (() => void) | null = null
+const guestRuntimeReady = props.editorPreview ? null : initializePublishedRuntime()
 
 async function applyPublishedStyles(): Promise<void> {
   await nextTick()
-  if (runtimeRoot.value && activePublishedEditorSnapshot.value) applyPublishedSnapshotDom(runtimeRoot.value, activePublishedEditorSnapshot.value)
+  if (!props.editorPreview && runtimeRoot.value && activeGuestEditorSnapshot.value) {
+    applyPublishedSnapshotDom(runtimeRoot.value, activeGuestEditorSnapshot.value)
+  }
 }
 
 async function retryPublishedRuntime(): Promise<void> {
   site.publishedRuntimeStatus = 'loading'
-  await initializePublishedRuntime()
+  await initializePublishedRuntime({ force: true })
   await applyPublishedStyles()
 }
 
-onMounted(applyPublishedStyles)
-watch(activePublishedEditorSnapshot, applyPublishedStyles)
+onMounted(async () => {
+  if (guestRuntimeReady) await guestRuntimeReady
+  await applyPublishedStyles()
+  if (!props.editorPreview) unsubscribeRuntimeInvalidation = subscribePublishedRuntimeInvalidation()
+})
+onUnmounted(() => unsubscribeRuntimeInvalidation?.())
+watch(activeGuestEditorSnapshot, applyPublishedStyles)
 </script>
 
 <template>

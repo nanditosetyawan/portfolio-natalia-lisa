@@ -12,11 +12,10 @@ app.use(pinia)
 app.use(router)
 
 async function bootstrap(): Promise<void> {
-  await Promise.all([
-    useAuthStore().initialize(),
-    initializePublishedRuntime()
-  ])
+  const publishedRuntime = initializePublishedRuntime()
+  await useAuthStore().initialize()
   app.mount('#app')
+  await publishedRuntime
 }
 
 void bootstrap()

@@ -4152,7 +4152,7 @@ Verdict:
 
 PASS
 
-## Request #134 - PHASE-029G-ATOMIC-PUBLISH-PIPELINE-PUBLISHED-RUNTIME
+  ## Request #134 - PHASE-029G-ATOMIC-PUBLISH-PIPELINE-PUBLISHED-RUNTIME
 
 - Date: 2026-08-28 (Asia/Jakarta).
 - Execution mode: resumed and completed the interrupted Phase 029G checkpoint; existing Auth, CRUD, Message Center, Editor Foundation, Snapshot, Property Panel, Draft Library, Favorite Library, and PUBLIC Storage bucket architecture were protected.
@@ -4197,4 +4197,24 @@ PASS
 - Static validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,966 modules transformed; `git diff --check` PASS with line-ending warnings only.
 - Known limitations: Cloud contains no persistent active Published business row after disposable cleanup; real content must be published by Admin. A one-piece authenticated HTTP browser Publish rerun was unavailable without a disposable service-role secret, so evidence combines the local browser Editor E2E and disposable Cloud transaction. Formal design comparison remains unavailable because no Phase 030 reference exists.
 - Final status: `PASS / IMPLEMENTED, LOCAL-BROWSER-VERIFIED, CLOUD-TRANSACTION-VERIFIED, AND STATICALLY VERIFIED`.
+
+## Request #136 - PHASE-030A-DEFAULT-GUEST-RUNTIME-FIRST-PUBLISH
+
+- Date: 2026-08-29 (Asia/Jakarta).
+- Execution mode: focused Guest Runtime fallback and first-Publish experience. Repository contracts, Draft, Favorite, atomic Publish/Rollback, Editor Object System, Property Registry, migrations, Storage architecture, and bucket visibility were protected.
+- User instruction: replace the healthy zero-Published unavailable page with an immutable canonical Default Snapshot; keep Published first in the load order; preserve Draft isolation; switch to Published after first Publish; keep Rollback Published-only; validate browser/runtime/cache behavior; report and self-audit.
+- Skill used: `.agents/skills/supabase/SKILL.md` for read-only Cloud Data API/RPC and bucket verification. The changelog Markdown endpoint rejected its content type, so the official filtered changelog was searched; no relevant runtime-breaking change required implementation changes.
+- Sources consulted: latest 200 project-log lines, `AGENTS.md`, Phase 029G/030 reports, current Guest bootstrap/runtime/repository/Site/Certificate/default-Snapshot sources, and existing browser harnesses. `md/` and `design/` are absent, so formal design-reference comparison was unavailable.
+- Files created: `src/runtime/defaultRuntimeSnapshot.ts`, `tests/default-guest-runtime.mjs`, `PHASE-030A-DEFAULT-GUEST-RUNTIME.md`, and screenshots `artifacts/phase-030a-default-guest.png`, `artifacts/phase-030a-first-published-guest.png`, `artifacts/phase-030a-cloud-default-guest.png`.
+- Files modified: `src/runtime/publishedRuntime.ts`, `src/stores/site.ts`, `src/pages/guest/HomePage.vue`, `src/main.ts`, and this log.
+- Default architecture: canonical typed EditorSnapshot composed from the existing original Site/Certificate defaults; 45 stable entity/object references; validation at construction; deeply frozen module source; cloned consumers; no seed row, Draft identity, Published identity, guessed visual, or duplicated runtime table.
+- Runtime behavior: Published repository is always queried first; a confirmed zero-row result hydrates Default; a real request/validation/media failure renders recoverable unavailable UI and never silently falls back; active source metadata distinguishes Default/Published; Default never populates the active-Published ref.
+- Cache/re-entry correction: source-aware in-memory cache, localStorage/Broadcast invalidation, queued consecutive invalidations, request sequencing against stale empty responses, and Guest route rehydration prevent Editor Preview memory from leaking into Guest. Embedded Editor Preview no longer applies the global Guest DOM updater.
+- Runtime evidence: local Chromium harness PASS for fresh Default, Save-only isolation, first Publish revision 1, unsaved isolation, second Publish revision 2, Rollback as Published revision 3, Draft/Favorite deletion isolation, failure/Retry UI, route re-entry, cache invalidation, and stale-response race. The final harness output records 45 Default entities and all isolation/race flags true.
+- Cloud evidence: read-only SQL found zero Published/Draft/Favorite rows, one PUBLIC `portfolio-media` bucket, one active-Published RPC, and zero active rows. Anonymous Cloud Chromium PASS rendered Default through the real active RPC and observed no Draft/Favorite/editable-table request. No Cloud mutation or migration was made.
+- Visual evidence: all three Phase 030A screenshots were opened and inspected; Default shows the complete original hero and first Published replaces its title. Formal reference comparison: `Belum dilakukan` because no `design/` source exists in this checkout.
+- Regression evidence: final Phase 030 professional Editor browser harness PASS. Repository/Publish/Rollback/Storage contracts remained unchanged. Full authenticated Cloud Publish was not rerun because no disposable service-role credential was available; unchanged Phase 029G Cloud evidence plus the new local browser Publish contract and anonymous Cloud fallback are documented separately.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with 1,967 modules; `git diff --check` PASS with line-ending warnings only.
+- Protected sources: no changes to `AGENTS.md`, `md/**`, `design/**`, repository contracts, migrations, RPCs, Draft/Favorite/Publish/Rollback architecture, Editor Object System, Property Registry, or bucket visibility.
+- Final status: `PASS / IMPLEMENTED, LOCAL-BROWSER-VERIFIED, ANONYMOUS-CLOUD-VERIFIED, REGRESSION-VERIFIED, AND STATICALLY VERIFIED`.
 

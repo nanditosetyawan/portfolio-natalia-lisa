@@ -66,9 +66,11 @@ const defaultObjectState = (): EditorObjectSessionState => ({ locked: false, hid
 export const useEditorStore = defineStore('editor', {
   state: () => ({
     selectedObjectId: '',
+    additionalSelectedObjectIds: [] as string[],
     selectedSection: '',
     activeAccordion: '' as string,
     objects: [] as EditorObject[],
+    objectSearch: '',
     styleClipboard: null as EditorStyleClipboard | null,
     draftSnapshot: createEditorSnapshot(createDefaultSiteSnapshot()) as EditorSnapshot,
     savedContentSignature: '',
@@ -83,13 +85,25 @@ export const useEditorStore = defineStore('editor', {
     isPublishing: false,
     commandHistory: [] as EditorCommand[],
     redoHistory: [] as EditorCommand[],
-    draftMediaReferences: [] as DraftMediaReference[]
+    draftMediaReferences: [] as DraftMediaReference[],
+    previewMutation: {
+      version: 0,
+      objectIds: [] as string[],
+      propertyPaths: [] as string[]
+    }
   }),
   getters: {
     canUndo: (state) => state.commandHistory.length > 0,
     canRedo: (state) => state.redoHistory.length > 0,
-    /** Compatibility alias; selectedObjectId is the only stored selection ID. */
+    /** Compatibility alias; selectedObjectId remains the primary selection anchor. */
     selectedEntityId: (state) => state.selectedObjectId,
+    selectedObjectIds: (state): string[] => state.selectedObjectId
+      ? [state.selectedObjectId, ...state.additionalSelectedObjectIds.filter((id) => id !== state.selectedObjectId)]
+      : [],
+    selectedObjects(): EditorObject[] {
+      const selected = new Set(this.selectedObjectIds)
+      return this.objects.filter((object) => selected.has(object.id))
+    },
     selectedObject: (state) => state.objects.find((object) => object.id === state.selectedObjectId),
     selectedObjectType(): string {
       return this.selectedObject?.type ?? ''
@@ -128,6 +142,7 @@ export const useEditorStore = defineStore('editor', {
       this.publishedRevisionNumber = revision.publishedRevisionNumber ?? null
       this.baseRevisionNumber = revision.baseRevisionNumber ?? revision.publishedRevisionNumber ?? null
       this.selectedObjectId = this.draftSnapshot.session.selectedEntityId
+      this.additionalSelectedObjectIds = []
       this.activeAccordion = this.draftSnapshot.session.activeAccordion
       this.selectedSection = this.draftSnapshot.session.selectedSection
       this.savedContentSignature = contentSignature(this.draftSnapshot)
@@ -136,13 +151,21 @@ export const useEditorStore = defineStore('editor', {
       this.commandHistory = []
       this.redoHistory = []
       this.styleClipboard = null
+      this.objectSearch = ''
+      this.previewMutation = {
+        version: this.previewMutation.version + 1,
+        objectIds: [],
+        propertyPaths: ['*']
+      }
     },
     registerObjects(objects: EditorObject[]) {
+      const currentById = new Map(this.draftSnapshot.entities.map((entity) => [entity.entityId, entity]))
+      const previousOrder = new Map(this.objects.map((object, index) => [object.id, index]))
       const normalizedObjects = objects.map((object) => clone({
         id: object.id,
         entityId: object.entityId,
-        name: object.name,
-        label: object.label,
+        name: currentById.get(object.id)?.label ?? object.name,
+        label: currentById.get(object.id)?.label ?? object.label,
         type: object.type,
         objectType: object.objectType,
         kind: object.kind,
@@ -152,20 +175,85 @@ export const useEditorStore = defineStore('editor', {
         order: object.order,
         capabilities: object.capabilities,
         propertyValues: object.propertyValues,
+        ux: object.ux,
         validation: object.validation
-      }))
+      })).sort((left, right) => {
+        const leftOrder = previousOrder.get(left.id)
+        const rightOrder = previousOrder.get(right.id)
+        if (leftOrder !== undefined && rightOrder !== undefined) return leftOrder - rightOrder
+        if (leftOrder !== undefined) return -1
+        if (rightOrder !== undefined) return 1
+        return left.order - right.order
+      }).map((object, order) => ({ ...object, order }))
       if (JSON.stringify(this.objects) !== JSON.stringify(normalizedObjects)) this.objects = normalizedObjects
-      const currentById = new Map(this.draftSnapshot.entities.map((entity) => [entity.entityId, entity]))
-      for (const object of objects) currentById.set(object.id, toSnapshotEntityReference(object))
+      for (const object of objects) {
+        const next = toSnapshotEntityReference(object)
+        const existing = currentById.get(object.id)
+        currentById.set(object.id, existing ? { ...next, label: existing.label } : next)
+      }
       const nextEntities = [...currentById.values()]
       if (JSON.stringify(this.draftSnapshot.entities) !== JSON.stringify(nextEntities)) this.draftSnapshot.entities = nextEntities
+      const validIds = new Set(normalizedObjects.map((object) => object.id))
+      this.additionalSelectedObjectIds = this.additionalSelectedObjectIds.filter((id) => validIds.has(id) && id !== this.selectedObjectId)
     },
     selectObject(entity: EntityDescriptor, markSession = true) {
       this.selectedObjectId = entity.entityId
+      this.additionalSelectedObjectIds = []
       this.selectedSection = entity.section
       this.draftSnapshot.session.selectedEntityId = entity.entityId
       this.draftSnapshot.session.selectedSection = entity.section
       this.draftSnapshot.session.propertySearch ??= ''
+      if (markSession) this.sessionDirty = true
+    },
+    selectObjectAdditive(entity: EntityDescriptor, markSession = true) {
+      const selected = this.selectedObjectIds
+      if (selected.includes(entity.entityId)) {
+        if (selected.length === 1) return
+        const remaining = selected.filter((id) => id !== entity.entityId)
+        const nextPrimary = entity.entityId === this.selectedObjectId ? remaining[0] : this.selectedObjectId
+        this.selectedObjectId = nextPrimary
+        this.additionalSelectedObjectIds = remaining.filter((id) => id !== nextPrimary)
+      } else {
+        const previous = this.selectedObjectId
+        this.selectedObjectId = entity.entityId
+        this.additionalSelectedObjectIds = [previous, ...this.additionalSelectedObjectIds]
+          .filter((id, index, all) => Boolean(id) && id !== entity.entityId && all.indexOf(id) === index)
+      }
+      this.selectedSection = entity.section
+      this.draftSnapshot.session.selectedEntityId = this.selectedObjectId
+      this.draftSnapshot.session.selectedSection = entity.section
+      if (markSession) this.sessionDirty = true
+    },
+    selectObjectRange(entity: EntityDescriptor, orderedIds: string[], markSession = true) {
+      const anchorIndex = orderedIds.indexOf(this.selectedObjectId)
+      const targetIndex = orderedIds.indexOf(entity.entityId)
+      if (anchorIndex < 0 || targetIndex < 0) {
+        this.selectObject(entity, markSession)
+        return
+      }
+      const range = orderedIds.slice(Math.min(anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1)
+      this.selectedObjectId = entity.entityId
+      this.additionalSelectedObjectIds = range.filter((id) => id !== entity.entityId)
+      this.selectedSection = entity.section
+      this.draftSnapshot.session.selectedEntityId = entity.entityId
+      this.draftSnapshot.session.selectedSection = entity.section
+      if (markSession) this.sessionDirty = true
+    },
+    setObjectSelection(objectIds: string[], primaryId?: string, markSession = true) {
+      const unique = [...new Set(objectIds)].filter((id) => this.objects.some((object) => object.id === id))
+      const primary = primaryId && unique.includes(primaryId) ? primaryId : unique[0]
+      if (!primary) {
+        this.selectedObjectId = ''
+        this.additionalSelectedObjectIds = []
+        return
+      }
+      const object = this.objects.find((candidate) => candidate.id === primary)
+      if (!object) return
+      this.selectedObjectId = primary
+      this.additionalSelectedObjectIds = unique.filter((id) => id !== primary)
+      this.selectedSection = object.section
+      this.draftSnapshot.session.selectedEntityId = primary
+      this.draftSnapshot.session.selectedSection = object.section
       if (markSession) this.sessionDirty = true
     },
     selectEntity(entity: EntityDescriptor) {
@@ -181,6 +269,9 @@ export const useEditorStore = defineStore('editor', {
       this.sessionDirty = true
     },
     setObjectSearch(value: string) {
+      this.objectSearch = value
+    },
+    setPropertySearch(value: string) {
       this.draftSnapshot.session.propertySearch = value
       this.sessionDirty = true
     },
@@ -201,12 +292,52 @@ export const useEditorStore = defineStore('editor', {
     setStyleClipboard(clipboard: EditorStyleClipboard | null) {
       this.styleClipboard = clipboard ? clone(clipboard) : null
     },
+    reorderObject(objectId: string, targetObjectId: string) {
+      const sourceIndex = this.objects.findIndex((object) => object.id === objectId)
+      const targetIndex = this.objects.findIndex((object) => object.id === targetObjectId)
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return false
+      const next = [...this.objects]
+      const [source] = next.splice(sourceIndex, 1)
+      if (!source) return false
+      next.splice(targetIndex, 0, source)
+      this.objects = next.map((object, order) => ({ ...object, order }))
+      this.sessionDirty = true
+      return true
+    },
+    syncObjectLabels() {
+      const labels = new Map(this.draftSnapshot.entities.map((entity) => [entity.entityId, entity.label]))
+      this.objects = this.objects.map((object) => {
+        const label = labels.get(object.id)
+        return label === undefined || (object.name === label && object.label === label)
+          ? object
+          : { ...object, name: label, label }
+      })
+    },
+    renameObject(objectId: string, name: string): boolean {
+      const normalized = name.trim()
+      const index = this.draftSnapshot.entities.findIndex((entity) => entity.entityId === objectId)
+      if (!normalized || index < 0) return false
+      const applied = this.setProperty(objectId, `entities.${index}.label`, normalized, 'RENAME')
+      if (applied) this.syncObjectLabels()
+      return applied
+    },
+    recordPreviewMutation(objectIds: string[], propertyPaths: string[]) {
+      this.previewMutation = {
+        version: this.previewMutation.version + 1,
+        objectIds: [...new Set(objectIds.filter(Boolean))],
+        propertyPaths: [...new Set(propertyPaths.filter(Boolean))]
+      }
+    },
     refreshDirtyState() {
       this.hasUnsavedChanges = contentSignature(this.draftSnapshot) !== this.savedContentSignature
     },
     apply(command: EditorCommand, record = true): boolean {
       if (record && this.objectState(command.entityId).locked) return false
       applyCommandValue(this.draftSnapshot, command, 'nextValue')
+      const affectedObjectIds = Array.isArray(command.metadata?.objectIds)
+        ? command.metadata.objectIds.filter((value): value is string => typeof value === 'string')
+        : [command.entityId]
+      const affectedPaths = commandChanges(command).map((change) => change.propertyPath)
       if (record) {
         const coalesceKey = typeof command.metadata?.coalesceKey === 'string' ? command.metadata.coalesceKey : null
         const previous = this.commandHistory[this.commandHistory.length - 1]
@@ -217,6 +348,7 @@ export const useEditorStore = defineStore('editor', {
           previous.metadata = clone(command.metadata)
           this.redoHistory = []
           this.refreshDirtyState()
+          this.recordPreviewMutation(affectedObjectIds, affectedPaths)
           return true
         }
         this.commandHistory.push(clone(command))
@@ -224,6 +356,7 @@ export const useEditorStore = defineStore('editor', {
         this.redoHistory = []
       }
       this.refreshDirtyState()
+      this.recordPreviewMutation(affectedObjectIds, affectedPaths)
       return true
     },
     setProperty(entityId: string, propertyPath: string, nextValue: EditorValue, type: EditorCommand['type'] = 'SET_PROPERTY', metadata?: Record<string, unknown>): boolean {
@@ -231,14 +364,14 @@ export const useEditorStore = defineStore('editor', {
       if (Object.is(previousValue, nextValue)) return false
       return this.apply({ type, entityId, propertyPath, previousValue, nextValue, timestamp: Date.now(), metadata })
     },
-    setProperties(entityId: string, changes: Array<{ propertyPath: string; nextValue: EditorValue }>, metadata?: Record<string, unknown>): boolean {
+    setProperties(entityId: string, changes: Array<{ propertyPath: string; nextValue: EditorValue }>, metadata?: Record<string, unknown>, type: EditorCommand['type'] = 'PASTE_STYLE'): boolean {
       const root = this.draftSnapshot as unknown as Record<string, unknown>
       const commandChanges = changes
         .map((change) => ({ ...change, previousValue: readPath(root, change.propertyPath) }))
         .filter((change) => !Object.is(change.previousValue, change.nextValue))
       if (!commandChanges.length) return false
       return this.apply({
-        type: 'PASTE_STYLE',
+        type,
         entityId,
         propertyPath: commandChanges[0].propertyPath,
         previousValue: commandChanges[0].previousValue,
@@ -254,6 +387,11 @@ export const useEditorStore = defineStore('editor', {
       applyCommandValue(this.draftSnapshot, command, 'previousValue')
       this.redoHistory.push(command)
       this.refreshDirtyState()
+      this.syncObjectLabels()
+      const objectIds = Array.isArray(command.metadata?.objectIds)
+        ? command.metadata.objectIds.filter((value): value is string => typeof value === 'string')
+        : [command.entityId]
+      this.recordPreviewMutation(objectIds, commandChanges(command).map((change) => change.propertyPath))
     },
     redo() {
       const command = this.redoHistory.pop()
@@ -262,6 +400,11 @@ export const useEditorStore = defineStore('editor', {
       this.commandHistory.push(command)
       if (this.commandHistory.length > 10) this.commandHistory.shift()
       this.refreshDirtyState()
+      this.syncObjectLabels()
+      const objectIds = Array.isArray(command.metadata?.objectIds)
+        ? command.metadata.objectIds.filter((value): value is string => typeof value === 'string')
+        : [command.entityId]
+      this.recordPreviewMutation(objectIds, commandChanges(command).map((change) => change.propertyPath))
     },
     markDraftSaved(revision: Partial<EditorRevisionState> = {}) {
       this.savedContentSignature = contentSignature(this.draftSnapshot)

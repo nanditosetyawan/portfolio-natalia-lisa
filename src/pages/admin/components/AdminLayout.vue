@@ -19,17 +19,17 @@
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
       >
         <template v-if="isEditPage">
-          <button class="tbar-btn tbar-undo" title="Undo" :disabled="!editor.canUndo" @click="handleUndo">
+          <button class="tbar-btn tbar-undo" title="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)" :disabled="!editor.canUndo" @click="handleUndo">
             <Undo />
           </button>
-          <button class="tbar-btn tbar-redo" title="Redo" :disabled="!editor.canRedo" @click="handleRedo">
+          <button class="tbar-btn tbar-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo (Ctrl+Shift+Z)" :disabled="!editor.canRedo" @click="handleRedo">
             <Redo />
           </button>
           <span v-if="editorSaveStatus" class="editor-save-status" :class="{ 'editor-save-status--dirty': editorHasChanges }">
             {{ editorSaveStatus }}
           </span>
           <span v-if="editorPublishStatus" class="editor-publish-status" :class="{ 'editor-publish-status--failed': editorPublishStatus === 'Failed' }">{{ editorPublishStatus }}</span>
-          <button class="tbar-btn tbar-save" :disabled="isSaving || editor.isPublishing" @click="handleEditorSave">
+          <button class="tbar-btn tbar-save" title="Save Draft (Ctrl+S)" :disabled="isSaving || editor.isPublishing" @click="handleEditorSave">
             <Save />
             <span>{{ isSaving ? 'Saving…' : 'Save Draft' }}</span>
           </button>
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Undo, Redo, Save } from 'lucide-vue-next'
 import { useAuthStore } from '../../../stores/auth'
@@ -133,6 +133,32 @@ function openPublishDialog(): void {
   publishNote.value = ''
   showPublishDialog.value = true
 }
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  const element = target instanceof HTMLElement ? target : null
+  return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'))
+}
+
+function handleEditorShortcut(event: KeyboardEvent): void {
+  if (!isEditPage.value || !event.ctrlKey || event.altKey || isTypingTarget(event.target)) return
+  const key = event.key.toLowerCase()
+  if (key === 's') {
+    event.preventDefault()
+    void handleEditorSave()
+  } else if (key === 'p') {
+    event.preventDefault()
+    openPublishDialog()
+  } else if (key === 'z' && event.shiftKey) {
+    event.preventDefault()
+    handleRedo()
+  } else if (key === 'z') {
+    event.preventDefault()
+    handleUndo()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleEditorShortcut))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleEditorShortcut))
 
 function closePublishDialog(): void {
   if (editor.isPublishing) return

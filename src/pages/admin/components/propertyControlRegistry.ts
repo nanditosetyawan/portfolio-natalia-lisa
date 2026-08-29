@@ -7,18 +7,26 @@ import PropertyInputControl from './property-controls/PropertyInputControl.vue'
 import PropertyReadonlyControl from './property-controls/PropertyReadonlyControl.vue'
 import PropertySelectControl from './property-controls/PropertySelectControl.vue'
 import PropertyTextareaControl from './property-controls/PropertyTextareaControl.vue'
+import PropertyColorControl from './property-controls/PropertyColorControl.vue'
+import PropertySegmentedControl from './property-controls/PropertySegmentedControl.vue'
+import PropertyThumbnailControl from './property-controls/PropertyThumbnailControl.vue'
+import PropertyToggleValueControl from './property-controls/PropertyToggleValueControl.vue'
 
 const renderers = new Map<EditorControl, Component>([
   ['text', PropertyInputControl],
   ['custom', PropertyInputControl],
   ['number', PropertyInputControl],
-  ['color', PropertyInputControl],
+  ['color', PropertyColorControl],
   ['textarea', PropertyTextareaControl],
   ['select', PropertySelectControl],
   ['checkbox', PropertyCheckboxControl],
   ['file', PropertyFileControl],
   ['button', PropertyButtonControl],
-  ['readonly', PropertyReadonlyControl]
+  ['readonly', PropertyReadonlyControl],
+  ['toggle-text', PropertyToggleValueControl],
+  ['toggle-color', PropertyToggleValueControl],
+  ['segmented', PropertySegmentedControl],
+  ['thumbnail', PropertyThumbnailControl]
 ])
 
 export function registerPropertyControlRenderer(control: EditorControl, component: Component): void {

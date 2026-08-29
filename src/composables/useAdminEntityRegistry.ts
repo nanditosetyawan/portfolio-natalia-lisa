@@ -3,7 +3,7 @@ import { useCertificatesStore } from '../stores/certificates'
 import { useSiteStore } from '../stores/site'
 import type { AdminPropertyDefinition } from '../types/site'
 import { ensurePropertyMetadata } from '../editor/propertyRegistry'
-import type { PropertyRegistryEntry } from '../types/editor'
+import type { EditorObjectUxMetadata, PropertyRegistryEntry } from '../types/editor'
 
 export interface RuntimeAdminProperty extends AdminPropertyDefinition {
   read(): string | number | boolean
@@ -20,6 +20,7 @@ export interface RuntimeAdminEntity {
   properties: RuntimeAdminProperty[]
   capabilities?: string[]
   photoAreaId?: string
+  ux?: EditorObjectUxMetadata
 }
 
 function property(
@@ -88,7 +89,8 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
     })
     current.content.about.paragraphs.forEach((paragraph) => entities.push({
       id: paragraph.id, section: 'About', label: `Paragraph ${paragraph.order + 1}`, kind: 'content',
-      properties: contentProperties(paragraph as unknown as Record<string, unknown>, [['body', 'Paragraph', 'textarea']])
+      properties: contentProperties(paragraph as unknown as Record<string, unknown>, [['body', 'Paragraph', 'textarea']]),
+      ux: { collectionPath: 'content.about.paragraphs' }
     }))
     entities.push({ id: current.content.about.cta.id, section: 'About', label: 'About CTA', kind: 'navigation', properties: contentProperties(current.content.about.cta as unknown as Record<string, unknown>, [['text', 'Text', 'text'], ['targetSectionId', 'Target section ID', 'text']]) })
 
@@ -128,7 +130,7 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
     entities.push({ id: current.content.contact.id, section: 'Contact', label: 'Contact', kind: 'content', properties: contentProperties(contact, [['line1', 'Line 1', 'text'], ['line2', 'Line 2', 'text']]) })
     entities.push({ id: current.content.contact.cta.id, section: 'Contact', label: 'Contact CTA', kind: 'navigation', properties: contentProperties(current.content.contact.cta as unknown as Record<string, unknown>, [['text', 'Text', 'text'], ['href', 'Href', 'text']]) })
     entities.push({ id: 'navigation-brand', section: 'Navigation', label: 'Lisa name (navigation brand)', kind: 'text', properties: contentProperties(current.content.navigation as unknown as Record<string, unknown>, [['brand', 'Name', 'text']]) })
-    current.content.navigation.navItems.forEach((item) => entities.push({ id: item.id, section: 'Navigation', label: item.label, kind: 'navigation', properties: contentProperties(item as unknown as Record<string, unknown>, [['label', 'Label', 'text'], ['targetSectionId', 'Target section ID', 'text']]) }))
+    current.content.navigation.navItems.forEach((item) => entities.push({ id: item.id, section: 'Navigation', label: item.label, kind: 'navigation', properties: contentProperties(item as unknown as Record<string, unknown>, [['label', 'Label', 'text'], ['targetSectionId', 'Target section ID', 'text']]), ux: { collectionPath: 'content.navigation.navItems' } }))
 
     certificates.editableCards.forEach((card) => entities.push({ id: card.id, section: 'Certificate', label: card.title, kind: 'content', properties: [
       certificateContentProperty(certificates, card.id, 'title', 'Title', 'text'),

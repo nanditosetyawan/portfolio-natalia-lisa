@@ -40,12 +40,13 @@ import {
   resolveProperties,
   resolvePropertyPath
 } from '../../editor/propertyRegistry'
-import { applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
+import { applyRegisteredObjectProperties, applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
 import type {
   DraftMediaReference,
   EditorCommandType,
   EditorValue,
   EntityDescriptor,
+  EditorObject,
   PropertyRegistryEntry,
   PropertyVisibilityContext
 } from '../../types/editor'
@@ -69,6 +70,30 @@ interface PanelGroup {
   rows: PanelRow[]
 }
 
+type SelectionMode = 'replace' | 'additive' | 'range'
+type AlignmentMode = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
+
+interface InlineTextEdit {
+  entity: EditorRuntimeObject
+  property: RuntimeAdminProperty
+  element: HTMLElement
+  originalValue: string
+}
+
+interface SelectionBoxState {
+  active: boolean
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+}
+
+interface ContextMenuState {
+  open: boolean
+  x: number
+  y: number
+}
+
 type LibraryRouteName = 'admin-drafts' | 'admin-favorites'
 
 const site = useSiteStore()
@@ -86,17 +111,34 @@ const showOpenModal = ref(false)
 const showUnsavedModal = ref(false)
 const pendingLibrary = ref<LibraryRouteName | null>(null)
 const canvasScroll = ref<HTMLElement | null>(null)
+const canvasContainer = ref<HTMLElement | null>(null)
+const controlPanel = ref<HTMLElement | null>(null)
 const previewStage = ref<HTMLElement | null>(null)
+const previewRuntime = ref<HTMLElement | null>(null)
 const fitScale = ref(0.6)
 const userZoom = ref<number | null>(null)
 const previewHeight = ref(900)
 const draftScope = ref(`editor-session-${crypto.randomUUID()}`)
 const publishedBaseline = ref<EditorSnapshot | null>(null)
 const mediaInputVersion = ref(0)
+const inlineTextEdit = ref<InlineTextEdit | null>(null)
+const selectionBox = ref<SelectionBoxState>({ active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+const contextMenu = ref<ContextMenuState>({ open: false, x: 0, y: 0 })
+const selectionGap = ref(16)
+const previewUpdateDuration = ref(0)
+const previewUpdateCount = ref(0)
 const mediaPreviewUrls = new Map<string, string>()
 const managedMediaAreaIds = new Set<string>()
+const pendingPreviewObjectIds = new Set<string>()
 let selectedPreviewElement: HTMLElement | null = null
 let previewObserver: ResizeObserver | null = null
+let previewFrameRequest = 0
+let panPointerId: number | null = null
+let panStartX = 0
+let panStartY = 0
+let panScrollLeft = 0
+let panScrollTop = 0
+let selectionBoxMoved = false
 let unregisterSave: (() => void) | null = null
 let unregisterPublish: (() => void) | null = null
 
@@ -117,10 +159,39 @@ const selectedEntity = computed(() => editorEntities.value.find((entity) => enti
 const selectedPhotoArea = computed(() => selectedEntity.value?.photoAreaId ? photoRegistry.find(selectedEntity.value.photoAreaId) : undefined)
 const selectedObjectLocked = computed(() => editor.selectedObjectState.locked)
 const selectedObjectHidden = computed(() => editor.selectedObjectState.hidden)
+const selectedObjectCount = computed(() => editor.selectedObjectIds.length)
 const previewScale = computed(() => userZoom.value ?? fitScale.value)
 const sourceLabel = computed(() => editor.draftRevisionId
   ? `Editing: ${route.query.source === 'favorite' ? 'Favorite - ' : ''}Draft #${editor.draftRevisionNumber ?? '-'}`
   : 'Editing: New draft from Published')
+const canAlignSelection = computed(() => editor.selectedObjectIds.length > 1)
+const canDistributeSelection = computed(() => editor.selectedObjectIds.length > 2)
+const canDuplicateSelection = computed(() => editor.selectedObjects.some((object) => Boolean(object.ux?.collectionPath) && !editor.objectState(object.id).locked))
+const propertySearch = computed({
+  get: () => editor.draftSnapshot.session.propertySearch,
+  set: (value: string) => {
+    editor.setPropertySearch(value)
+    markSessionChanged()
+  }
+})
+const primaryLayout = computed(() => editor.draftSnapshot.layout[editor.selectedObjectId] ?? {})
+const statusPosition = computed(() => `${formatStatusValue(primaryLayout.value.x, 0)}, ${formatStatusValue(primaryLayout.value.y, 0)}`)
+const statusSize = computed(() => `${formatStatusValue(primaryLayout.value.width, 'auto')} × ${formatStatusValue(primaryLayout.value.height, 'auto')}`)
+const statusDraft = computed(() => editorSaveStatus.value || (editor.hasUnsavedChanges || editorHasChanges.value ? 'Unsaved' : 'Saved'))
+const previewFps = computed(() => previewUpdateDuration.value > 0 ? Math.min(60, Math.round(1000 / Math.max(16.67, previewUpdateDuration.value))) : 60)
+const selectionBoxStyle = computed(() => {
+  const state = selectionBox.value
+  return {
+    left: `${Math.min(state.startX, state.currentX)}px`,
+    top: `${Math.min(state.startY, state.currentY)}px`,
+    width: `${Math.abs(state.currentX - state.startX)}px`,
+    height: `${Math.abs(state.currentY - state.startY)}px`
+  }
+})
+
+function formatStatusValue(value: EditorValue, fallback: string | number): string {
+  return value === undefined || value === null || value === '' ? String(fallback) : String(value)
+}
 
 const previewFrameStyle = computed(() => ({
   width: `${1440 * previewScale.value}px`,
@@ -142,7 +213,8 @@ function descriptorFor(entity: EditorRuntimeObject): EntityDescriptor {
     layerId: entity.layerId,
     parentLayerId: entity.parentLayerId,
     capabilities: entity.capabilities,
-    propertyValues: Object.fromEntries(entity.properties.map((property) => [property.metadata.propertyKey, property.read()]))
+    propertyValues: Object.fromEntries(entity.properties.map((property) => [property.metadata.propertyKey, property.read()])),
+    ux: entity.ux
   }
 }
 
@@ -166,9 +238,12 @@ function resolveRuntimeMetadata(metadata: PropertyRegistryEntry): PropertyRegist
 const registryPanelProperties = computed<PanelProperty[]>(() => {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return []
-  return resolveProperties(descriptor, editor.draftSnapshot).map((metadata) => {
+  return resolveProperties(descriptor, editor.draftSnapshot).filter((metadata) => metadata.category !== 'content').map((metadata) => {
     const resolved = resolveRuntimeMetadata(metadata)
-    return { key: resolved.propertyKey, metadata: resolved }
+    const runtimeProperty = resolved.databaseMapping.kind === 'runtime'
+      ? selectedEntity.value?.properties.find((property) => property.metadata.propertyKey === resolved.propertyKey)
+      : undefined
+    return { key: resolved.propertyKey, metadata: resolved, runtimeProperty }
   })
 })
 const runtimeContentProperties = computed<PanelProperty[]>(() => (selectedEntity.value?.properties ?? [])
@@ -222,22 +297,16 @@ const selectedPanelGroups = computed<PanelGroup[]>(() => {
     })
 })
 
-watch(() => editor.draftSnapshot, (snapshot) => {
-  site.hydrateEditorPreview({
-    content: toRaw(snapshot.content),
-    visual: toRaw(snapshot.visual),
-    behavior: toRaw(snapshot.behavior)
-  })
-  void nextTick(() => {
-    decoratePreviewEntities()
-    applyEditorPreviewStyles()
-    void syncSnapshotMediaToPreview()
-  })
-}, { deep: true, flush: 'post' })
-
-watch(() => editor.draftSnapshot.certificateCards, (cards) => {
-  if (cards.length) certificates.hydrateEditorCards(cards)
-}, { deep: true })
+watch(() => editor.previewMutation.version, async () => {
+  const mutation = editor.previewMutation
+  const requiresRuntimeHydration = mutation.propertyPaths.some((path) => (
+    path === '*' || /^(content|visual|behavior|certificateCards)(\.|$)/.test(path)
+  ))
+  if (requiresRuntimeHydration) hydrateEditorPreviewSnapshot()
+  if (mutation.propertyPaths.some((path) => path === '*' || /^media(\.|$)/.test(path))) await syncSnapshotMediaToPreview()
+  await nextTick()
+  schedulePreviewObjects(mutation.objectIds)
+})
 
 watch(previewScale, (zoom) => {
   if (!editorReady.value) return
@@ -245,7 +314,7 @@ watch(previewScale, (zoom) => {
   markSessionChanged()
 })
 
-watch(() => editor.selectedObjectId, () => void nextTick(updateSelectedOutline))
+watch(() => editor.selectedObjectIds.join('|'), () => void nextTick(updateSelectedOutline))
 
 watch(editorEntities, (objects) => {
   if (!editorReady.value) return
@@ -255,6 +324,35 @@ watch(editorEntities, (objects) => {
     applyEditorPreviewStyles()
   })
 }, { deep: false })
+
+function hydrateEditorPreviewSnapshot(): void {
+  const snapshot = editor.draftSnapshot
+  site.hydrateEditorPreview({
+    content: toRaw(snapshot.content),
+    visual: toRaw(snapshot.visual),
+    behavior: toRaw(snapshot.behavior)
+  })
+  if (snapshot.certificateCards.length) certificates.hydrateEditorCards(snapshot.certificateCards)
+}
+
+function schedulePreviewObjects(objectIds: string[]): void {
+  for (const objectId of objectIds) pendingPreviewObjectIds.add(objectId)
+  if (previewFrameRequest) return
+  previewFrameRequest = requestAnimationFrame(() => {
+    previewFrameRequest = 0
+    const started = performance.now()
+    const root = previewStage.value
+    if (root) {
+      if (!pendingPreviewObjectIds.size) applyRegisteredSnapshotProperties(root, editor.draftSnapshot)
+      else for (const objectId of pendingPreviewObjectIds) applyRegisteredObjectProperties(root, editor.draftSnapshot, objectId)
+    }
+    pendingPreviewObjectIds.clear()
+    decoratePreviewEntities()
+    updateSelectedOutline()
+    previewUpdateDuration.value = performance.now() - started
+    previewUpdateCount.value += 1
+  })
+}
 
 async function initializeEditor(): Promise<void> {
   initializationError.value = ''
@@ -298,13 +396,14 @@ async function initializeEditor(): Promise<void> {
       editor.draftMediaReferences = []
     }
 
+    hydrateEditorPreviewSnapshot()
+    await nextTick()
     editor.registerObjects(editorEntities.value)
 
     managedMediaAreaIds.clear()
     for (const assignment of editor.draftSnapshot.media.assignments) {
       if (photoRegistry.find(assignment.entityId)) managedMediaAreaIds.add(assignment.entityId)
     }
-    if (editor.draftSnapshot.certificateCards.length) certificates.hydrateEditorCards(editor.draftSnapshot.certificateCards)
     restoreSelectionFromSession()
     userZoom.value = editor.draftSnapshot.session.userZoom ?? null
     await nextTick()
@@ -367,11 +466,14 @@ function defaultAccordion(entity: EditorRuntimeObject): string {
     ?? (entity.photoAreaId && groups.includes('media') ? 'media' : groups[0] ?? '')
 }
 
-function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, markSession = true): void {
+function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, markSession = true, mode: SelectionMode = 'replace'): void {
   const descriptor = descriptorFor(entity)
-  editor.selectObject(descriptor, markSession)
-  const groups = availableGroups(entity)
-  const accordion = preferredAccordion && groups.includes(preferredAccordion) ? preferredAccordion : defaultAccordion(entity)
+  if (mode === 'additive') editor.selectObjectAdditive(descriptor, markSession)
+  else if (mode === 'range') editor.selectObjectRange(descriptor, editor.objects.map((object) => object.id), markSession)
+  else editor.selectObject(descriptor, markSession)
+  const primary = editorEntities.value.find((candidate) => candidate.id === editor.selectedObjectId) ?? entity
+  const groups = availableGroups(primary)
+  const accordion = preferredAccordion && groups.includes(preferredAccordion) ? preferredAccordion : defaultAccordion(primary)
   if (markSession) editor.setAccordion(accordion)
   else {
     editor.activeAccordion = accordion
@@ -381,14 +483,15 @@ function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, 
   void nextTick(() => {
     decoratePreviewEntities()
     updateSelectedOutline()
+    scrollInspectorToActive()
   })
 }
 
-function selectEntity(entityId: string, previewElement?: HTMLElement): void {
+function selectEntity(entityId: string, previewElement?: HTMLElement, mode: SelectionMode = 'replace'): void {
   const entity = editorEntities.value.find((candidate) => candidate.id === entityId)
   if (!entity) return
   selectedPreviewElement = previewElement ?? null
-  setSelection(entity)
+  setSelection(entity, undefined, true, mode)
 }
 
 function findObjectPath(root: Record<string, unknown>, target: Record<string, unknown>): string | null {
@@ -429,26 +532,43 @@ function readPanelValue(property: PanelProperty): string | number | boolean | nu
     }
     return valueByField[metadata.databaseMapping.field]
   }
-  if (metadata.databaseMapping.kind === 'action' && metadata.databaseMapping.action === 'choose-media') {
+  if (metadata.databaseMapping.kind === 'action') {
     const targetId = selectedPhotoArea.value?.id
-    return targetId
-      ? editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === targetId)?.assetId ?? ''
-      : ''
+    const assignment = targetId ? editor.draftSnapshot.media.assignments.find((candidate) => candidate.entityId === targetId) : undefined
+    if (metadata.databaseMapping.action === 'choose-media') return assignment?.assetId ?? ''
+    if (metadata.databaseMapping.action === 'set-media-crop') return assignment?.objectPosition ?? selectedPhotoArea.value?.objectPosition ?? '50% 50%'
+    if (metadata.databaseMapping.action === 'set-media-fit') {
+      const path = selectedEntity.value?.ux?.mediaFitPath
+      return path ? primitiveValue(readSnapshotPath(editor.draftSnapshot, path) ?? metadata.defaultValue) : primitiveValue(metadata.defaultValue)
+    }
+    if (metadata.databaseMapping.action === 'preview-media') {
+      const reference = assignment ? editor.draftSnapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId) : undefined
+      return reference ? mediaPreviewUrls.get(reference.assetId) ?? reference.uri : ''
+    }
+    return primitiveValue(metadata.defaultValue)
   }
   if (metadata.databaseMapping.kind !== 'snapshot' || !selectedEntity.value) return primitiveValue(metadata.defaultValue)
   const value = readSnapshotPath(editor.draftSnapshot, bindingPath(metadata, selectedEntity.value.id))
-  return primitiveValue(value ?? fallbackRuntimeValue(metadata) ?? metadata.defaultValue)
+  return primitiveValue(metadata.serializer.deserialize(value ?? fallbackRuntimeValue(metadata) ?? metadata.defaultValue))
 }
 
 function primitiveValue(value: EditorValue): string | number | boolean | null {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null ? value : ''
 }
 
+type PropertyAction = Extract<PropertyRegistryEntry['databaseMapping'], { kind: 'action' }>['action']
+const propertyActionHandlers: Partial<Record<PropertyAction, (value: string | number | boolean, property: PanelProperty) => Promise<void>>> = {
+  'choose-media': async (value, property) => chooseExistingMedia(String(value), property.metadata.commandType),
+  'set-media-crop': async (value, property) => setMediaCrop(String(value), property.metadata.commandType),
+  'set-media-fit': async (value, property) => setMediaFit(String(value), property.metadata.commandType)
+}
+
 async function updatePanelProperty(property: PanelProperty, value: string | number | boolean): Promise<void> {
   const entity = selectedEntity.value
   if (!entity || !isPanelPropertyEnabled(property)) return
-  if (property.metadata.databaseMapping.kind === 'action' && property.metadata.databaseMapping.action === 'choose-media') {
-    await chooseExistingMedia(String(value), property.metadata.commandType)
+  if (property.metadata.databaseMapping.kind === 'action') {
+    const handler = propertyActionHandlers[property.metadata.databaseMapping.action]
+    if (handler) await handler(value, property)
     return
   }
   if (property.runtimeProperty) {
@@ -462,7 +582,6 @@ async function updatePanelProperty(property: PanelProperty, value: string | numb
   if (!applied) return
   markEditorChanged()
   await nextTick()
-  applyEditorPreviewStyles()
   updateSelectedOutline()
 }
 
@@ -505,6 +624,38 @@ async function handlePropertyFile(property: PanelProperty, file: File): Promise<
 }
 
 function handlePropertyAction(_property: PanelProperty): void {}
+
+async function setMediaCrop(objectPosition: string, commandType: EditorCommandType): Promise<void> {
+  const entity = selectedEntity.value
+  const target = selectedPhotoArea.value
+  if (!entity || !target) return
+  const currentMedia = structuredClone(toRaw(editor.draftSnapshot.media))
+  const assignment = currentMedia.assignments.find((candidate) => candidate.entityId === target.id)
+  if (!assignment || assignment.objectPosition === objectPosition) return
+  const nextMedia: SnapshotMediaModel = {
+    ...currentMedia,
+    assignments: currentMedia.assignments.map((candidate) => candidate.entityId === target.id ? { ...candidate, objectPosition } : candidate)
+  }
+  editor.apply({
+    type: commandType,
+    entityId: entity.id,
+    propertyPath: 'media',
+    previousValue: currentMedia as unknown as EditorValue,
+    nextValue: nextMedia as unknown as EditorValue,
+    timestamp: Date.now(),
+    metadata: { objectIds: [entity.id], photoAreaId: target.id, interaction: 'media-crop' }
+  })
+  await photoRegistry.updateObjectPosition(target.id, objectPosition)
+  markEditorChanged()
+}
+
+async function setMediaFit(objectFit: string, commandType: EditorCommandType): Promise<void> {
+  const entity = selectedEntity.value
+  const path = entity?.ux?.mediaFitPath
+  if (!entity || !path) return
+  if (!editor.setProperty(entity.id, path, objectFit, commandType, { objectIds: [entity.id], interaction: 'media-fit' })) return
+  markEditorChanged()
+}
 
 async function chooseExistingMedia(assetId: string, commandType: EditorCommandType): Promise<void> {
   const entity = selectedEntity.value
@@ -709,6 +860,9 @@ async function discardDraft(): Promise<void> {
     })
     editor.draftMediaReferences = []
     mediaPreviewUrls.clear()
+    hydrateEditorPreviewSnapshot()
+    await nextTick()
+    editor.registerObjects(editorEntities.value)
     restoreSelectionFromSession()
     userZoom.value = editor.draftSnapshot.session.userZoom ?? null
     editorHasChanges.value = false
@@ -789,10 +943,14 @@ function markSessionChanged(): void {
 }
 
 function selectPreviewEntity(event: MouseEvent): void {
+  if (selectionBoxMoved) {
+    selectionBoxMoved = false
+    return
+  }
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
   const entityId = target?.dataset.editorObjectId
   if (!entityId || !target) return
-  selectEntity(entityId, target)
+  selectEntity(entityId, target, event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'additive' : 'replace')
 }
 
 function decoratePreviewEntities(): void {
@@ -828,10 +986,12 @@ function preferredPreviewElement(entityId: string): HTMLElement | null {
 
 function updateSelectedOutline(): void {
   previewStage.value?.querySelectorAll<HTMLElement>('.editor-preview-selected').forEach((element) => element.classList.remove('editor-preview-selected'))
+  previewStage.value?.querySelectorAll<HTMLElement>('.editor-preview-selected--primary').forEach((element) => element.classList.remove('editor-preview-selected--primary'))
+  for (const objectId of editor.selectedObjectIds) preferredPreviewElement(objectId)?.classList.add('editor-preview-selected')
   const selected = selectedPreviewElement?.isConnected && selectedPreviewElement.dataset.editorObjectId === editor.selectedObjectId
     ? selectedPreviewElement
     : preferredPreviewElement(editor.selectedObjectId)
-  selected?.classList.add('editor-preview-selected')
+  selected?.classList.add('editor-preview-selected', 'editor-preview-selected--primary')
   selectedPreviewElement = selected ?? null
 }
 
@@ -850,19 +1010,36 @@ function focusPreviewObject(objectId: string): void {
   })
 }
 
-function selectNavigatorObject(objectId: string, focusPreview: boolean): void {
-  selectEntity(objectId)
+function selectNavigatorObject(objectId: string, focusPreview: boolean, additive = false, range = false): void {
+  selectEntity(objectId, undefined, range ? 'range' : additive ? 'additive' : 'replace')
   if (focusPreview) focusPreviewObject(objectId)
 }
 
 function setObjectSearch(value: string): void {
   editor.setObjectSearch(value)
-  markSessionChanged()
 }
 
 function setLayerExpanded(layerId: string, expanded: boolean): void {
   editor.setLayerExpanded(layerId, expanded)
   markSessionChanged()
+}
+
+function reorderLayerObject(objectId: string, targetObjectId: string): void {
+  const source = editor.objects.find((object) => object.id === objectId)
+  const target = editor.objects.find((object) => object.id === targetObjectId)
+  if (!source || !target || source.section !== target.section || !editor.reorderObject(objectId, targetObjectId)) return
+  const layerObjects = editor.objects.filter((object) => object.section === source.section && object.capabilities.includes('position') && !editor.objectState(object.id).locked)
+  const changes = layerObjects.map((object, index) => ({ propertyPath: `layout.${object.id}.zIndex`, nextValue: index }))
+  if (changes.length) {
+    editor.setProperties(objectId, changes, { objectIds: layerObjects.map((object) => object.id), interaction: 'layer-reorder' }, 'REORDER')
+    markEditorChanged()
+  }
+}
+
+function renameLayerObject(objectId: string, name: string): void {
+  if (!editor.renameObject(objectId, name)) return
+  markEditorChanged()
+  saveStatus.value = `Layer renamed to “${name.trim()}”.`
 }
 
 function setObjectLocked(objectId: string, locked: boolean): void {
@@ -894,26 +1071,247 @@ function copySelectedStyle(): void {
 }
 
 function pasteSelectedStyle(): void {
-  const object = selectedEntity.value
+  const object = editor.selectedObject
   const clipboard = editor.styleClipboard
   if (!object || !clipboard || selectedObjectLocked.value) return
-  const targetByStyle = new Map<string, PanelProperty>()
-  for (const property of registryPanelProperties.value) {
-    const styleKey = property.metadata.styleKey
-    if (styleKey && property.metadata.copyable && property.metadata.databaseMapping.kind === 'snapshot' && !targetByStyle.has(styleKey)) targetByStyle.set(styleKey, property)
-  }
-  const changes = clipboard.entries.flatMap((entry) => {
-    const property = targetByStyle.get(entry.styleKey)
-    if (!property || !isPanelPropertyEnabled(property)) return []
-    return [{ propertyPath: bindingPath(property.metadata, object.id), nextValue: property.metadata.serializer.serialize(entry.value) }]
+  const targetObjects = editor.selectedObjects.filter((target) => !editor.objectState(target.id).locked)
+  const changes = targetObjects.flatMap((target) => {
+    const properties = resolveProperties(target, editor.draftSnapshot)
+    const targetByStyle = new Map<string, PropertyRegistryEntry>()
+    for (const property of properties) {
+      const styleKey = property.styleKey
+      if (styleKey && property.copyable && property.databaseMapping.kind === 'snapshot' && !targetByStyle.has(styleKey)) targetByStyle.set(styleKey, property)
+    }
+    const values = Object.fromEntries(properties.map((property) => {
+      const path = resolvePropertyPath(property, target.id)
+      return [property.propertyKey, path ? readSnapshotPath(editor.draftSnapshot, path) : property.defaultValue]
+    }))
+    return clipboard.entries.flatMap((entry) => {
+      const property = targetByStyle.get(entry.styleKey)
+      if (!property) return []
+      const context: PropertyVisibilityContext = { entity: target, snapshot: editor.draftSnapshot, values }
+      if (!isPropertyEnabled(property, context)) return []
+      return [{ propertyPath: bindingPath(property, target.id), nextValue: property.serializer.serialize(entry.value) }]
+    })
   })
-  if (!editor.setProperties(object.id, changes, { sourceObjectId: clipboard.sourceObjectId })) {
+  if (!editor.setProperties(object.id, changes, { sourceObjectId: clipboard.sourceObjectId, objectIds: targetObjects.map((target) => target.id) }, 'PASTE_STYLE')) {
     saveStatus.value = 'No compatible style changes were available.'
     return
   }
   markEditorChanged()
   saveStatus.value = `Pasted ${changes.length} compatible style properties.`
-  void nextTick(applyEditorPreviewStyles)
+}
+
+function offsetValue(value: EditorValue, delta: number): EditorValue {
+  if (typeof value === 'number') return Number((value + delta).toFixed(3))
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(-?\d+(?:\.\d+)?)([a-z%]*)$/i)
+    if (match) return `${Number((Number(match[1]) + delta).toFixed(3))}${match[2]}`
+  }
+  return Number(delta.toFixed(3))
+}
+
+function applySelectionOffsets(offsets: Map<string, { x: number; y: number }>, type: EditorCommandType): boolean {
+  const editableObjects = editor.selectedObjects.filter((object) => object.capabilities.includes('position') && !editor.objectState(object.id).locked && offsets.has(object.id))
+  const changes = editableObjects.flatMap((object) => {
+    const offset = offsets.get(object.id) ?? { x: 0, y: 0 }
+    const layout = editor.draftSnapshot.layout[object.id]
+    return [
+      ...(offset.x ? [{ propertyPath: `layout.${object.id}.x`, nextValue: offsetValue(layout?.x, offset.x) }] : []),
+      ...(offset.y ? [{ propertyPath: `layout.${object.id}.y`, nextValue: offsetValue(layout?.y, offset.y) }] : [])
+    ]
+  })
+  if (!changes.length || !editor.selectedObjectId) return false
+  const applied = editor.setProperties(editor.selectedObjectId, changes, {
+    objectIds: editableObjects.map((object) => object.id),
+    interaction: type.toLowerCase()
+  }, type)
+  if (applied) markEditorChanged()
+  return applied
+}
+
+function nudgeSelection(x: number, y: number): void {
+  const offsets = new Map(editor.selectedObjectIds.map((objectId) => [objectId, { x, y }]))
+  if (applySelectionOffsets(offsets, 'NUDGE')) saveStatus.value = `Moved ${editor.selectedObjectIds.length} object${editor.selectedObjectIds.length === 1 ? '' : 's'}.`
+}
+
+function selectedElementRects(): Array<{ object: EditorObject; element: HTMLElement; rect: DOMRect }> {
+  return editor.selectedObjects.flatMap((object) => {
+    const element = preferredPreviewElement(object.id)
+    if (!element || !element.getClientRects().length) return []
+    return [{ object, element, rect: element.getBoundingClientRect() }]
+  })
+}
+
+function alignSelection(mode: AlignmentMode): void {
+  const items = selectedElementRects().filter((item) => item.object.capabilities.includes('position') && !editor.objectState(item.object.id).locked)
+  if (items.length < 2) return
+  const bounds = {
+    left: Math.min(...items.map((item) => item.rect.left)),
+    right: Math.max(...items.map((item) => item.rect.right)),
+    top: Math.min(...items.map((item) => item.rect.top)),
+    bottom: Math.max(...items.map((item) => item.rect.bottom))
+  }
+  const centerX = (bounds.left + bounds.right) / 2
+  const centerY = (bounds.top + bounds.bottom) / 2
+  const scale = previewScale.value || 1
+  const offsets = new Map<string, { x: number; y: number }>()
+  for (const item of items) {
+    let x = 0
+    let y = 0
+    if (mode === 'left') x = bounds.left - item.rect.left
+    else if (mode === 'center') x = centerX - (item.rect.left + item.rect.right) / 2
+    else if (mode === 'right') x = bounds.right - item.rect.right
+    else if (mode === 'top') y = bounds.top - item.rect.top
+    else if (mode === 'middle') y = centerY - (item.rect.top + item.rect.bottom) / 2
+    else if (mode === 'bottom') y = bounds.bottom - item.rect.bottom
+    offsets.set(item.object.id, { x: x / scale, y: y / scale })
+  }
+  if (applySelectionOffsets(offsets, 'ALIGN')) saveStatus.value = `Aligned ${items.length} objects ${mode}.`
+}
+
+function distributeSelection(axis: 'horizontal' | 'vertical', explicitSpacing = false): void {
+  const items = selectedElementRects()
+    .filter((item) => item.object.capabilities.includes('position') && !editor.objectState(item.object.id).locked)
+    .sort((left, right) => axis === 'horizontal' ? left.rect.left - right.rect.left : left.rect.top - right.rect.top)
+  if (items.length < 3) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (!first || !last) return
+  const scale = previewScale.value || 1
+  const totalSize = items.reduce((sum, item) => sum + (axis === 'horizontal' ? item.rect.width : item.rect.height), 0)
+  const span = axis === 'horizontal' ? last.rect.right - first.rect.left : last.rect.bottom - first.rect.top
+  const gap = explicitSpacing ? selectionGap.value * scale : (span - totalSize) / (items.length - 1)
+  let cursor = axis === 'horizontal' ? first.rect.left : first.rect.top
+  const offsets = new Map<string, { x: number; y: number }>()
+  for (const item of items) {
+    const current = axis === 'horizontal' ? item.rect.left : item.rect.top
+    const delta = (cursor - current) / scale
+    offsets.set(item.object.id, axis === 'horizontal' ? { x: delta, y: 0 } : { x: 0, y: delta })
+    cursor += (axis === 'horizontal' ? item.rect.width : item.rect.height) + gap
+  }
+  if (applySelectionOffsets(offsets, 'DISTRIBUTE')) saveStatus.value = `${explicitSpacing ? 'Spaced' : 'Distributed'} ${items.length} objects ${axis === 'horizontal' ? 'horizontally' : 'vertically'}.`
+}
+
+function uniqueCopyId(sourceId: string, reserved: Set<string>): string {
+  const base = `${sourceId}-copy`.slice(0, 116)
+  let candidate = `${base}-${Date.now().toString(36)}`
+  let suffix = 1
+  while (reserved.has(candidate)) candidate = `${base}-${Date.now().toString(36)}-${suffix++}`
+  reserved.add(candidate)
+  return candidate
+}
+
+async function duplicateSelectedObjects(): Promise<void> {
+  const sources = editor.selectedObjects.filter((object) => object.ux?.collectionPath && !editor.objectState(object.id).locked)
+  if (!sources.length || !editor.selectedObjectId) {
+    saveStatus.value = 'Duplicate is available for repeatable objects declared by object metadata.'
+    return
+  }
+  const reserved = new Set(editor.objects.map((object) => object.id))
+  const pairs: Array<{ sourceId: string; duplicateId: string }> = []
+  const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = []
+  const byPath = new Map<string, EditorObject[]>()
+  for (const source of sources) {
+    const path = source.ux?.collectionPath
+    if (path) byPath.set(path, [...(byPath.get(path) ?? []), source])
+  }
+  for (const [path, objects] of byPath) {
+    const current = readSnapshotPath(editor.draftSnapshot, path)
+    if (!Array.isArray(current)) continue
+    const next = structuredClone(current) as Array<Record<string, unknown>>
+    for (const object of objects) {
+      const source = current.find((item) => item && typeof item === 'object' && (item as Record<string, unknown>).id === object.id)
+      if (!source || typeof source !== 'object') continue
+      const duplicate = structuredClone(source) as Record<string, unknown>
+      const duplicateId = uniqueCopyId(object.id, reserved)
+      duplicate.id = duplicateId
+      if (typeof duplicate.order === 'number') duplicate.order = next.length
+      next.push(duplicate)
+      pairs.push({ sourceId: object.id, duplicateId })
+    }
+    changes.push({ propertyPath: path, nextValue: next as unknown as EditorValue })
+  }
+  for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
+    const record = structuredClone(toRaw(editor.draftSnapshot[domain])) as Record<string, EditorValue>
+    let changed = false
+    for (const pair of pairs) {
+      if (record[pair.sourceId] === undefined) continue
+      record[pair.duplicateId] = structuredClone(record[pair.sourceId])
+      changed = true
+    }
+    if (changed) changes.push({ propertyPath: domain, nextValue: record })
+  }
+  if (!pairs.length || !editor.setProperties(editor.selectedObjectId, changes, {
+    objectIds: [...sources.map((object) => object.id), ...pairs.map((pair) => pair.duplicateId)],
+    duplicatedObjectIds: pairs.map((pair) => pair.duplicateId)
+  }, 'DUPLICATE_OBJECT')) {
+    saveStatus.value = 'No metadata-declared object could be duplicated.'
+    return
+  }
+  markEditorChanged()
+  await nextTick()
+  await nextTick()
+  const duplicate = editorEntities.value.find((object) => object.id === pairs[0]?.duplicateId)
+  if (duplicate) setSelection(duplicate)
+  saveStatus.value = `Duplicated ${pairs.length} object${pairs.length === 1 ? '' : 's'}.`
+}
+
+async function deleteSelectedObjects(): Promise<void> {
+  const sources = editor.selectedObjects.filter((object) => !editor.objectState(object.id).locked)
+  if (!sources.length || !editor.selectedObjectId) return
+  const hardDeleteIds = new Set(sources.filter((object) => object.ux?.collectionPath).map((object) => object.id))
+  const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = []
+  const paths = [...new Set(sources.map((object) => object.ux?.collectionPath).filter((path): path is string => Boolean(path)))]
+  for (const path of paths) {
+    const current = readSnapshotPath(editor.draftSnapshot, path)
+    if (Array.isArray(current)) changes.push({
+      propertyPath: path,
+      nextValue: current.filter((item) => !(item && typeof item === 'object' && hardDeleteIds.has(String((item as Record<string, unknown>).id)))) as unknown as EditorValue
+    })
+  }
+  for (const source of sources.filter((object) => !hardDeleteIds.has(object.id))) {
+    changes.push({ propertyPath: `layout.${source.id}.display`, nextValue: 'none' })
+  }
+  if (hardDeleteIds.size) {
+    changes.push({ propertyPath: 'entities', nextValue: editor.draftSnapshot.entities.filter((entity) => !hardDeleteIds.has(entity.entityId)) as unknown as EditorValue })
+    for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
+      const record = structuredClone(toRaw(editor.draftSnapshot[domain])) as Record<string, EditorValue>
+      for (const objectId of hardDeleteIds) delete record[objectId]
+      changes.push({ propertyPath: domain, nextValue: record })
+    }
+  }
+  const removedIds = sources.map((object) => object.id)
+  if (!editor.setProperties(editor.selectedObjectId, changes, { objectIds: removedIds }, 'DELETE_OBJECT')) return
+  markEditorChanged()
+  await nextTick()
+  await nextTick()
+  const next = editorEntities.value.find((object) => !removedIds.includes(object.id))
+  if (next) setSelection(next)
+  saveStatus.value = `Deleted ${sources.length} object${sources.length === 1 ? '' : 's'}${hardDeleteIds.size < sources.length ? ' (fixed template objects use reversible display removal)' : ''}.`
+}
+
+function moveSelectionLayer(direction: 'front' | 'back'): void {
+  const editable = editor.selectedObjects.filter((object) => object.capabilities.includes('position') && !editor.objectState(object.id).locked)
+  if (!editable.length || !editor.selectedObjectId) return
+  const zIndexes = editor.objects.map((object) => Number(editor.draftSnapshot.layout[object.id]?.zIndex ?? 0))
+  const edge = direction === 'front' ? Math.max(0, ...zIndexes) + 1 : Math.min(0, ...zIndexes) - editable.length
+  const changes = editable.map((object, index) => ({ propertyPath: `layout.${object.id}.zIndex`, nextValue: edge + index }))
+  if (editor.setProperties(editor.selectedObjectId, changes, { objectIds: editable.map((object) => object.id), interaction: direction }, 'REORDER')) markEditorChanged()
+  contextMenu.value.open = false
+}
+
+function openPreviewContextMenu(event: MouseEvent): void {
+  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
+  const entityId = target?.dataset.editorObjectId
+  if (entityId && !editor.selectedObjectIds.includes(entityId)) selectEntity(entityId, target)
+  const bounds = canvasContainer.value?.getBoundingClientRect()
+  if (!bounds) return
+  contextMenu.value = { open: true, x: event.clientX - bounds.left, y: event.clientY - bounds.top }
+}
+
+function closeContextMenuOnOutside(event: PointerEvent): void {
+  if (contextMenu.value.open && !(event.target as HTMLElement | null)?.closest('.editor-context-menu')) contextMenu.value.open = false
 }
 
 function toggleAccordion(category: string): void {

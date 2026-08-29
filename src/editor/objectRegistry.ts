@@ -1,5 +1,6 @@
 import type {
   EditorObject,
+  EditorObjectUxMetadata,
   EditorObjectType,
   EditorObjectTypeRegistration,
   EditorValue
@@ -17,6 +18,7 @@ export interface EditorObjectCandidate {
   layerId?: string
   parentLayerId?: string
   isMedia?: boolean
+  ux?: EditorObjectUxMetadata
 }
 
 const registrations = new Map<EditorObjectType, EditorObjectTypeRegistration>()
@@ -138,6 +140,7 @@ export function createEditorObject(candidate: EditorObjectCandidate, order: numb
     order,
     capabilities,
     propertyValues: candidate.propertyValues ?? {},
+    ux: candidate.ux ? structuredClone(candidate.ux) : undefined,
     validation: { valid: true, errors: [] }
   }
 }
