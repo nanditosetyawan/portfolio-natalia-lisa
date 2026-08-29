@@ -3,6 +3,23 @@ import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/si
 import { createExperienceFrameConfig } from '../data/default/visual/experience'
 import { siteRepository } from '../repositories/siteRepository'
 
+function hydrateInPlace(target: unknown, source: unknown): void {
+  if (Array.isArray(target) && Array.isArray(source)) {
+    target.splice(0, target.length, ...structuredClone(source))
+    return
+  }
+  if (!target || !source || typeof target !== 'object' || typeof source !== 'object') return
+  const targetRecord = target as Record<string, unknown>
+  const sourceRecord = source as Record<string, unknown>
+  for (const key of Object.keys(targetRecord)) if (!(key in sourceRecord)) delete targetRecord[key]
+  for (const [key, nextValue] of Object.entries(sourceRecord)) {
+    const currentValue = targetRecord[key]
+    if (Array.isArray(currentValue) && Array.isArray(nextValue)) hydrateInPlace(currentValue, nextValue)
+    else if (currentValue && nextValue && typeof currentValue === 'object' && typeof nextValue === 'object' && !Array.isArray(currentValue) && !Array.isArray(nextValue)) hydrateInPlace(currentValue, nextValue)
+    else targetRecord[key] = structuredClone(nextValue)
+  }
+}
+
 function ordered<T extends { order: number }>(items: T[]): T[] {
   return [...items].sort((left, right) => left.order - right.order)
 }
@@ -33,7 +50,7 @@ export const useSiteStore = defineStore('site', {
     async load() {
       this.isLoading = true
       this.errorMessage = ''
-      try { this.current = await siteRepository.load() }
+      try { hydrateInPlace(this.current, await siteRepository.load()) }
       catch { this.errorMessage = 'Site draft tidak dapat dimuat.' }
       finally { this.isLoading = false }
     },
@@ -41,11 +58,19 @@ export const useSiteStore = defineStore('site', {
       await siteRepository.saveDraft(this.current as SiteSnapshot)
     },
     hydratePublishedRuntime(snapshot: SiteSnapshot, revision: { revisionNumber: number; publishedAt: string | null }) {
-      this.current = structuredClone(snapshot)
+      hydrateInPlace(this.current, snapshot)
       this.publishedRevisionNumber = revision.revisionNumber
       this.publishedAt = revision.publishedAt
       this.publishedRuntimeStatus = 'ready'
       this.errorMessage = ''
+    },
+    hydrateEditorPreview(snapshot: Pick<SiteSnapshot, 'content' | 'visual' | 'behavior'>) {
+      this.current = {
+        ...this.current,
+        content: structuredClone(snapshot.content),
+        visual: structuredClone(snapshot.visual),
+        behavior: structuredClone(snapshot.behavior)
+      }
     },
     markPublishedRuntimeUnavailable() {
       this.publishedRuntimeStatus = 'unavailable'
@@ -60,7 +85,7 @@ export const useSiteStore = defineStore('site', {
       this.errorMessage = message
     },
     resetToSeed() {
-      this.current = createDefaultSiteSnapshot()
+      hydrateInPlace(this.current, createDefaultSiteSnapshot())
     },
     mediaSourceForUsage(usageId: string): string {
       const usage = this.current.mediaUsages.find((candidate) => candidate.id === usageId)

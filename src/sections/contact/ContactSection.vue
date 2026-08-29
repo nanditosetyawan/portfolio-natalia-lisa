@@ -3,31 +3,31 @@ import { computed } from 'vue'
 import { useSiteStore } from '../../stores/site'
 
 const site = useSiteStore()
-const contact = site.current.content.contact
-const vConfig = site.current.visual.contact
-const contactImageSrc = computed(() => site.mediaSourceForUsage(contact.personMediaUsageId))
+const contact = computed(() => site.current.content.contact)
+const vConfig = computed(() => site.current.visual.contact)
+const contactImageSrc = computed(() => site.mediaSourceForUsage(contact.value.personMediaUsageId))
 
 // SVG decoration transform helper
 const decorTransform = (dec: { translateX: number; translateY: number; rotation: number }) =>
   `translate(${dec.translateX}, ${dec.translateY}) rotate(${dec.rotation})`
 
-const d = vConfig.bgDecorations
+const d = computed(() => vConfig.value.bgDecorations)
 
 // Computed styles for TypeScript compatibility
 const sectionStyle = computed(() => ({
-  backgroundColor: vConfig.section.backgroundColor,
-  minHeight: vConfig.section.minHeight,
-  overflow: vConfig.section.overflow,
-  display: vConfig.section.display,
-  flexDirection: vConfig.section.flexDirection,
-  alignItems: vConfig.section.alignItems,
-  justifyContent: vConfig.section.justifyContent
+  backgroundColor: vConfig.value.section.backgroundColor,
+  minHeight: vConfig.value.section.minHeight,
+  overflow: vConfig.value.section.overflow,
+  display: vConfig.value.section.display,
+  flexDirection: vConfig.value.section.flexDirection,
+  alignItems: vConfig.value.section.alignItems,
+  justifyContent: vConfig.value.section.justifyContent
 } as any))
 
 const contentStyle = computed(() => ({
-  flexDirection: vConfig.container.flexDirection,
-  alignItems: vConfig.container.alignItems,
-  justifyContent: vConfig.container.justifyContent
+  flexDirection: vConfig.value.container.flexDirection,
+  alignItems: vConfig.value.container.alignItems,
+  justifyContent: vConfig.value.container.justifyContent
 } as any))
 </script>
 

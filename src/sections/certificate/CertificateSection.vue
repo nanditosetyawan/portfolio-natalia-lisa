@@ -11,8 +11,8 @@ import { useSiteStore } from '../../stores/site'
 // Empty string '' = show placeholder. Replace with actual URL to show real photo.
 // Use default certificates data
 const site = useSiteStore()
-const certificatesTitle = site.current.content.certificate.title
-const vConfig = site.current.visual.certificate
+const certificatesTitle = computed(() => site.current.content.certificate.title)
+const vConfig = computed(() => site.current.visual.certificate)
 const certificatesStore = useCertificatesStore()
 const cards = computed(() => certificatesStore.displayedCards)
 const photoSource = (image: CertificateCard['thumbnail']) => image.source

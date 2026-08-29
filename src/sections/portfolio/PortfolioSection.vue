@@ -5,10 +5,9 @@ import { ArrowDown, Pill, Sparkles, Plus } from 'lucide-vue-next'
 import { useSiteStore } from '../../stores/site'
 
 const site = useSiteStore()
-const vConfig = site.current.visual.portfolio
-const portfolio = site.current.content.portfolio
-const profile = site.current.content.profile
-const profileImageSrc = computed(() => site.mediaSourceForUsage(profile.mediaUsageId))
+const vConfig = computed(() => site.current.visual.portfolio)
+const profile = computed(() => site.current.content.profile)
+const profileImageSrc = computed(() => site.mediaSourceForUsage(profile.value.mediaUsageId))
 
 // Breakpoint detection for responsive image geometry
 const isMobile = ref(false)
@@ -29,26 +28,26 @@ onUnmounted(() => {
 })
 
 const imgWidth = computed(() => {
-  if (isMobile.value) return vConfig.profileImage.mobileWidth
-  if (isTablet.value) return vConfig.profileImage.tabletWidth
-  return vConfig.profileImage.width
+  if (isMobile.value) return vConfig.value.profileImage.mobileWidth
+  if (isTablet.value) return vConfig.value.profileImage.tabletWidth
+  return vConfig.value.profileImage.width
 })
 
 const imgMaxHeight = computed(() => {
-  if (isMobile.value) return vConfig.profileImage.mobileMaxHeight
-  if (isTablet.value) return vConfig.profileImage.tabletMaxHeight
-  return vConfig.profileImage.maxHeight
+  if (isMobile.value) return vConfig.value.profileImage.mobileMaxHeight
+  if (isTablet.value) return vConfig.value.profileImage.tabletMaxHeight
+  return vConfig.value.profileImage.maxHeight
 })
 
 const wrapperLeft = computed(() => {
-  if (isMobile.value) return vConfig.profileImageWrapper.mobileLeft
-  return vConfig.profileImageWrapper.left
+  if (isMobile.value) return vConfig.value.profileImageWrapper.mobileLeft
+  return vConfig.value.profileImageWrapper.left
 })
 
 const wrapperTransform = computed(() => {
-  if (isMobile.value) return vConfig.profileImageWrapper.mobileTransform
-  if (isTablet.value) return vConfig.profileImageWrapper.tabletTransform
-  return vConfig.profileImageWrapper.transform
+  if (isMobile.value) return vConfig.value.profileImageWrapper.mobileTransform
+  if (isTablet.value) return vConfig.value.profileImageWrapper.tabletTransform
+  return vConfig.value.profileImageWrapper.transform
 })
 </script>
 
@@ -62,11 +61,11 @@ const wrapperTransform = computed(() => {
     }"
   >
     <GuestNavbar />
-    <main id="main" class="main-content" :data-entity-id="portfolio.id">
+    <main id="main" class="main-content" :data-entity-id="site.current.content.portfolio.id">
       <div class="portfolio-layout">
         <h1
           class="portfolio-title"
-          :data-entity-id="portfolio.id"
+          :data-entity-id="site.current.content.portfolio.id"
           :style="{
             fontSize: vConfig.title.fontSize,
             fontWeight: vConfig.title.fontWeight,
@@ -77,7 +76,7 @@ const wrapperTransform = computed(() => {
             fontFamily: vConfig.title.fontFamily
           }"
         >
-          {{ portfolio.title }}
+          {{ site.current.content.portfolio.title }}
         </h1>
 
         <div class="profile-image-wrapper" :style="{
@@ -86,7 +85,7 @@ const wrapperTransform = computed(() => {
           transform: wrapperTransform,
           zIndex: vConfig.profileImageWrapper.zIndex
         }">
-          <img :src="profileImageSrc" :alt="profile.name" class="profile-image" :data-entity-id="profile.id" :data-media-usage-id="profile.mediaUsageId" :style="{
+          <img :src="profileImageSrc" :alt="site.current.content.profile.name" class="profile-image" :data-entity-id="site.current.content.profile.id" :data-media-usage-id="site.current.content.profile.mediaUsageId" :style="{
             width: imgWidth,
             height: vConfig.profileImage.height,
             maxWidth: vConfig.profileImage.maxWidth,

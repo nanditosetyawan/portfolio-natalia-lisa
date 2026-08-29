@@ -119,8 +119,9 @@ const handleRedo = () => {
   markEditorChanged()
 }
 
-const publishDisabled = computed(() => !editor.draftRevisionId || editorHasChanges.value || editor.hasUnsavedChanges || isSaving.value || editor.isSavingDraft || editor.isPublishing)
+const publishDisabled = computed(() => !editor.draftRevisionId || editorHasChanges.value || editor.hasUnsavedChanges || editor.registeredPropertyErrors.length > 0 || isSaving.value || editor.isSavingDraft || editor.isPublishing)
 const publishDisabledReason = computed(() => {
+  if (editor.registeredPropertyErrors.length) return `Resolve ${editor.registeredPropertyErrors.length} invalid editor properties before publishing.`
   if (!editor.draftRevisionId) return 'Save this workspace as a Draft before publishing.'
   if (editorHasChanges.value || editor.hasUnsavedChanges) return 'Save Draft before publishing.'
   return editor.isPublishing ? 'Publish is in progress.' : 'Publish the saved Draft.'

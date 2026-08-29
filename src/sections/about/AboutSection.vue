@@ -7,8 +7,8 @@ import { useSiteStore } from '../../stores/site'
 
 const site = useSiteStore()
 const photoAreaImages = usePhotoAreaImagesStore()
-const about = site.current.content.about
-const vConfig = site.current.visual.about
+const about = computed(() => site.current.content.about)
+const vConfig = computed(() => site.current.visual.about)
 const paragraphs = computed(() => site.aboutParagraphs)
 const foregroundSource = computed(() => site.mediaSourceForUsage('about-foreground-portrait'))
 const photoAreaObjectPosition = (id: string, fallback: string) => site.current.photoAreas.find((area) => area.id === id)?.objectPosition ?? fallback

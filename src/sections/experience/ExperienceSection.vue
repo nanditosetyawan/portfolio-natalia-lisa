@@ -209,11 +209,11 @@ import { useSiteStore } from '../../stores/site'
 // ──────────────────────────────────────────────
 const site = useSiteStore()
 const items = computed(() => site.experienceEntries)
-const sectionTitle = site.current.content.experience.title
-const vConfig = site.current.visual.experience
+const sectionTitle = computed(() => site.current.content.experience.title)
+const vConfig = computed(() => site.current.visual.experience)
 const frameImages = usePhotoAreaImagesStore()
 
-const frameConfig = (frameId: ExperienceFrameId) => vConfig.imageFrames[frameId]
+const frameConfig = (frameId: ExperienceFrameId) => vConfig.value.imageFrames[frameId]
 const imageSource = (frameId: ExperienceFrameId) => frameImages.frames[frameId]?.source ?? ''
 const imageObjectPosition = (frameId: ExperienceFrameId) => site.current.photoAreas.find((area) => area.id === frameId)?.objectPosition ?? frameConfig(frameId).image.objectPosition
 const frameStyle = (frameId: ExperienceFrameId): CSSProperties => ({

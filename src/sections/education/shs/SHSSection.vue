@@ -8,7 +8,7 @@ import { useSiteStore } from '../../../stores/site'
 const site = useSiteStore()
 const photoAreaImages = usePhotoAreaImagesStore()
 const entries = computed(() => site.shsEntries)
-const vConfig = site.current.visual.shs
+const vConfig = computed(() => site.current.visual.shs)
 </script>
 
 <template>

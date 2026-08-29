@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ClipboardCopy, ClipboardPaste, Eye, EyeOff, Lock, Unlock } from 'lucide-vue-next'
 import HomePage from '../guest/HomePage.vue'
-import {
-  useAdminEntityRegistry,
-  type RuntimeAdminEntity,
-  type RuntimeAdminProperty
-} from '../../composables/useAdminEntityRegistry'
+import type { RuntimeAdminProperty } from '../../composables/useAdminEntityRegistry'
+import { useEditorObjectRegistry, type EditorRuntimeObject } from '../../composables/useEditorObjectRegistry'
 import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
 import { useCertificatesStore } from '../../stores/certificates'
 import { useSiteStore } from '../../stores/site'
@@ -26,6 +24,7 @@ import {
   saveEditor
 } from '../../composables/useEditorSession'
 import PropertyControl from './components/PropertyControl.vue'
+import EditorObjectNavigator from './components/EditorObjectNavigator.vue'
 import { useEditorStore } from '../../stores/editor'
 import { createEditorSnapshot } from '../../editor/editorSnapshot'
 import {
@@ -35,7 +34,13 @@ import {
   resetEditorPublishFeedback
 } from '../../composables/useEditorPublish'
 import { invalidatePublishedRuntimeCache } from '../../runtime/publishedRuntime'
-import { isPropertyEnabled, resolveProperties } from '../../editor/propertyRegistry'
+import {
+  isPropertyEnabled,
+  readSnapshotPath,
+  resolveProperties,
+  resolvePropertyPath
+} from '../../editor/propertyRegistry'
+import { applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
 import type {
   DraftMediaReference,
   EditorCommandType,
@@ -45,11 +50,6 @@ import type {
   PropertyVisibilityContext
 } from '../../types/editor'
 import type { EditorSnapshot, SnapshotMediaModel } from '../../types/editorSnapshot'
-
-interface EditorRuntimeEntity extends RuntimeAdminEntity {
-  capabilities: string[]
-  photoAreaId?: string
-}
 
 interface PanelProperty {
   key: string
@@ -76,9 +76,8 @@ const route = useRoute()
 const router = useRouter()
 const editor = useEditorStore()
 const certificates = useCertificatesStore()
-const runtimeEntities = useAdminEntityRegistry()
+const editorEntities = useEditorObjectRegistry()
 const photoRegistry = usePhotoAreaRegistry()
-const photoAreas = photoRegistry.areas
 
 const saveStatus = ref('')
 const initializationError = ref('')
@@ -96,43 +95,10 @@ const publishedBaseline = ref<EditorSnapshot | null>(null)
 const mediaInputVersion = ref(0)
 const mediaPreviewUrls = new Map<string, string>()
 const managedMediaAreaIds = new Set<string>()
-const styledPreviewElements = new Set<HTMLElement>()
-const styleBaselines = new WeakMap<HTMLElement, Record<string, string>>()
 let selectedPreviewElement: HTMLElement | null = null
 let previewObserver: ResizeObserver | null = null
 let unregisterSave: (() => void) | null = null
 let unregisterPublish: (() => void) | null = null
-
-const editorEntities = computed<EditorRuntimeEntity[]>(() => {
-  const byId = new Map<string, EditorRuntimeEntity>()
-  for (const entity of runtimeEntities.value) {
-    const capabilities = new Set(entity.capabilities ?? entity.properties.map((property) => property.metadata.capability))
-    const hasContent = entity.properties.some((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')
-    if (hasContent) {
-      capabilities.add('content')
-      capabilities.add('typography')
-      capabilities.add('position')
-      capabilities.add('rotate')
-    }
-    byId.set(entity.id, { ...entity, capabilities: [...capabilities] })
-  }
-
-  for (const area of photoAreas.value) {
-    const existing = byId.get(area.id)
-    const capabilities = new Set(existing?.capabilities ?? [])
-    for (const capability of ['media', 'media-dimensions', 'media-outline', 'position', 'rotate']) capabilities.add(capability)
-    byId.set(area.id, {
-      id: area.id,
-      section: area.section,
-      label: area.label,
-      kind: 'media',
-      properties: existing?.properties ?? [],
-      capabilities: [...capabilities],
-      photoAreaId: area.id
-    })
-  }
-  return [...byId.values()]
-})
 
 const sections = computed(() => [...new Set(editorEntities.value.map((entity) => entity.section))])
 const selectedSection = computed({
@@ -144,11 +110,13 @@ const selectedSection = computed({
 })
 const sectionEntities = computed(() => editorEntities.value.filter((entity) => entity.section === selectedSection.value))
 const selectedEntityId = computed({
-  get: () => editor.selectedEntityId,
+  get: () => editor.selectedObjectId,
   set: (entityId: string) => { selectEntity(entityId) }
 })
-const selectedEntity = computed(() => editorEntities.value.find((entity) => entity.id === editor.selectedEntityId))
+const selectedEntity = computed(() => editorEntities.value.find((entity) => entity.id === editor.selectedObjectId))
 const selectedPhotoArea = computed(() => selectedEntity.value?.photoAreaId ? photoRegistry.find(selectedEntity.value.photoAreaId) : undefined)
+const selectedObjectLocked = computed(() => editor.selectedObjectState.locked)
+const selectedObjectHidden = computed(() => editor.selectedObjectState.hidden)
 const previewScale = computed(() => userZoom.value ?? fitScale.value)
 const sourceLabel = computed(() => editor.draftRevisionId
   ? `Editing: ${route.query.source === 'favorite' ? 'Favorite - ' : ''}Draft #${editor.draftRevisionNumber ?? '-'}`
@@ -164,12 +132,15 @@ const previewStageStyle = computed(() => ({
   transform: `scale(${previewScale.value})`
 }))
 
-function descriptorFor(entity: EditorRuntimeEntity): EntityDescriptor {
+function descriptorFor(entity: EditorRuntimeObject): EntityDescriptor {
   return {
     entityId: entity.id,
     section: entity.section,
     label: entity.label,
     kind: entity.kind,
+    objectType: entity.type,
+    layerId: entity.layerId,
+    parentLayerId: entity.parentLayerId,
     capabilities: entity.capabilities,
     propertyValues: Object.fromEntries(entity.properties.map((property) => [property.metadata.propertyKey, property.read()]))
   }
@@ -181,11 +152,12 @@ const mediaLibraryOptions = computed(() => site.current.mediaAssets
   .map((asset) => ({ label: asset.alt.trim() || asset.id, value: asset.id })))
 
 function resolveRuntimeMetadata(metadata: PropertyRegistryEntry): PropertyRegistryEntry {
-  if (metadata.binding?.kind !== 'action' || metadata.binding.action !== 'choose-media') return metadata
+  if (metadata.databaseMapping.kind !== 'action' || metadata.databaseMapping.action !== 'choose-media') return metadata
   const hasMedia = mediaLibraryOptions.value.length > 0
   return {
     ...metadata,
     options: mediaLibraryOptions.value,
+    dependency: { keys: [], enabled: ({ entity }) => entity.capabilities.includes('media') && hasMedia },
     enabledRule: ({ entity }) => entity.capabilities.includes('media') && hasMedia,
     helperText: hasMedia ? undefined : 'No repository media is available.'
   }
@@ -212,11 +184,18 @@ const runtimeContentProperties = computed<PanelProperty[]>(() => (selectedEntity
       categoryOrder: 0,
       presentation: 'inline',
       order: index,
+      databaseMapping: { kind: 'runtime', path: runtimeProperty.path },
       binding: { kind: 'runtime', path: runtimeProperty.path }
     }
   })))
 const selectedPanelProperties = computed(() => [...runtimeContentProperties.value, ...registryPanelProperties.value]
   .sort((left, right) => (left.metadata.categoryOrder ?? 100) - (right.metadata.categoryOrder ?? 100) || left.metadata.order - right.metadata.order))
+const canCopyStyle = computed(() => registryPanelProperties.value.some((property) => property.metadata.copyable && property.metadata.styleKey))
+const canPasteStyle = computed(() => {
+  if (!editor.styleClipboard || selectedObjectLocked.value) return false
+  const styleKeys = new Set(registryPanelProperties.value.filter((property) => property.metadata.copyable).map((property) => property.metadata.styleKey))
+  return editor.styleClipboard.entries.some((entry) => styleKeys.has(entry.styleKey))
+})
 const selectedPropertyValues = computed(() => Object.fromEntries(selectedPanelProperties.value.map((property) => [property.metadata.propertyKey, readPanelValue(property)])))
 const selectedPanelGroups = computed<PanelGroup[]>(() => {
   const groups = new Map<string, { label: string; order: number; presentation: 'inline' | 'accordion'; properties: PanelProperty[] }>()
@@ -244,32 +223,17 @@ const selectedPanelGroups = computed<PanelGroup[]>(() => {
 })
 
 watch(() => editor.draftSnapshot, (snapshot) => {
-  patchPreviewState(site.current.content, toRaw(snapshot.content))
-  patchPreviewState(site.current.visual, toRaw(snapshot.visual))
-  patchPreviewState(site.current.behavior, toRaw(snapshot.behavior))
+  site.hydrateEditorPreview({
+    content: toRaw(snapshot.content),
+    visual: toRaw(snapshot.visual),
+    behavior: toRaw(snapshot.behavior)
+  })
   void nextTick(() => {
     decoratePreviewEntities()
     applyEditorPreviewStyles()
     void syncSnapshotMediaToPreview()
   })
-}, { deep: true })
-
-function patchPreviewState(target: unknown, source: unknown): void {
-  if (Array.isArray(target) && Array.isArray(source)) {
-    target.splice(0, target.length, ...structuredClone(source))
-    return
-  }
-  if (!target || !source || typeof target !== 'object' || typeof source !== 'object') return
-  const targetRecord = target as Record<string, unknown>
-  const sourceRecord = source as Record<string, unknown>
-  for (const key of Object.keys(targetRecord)) if (!(key in sourceRecord)) delete targetRecord[key]
-  for (const [key, nextValue] of Object.entries(sourceRecord)) {
-    const currentValue = targetRecord[key]
-    if (Array.isArray(currentValue) && Array.isArray(nextValue)) patchPreviewState(currentValue, nextValue)
-    else if (currentValue && nextValue && typeof currentValue === 'object' && typeof nextValue === 'object' && !Array.isArray(currentValue) && !Array.isArray(nextValue)) patchPreviewState(currentValue, nextValue)
-    else targetRecord[key] = structuredClone(nextValue)
-  }
-}
+}, { deep: true, flush: 'post' })
 
 watch(() => editor.draftSnapshot.certificateCards, (cards) => {
   if (cards.length) certificates.hydrateEditorCards(cards)
@@ -281,7 +245,16 @@ watch(previewScale, (zoom) => {
   markSessionChanged()
 })
 
-watch(() => editor.selectedEntityId, () => void nextTick(updateSelectedOutline))
+watch(() => editor.selectedObjectId, () => void nextTick(updateSelectedOutline))
+
+watch(editorEntities, (objects) => {
+  if (!editorReady.value) return
+  editor.registerObjects(objects)
+  void nextTick(() => {
+    decoratePreviewEntities()
+    applyEditorPreviewStyles()
+  })
+}, { deep: false })
 
 async function initializeEditor(): Promise<void> {
   initializationError.value = ''
@@ -325,6 +298,8 @@ async function initializeEditor(): Promise<void> {
       editor.draftMediaReferences = []
     }
 
+    editor.registerObjects(editorEntities.value)
+
     managedMediaAreaIds.clear()
     for (const assignment of editor.draftSnapshot.media.assignments) {
       if (photoRegistry.find(assignment.entityId)) managedMediaAreaIds.add(assignment.entityId)
@@ -365,7 +340,7 @@ onBeforeUnmount(() => {
   unregisterSave?.()
   unregisterPublish?.()
   resetEditorPublishFeedback()
-  restoreStyledPreviewElements()
+  if (previewStage.value) restoreRegisteredSnapshotProperties(previewStage.value)
 })
 
 function restoreSelectionFromSession(): void {
@@ -378,29 +353,23 @@ function restoreSelectionFromSession(): void {
   setSelection(entity, session.activeAccordion, false)
 }
 
-function availableGroups(entity: EditorRuntimeEntity): string[] {
+function availableGroups(entity: EditorRuntimeObject): string[] {
   const descriptor = descriptorFor(entity)
   const groups = resolveProperties(descriptor, editor.draftSnapshot).map((property) => property.category)
   if (entity.properties.some((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')) groups.push('font')
   return [...new Set(groups)]
 }
 
-function defaultAccordion(entity: EditorRuntimeEntity): string {
-  const groups = availableGroups(entity)
-  if (entity.photoAreaId && groups.includes('media')) return 'media'
-  if (groups.includes('font')) return 'font'
-  return groups[0] ?? ''
+function defaultAccordion(entity: EditorRuntimeObject): string {
+  const properties = resolveProperties(descriptorFor(entity), editor.draftSnapshot)
+  const groups = [...new Set(properties.map((property) => property.category))]
+  return properties.find((property) => property.categoryDefaultOpen && groups.includes(property.category))?.category
+    ?? (entity.photoAreaId && groups.includes('media') ? 'media' : groups[0] ?? '')
 }
 
-function setSelection(entity: EditorRuntimeEntity, preferredAccordion?: string, markSession = true): void {
+function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, markSession = true): void {
   const descriptor = descriptorFor(entity)
-  if (markSession) editor.selectEntity(descriptor)
-  else {
-    editor.selectedEntityId = entity.id
-    editor.selectedSection = entity.section
-    editor.draftSnapshot.session.selectedEntityId = entity.id
-    editor.draftSnapshot.session.selectedSection = entity.section
-  }
+  editor.selectObject(descriptor, markSession)
   const groups = availableGroups(entity)
   const accordion = preferredAccordion && groups.includes(preferredAccordion) ? preferredAccordion : defaultAccordion(entity)
   if (markSession) editor.setAccordion(accordion)
@@ -437,13 +406,8 @@ function findObjectPath(root: Record<string, unknown>, target: Record<string, un
   return visit(root, '')
 }
 
-function readPath(root: unknown, path: string): EditorValue {
-  return path.split('.').reduce<unknown>((value, key) => (value as Record<string, unknown> | undefined)?.[key], root) as EditorValue
-}
-
 function bindingPath(metadata: PropertyRegistryEntry, entityId: string): string {
-  const binding = metadata.binding
-  return binding?.kind === 'snapshot' ? binding.path.replaceAll('{entityId}', entityId) : metadata.propertyPath
+  return resolvePropertyPath(metadata, entityId) ?? metadata.propertyPath
 }
 
 function fallbackRuntimeValue(metadata: PropertyRegistryEntry): EditorValue {
@@ -454,14 +418,25 @@ function fallbackRuntimeValue(metadata: PropertyRegistryEntry): EditorValue {
 function readPanelValue(property: PanelProperty): string | number | boolean | null {
   if (property.runtimeProperty) return property.runtimeProperty.read()
   const metadata = property.metadata
-  if (metadata.binding?.kind === 'action' && metadata.binding.action === 'choose-media') {
+  if (metadata.databaseMapping.kind === 'metadata') {
+    const valueByField: Record<string, string> = {
+      objectId: selectedEntity.value?.id ?? '',
+      objectType: selectedEntity.value?.type ?? '',
+      capabilities: selectedEntity.value?.capabilities.join(', ') ?? '',
+      validationStatus: editor.selectedPropertyErrors.length ? `${editor.selectedPropertyErrors.length} error(s)` : 'Valid',
+      section: selectedEntity.value?.section ?? '',
+      layer: selectedEntity.value?.layerId ?? ''
+    }
+    return valueByField[metadata.databaseMapping.field]
+  }
+  if (metadata.databaseMapping.kind === 'action' && metadata.databaseMapping.action === 'choose-media') {
     const targetId = selectedPhotoArea.value?.id
     return targetId
       ? editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === targetId)?.assetId ?? ''
       : ''
   }
-  if (metadata.binding?.kind !== 'snapshot' || !selectedEntity.value) return primitiveValue(metadata.defaultValue)
-  const value = readPath(editor.draftSnapshot, bindingPath(metadata, selectedEntity.value.id))
+  if (metadata.databaseMapping.kind !== 'snapshot' || !selectedEntity.value) return primitiveValue(metadata.defaultValue)
+  const value = readSnapshotPath(editor.draftSnapshot, bindingPath(metadata, selectedEntity.value.id))
   return primitiveValue(value ?? fallbackRuntimeValue(metadata) ?? metadata.defaultValue)
 }
 
@@ -472,7 +447,7 @@ function primitiveValue(value: EditorValue): string | number | boolean | null {
 async function updatePanelProperty(property: PanelProperty, value: string | number | boolean): Promise<void> {
   const entity = selectedEntity.value
   if (!entity || !isPanelPropertyEnabled(property)) return
-  if (property.metadata.binding?.kind === 'action' && property.metadata.binding.action === 'choose-media') {
+  if (property.metadata.databaseMapping.kind === 'action' && property.metadata.databaseMapping.action === 'choose-media') {
     await chooseExistingMedia(String(value), property.metadata.commandType)
     return
   }
@@ -480,16 +455,18 @@ async function updatePanelProperty(property: PanelProperty, value: string | numb
     await writeRuntimeProperty(entity, property.runtimeProperty, value)
     return
   }
-  if (property.metadata.binding?.kind !== 'snapshot') return
+  if (property.metadata.databaseMapping.kind !== 'snapshot') return
   const path = bindingPath(property.metadata, entity.id)
-  editor.setProperty(entity.id, path, value, property.metadata.commandType, { coalesceKey: `${entity.id}:${path}` })
+  const serialized = property.metadata.serializer.serialize(value)
+  const applied = editor.setProperty(entity.id, path, serialized, property.metadata.commandType, { coalesceKey: `${entity.id}:${path}` })
+  if (!applied) return
   markEditorChanged()
   await nextTick()
   applyEditorPreviewStyles()
   updateSelectedOutline()
 }
 
-async function writeRuntimeProperty(entity: EditorRuntimeEntity, property: RuntimeAdminProperty, value: string | number | boolean): Promise<void> {
+async function writeRuntimeProperty(entity: EditorRuntimeObject, property: RuntimeAdminProperty, value: string | number | boolean): Promise<void> {
   const previousValue = property.read()
   if (Object.is(previousValue, value)) return
   let path = property.target ? findObjectPath(site.current as unknown as Record<string, unknown>, property.target) : null
@@ -498,9 +475,9 @@ async function writeRuntimeProperty(entity: EditorRuntimeEntity, property: Runti
     if (certificateIndex >= 0) path = `certificateCards.${certificateIndex}`
   }
   if (!path) throw new Error(`Snapshot binding was not found for ${entity.id}.${property.path}.`)
-  await property.write(value)
   const snapshotPath = `${path}.${property.path}`
-  editor.setProperty(entity.id, snapshotPath, value, property.metadata.commandType, { coalesceKey: `${entity.id}:${snapshotPath}` })
+  const applied = editor.setProperty(entity.id, snapshotPath, property.metadata.serializer.serialize(value), property.metadata.commandType, { coalesceKey: `${entity.id}:${snapshotPath}` })
+  if (!applied) return
   markEditorChanged()
 }
 
@@ -512,11 +489,17 @@ function isPanelPropertyEnabled(property: PanelProperty): boolean {
     snapshot: editor.draftSnapshot,
     values: selectedPropertyValues.value
   }
-  return isPropertyEnabled(property.metadata, context)
+  return (property.metadata.readOnly || !selectedObjectLocked.value) && isPropertyEnabled(property.metadata, context)
+}
+
+function panelPropertyError(property: PanelProperty): string {
+  if (!selectedEntity.value || property.metadata.databaseMapping.kind !== 'snapshot') return ''
+  const path = bindingPath(property.metadata, selectedEntity.value.id)
+  return editor.registeredPropertyErrors.find((error) => error.propertyPath === path)?.message ?? ''
 }
 
 async function handlePropertyFile(property: PanelProperty, file: File): Promise<void> {
-  const action = property.metadata.binding?.kind === 'action' ? property.metadata.binding.action : undefined
+  const action = property.metadata.databaseMapping.kind === 'action' ? property.metadata.databaseMapping.action : undefined
   if (action !== 'upload-media' && action !== 'replace-media') return
   await uploadSelectedMedia(file, property.metadata.commandType)
 }
@@ -619,7 +602,7 @@ async function saveDraft(): Promise<void> {
   editorSaveStatus.value = 'Saving...'
   try {
     editor.setViewport({
-      selectedEntityId: editor.selectedEntityId,
+      selectedEntityId: editor.selectedObjectId,
       selectedSection: editor.selectedSection,
       activeAccordion: editor.activeAccordion,
       previewScrollTop: canvasScroll.value?.scrollTop ?? 0,
@@ -665,6 +648,12 @@ async function saveDraft(): Promise<void> {
 
 async function publishCurrentDraft(note: string): Promise<void> {
   editorPublishErrors.value = []
+  if (editor.registeredPropertyErrors.length) {
+    const error = new PublishValidationError(editor.registeredPropertyErrors.map((item) => `${item.entityId} · ${item.message}`))
+    editorPublishStatus.value = 'Failed'
+    editorPublishErrors.value = error.errors
+    throw error
+  }
   if (!editor.draftRevisionId || editor.draftLockVersion === null) {
     const error = new PublishValidationError(['Save this workspace as a Draft before publishing.'])
     editorPublishStatus.value = 'Failed'
@@ -800,8 +789,8 @@ function markSessionChanged(): void {
 }
 
 function selectPreviewEntity(event: MouseEvent): void {
-  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-entity-id]')
-  const entityId = target?.dataset.editorEntityId
+  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
+  const entityId = target?.dataset.editorObjectId
   if (!entityId || !target) return
   selectEntity(entityId, target)
 }
@@ -813,14 +802,22 @@ function decoratePreviewEntities(): void {
       ?? element.dataset.photoAreaId
       ?? element.dataset.certificateId
       ?? element.dataset.entityId
-    if (entityId && editorEntities.value.some((entity) => entity.id === entityId)) element.dataset.editorEntityId = entityId
+    const object = entityId ? editorEntities.value.find((candidate) => candidate.id === entityId) : undefined
+    if (!object) return
+    const state = editor.objectState(object.id)
+    element.dataset.editorEntityId = object.id
+    element.dataset.editorObjectId = object.id
+    element.dataset.editorObjectType = object.type
+    element.dataset.editorCapabilities = object.capabilities.join(' ')
+    element.classList.toggle('editor-preview-locked', state.locked)
+    element.classList.toggle('editor-preview-hidden', state.hidden)
   })
   updateSelectedOutline()
 }
 
 function preferredPreviewElement(entityId: string): HTMLElement | null {
-  const matches = [...(previewStage.value?.querySelectorAll<HTMLElement>('[data-editor-entity-id]') ?? [])]
-    .filter((element) => element.dataset.editorEntityId === entityId)
+  const matches = [...(previewStage.value?.querySelectorAll<HTMLElement>('[data-editor-object-id]') ?? [])]
+    .filter((element) => element.dataset.editorObjectId === entityId)
   if (!matches.length) return null
   return matches.sort((left, right) => {
     const leftRect = left.getBoundingClientRect()
@@ -831,78 +828,92 @@ function preferredPreviewElement(entityId: string): HTMLElement | null {
 
 function updateSelectedOutline(): void {
   previewStage.value?.querySelectorAll<HTMLElement>('.editor-preview-selected').forEach((element) => element.classList.remove('editor-preview-selected'))
-  const selected = selectedPreviewElement?.isConnected && selectedPreviewElement.dataset.editorEntityId === editor.selectedEntityId
+  const selected = selectedPreviewElement?.isConnected && selectedPreviewElement.dataset.editorObjectId === editor.selectedObjectId
     ? selectedPreviewElement
-    : preferredPreviewElement(editor.selectedEntityId)
+    : preferredPreviewElement(editor.selectedObjectId)
   selected?.classList.add('editor-preview-selected')
   selectedPreviewElement = selected ?? null
 }
 
-function baselineFor(element: HTMLElement): Record<string, string> {
-  const existing = styleBaselines.get(element)
-  if (existing) return existing
-  const fields = ['font-family', 'font-size', 'letter-spacing', 'color', 'text-shadow', 'translate', 'rotate', 'width', 'height', 'outline', '--editor-hover-color']
-  const baseline = Object.fromEntries(fields.map((field) => [field, element.style.getPropertyValue(field)]))
-  styleBaselines.set(element, baseline)
-  return baseline
-}
-
-function restoreStyledPreviewElements(): void {
-  for (const element of styledPreviewElements) {
-    const baseline = styleBaselines.get(element)
-    if (!baseline) continue
-    for (const [field, value] of Object.entries(baseline)) {
-      if (value) element.style.setProperty(field, value)
-      else element.style.removeProperty(field)
-    }
-    element.classList.remove('editor-has-hover-color')
-  }
-  styledPreviewElements.clear()
-}
-
-function cssLength(value: number | string | undefined): string {
-  if (typeof value === 'number') return `${value}px`
-  return value ?? ''
-}
-
-function cssRotation(value: number | string | undefined): string {
-  if (typeof value === 'number') return `${value}deg`
-  if (!value) return ''
-  return /[a-z%]/i.test(value) ? value : `${value}deg`
-}
-
 function applyEditorPreviewStyles(): void {
-  restoreStyledPreviewElements()
-  for (const entity of editorEntities.value) {
-    const element = preferredPreviewElement(entity.id)
-    if (!element) continue
-    const typography = editor.draftSnapshot.typography[entity.id]
-    const layout = editor.draftSnapshot.layout[entity.id]
-    const mediaStyle = editor.draftSnapshot.media.styles[entity.id]
-    if (!typography && !layout && !mediaStyle) continue
-    baselineFor(element)
-    styledPreviewElements.add(element)
-    if (typography?.fontFamily) element.style.setProperty('font-family', typography.fontFamily)
-    if (typography?.fontSize) element.style.setProperty('font-size', typography.fontSize)
-    if (typography?.letterSpacing) element.style.setProperty('letter-spacing', typography.letterSpacing)
-    if (typography?.color) element.style.setProperty('color', typography.color)
-    if (typography?.textShadow) element.style.setProperty('text-shadow', typography.textShadow)
-    if (typography?.hoverColor) {
-      element.style.setProperty('--editor-hover-color', typography.hoverColor)
-      element.classList.add('editor-has-hover-color')
-    }
-    if (layout) {
-      const x = cssLength(layout.x)
-      const y = cssLength(layout.y)
-      if (x || y) element.style.setProperty('translate', `${x || '0px'} ${y || '0px'}`)
-      const rotation = cssRotation(layout.rotation)
-      if (rotation) element.style.setProperty('rotate', rotation)
-      if (layout.width !== undefined && layout.width !== '') element.style.setProperty('width', cssLength(layout.width))
-      if (layout.height !== undefined && layout.height !== '') element.style.setProperty('height', cssLength(layout.height))
-    }
-    if (mediaStyle?.outlineEnabled) element.style.setProperty('outline', `${mediaStyle.outlineWidth ?? 1}px solid currentColor`)
-  }
+  if (previewStage.value) applyRegisteredSnapshotProperties(previewStage.value, editor.draftSnapshot)
+  decoratePreviewEntities()
   updateSelectedOutline()
+}
+
+function focusPreviewObject(objectId: string): void {
+  void nextTick(() => {
+    const element = preferredPreviewElement(objectId)
+    element?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
+    selectedPreviewElement = element
+    updateSelectedOutline()
+  })
+}
+
+function selectNavigatorObject(objectId: string, focusPreview: boolean): void {
+  selectEntity(objectId)
+  if (focusPreview) focusPreviewObject(objectId)
+}
+
+function setObjectSearch(value: string): void {
+  editor.setObjectSearch(value)
+  markSessionChanged()
+}
+
+function setLayerExpanded(layerId: string, expanded: boolean): void {
+  editor.setLayerExpanded(layerId, expanded)
+  markSessionChanged()
+}
+
+function setObjectLocked(objectId: string, locked: boolean): void {
+  editor.setObjectState(objectId, { locked })
+  markSessionChanged()
+  decoratePreviewEntities()
+}
+
+function setObjectHidden(objectId: string, hidden: boolean): void {
+  editor.setObjectState(objectId, { hidden })
+  markSessionChanged()
+  decoratePreviewEntities()
+}
+
+function copySelectedStyle(): void {
+  const object = selectedEntity.value
+  if (!object) return
+  const copied = new Set<string>()
+  const entries = registryPanelProperties.value.flatMap((property) => {
+    const styleKey = property.metadata.styleKey
+    if (!styleKey || !property.metadata.copyable || property.metadata.databaseMapping.kind !== 'snapshot' || copied.has(styleKey)) return []
+    const value = property.metadata.serializer.serialize(readPanelValue(property))
+    if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) return []
+    copied.add(styleKey)
+    return [{ styleKey, capability: property.metadata.capability, value }]
+  })
+  editor.setStyleClipboard({ sourceObjectId: object.id, sourceObjectType: object.type, entries })
+  saveStatus.value = entries.length ? `Copied ${entries.length} compatible style properties.` : 'No copyable styles are available.'
+}
+
+function pasteSelectedStyle(): void {
+  const object = selectedEntity.value
+  const clipboard = editor.styleClipboard
+  if (!object || !clipboard || selectedObjectLocked.value) return
+  const targetByStyle = new Map<string, PanelProperty>()
+  for (const property of registryPanelProperties.value) {
+    const styleKey = property.metadata.styleKey
+    if (styleKey && property.metadata.copyable && property.metadata.databaseMapping.kind === 'snapshot' && !targetByStyle.has(styleKey)) targetByStyle.set(styleKey, property)
+  }
+  const changes = clipboard.entries.flatMap((entry) => {
+    const property = targetByStyle.get(entry.styleKey)
+    if (!property || !isPanelPropertyEnabled(property)) return []
+    return [{ propertyPath: bindingPath(property.metadata, object.id), nextValue: property.metadata.serializer.serialize(entry.value) }]
+  })
+  if (!editor.setProperties(object.id, changes, { sourceObjectId: clipboard.sourceObjectId })) {
+    saveStatus.value = 'No compatible style changes were available.'
+    return
+  }
+  markEditorChanged()
+  saveStatus.value = `Pasted ${changes.length} compatible style properties.`
+  void nextTick(applyEditorPreviewStyles)
 }
 
 function toggleAccordion(category: string): void {
@@ -950,13 +961,25 @@ function cancelLibrarySwitch(): void {
 
 <template>
   <div class="edit-page">
+    <EditorObjectNavigator
+      :objects="editor.objects"
+      :selected-object-id="editor.selectedObjectId"
+      :search="editor.draftSnapshot.session.propertySearch"
+      :expanded-layers="editor.draftSnapshot.session.expandedLayers"
+      :object-states="editor.draftSnapshot.session.objectStates"
+      @select="selectNavigatorObject"
+      @search="setObjectSearch"
+      @expand="setLayerExpanded"
+      @lock="setObjectLocked"
+      @hide="setObjectHidden"
+    />
     <aside class="control-panel" aria-label="Editor property panel">
       <div class="panel-heading">
         <div>
-          <h1>Edit</h1>
-          <span class="panel-hint">Visual Property Editor</span>
+          <h1>Inspector</h1>
+          <span class="panel-hint">Professional Object Editor</span>
         </div>
-        <span v-if="selectedEntity" class="selected-kind">{{ selectedEntity.kind }}</span>
+        <span v-if="selectedEntity" class="selected-kind">{{ selectedEntity.type }}</span>
       </div>
 
       <label class="field-label" for="section-select">Section</label>
@@ -971,7 +994,26 @@ function cancelLibrarySwitch(): void {
 
       <p v-if="selectedEntity" class="selection-summary" :data-selected-entity-id="selectedEntity.id">
         Editing <strong>{{ selectedEntity.label }}</strong>
+        <span>{{ editor.selectedLayer }}</span>
       </p>
+
+      <div v-if="selectedEntity" class="object-actions" aria-label="Selected object actions">
+        <button type="button" :aria-pressed="selectedObjectLocked" @click="setObjectLocked(selectedEntity.id, !selectedObjectLocked)">
+          <Unlock v-if="selectedObjectLocked" :size="15" />
+          <Lock v-else :size="15" />
+          {{ selectedObjectLocked ? 'Unlock' : 'Lock' }}
+        </button>
+        <button type="button" :aria-pressed="selectedObjectHidden" @click="setObjectHidden(selectedEntity.id, !selectedObjectHidden)">
+          <Eye v-if="selectedObjectHidden" :size="15" />
+          <EyeOff v-else :size="15" />
+          {{ selectedObjectHidden ? 'Show' : 'Hide' }}
+        </button>
+        <button type="button" :disabled="!canCopyStyle" @click="copySelectedStyle"><ClipboardCopy :size="15" />Copy Style</button>
+        <button type="button" :disabled="!canPasteStyle" @click="pasteSelectedStyle"><ClipboardPaste :size="15" />Paste Style</button>
+      </div>
+
+      <p v-if="selectedObjectLocked" class="object-state-notice">This object is locked. Inspector controls are read-only until it is unlocked.</p>
+      <p v-if="selectedObjectHidden" class="object-state-notice">Hidden only in the Admin preview. Guest Runtime remains unchanged.</p>
 
       <section v-if="selectedEntity" class="property-editor">
         <div v-for="group in selectedPanelGroups" :key="group.key" class="property-group" :class="{ 'property-group--inline': group.presentation === 'inline' }" :data-property-category="group.key">
@@ -996,7 +1038,7 @@ function cancelLibrarySwitch(): void {
                 v-for="property in row.properties"
                 :key="property.key"
                 class="property-field"
-                :class="{ 'property-field--disabled': !isPanelPropertyEnabled(property) }"
+                :class="{ 'property-field--disabled': !isPanelPropertyEnabled(property), 'property-field--error': Boolean(panelPropertyError(property)) }"
                 :title="!isPanelPropertyEnabled(property) ? property.metadata.helperText : undefined"
               >
                 <span>{{ property.metadata.label }}</span>
@@ -1011,12 +1053,17 @@ function cancelLibrarySwitch(): void {
                   @action="handlePropertyAction(property)"
                 />
                 <small v-if="!isPanelPropertyEnabled(property) && property.metadata.helperText">{{ property.metadata.helperText }}</small>
+                <small v-if="panelPropertyError(property)" class="property-error" role="alert">{{ panelPropertyError(property) }}</small>
               </label>
             </div>
           </div>
         </div>
         <p v-if="!selectedPanelGroups.length" class="empty-properties">No registered properties are available for this entity.</p>
       </section>
+
+      <div v-if="editor.selectedPropertyErrors.length" class="validation-summary" role="status">
+        {{ editor.selectedPropertyErrors.length }} invalid {{ editor.selectedPropertyErrors.length === 1 ? 'property' : 'properties' }}. Publish is blocked until corrected.
+      </div>
 
       <button type="button" class="discard-draft-button" :disabled="editor.isSavingDraft" @click="discardDraft">Discard Draft</button>
       <p class="save-status" aria-live="polite">{{ saveStatus }}</p>
@@ -1087,7 +1134,7 @@ function cancelLibrarySwitch(): void {
 </template>
 
 <style scoped>
-.edit-page { display: grid; grid-template-columns: clamp(320px, 25vw, 380px) minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; background: #f6f4e8; color: #49362f; }
+.edit-page { display: grid; grid-template-columns: clamp(220px, 17vw, 270px) clamp(330px, 24vw, 390px) minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; background: #f6f4e8; color: #49362f; }
 .control-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 1.5rem 1.25rem 6rem; border-right: 1px solid rgba(73,54,47,.16); scrollbar-gutter: stable; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-bottom: .9rem; border-bottom: 1px solid rgba(73,54,47,.13); }
 .panel-heading h1 { margin: 0; font-size: 1.5rem; }
@@ -1101,7 +1148,10 @@ function cancelLibrarySwitch(): void {
 .property-field :deep(button) { width: 100%; border: 1px solid #e8ded0; border-radius: 9px; padding: .68rem; background: #fff5eb; color: #5a3e35; font-weight: 700; cursor: pointer; }
 .property-field :deep(:disabled) { cursor: not-allowed; }
 .property-field small { color: #9a806f; font-size: .65rem; font-weight: 500; line-height: 1.35; }
-.selection-summary { margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }
+.property-field :deep(.property-readonly) { display: block; width: 100%; overflow-wrap: anywhere; padding: .62rem; border: 1px dashed rgba(73,54,47,.18); border-radius: 8px; background: rgba(246,244,232,.75); color: #78645b; font: 500 .7rem/1.45 system-ui; }
+.selection-summary { display: grid; gap: .18rem; margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }.selection-summary span { color: #a18b80; font-size: .58rem; overflow-wrap: anywhere; }
+.object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
+.object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
 .property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); }
 .property-group--inline { border: 0; border-radius: 0; overflow: visible; background: transparent; }
 .property-group--inline .accordion-content { padding: 0; }
@@ -1110,6 +1160,7 @@ function cancelLibrarySwitch(): void {
 .property-row { display: grid; gap: .7rem; }
 .property-row--paired { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .property-field--disabled { opacity: .48; filter: grayscale(.2); }
+.property-field--error :deep(input),.property-field--error :deep(select),.property-field--error :deep(textarea) { border-color: #bd4c4c !important; box-shadow: 0 0 0 2px rgba(189,76,76,.1); }.property-field .property-error { color: #a53f32; }.validation-summary { margin-top: 1rem; padding: .7rem .75rem; border: 1px solid rgba(165,63,50,.22); border-radius: 10px; background: #fff0eb; color: #8d363a; font-size: .7rem; font-weight: 700; line-height: 1.45; }
 .empty-properties { color: #8c7568; font-size: .75rem; }
 .discard-draft-button { width: 100%; margin-top: 1.25rem; border: 1px solid #d9b6b6; border-radius: 10px; padding: .7rem; background: #fffaf4; color: #8d363a; font-weight: 700; cursor: pointer; }
 .save-status { min-height: 1.2em; color: #7b5f3b; font-size: .75rem; }
@@ -1125,15 +1176,16 @@ function cancelLibrarySwitch(): void {
 .canvas-scroll { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; background: #fff; scrollbar-gutter: stable; }
 .preview-frame { position: relative; margin: 1.5rem auto 7rem; background: #fff; box-shadow: 0 1rem 2rem rgba(73,54,47,.12); }
 .preview-stage { transform-origin: top left; }
-.editor-preview-runtime :deep([data-editor-entity-id]) { cursor: pointer; outline-offset: 3px; border-radius: 4px; }
-.editor-preview-runtime :deep([data-editor-entity-id]:hover) { outline: 1px dashed rgba(184,91,105,.55); background: transparent; }
+.editor-preview-runtime :deep([data-editor-object-id]) { cursor: pointer; outline-offset: 3px; border-radius: 4px; }
+.editor-preview-runtime :deep([data-editor-object-id]:hover) { outline: 1px dashed rgba(184,91,105,.55); background: transparent; }
 .editor-preview-runtime :deep(.editor-preview-selected) { outline: 3px solid rgba(184,91,105,.95) !important; outline-offset: 4px !important; border-radius: 7px; background: transparent !important; }
-.editor-preview-runtime :deep(.editor-has-hover-color:hover) { color: var(--editor-hover-color) !important; }
+.editor-preview-runtime :deep(.editor-preview-locked) { cursor: default; }.editor-preview-runtime :deep(.editor-preview-locked.editor-preview-selected) { outline-style: dashed !important; outline-color: rgba(139,100,65,.95) !important; }
+.editor-preview-runtime :deep(.editor-preview-hidden) { opacity: .08 !important; pointer-events: none; }.editor-preview-runtime :deep(.editor-preview-hidden.editor-preview-selected) { opacity: .2 !important; outline-style: dotted !important; }
 .modal-backdrop { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(73,54,47,.35); }
 .source-modal { position: relative; width: min(100%,620px); padding: 2rem; border-radius: 24px; background: #f6f4e8; color: #49362f; box-shadow: 0 1.5rem 4rem rgba(73,54,47,.25); }
 .source-modal h2 { margin: 0; color: #5a3e35; }.source-modal p { color: #7b5f3b; }.modal-close { position: absolute; top: 1rem; right: 1rem; border: 0; background: transparent; font-size: 1.25rem; color: #7b5f3b; cursor: pointer; }
 .source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }.source-options button { display: grid; gap: .55rem; min-height: 140px; border: 1px solid #e8ded0; border-radius: 16px; padding: 1.2rem; background: #fff5eb; color: #5a3e35; text-align: left; cursor: pointer; }.source-options span { color: #7b5f3b; font-size: .85rem; font-weight: 400; }
 .unsaved-actions { display: grid; gap: .65rem; }.unsaved-actions button { border: 1px solid #e8ded0; border-radius: 11px; padding: .75rem 1rem; background: #fffaf4; color: #5a3e35; cursor: pointer; font-weight: 700; }.unsaved-actions .primary-action { background: #8d363a; color: #fff; }
-@media (max-width: 900px) { .edit-page { grid-template-columns: minmax(300px, 38vw) minmax(0, 1fr); }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
-@media (max-width: 700px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.control-panel { flex: 0 0 52%; max-height: 52%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 48%; min-height: 0; }.canvas-label { display: none; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1100px) { .edit-page { grid-template-columns: 210px 330px minmax(0,1fr); }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
+@media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
 </style>

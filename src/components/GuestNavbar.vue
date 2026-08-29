@@ -25,8 +25,8 @@ import { useSiteStore } from '../stores/site'
 // SECTION DEFINITIONS — from DEFAULT content
 // ──────────────────────────────────────────
 const site = useSiteStore()
-const sections = site.current.content.navigation.sections
-const vConfig = site.current.visual.navbar
+const sections = computed(() => site.current.content.navigation.sections)
+const vConfig = computed(() => site.current.visual.navbar)
 
 // Brand name from DEFAULT content
 const brandName = computed(() => site.current.content.navigation.brand)
@@ -50,21 +50,21 @@ interface NavItem {
 // but the color VALUES themselves are sourced from DEFAULT.
 // ──────────────────────────────────────────
 const navbarStyle = computed(() => ({
-  '--navbar-brand-font-family': vConfig.brand.fontFamily,
-  '--navbar-brand-font-size': vConfig.brand.fontSize,
-  '--navbar-brand-font-weight': vConfig.brand.fontWeight,
-  '--navbar-brand-letter-spacing': vConfig.brand.letterSpacing,
-  '--navbar-brand-line-height': vConfig.brand.lineHeight,
-  '--navbar-navlink-font-family': vConfig.navLink.fontFamily,
-  '--navbar-navlink-font-size': vConfig.navLink.fontSize,
-  '--navbar-navlink-font-weight': vConfig.navLink.fontWeight,
-  '--navbar-navlink-letter-spacing': vConfig.navLink.letterSpacing,
-  '--navbar-navlink-line-height': vConfig.navLink.lineHeight,
-  '--navbar-navlink-scrolled-font-size': vConfig.navLink.scrolledFontSize,
-  '--navbar-navlink-mobile-font-size': vConfig.navLink.mobileFontSize,
-  '--navbar-color-dark-bg': vConfig.colors.darkBgText,
-  '--navbar-color-light-bg': vConfig.colors.lightBgText,
-  '--navbar-color-scrolled': vConfig.colors.scrolledText,
+  '--navbar-brand-font-family': vConfig.value.brand.fontFamily,
+  '--navbar-brand-font-size': vConfig.value.brand.fontSize,
+  '--navbar-brand-font-weight': vConfig.value.brand.fontWeight,
+  '--navbar-brand-letter-spacing': vConfig.value.brand.letterSpacing,
+  '--navbar-brand-line-height': vConfig.value.brand.lineHeight,
+  '--navbar-navlink-font-family': vConfig.value.navLink.fontFamily,
+  '--navbar-navlink-font-size': vConfig.value.navLink.fontSize,
+  '--navbar-navlink-font-weight': vConfig.value.navLink.fontWeight,
+  '--navbar-navlink-letter-spacing': vConfig.value.navLink.letterSpacing,
+  '--navbar-navlink-line-height': vConfig.value.navLink.lineHeight,
+  '--navbar-navlink-scrolled-font-size': vConfig.value.navLink.scrolledFontSize,
+  '--navbar-navlink-mobile-font-size': vConfig.value.navLink.mobileFontSize,
+  '--navbar-color-dark-bg': vConfig.value.colors.darkBgText,
+  '--navbar-color-light-bg': vConfig.value.colors.lightBgText,
+  '--navbar-color-scrolled': vConfig.value.colors.scrolledText,
 }))
 
 // ──────────────────────────────────────────
@@ -220,7 +220,7 @@ function initObserver() {
     if (suppressHide) return // Don't fight click navigation
     for (const entry of entries) {
       if (entry.isIntersecting) {
-        const sec = sections.find(s => s.id === entry.target.id)
+        const sec = sections.value.find(s => s.id === entry.target.id)
         if (sec) {
           activeKey.value     = sec.menuKey
           isDarkSection.value = sec.darkBg
@@ -230,7 +230,7 @@ function initObserver() {
     }
   }, options)
 
-  sections.forEach(sec => {
+  sections.value.forEach(sec => {
     const el = document.getElementById(sec.id)
     if (el) observer!.observe(el)
   })
@@ -273,7 +273,7 @@ function handleNavClick(event: Event, item: NavItem) {
   educationCollegeMagnet.setProgrammaticNavigation(true)
 
   // Update active state immediately on click
-  const sec = sections.find(s => s.id === item.targetSectionId)
+  const sec = sections.value.find(s => s.id === item.targetSectionId)
   if (sec) {
     activeKey.value     = sec.menuKey
     isDarkSection.value = sec.darkBg

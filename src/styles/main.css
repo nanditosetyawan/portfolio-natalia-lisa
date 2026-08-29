@@ -4,3 +4,8 @@
 .published-runtime-hover-color:hover {
   color: var(--published-hover-color) !important;
 }
+
+/* Shared Property Registry runtime hook used by both Admin preview and Guest. */
+.snapshot-runtime-hover-color:hover {
+  color: var(--snapshot-runtime-hover-color) !important;
+}

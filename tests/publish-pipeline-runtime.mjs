@@ -42,13 +42,17 @@ async function waitForHttp(url, timeout = 20000) {
   throw new Error(`Timed out waiting for ${url}`)
 }
 
-async function waitForJson(url, timeout = 20000) {
+async function waitForPageTarget(urlPart, timeout = 20000) {
   const started = Date.now()
   while (Date.now() - started < timeout) {
-    try { const response = await fetch(url); if (response.ok) return await response.json() } catch { /* starting */ }
+    try {
+      const targets = await (await fetch(`http://127.0.0.1:${cdpPort}/json`)).json()
+      const page = targets.find((target) => target.type === 'page' && target.url.includes(urlPart))
+      if (page) return page
+    } catch { /* Chromium is still navigating */ }
     await wait(100)
   }
-  throw new Error(`Timed out waiting for ${url}`)
+  throw new Error(`Timed out waiting for Chromium page target: ${urlPart}`)
 }
 
 function launch(command, args, options = {}) {
@@ -122,9 +126,7 @@ try {
     '--window-size=1440,1000', baseUrl
   ])
   browser.stderr.on('data', (chunk) => { browserErrors += String(chunk) })
-  const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`)
-  const page = targets.find((target) => target.type === 'page' && target.url.includes('127.0.0.1:5177'))
-  if (!page) throw new Error('Cloud runtime page target was not found.')
+  const page = await waitForPageTarget('127.0.0.1:5177')
   socket = new WebSocket(page.webSocketDebuggerUrl)
   await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }) })
 
@@ -232,7 +234,7 @@ try {
   assert(Number(anonymous.revision_number) === revisionTwo && anonymous.snapshot.content.portfolio.title === revisionTwoTitle, 'second Publish did not advance Guest Runtime')
 
   const staleAtomicResult = await evaluate(`(async()=>{const rest=await import('/src/lib/supabaseRest.ts');const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');try{await rest.supabaseRpc('publish_editor_draft',{p_draft_id:editor.draftRevisionId,p_prepared_snapshot:JSON.parse(JSON.stringify(editor.draftSnapshot)),p_expected_published_revision:${revisionOne},p_expected_draft_lock_version:editor.draftLockVersion,p_note:'Phase 029G stale atomic boundary test'});return {rejected:false,message:''}}catch(error){return {rejected:true,message:error instanceof Error?error.message:String(error)}}})()`)
-  assert(staleAtomicResult.rejected && /changed|older|40001|409/i.test(staleAtomicResult.message), `atomic stale Publish was not rejected: ${JSON.stringify(staleAtomicResult)}`)
+  assert(staleAtomicResult.rejected && /\(409\)/.test(staleAtomicResult.message) && /PT409/.test(staleAtomicResult.message), `atomic stale Publish did not return the expected non-retryable PT409 conflict: ${JSON.stringify(staleAtomicResult)}`)
 
   const originalDraftId = await evaluate(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').draftRevisionId`)
   const missingDraftId = crypto.randomUUID()
@@ -246,7 +248,12 @@ try {
   assert(Number(anonymous.revision_number) === revisionTwo && anonymous.snapshot.content.portfolio.title === revisionTwoTitle, 'failed stale Publish changed Guest Runtime')
   await evaluate(`(()=>{const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');editor.draftRevisionId=${JSON.stringify(originalDraftId)};editor.publishedRevisionNumber=${revisionTwo};document.querySelector('.publish-cancel')?.click();return true})()`)
 
-  await evaluate(`(async()=>{const router=(await import('/src/router/index.ts')).default;await router.push({name:'admin-published'});return true})()`)
+  await evaluate(`(async()=>{const router=(await import('/src/router/index.ts')).default;await router.push({name:'admin-dashboard'});return true})()`)
+  await waitFor(`document.querySelector('.card-published')?.textContent.includes('Live revision #${revisionTwo}')`)
+  const dashboardPublished = await evaluate(`(()=>{const card=document.querySelector('.card-published');return {role:card?.getAttribute('role'),tabindex:card?.getAttribute('tabindex'),label:card?.getAttribute('aria-label'),description:card?.querySelector('.card-published-desc')?.textContent.trim()??'',date:card?.querySelector('.card-published-date')?.textContent.trim()??''}})()`)
+  assert(dashboardPublished.role === 'button' && dashboardPublished.tabindex === '0' && dashboardPublished.label === 'Open Publish History', `Dashboard Published card is not keyboard accessible: ${JSON.stringify(dashboardPublished)}`)
+  assert(dashboardPublished.description === `Live revision #${revisionTwo}` && dashboardPublished.date.startsWith('Published '), `Dashboard Published card did not show current revision/date: ${JSON.stringify(dashboardPublished)}`)
+  await evaluate(`(()=>{document.querySelector('.card-published').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()`)
   await waitFor(`document.querySelectorAll('.history-card').length>=2`)
   const historyShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
   await writeFile(path.join(projectRoot, 'artifacts', 'phase-029g-publish-history.png'), Buffer.from(historyShot.data, 'base64'))
@@ -266,8 +273,13 @@ try {
   assert(!directDraftResponse.ok && !directFavoriteResponse.ok, 'anonymous Data API can read Draft or Favorite rows')
 
   const requestBoundary = networkRequests.length
-  await evaluate(`(async()=>{const auth=(await import('/src/stores/auth.ts')).useAuthStore();await auth.logout();const runtime=await import('/src/runtime/publishedRuntime.ts');await runtime.initializePublishedRuntime();const router=(await import('/src/router/index.ts')).default;await router.push('/');return true})()`)
-  await waitFor(`Boolean(document.querySelector('.guest-home'))&&document.body.innerText.includes(${JSON.stringify(revisionOneTitle)})`)
+  const guestInitialization = await evaluate(`(async()=>{const auth=(await import('/src/stores/auth.ts')).useAuthStore();const site=(await import('/src/stores/site.ts')).useSiteStore();const runtime=await import('/src/runtime/publishedRuntime.ts');const router=(await import('/src/router/index.ts')).default;await auth.logout();for(let attempt=0;attempt<3;attempt+=1){await runtime.initializePublishedRuntime();if(site.publishedRuntimeStatus==='ready')break;if(site.publishedRuntimeStatus!=='error'||!/fetch|network|timeout|connection/i.test(site.errorMessage))break;await new Promise(resolve=>setTimeout(resolve,250))}await router.push('/');await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {status:site.publishedRuntimeStatus,error:site.errorMessage,revision:site.publishedRevisionNumber,currentTitle:site.current.content.portfolio.title,activeTitle:runtime.activePublishedEditorSnapshot.value?.content.portfolio.title??null,route:router.currentRoute.value.fullPath}})()`)
+  assert(guestInitialization.status === 'ready' && guestInitialization.revision === rollbackRevision, `Guest Published Runtime did not initialize the rollback revision: ${JSON.stringify(guestInitialization)}`)
+  assert(guestInitialization.currentTitle === revisionOneTitle && guestInitialization.activeTitle === revisionOneTitle, `Guest stores did not hydrate the rollback snapshot: ${JSON.stringify(guestInitialization)}`)
+  assert(guestInitialization.route === '/', `Guest navigation did not leave Admin Runtime: ${JSON.stringify(guestInitialization)}`)
+  await waitFor(`Boolean(document.querySelector('.guest-home .portfolio-title'))`)
+  const renderedGuestTitle = await evaluate(`document.querySelector('.guest-home .portfolio-title')?.textContent.trim()??''`)
+  assert(renderedGuestTitle === revisionOneTitle, `Guest DOM did not render the rollback snapshot: ${JSON.stringify({ renderedGuestTitle, guestInitialization })}`)
   const guestRequests = networkRequests.slice(requestBoundary).filter((url) => url.includes('/rest/v1/'))
   assert(guestRequests.some((url) => url.includes('/rpc/get_active_published_snapshot')), 'Guest did not use the active Published RPC')
   assert(!guestRequests.some((url) => /\/rest\/v1\/(site_content|media_assets|media_usages|certificates|site_revisions)(?:\?|$)/.test(url)), `Guest queried editable/normalized tables: ${guestRequests.join(', ')}`)
@@ -276,7 +288,8 @@ try {
   const guestShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
   await writeFile(path.join(projectRoot, 'artifacts', 'phase-029g-guest-rollback.png'), Buffer.from(guestShot.data, 'base64'))
 
-  assert(runtimeErrors.length === 0, `browser console errors: ${runtimeErrors.join(' | ')}`)
+  const unexpectedRuntimeErrors = runtimeErrors.filter((message) => !/Failed to load resource:.*status of 409/i.test(message))
+  assert(unexpectedRuntimeErrors.length === 0, `browser console errors: ${unexpectedRuntimeErrors.join(' | ')}`)
   assert(!viteErrors.toLowerCase().includes('error'), `Vite runtime errors: ${viteErrors}`)
   assert(!browserErrors.includes('FATAL'), `Chromium runtime failure: ${browserErrors}`)
 

@@ -1,6 +1,7 @@
 import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/site'
 import type { CertificateCard } from '../data/default/certificates'
 import type { MediaUsage, PhotoAreaEntity } from '../types/site'
+import { validateRegisteredProperties } from './propertyRegistry'
 import {
   EDITOR_SNAPSHOT_READER_VERSION,
   EDITOR_SNAPSHOT_SCHEMA_VERSION,
@@ -9,7 +10,23 @@ import {
   type SnapshotValidationResult
 } from '../types/editorSnapshot'
 
-const clone = <T>(value: T): T => structuredClone(value)
+const clone = <T>(value: T): T => {
+  try { return structuredClone(value) }
+  catch { return JSON.parse(JSON.stringify(value)) as T }
+}
+
+const defaultEditorSession = (): EditorSnapshot['session'] => ({
+  selectedEntityId: '',
+  selectedSection: '',
+  activeAccordion: '',
+  previewScrollTop: 0,
+  previewScrollLeft: 0,
+  zoom: 0.6,
+  userZoom: null,
+  propertySearch: '',
+  objectStates: {},
+  expandedLayers: []
+})
 
 function entityReferences(snapshot: SiteSnapshot): SnapshotEntityReference[] {
   const references: SnapshotEntityReference[] = []
@@ -50,7 +67,7 @@ export function createEditorSnapshot(snapshot: SiteSnapshot, revision: Partial<E
     backgrounds: {},
     buttons: {},
     animations: {},
-    session: { selectedEntityId: '', selectedSection: '', activeAccordion: '', previewScrollTop: 0, previewScrollLeft: 0, zoom: 0.6, userZoom: null, propertySearch: '' },
+    session: defaultEditorSession(),
     visual: clone(snapshot.visual),
     behavior: clone(snapshot.behavior)
   }
@@ -62,11 +79,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const COLOR_PATTERN = /^(?:#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})|rgba?\([^)]{1,80}\)|hsla?\([^)]{1,80}\)|transparent|currentColor)$/i
 const CSS_LENGTH_PATTERN = /^-?\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh|vmin|vmax|ch|ex)?$/i
+const CSS_LENGTH_FUNCTION_PATTERN = /^(?:calc|clamp|min|max|var|fit-content)\([^;{}]{1,256}\)$/i
 const ENTITY_ID_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,127}$/i
 
 function validCssLength(value: unknown, allowAuto = false): boolean {
   return (typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 100000)
-    || (typeof value === 'string' && ((allowAuto && value === 'auto') || CSS_LENGTH_PATTERN.test(value)))
+    || (typeof value === 'string' && ((allowAuto && value === 'auto') || CSS_LENGTH_PATTERN.test(value) || CSS_LENGTH_FUNCTION_PATTERN.test(value)))
 }
 
 function validString(value: unknown, maximum = 256, allowEmpty = false): boolean {
@@ -77,8 +95,12 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
   const errors: string[] = []
   if (!isRecord(input)) return { valid: false, errors: ['Snapshot must be an object.'] }
   const normalized = clone(input)
-  if (!isRecord(normalized.session)) normalized.session = { selectedEntityId: '', selectedSection: '', activeAccordion: '', previewScrollTop: 0, previewScrollLeft: 0, zoom: 0.6, userZoom: null, propertySearch: '' }
-  else if (!('userZoom' in normalized.session)) normalized.session.userZoom = typeof normalized.session.zoom === 'number' && normalized.session.zoom > 0 ? normalized.session.zoom : null
+  if (!isRecord(normalized.session)) normalized.session = defaultEditorSession()
+  else {
+    if (!('userZoom' in normalized.session)) normalized.session.userZoom = typeof normalized.session.zoom === 'number' && normalized.session.zoom > 0 ? normalized.session.zoom : null
+    if (!isRecord(normalized.session.objectStates)) normalized.session.objectStates = {}
+    if (!Array.isArray(normalized.session.expandedLayers)) normalized.session.expandedLayers = []
+  }
   const compatibility = normalized.compatibility
   if (!isRecord(compatibility)) errors.push('compatibility is required.')
   else {
@@ -99,7 +121,12 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
   if (!isRecord(normalized.visual)) errors.push('visual is required.')
   if (!isRecord(normalized.behavior)) errors.push('behavior is required.')
   const session = normalized.session as Record<string, unknown>
-  if (!isRecord(session) || typeof session.selectedEntityId !== 'string' || typeof session.selectedSection !== 'string' || typeof session.activeAccordion !== 'string' || typeof session.previewScrollTop !== 'number' || !Number.isFinite(session.previewScrollTop) || session.previewScrollTop < 0 || typeof session.previewScrollLeft !== 'number' || !Number.isFinite(session.previewScrollLeft) || session.previewScrollLeft < 0 || typeof session.zoom !== 'number' || !Number.isFinite(session.zoom) || session.zoom <= 0 || session.zoom > 4 || !(session.userZoom === null || (typeof session.userZoom === 'number' && Number.isFinite(session.userZoom) && session.userZoom > 0 && session.userZoom <= 4)) || typeof session.propertySearch !== 'string') errors.push('session contains invalid values.')
+  if (!isRecord(session) || typeof session.selectedEntityId !== 'string' || typeof session.selectedSection !== 'string' || typeof session.activeAccordion !== 'string' || typeof session.previewScrollTop !== 'number' || !Number.isFinite(session.previewScrollTop) || session.previewScrollTop < 0 || typeof session.previewScrollLeft !== 'number' || !Number.isFinite(session.previewScrollLeft) || session.previewScrollLeft < 0 || typeof session.zoom !== 'number' || !Number.isFinite(session.zoom) || session.zoom <= 0 || session.zoom > 4 || !(session.userZoom === null || (typeof session.userZoom === 'number' && Number.isFinite(session.userZoom) && session.userZoom > 0 && session.userZoom <= 4)) || typeof session.propertySearch !== 'string' || !isRecord(session.objectStates) || !Array.isArray(session.expandedLayers) || session.expandedLayers.some((value) => typeof value !== 'string')) errors.push('session contains invalid values.')
+  if (isRecord(session.objectStates)) {
+    for (const [entityId, state] of Object.entries(session.objectStates)) {
+      if (!ENTITY_ID_PATTERN.test(entityId) || !isRecord(state) || typeof state.locked !== 'boolean' || typeof state.hidden !== 'boolean') errors.push(`session.objectStates.${entityId} is invalid.`)
+    }
+  }
   if (Array.isArray(normalized.certificateCards)) {
     normalized.certificateCards.forEach((card, index) => {
       if (!isRecord(card) || typeof card.id !== 'string' || typeof card.title !== 'string' || typeof card.date !== 'string' || typeof card.description !== 'string') errors.push(`certificateCards[${index}] is invalid.`)
@@ -107,7 +134,7 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
   }
   for (const [key, settings] of Object.entries(normalized.typography ?? {})) {
     if (!isRecord(settings)) { errors.push(`typography.${key} is invalid.`); continue }
-    if (settings.fontSize !== undefined && (typeof settings.fontSize !== 'string' || !/^\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh)$/i.test(settings.fontSize) || Number.parseFloat(settings.fontSize) <= 0)) errors.push(`typography.${key}.fontSize is invalid.`)
+    if (settings.fontSize !== undefined && (typeof settings.fontSize !== 'string' || !validCssLength(settings.fontSize) || (CSS_LENGTH_PATTERN.test(settings.fontSize) && Number.parseFloat(settings.fontSize) <= 0))) errors.push(`typography.${key}.fontSize is invalid.`)
     if (settings.fontWeight !== undefined && (typeof settings.fontWeight !== 'number' || !Number.isInteger(settings.fontWeight) || settings.fontWeight < 100 || settings.fontWeight > 900)) errors.push(`typography.${key}.fontWeight is invalid.`)
     if (settings.color !== undefined && (typeof settings.color !== 'string' || !COLOR_PATTERN.test(settings.color))) errors.push(`typography.${key}.color is invalid.`)
     if (settings.hoverColor !== undefined && (typeof settings.hoverColor !== 'string' || !COLOR_PATTERN.test(settings.hoverColor))) errors.push(`typography.${key}.hoverColor is invalid.`)
@@ -124,6 +151,9 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     for (const field of ['width', 'height']) if (settings[field] !== undefined && !validCssLength(settings[field], true)) errors.push(`layout.${key}.${field} is invalid.`)
     if (settings.rotation !== undefined && !((typeof settings.rotation === 'number' && Number.isFinite(settings.rotation) && Math.abs(settings.rotation) <= 36000) || (typeof settings.rotation === 'string' && /^-?\d+(?:\.\d+)?(?:deg|rad|turn)$/i.test(settings.rotation)))) errors.push(`layout.${key}.rotation is invalid.`)
     for (const field of ['margin', 'padding']) if (settings[field] !== undefined && !validString(settings[field], 128, true)) errors.push(`layout.${key}.${field} is invalid.`)
+    if (settings.alignment !== undefined && !['start', 'center', 'end', 'stretch', 'space-between', 'space-around'].includes(String(settings.alignment))) errors.push(`layout.${key}.alignment is invalid.`)
+    if (settings.display !== undefined && !['block', 'inline', 'inline-block', 'flex', 'grid', 'none'].includes(String(settings.display))) errors.push(`layout.${key}.display is invalid.`)
+    if (settings.visibility !== undefined && !['visible', 'hidden'].includes(String(settings.visibility))) errors.push(`layout.${key}.visibility is invalid.`)
     if (settings.zIndex !== undefined && (typeof settings.zIndex !== 'number' || !Number.isInteger(settings.zIndex) || settings.zIndex < -10000 || settings.zIndex > 10000)) errors.push(`layout.${key}.zIndex is invalid.`)
   }
   if (isRecord(normalized.media)) {
@@ -145,6 +175,10 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     if (settings.color !== undefined && (typeof settings.color !== 'string' || !COLOR_PATTERN.test(settings.color))) errors.push(`backgrounds.${key}.color is invalid.`)
     if (settings.opacity !== undefined && (typeof settings.opacity !== 'number' || !Number.isFinite(settings.opacity) || settings.opacity < 0 || settings.opacity > 1)) errors.push(`backgrounds.${key}.opacity is invalid.`)
     if (settings.gradient !== undefined && !validString(settings.gradient, 512)) errors.push(`backgrounds.${key}.gradient is invalid.`)
+    for (const field of ['boxShadow', 'border']) if (settings[field] !== undefined && !validString(settings[field], 256, true)) errors.push(`backgrounds.${key}.${field} is invalid.`)
+    if (settings.borderRadius !== undefined && !(typeof settings.borderRadius === 'string' && validCssLength(settings.borderRadius))) errors.push(`backgrounds.${key}.borderRadius is invalid.`)
+    if (settings.blur !== undefined && (typeof settings.blur !== 'number' || !Number.isFinite(settings.blur) || settings.blur < 0 || settings.blur > 100)) errors.push(`backgrounds.${key}.blur is invalid.`)
+    if (settings.blendMode !== undefined && !['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'].includes(String(settings.blendMode))) errors.push(`backgrounds.${key}.blendMode is invalid.`)
   }
   for (const [key, settings] of Object.entries(normalized.buttons ?? {})) {
     if (!isRecord(settings)) { errors.push(`buttons.${key} is invalid.`); continue }
@@ -158,6 +192,11 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     if (settings.enabled !== undefined && typeof settings.enabled !== 'boolean') errors.push(`animations.${key}.enabled is invalid.`)
     if (settings.name !== undefined && !validString(settings.name, 128)) errors.push(`animations.${key}.name is invalid.`)
     if (settings.easing !== undefined && (typeof settings.easing !== 'string' || !/^(?:linear|ease|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]{1,80}\)|steps\([^)]{1,80}\))$/.test(settings.easing))) errors.push(`animations.${key}.easing is invalid.`)
+  }
+  if (!errors.length) {
+    for (const propertyError of validateRegisteredProperties(normalized as unknown as EditorSnapshot)) {
+      errors.push(`${propertyError.propertyPath}: ${propertyError.message}`)
+    }
   }
   return errors.length ? { valid: false, errors } : { valid: true, errors: [], value: clone(normalized as unknown as EditorSnapshot) }
 }

@@ -8,7 +8,7 @@ import { useSiteStore } from '../../../stores/site'
 const site = useSiteStore()
 const photoAreaImages = usePhotoAreaImagesStore()
 const entries = computed(() => site.collegeEntries)
-const vConfig = site.current.visual.college
+const vConfig = computed(() => site.current.visual.college)
 </script>
 
 <template>

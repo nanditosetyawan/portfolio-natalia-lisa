@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ArrowDown } from 'lucide-vue-next'
 import { useSiteStore } from '../../stores/site'
 
 const site = useSiteStore()
-const education = site.current.content.education
-const vConfig = site.current.visual.education
+const education = computed(() => site.current.content.education)
+const vConfig = computed(() => site.current.visual.education)
 </script>
 
 <template>

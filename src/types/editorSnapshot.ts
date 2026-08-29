@@ -17,7 +17,7 @@ export interface SnapshotCompatibility {
 export interface SnapshotEntityReference {
   entityId: string
   section: string
-  kind: 'content' | 'text' | 'frame' | 'media' | 'navigation' | 'button'
+  kind: 'content' | 'text' | 'frame' | 'media' | 'navigation' | 'button' | 'container' | 'background' | 'divider' | 'icon'
   label: string
 }
 
@@ -41,6 +41,9 @@ export interface LayoutSettings {
   height?: number | string
   margin?: string
   padding?: string
+  alignment?: 'start' | 'center' | 'end' | 'stretch' | 'space-between' | 'space-around'
+  display?: 'block' | 'inline' | 'inline-block' | 'flex' | 'grid' | 'none'
+  visibility?: 'visible' | 'hidden'
   rotation?: number | string
   zIndex?: number
 }
@@ -80,6 +83,11 @@ export interface BackgroundSettings {
   gradient?: string
   imageAssetId?: string
   opacity?: number
+  boxShadow?: string
+  blur?: number
+  border?: string
+  borderRadius?: string
+  blendMode?: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light' | 'difference' | 'exclusion' | 'hue' | 'saturation' | 'color' | 'luminosity'
 }
 
 export interface ButtonSettings {
@@ -109,6 +117,13 @@ export interface EditorSessionState {
   zoom: number
   userZoom: number | null
   propertySearch: string
+  objectStates: Record<string, SnapshotEditorObjectState>
+  expandedLayers: string[]
+}
+
+export interface SnapshotEditorObjectState {
+  locked: boolean
+  hidden: boolean
 }
 
 export interface EditorSnapshot {

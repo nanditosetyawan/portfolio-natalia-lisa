@@ -1,0 +1,8 @@
+<script setup lang="ts">
+defineProps<{ modelValue: string | number | boolean | null; disabled?: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+</script>
+
+<template>
+  <input type="checkbox" :checked="Boolean(modelValue)" :disabled="disabled" @change="emit('update:modelValue', ($event.target as HTMLInputElement).checked)" />
+</template>

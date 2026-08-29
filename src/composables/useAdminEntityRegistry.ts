@@ -1,4 +1,4 @@
-import { computed, type ComputedRef } from 'vue'
+import { computed, reactive, type ComputedRef } from 'vue'
 import { useCertificatesStore } from '../stores/certificates'
 import { useSiteStore } from '../stores/site'
 import type { AdminPropertyDefinition } from '../types/site'
@@ -27,13 +27,14 @@ function property(
   owner: Record<string, unknown>,
   key: string
 ): RuntimeAdminProperty {
+  const reactiveOwner = reactive(owner)
   return {
     ...definition,
     path: key,
-    target: owner,
+    target: reactiveOwner,
     metadata: ensurePropertyMetadata({ propertyKey: definition.key, category: definition.group, label: definition.label, control: definition.control, propertyPath: key }),
-    read: () => owner[key] as string | number | boolean,
-    write: (value) => { owner[key] = value }
+    read: () => reactiveOwner[key] as string | number | boolean,
+    write: (value) => { reactiveOwner[key] = value }
   }
 }
 
