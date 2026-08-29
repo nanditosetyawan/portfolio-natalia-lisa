@@ -3,9 +3,17 @@ import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/si
 import { createExperienceFrameConfig } from '../data/default/visual/experience'
 import { siteRepository } from '../repositories/siteRepository'
 
+function clonePreviewValue<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => clonePreviewValue(item)) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, clonePreviewValue(item)])) as T
+  }
+  return value
+}
+
 function hydrateInPlace(target: unknown, source: unknown): void {
   if (Array.isArray(target) && Array.isArray(source)) {
-    target.splice(0, target.length, ...structuredClone(source))
+    target.splice(0, target.length, ...clonePreviewValue(source))
     return
   }
   if (!target || !source || typeof target !== 'object' || typeof source !== 'object') return
@@ -16,8 +24,28 @@ function hydrateInPlace(target: unknown, source: unknown): void {
     const currentValue = targetRecord[key]
     if (Array.isArray(currentValue) && Array.isArray(nextValue)) hydrateInPlace(currentValue, nextValue)
     else if (currentValue && nextValue && typeof currentValue === 'object' && typeof nextValue === 'object' && !Array.isArray(currentValue) && !Array.isArray(nextValue)) hydrateInPlace(currentValue, nextValue)
-    else targetRecord[key] = structuredClone(nextValue)
+    else targetRecord[key] = clonePreviewValue(nextValue)
   }
+}
+
+function readPreviewPath(root: unknown, path: string): unknown {
+  return path.split('.').reduce<unknown>((value, key) => (value as Record<string, unknown> | undefined)?.[key], root)
+}
+
+function hydratePreviewPath(target: Record<string, unknown>, path: string, source: unknown): void {
+  const keys = path.split('.').filter(Boolean)
+  if (!keys.length) return
+  let owner: Record<string, unknown> = target
+  for (const key of keys.slice(0, -1)) {
+    const child = owner[key]
+    if (!child || typeof child !== 'object') return
+    owner = child as Record<string, unknown>
+  }
+  const key = keys[keys.length - 1]
+  if (!key) return
+  const current = owner[key]
+  if (current && source && typeof current === 'object' && typeof source === 'object') hydrateInPlace(current, source)
+  else owner[key] = clonePreviewValue(source)
 }
 
 function ordered<T extends { order: number }>(items: T[]): T[] {
@@ -78,11 +106,17 @@ export const useSiteStore = defineStore('site', {
       this.errorMessage = ''
     },
     hydrateEditorPreview(snapshot: Pick<SiteSnapshot, 'content' | 'visual' | 'behavior'>) {
-      this.current = {
-        ...this.current,
-        content: structuredClone(snapshot.content),
-        visual: structuredClone(snapshot.visual),
-        behavior: structuredClone(snapshot.behavior)
+      hydrateInPlace(this.current.content, snapshot.content)
+      hydrateInPlace(this.current.visual, snapshot.visual)
+      hydrateInPlace(this.current.behavior, snapshot.behavior)
+    },
+    hydrateEditorPreviewPaths(snapshot: Pick<SiteSnapshot, 'content' | 'visual' | 'behavior'>, paths: string[]) {
+      const source = snapshot as unknown as Record<string, unknown>
+      const target = this.current as unknown as Record<string, unknown>
+      for (const path of [...new Set(paths)]) {
+        if (!/^(?:content|visual|behavior)(?:\.|$)/.test(path)) continue
+        const value = readPreviewPath(source, path)
+        if (value !== undefined) hydratePreviewPath(target, path, value)
       }
     },
     markPublishedRuntimeUnavailable() {

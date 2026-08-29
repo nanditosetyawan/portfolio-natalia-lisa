@@ -186,7 +186,7 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const title=[...document.querySelectorAll('[data-editor-object-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];
     title.click();await tick();
-    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"]');
+    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"] input,[data-property-key="runtime.portfolio-hero.title"] textarea');
     input.value='PORTFOLIO PHASE 030';input.dispatchEvent(new Event('input',{bubbles:true}));await tick();
     for(let attempt=0;attempt<30&&!document.body.innerText.includes('PORTFOLIO PHASE 030');attempt+=1)await new Promise(resolve=>setTimeout(resolve,20));
     const currentTitle=[...document.querySelectorAll('[data-editor-object-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];
@@ -218,7 +218,7 @@ try {
   assert(selectionEvidence.selector === 'portfolio-hero' && selectionEvidence.navigatorSelected, 'manual selector/Navigator did not follow Preview selection')
   assert(selectionEvidence.content === 'PORTFOLIO PHASE 030' && selectionEvidence.preview === 'PORTFOLIO PHASE 030', `live content binding failed: ${JSON.stringify(selectionEvidence)}`)
   assert(selectionEvidence.outline && !selectionEvidence.outlineBackground.includes('184, 91, 105'), 'selection outline is missing or uses a blocking fill')
-  for (const category of ['font', 'layout', 'position', 'effects', 'advanced']) assert(selectionEvidence.categories.includes(category), `${category.toUpperCase()} Inspector metadata group is missing`)
+  for (const category of ['font', 'layout', 'effects', 'behavior']) assert(selectionEvidence.categories.includes(category), `${category.toUpperCase()} Inspector metadata group is missing`)
 
   const navigatorEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -247,7 +247,7 @@ try {
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     const actionButtons=[...document.querySelectorAll('.object-actions button')];
     actionButtons.find(button=>button.textContent.includes('Lock')).click();await tick();
-    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"]');
+    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"] input,[data-property-key="runtime.portfolio-hero.title"] textarea');
     const before=editor.draftSnapshot.content.portfolio.title;
     input.value='LOCK MUST BLOCK';input.dispatchEvent(new Event('input',{bubbles:true}));await tick();
     const blocked=editor.draftSnapshot.content.portfolio.title===before&&input.disabled;
@@ -266,7 +266,8 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const title=[...document.querySelectorAll('[data-editor-object-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];
     title.click();await tick();
-    const color=document.querySelector('[data-property-key="font.color"]');color.value='#a04f63';color.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    const colorControl=document.querySelector('[data-property-key="font.color"]');colorControl.querySelector('.color-summary').click();await tick();
+    const color=colorControl.querySelector('input[type="color"]');color.value='#a04f63';color.dispatchEvent(new Event('input',{bubbles:true}));await tick();
     [...document.querySelectorAll('.object-actions button')].find(button=>button.textContent.includes('Copy Style')).click();await tick();
     const brand=document.querySelector('[data-editor-object-id="navigation-brand"]');brand.click();await tick();
     const buttons=[...document.querySelectorAll('.object-actions button')];
@@ -289,10 +290,13 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-object-id="portfolio-profile-media"]');image.click();await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
-    const thickness=document.querySelector('[data-property-key="media.outlineWidth"]');
-    const outline=document.querySelector('[data-property-key="media.outlineEnabled"]');
+    const thicknessControl=document.querySelector('[data-property-key="media.outlineWidth"]');
+    const thickness=thicknessControl.matches('input')?thicknessControl:thicknessControl.querySelector('input');
+    const outlineControl=document.querySelector('[data-property-key="media.outlineEnabled"]');
+    const outline=outlineControl.matches('input')?outlineControl:outlineControl.querySelector('input');
     const before=thickness.disabled;outline.checked=true;outline.dispatchEvent(new Event('change',{bubbles:true}));await tick();
-    const currentThickness=document.querySelector('[data-property-key="media.outlineWidth"]');
+    const currentThicknessControl=document.querySelector('[data-property-key="media.outlineWidth"]');
+    const currentThickness=currentThicknessControl.matches('input')?currentThicknessControl:currentThicknessControl.querySelector('input');
     return {selected:editor.selectedObjectId,type:editor.selectedObjectType,accordion:editor.activeAccordion,before,after:currentThickness.disabled,connected:thickness.isConnected,outlineEnabled:editor.draftSnapshot.media.styles['portfolio-profile-media']?.outlineEnabled,inlineOutline:image.style.outline};
   })()`)
   assert(dependencyEvidence.selected === 'portfolio-profile-media' && dependencyEvidence.type === 'Image' && dependencyEvidence.accordion === 'media', 'Image selection did not open MEDIA')
@@ -303,7 +307,7 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     document.querySelector('[data-editor-object-id="portfolio-hero"]').click();await tick();
     document.querySelector('[data-property-category="effects"] .accordion-toggle').click();await tick();
-    const opacity=document.querySelector('[data-property-key="effects.opacity"]');opacity.value='2';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    const opacity=document.querySelector('[data-property-key="effects.opacity"] input');opacity.value='2';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     const invalid={errors:editor.registeredPropertyErrors.length,inline:Boolean(document.querySelector('[data-property-key="effects.opacity"]')?.closest('.property-field--error')),publishDisabled:document.querySelector('.tbar-publish').disabled,publishTitle:document.querySelector('.tbar-publish').title};
     opacity.value='0.7';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();

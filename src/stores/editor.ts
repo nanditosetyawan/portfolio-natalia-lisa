@@ -16,7 +16,13 @@ import type {
   EntityDescriptor
 } from '../types/editor'
 
-const clone = <T>(value: T): T => structuredClone(value)
+function clone<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => clone(item)) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, clone(item)])) as T
+  }
+  return value
+}
 
 function readPath(target: Record<string, unknown>, path: string): EditorValue {
   return path.split('.').reduce<unknown>((value, key) => (value as Record<string, unknown> | undefined)?.[key], target) as EditorValue
@@ -160,8 +166,11 @@ export const useEditorStore = defineStore('editor', {
     },
     registerObjects(objects: EditorObject[]) {
       const currentById = new Map(this.draftSnapshot.entities.map((entity) => [entity.entityId, entity]))
+      const previousById = new Map(this.objects.map((object) => [object.id, object]))
       const previousOrder = new Map(this.objects.map((object, index) => [object.id, index]))
-      const normalizedObjects = objects.map((object) => clone({
+      const normalizedObjects = objects.map((object) => {
+        const previous = previousById.get(object.id)
+        return clone({
         id: object.id,
         entityId: object.entityId,
         name: currentById.get(object.id)?.label ?? object.name,
@@ -175,9 +184,12 @@ export const useEditorStore = defineStore('editor', {
         order: object.order,
         capabilities: object.capabilities,
         propertyValues: object.propertyValues,
-        ux: object.ux,
+        ux: object.ux || previous?.ux
+          ? { ...(previous?.ux ?? {}), ...(object.ux ?? {}) }
+          : undefined,
         validation: object.validation
-      })).sort((left, right) => {
+      })
+      }).sort((left, right) => {
         const leftOrder = previousOrder.get(left.id)
         const rightOrder = previousOrder.get(right.id)
         if (leftOrder !== undefined && rightOrder !== undefined) return leftOrder - rightOrder

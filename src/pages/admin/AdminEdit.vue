@@ -24,6 +24,7 @@ import {
   saveEditor
 } from '../../composables/useEditorSession'
 import PropertyControl from './components/PropertyControl.vue'
+import PropertyInputControl from './components/property-controls/PropertyInputControl.vue'
 import EditorObjectNavigator from './components/EditorObjectNavigator.vue'
 import { useEditorStore } from '../../stores/editor'
 import { createEditorSnapshot } from '../../editor/editorSnapshot'
@@ -94,6 +95,14 @@ interface ContextMenuState {
   y: number
 }
 
+interface PreviewDragState {
+  pointerId: number
+  startX: number
+  startY: number
+  moved: boolean
+  elements: Array<{ objectId: string; element: HTMLElement; originalTranslate: string }>
+}
+
 type LibraryRouteName = 'admin-drafts' | 'admin-favorites'
 
 const site = useSiteStore()
@@ -127,6 +136,7 @@ const contextMenu = ref<ContextMenuState>({ open: false, x: 0, y: 0 })
 const selectionGap = ref(16)
 const previewUpdateDuration = ref(0)
 const previewUpdateCount = ref(0)
+const isPanning = ref(false)
 const mediaPreviewUrls = new Map<string, string>()
 const managedMediaAreaIds = new Set<string>()
 const pendingPreviewObjectIds = new Set<string>()
@@ -139,8 +149,19 @@ let panStartY = 0
 let panScrollLeft = 0
 let panScrollTop = 0
 let selectionBoxMoved = false
+let selectionBoxAdditive = false
+let previewDrag: PreviewDragState | null = null
 let unregisterSave: (() => void) | null = null
 let unregisterPublish: (() => void) | null = null
+
+function cloneEditorData<T>(value: T): T {
+  const raw = value && typeof value === 'object' ? toRaw(value as object) : value
+  if (Array.isArray(raw)) return raw.map((item) => cloneEditorData(item)) as T
+  if (raw && typeof raw === 'object') {
+    return Object.fromEntries(Object.entries(raw).map(([key, item]) => [key, cloneEditorData(item)])) as T
+  }
+  return raw as T
+}
 
 const sections = computed(() => [...new Set(editorEntities.value.map((entity) => entity.section))])
 const selectedSection = computed({
@@ -160,13 +181,17 @@ const selectedPhotoArea = computed(() => selectedEntity.value?.photoAreaId ? pho
 const selectedObjectLocked = computed(() => editor.selectedObjectState.locked)
 const selectedObjectHidden = computed(() => editor.selectedObjectState.hidden)
 const selectedObjectCount = computed(() => editor.selectedObjectIds.length)
+const selectedRuntimeObjects = computed(() => editor.selectedObjectIds.flatMap((objectId) => {
+  const object = editorEntities.value.find((candidate) => candidate.id === objectId)
+  return object ? [object] : []
+}))
 const previewScale = computed(() => userZoom.value ?? fitScale.value)
 const sourceLabel = computed(() => editor.draftRevisionId
   ? `Editing: ${route.query.source === 'favorite' ? 'Favorite - ' : ''}Draft #${editor.draftRevisionNumber ?? '-'}`
   : 'Editing: New draft from Published')
 const canAlignSelection = computed(() => editor.selectedObjectIds.length > 1)
 const canDistributeSelection = computed(() => editor.selectedObjectIds.length > 2)
-const canDuplicateSelection = computed(() => editor.selectedObjects.some((object) => Boolean(object.ux?.collectionPath) && !editor.objectState(object.id).locked))
+const canDuplicateSelection = computed(() => selectedRuntimeObjects.value.some((object) => Boolean(object.ux?.collectionPath) && !editor.objectState(object.id).locked))
 const propertySearch = computed({
   get: () => editor.draftSnapshot.session.propertySearch,
   set: (value: string) => {
@@ -299,10 +324,16 @@ const selectedPanelGroups = computed<PanelGroup[]>(() => {
 
 watch(() => editor.previewMutation.version, async () => {
   const mutation = editor.previewMutation
-  const requiresRuntimeHydration = mutation.propertyPaths.some((path) => (
-    path === '*' || /^(content|visual|behavior|certificateCards)(\.|$)/.test(path)
-  ))
-  if (requiresRuntimeHydration) hydrateEditorPreviewSnapshot()
+  const sitePaths = mutation.propertyPaths.filter((path) => /^(content|visual|behavior)(\.|$)/.test(path))
+  if (mutation.propertyPaths.includes('*')) hydrateEditorPreviewSnapshot()
+  else {
+    if (sitePaths.length) site.hydrateEditorPreviewPaths({
+      content: toRaw(editor.draftSnapshot.content),
+      visual: toRaw(editor.draftSnapshot.visual),
+      behavior: toRaw(editor.draftSnapshot.behavior)
+    }, sitePaths)
+    if (mutation.propertyPaths.some((path) => /^certificateCards(\.|$)/.test(path))) certificates.hydrateEditorCards(editor.draftSnapshot.certificateCards)
+  }
   if (mutation.propertyPaths.some((path) => path === '*' || /^media(\.|$)/.test(path))) await syncSnapshotMediaToPreview()
   await nextTick()
   schedulePreviewObjects(mutation.objectIds)
@@ -373,7 +404,7 @@ async function initializeEditor(): Promise<void> {
     const publishedSnapshot = published
       ? await guestPublishedRepository.resolvePublishedMedia(published.snapshot)
       : createEditorSnapshot(toRaw(site.current))
-    publishedBaseline.value = structuredClone(publishedSnapshot)
+    publishedBaseline.value = cloneEditorData(publishedSnapshot)
 
     if (savedDraft) {
       editor.initialize(savedDraft.revision.snapshot, {
@@ -432,9 +463,20 @@ async function initializeEditor(): Promise<void> {
   }
 }
 
-onMounted(() => { void initializeEditor() })
+onMounted(() => {
+  window.addEventListener('keydown', handleEditorKeydown)
+  document.addEventListener('pointerdown', closeContextMenuOnOutside)
+  void initializeEditor()
+})
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleEditorKeydown)
+  document.removeEventListener('pointerdown', closeContextMenuOnOutside)
+  endCanvasPan()
+  endPreviewObjectDrag()
+  endSelectionBox()
+  if (previewFrameRequest) cancelAnimationFrame(previewFrameRequest)
+  if (inlineTextEdit.value) cancelInlineTextEdit()
   previewObserver?.disconnect()
   unregisterSave?.()
   unregisterPublish?.()
@@ -472,6 +514,8 @@ function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, 
   else if (mode === 'range') editor.selectObjectRange(descriptor, editor.objects.map((object) => object.id), markSession)
   else editor.selectObject(descriptor, markSession)
   const primary = editorEntities.value.find((candidate) => candidate.id === editor.selectedObjectId) ?? entity
+  const objectQuery = editor.objectSearch.trim().toLocaleLowerCase()
+  if (objectQuery && ![primary.label, primary.id, primary.type].some((value) => value.toLocaleLowerCase().includes(objectQuery))) editor.setObjectSearch('')
   const groups = availableGroups(primary)
   const accordion = preferredAccordion && groups.includes(preferredAccordion) ? preferredAccordion : defaultAccordion(primary)
   if (markSession) editor.setAccordion(accordion)
@@ -629,7 +673,7 @@ async function setMediaCrop(objectPosition: string, commandType: EditorCommandTy
   const entity = selectedEntity.value
   const target = selectedPhotoArea.value
   if (!entity || !target) return
-  const currentMedia = structuredClone(toRaw(editor.draftSnapshot.media))
+  const currentMedia = cloneEditorData(editor.draftSnapshot.media)
   const assignment = currentMedia.assignments.find((candidate) => candidate.entityId === target.id)
   if (!assignment || assignment.objectPosition === objectPosition) return
   const nextMedia: SnapshotMediaModel = {
@@ -663,7 +707,7 @@ async function chooseExistingMedia(assetId: string, commandType: EditorCommandTy
   const asset = site.current.mediaAssets.find((candidate) => candidate.id === assetId)
   if (!entity?.photoAreaId || !target || !asset?.source) return
 
-  const currentMedia = structuredClone(toRaw(editor.draftSnapshot.media))
+  const currentMedia = cloneEditorData(editor.draftSnapshot.media)
   const currentAssignment = currentMedia.assignments.find((assignment) => assignment.entityId === target.id)
   const currentReference = currentMedia.references.find((reference) => reference.assetId === asset.id)
   if (currentAssignment?.assetId === asset.id && currentReference?.uri === asset.source) return
@@ -704,7 +748,7 @@ async function uploadSelectedMedia(file: File, commandType: EditorCommandType): 
   saveStatus.value = 'Uploading image...'
   try {
     const uploaded = await editorDraftRepository.uploadDraftMedia(file, draftScope.value)
-    const currentMedia = structuredClone(toRaw(editor.draftSnapshot.media))
+    const currentMedia = cloneEditorData(editor.draftSnapshot.media)
     const nextMedia: SnapshotMediaModel = {
       ...currentMedia,
       references: [
@@ -762,14 +806,14 @@ async function saveDraft(): Promise<void> {
       userZoom: userZoom.value
     })
     const result = await editorDraftRepository.saveDraft({
-      snapshot: structuredClone(toRaw(editor.draftSnapshot)),
-      mediaReferences: structuredClone(toRaw(editor.draftMediaReferences)),
+      snapshot: cloneEditorData(editor.draftSnapshot),
+      mediaReferences: cloneEditorData(editor.draftMediaReferences),
       expectedBaseRevision: editor.baseRevisionNumber,
       expectedDraftLockVersion: editor.draftLockVersion,
       draftRevisionId: editor.draftRevisionId,
       createNew: !editor.draftRevisionId
     })
-    editor.draftSnapshot = structuredClone(result.revision.snapshot)
+    editor.draftSnapshot = cloneEditorData(result.revision.snapshot)
     editor.draftMediaReferences = result.mediaReferences
     editor.markDraftSaved({
       draftRevisionId: result.revision.id,
@@ -853,7 +897,7 @@ async function discardDraft(): Promise<void> {
     const snapshot = published
       ? await guestPublishedRepository.resolvePublishedMedia(published.snapshot)
       : publishedBaseline.value ?? createEditorSnapshot(toRaw(site.current))
-    publishedBaseline.value = structuredClone(snapshot)
+    publishedBaseline.value = cloneEditorData(snapshot)
     editor.initialize(snapshot, {
       publishedRevisionNumber: published?.revision.revision_number ?? null,
       baseRevisionNumber: published?.revision.revision_number ?? null
@@ -928,7 +972,115 @@ function updatePreviewMetrics(): void {
 
 function setPreviewZoom(event: Event): void {
   const value = (event.target as HTMLSelectElement).value
-  userZoom.value = value === 'fit' ? null : Number(value)
+  setZoom(value === 'fit' ? null : Number(value))
+}
+
+function setZoom(zoom: number | null, focalX?: number, focalY?: number): void {
+  const viewport = canvasScroll.value
+  const oldScale = previewScale.value
+  const localX = focalX ?? (viewport?.clientWidth ?? 0) / 2
+  const localY = focalY ?? (viewport?.clientHeight ?? 0) / 2
+  const contentX = ((viewport?.scrollLeft ?? 0) + localX) / oldScale
+  const contentY = ((viewport?.scrollTop ?? 0) + localY) / oldScale
+  userZoom.value = zoom === null ? null : Math.min(2, Math.max(.25, Number(zoom.toFixed(2))))
+  void nextTick(() => {
+    if (!viewport) return
+    viewport.scrollLeft = contentX * previewScale.value - localX
+    viewport.scrollTop = contentY * previewScale.value - localY
+    updateSelectedOutline()
+  })
+}
+
+function handleCanvasWheel(event: WheelEvent): void {
+  if (!event.ctrlKey) return
+  event.preventDefault()
+  const bounds = canvasScroll.value?.getBoundingClientRect()
+  const current = previewScale.value
+  setZoom(current + (event.deltaY < 0 ? .05 : -.05), bounds ? event.clientX - bounds.left : undefined, bounds ? event.clientY - bounds.top : undefined)
+}
+
+function beginCanvasPan(event: PointerEvent): void {
+  if (event.button !== 1 || !canvasScroll.value) return
+  event.preventDefault()
+  panPointerId = event.pointerId
+  panStartX = event.clientX
+  panStartY = event.clientY
+  panScrollLeft = canvasScroll.value.scrollLeft
+  panScrollTop = canvasScroll.value.scrollTop
+  isPanning.value = true
+  window.addEventListener('pointermove', moveCanvasPan)
+  window.addEventListener('pointerup', endCanvasPan, { once: true })
+}
+
+function beginPreviewPointer(event: PointerEvent): void {
+  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
+  const objectId = target?.dataset.editorObjectId
+  if (!target || !objectId) {
+    beginSelectionBox(event)
+    return
+  }
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return
+  const object = editor.objects.find((candidate) => candidate.id === objectId)
+  if (!object || editor.objectState(object.id).locked || !object.capabilities.includes('position')) return
+  if (!editor.selectedObjectIds.includes(objectId)) selectEntity(objectId, target)
+  const elements = editor.selectedObjects.flatMap((selected) => {
+    if (!selected.capabilities.includes('position') || editor.objectState(selected.id).locked) return []
+    const element = preferredPreviewElement(selected.id)
+    return element ? [{ objectId: selected.id, element, originalTranslate: element.style.translate }] : []
+  })
+  if (!elements.length) return
+  previewDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false, elements }
+  window.addEventListener('pointermove', movePreviewObjectDrag)
+  window.addEventListener('pointerup', endPreviewObjectDrag, { once: true })
+}
+
+function movePreviewObjectDrag(event: PointerEvent): void {
+  const drag = previewDrag
+  if (!drag || drag.pointerId !== event.pointerId) return
+  const clientX = event.clientX - drag.startX
+  const clientY = event.clientY - drag.startY
+  if (!drag.moved && Math.hypot(clientX, clientY) < 3) return
+  event.preventDefault()
+  drag.moved = true
+  selectionBoxMoved = true
+  const x = clientX / (previewScale.value || 1)
+  const y = clientY / (previewScale.value || 1)
+  for (const item of drag.elements) {
+    item.element.classList.add('editor-preview-dragging')
+    item.element.style.translate = `${x}px ${y}px`
+  }
+}
+
+function endPreviewObjectDrag(event?: PointerEvent): void {
+  window.removeEventListener('pointermove', movePreviewObjectDrag)
+  const drag = previewDrag
+  if (!drag) return
+  previewDrag = null
+  const x = ((event?.clientX ?? drag.startX) - drag.startX) / (previewScale.value || 1)
+  const y = ((event?.clientY ?? drag.startY) - drag.startY) / (previewScale.value || 1)
+  for (const item of drag.elements) {
+    item.element.style.translate = item.originalTranslate
+    item.element.classList.remove('editor-preview-dragging')
+  }
+  if (!drag.moved) return
+  const offsets = new Map(drag.elements.map((item) => [item.objectId, { x, y }]))
+  if (applySelectionOffsets(offsets, 'NUDGE') && previewStage.value) {
+    for (const item of drag.elements) applyRegisteredObjectProperties(previewStage.value, editor.draftSnapshot, item.objectId)
+    updateSelectedOutline()
+    saveStatus.value = `Moved ${drag.elements.length} object${drag.elements.length === 1 ? '' : 's'}.`
+  }
+}
+
+function moveCanvasPan(event: PointerEvent): void {
+  if (panPointerId !== event.pointerId || !canvasScroll.value) return
+  canvasScroll.value.scrollLeft = panScrollLeft - (event.clientX - panStartX)
+  canvasScroll.value.scrollTop = panScrollTop - (event.clientY - panStartY)
+}
+
+function endCanvasPan(): void {
+  window.removeEventListener('pointermove', moveCanvasPan)
+  panPointerId = null
+  isPanning.value = false
 }
 
 function persistPreviewScroll(event: Event): void {
@@ -1193,6 +1345,11 @@ function distributeSelection(axis: 'horizontal' | 'vertical', explicitSpacing = 
   if (applySelectionOffsets(offsets, 'DISTRIBUTE')) saveStatus.value = `${explicitSpacing ? 'Spaced' : 'Distributed'} ${items.length} objects ${axis === 'horizontal' ? 'horizontally' : 'vertically'}.`
 }
 
+function updateSelectionGap(value: string | number): void {
+  const normalized = Number(value)
+  selectionGap.value = Number.isFinite(normalized) ? Math.max(0, normalized) : 0
+}
+
 function uniqueCopyId(sourceId: string, reserved: Set<string>): string {
   const base = `${sourceId}-copy`.slice(0, 116)
   let candidate = `${base}-${Date.now().toString(36)}`
@@ -1202,8 +1359,27 @@ function uniqueCopyId(sourceId: string, reserved: Set<string>): string {
   return candidate
 }
 
+function selectRegisteredObject(objectId: string, attempt = 0): void {
+  const object = editorEntities.value.find((candidate) => candidate.id === objectId)
+  if (object) {
+    setSelection(object)
+    return
+  }
+  if (attempt < 40) setTimeout(() => selectRegisteredObject(objectId, attempt + 1), 25)
+}
+
+function selectAfterObjectRemoval(removedIds: string[], attempt = 0): void {
+  const next = editorEntities.value.find((object) => !removedIds.includes(object.id) && editor.draftSnapshot.entities.some((entity) => entity.entityId === object.id))
+  if (next) {
+    setSelection(next)
+    return
+  }
+  if (attempt < 40) setTimeout(() => selectAfterObjectRemoval(removedIds, attempt + 1), 25)
+}
+
 async function duplicateSelectedObjects(): Promise<void> {
-  const sources = editor.selectedObjects.filter((object) => object.ux?.collectionPath && !editor.objectState(object.id).locked)
+  saveStatus.value = 'Duplicating selected objects...'
+  const sources = selectedRuntimeObjects.value.filter((object) => object.ux?.collectionPath && !editor.objectState(object.id).locked)
   if (!sources.length || !editor.selectedObjectId) {
     saveStatus.value = 'Duplicate is available for repeatable objects declared by object metadata.'
     return
@@ -1219,11 +1395,12 @@ async function duplicateSelectedObjects(): Promise<void> {
   for (const [path, objects] of byPath) {
     const current = readSnapshotPath(editor.draftSnapshot, path)
     if (!Array.isArray(current)) continue
-    const next = structuredClone(current) as Array<Record<string, unknown>>
+    const sourceItems = cloneEditorData(current) as Array<Record<string, unknown>>
+    const next = cloneEditorData(sourceItems)
     for (const object of objects) {
-      const source = current.find((item) => item && typeof item === 'object' && (item as Record<string, unknown>).id === object.id)
+      const source = sourceItems.find((item) => item && typeof item === 'object' && item.id === object.id)
       if (!source || typeof source !== 'object') continue
-      const duplicate = structuredClone(source) as Record<string, unknown>
+      const duplicate = cloneEditorData(source) as Record<string, unknown>
       const duplicateId = uniqueCopyId(object.id, reserved)
       duplicate.id = duplicateId
       if (typeof duplicate.order === 'number') duplicate.order = next.length
@@ -1233,11 +1410,11 @@ async function duplicateSelectedObjects(): Promise<void> {
     changes.push({ propertyPath: path, nextValue: next as unknown as EditorValue })
   }
   for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
-    const record = structuredClone(toRaw(editor.draftSnapshot[domain])) as Record<string, EditorValue>
+    const record = cloneEditorData(editor.draftSnapshot[domain]) as Record<string, EditorValue>
     let changed = false
     for (const pair of pairs) {
       if (record[pair.sourceId] === undefined) continue
-      record[pair.duplicateId] = structuredClone(record[pair.sourceId])
+      record[pair.duplicateId] = cloneEditorData(record[pair.sourceId])
       changed = true
     }
     if (changed) changes.push({ propertyPath: domain, nextValue: record })
@@ -1250,15 +1427,18 @@ async function duplicateSelectedObjects(): Promise<void> {
     return
   }
   markEditorChanged()
-  await nextTick()
-  await nextTick()
-  const duplicate = editorEntities.value.find((object) => object.id === pairs[0]?.duplicateId)
-  if (duplicate) setSelection(duplicate)
+  site.hydrateEditorPreviewPaths({
+    content: toRaw(editor.draftSnapshot.content),
+    visual: toRaw(editor.draftSnapshot.visual),
+    behavior: toRaw(editor.draftSnapshot.behavior)
+  }, [...byPath.keys()])
+  const duplicateId = pairs[0]?.duplicateId
+  if (duplicateId) selectRegisteredObject(duplicateId)
   saveStatus.value = `Duplicated ${pairs.length} object${pairs.length === 1 ? '' : 's'}.`
 }
 
 async function deleteSelectedObjects(): Promise<void> {
-  const sources = editor.selectedObjects.filter((object) => !editor.objectState(object.id).locked)
+  const sources = selectedRuntimeObjects.value.filter((object) => !editor.objectState(object.id).locked)
   if (!sources.length || !editor.selectedObjectId) return
   const hardDeleteIds = new Set(sources.filter((object) => object.ux?.collectionPath).map((object) => object.id))
   const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = []
@@ -1267,16 +1447,16 @@ async function deleteSelectedObjects(): Promise<void> {
     const current = readSnapshotPath(editor.draftSnapshot, path)
     if (Array.isArray(current)) changes.push({
       propertyPath: path,
-      nextValue: current.filter((item) => !(item && typeof item === 'object' && hardDeleteIds.has(String((item as Record<string, unknown>).id)))) as unknown as EditorValue
+      nextValue: cloneEditorData(current).filter((item) => !(item && typeof item === 'object' && hardDeleteIds.has(String((item as Record<string, unknown>).id)))) as unknown as EditorValue
     })
   }
   for (const source of sources.filter((object) => !hardDeleteIds.has(object.id))) {
     changes.push({ propertyPath: `layout.${source.id}.display`, nextValue: 'none' })
   }
   if (hardDeleteIds.size) {
-    changes.push({ propertyPath: 'entities', nextValue: editor.draftSnapshot.entities.filter((entity) => !hardDeleteIds.has(entity.entityId)) as unknown as EditorValue })
+    changes.push({ propertyPath: 'entities', nextValue: cloneEditorData(editor.draftSnapshot.entities).filter((entity) => !hardDeleteIds.has(entity.entityId)) as unknown as EditorValue })
     for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
-      const record = structuredClone(toRaw(editor.draftSnapshot[domain])) as Record<string, EditorValue>
+      const record = cloneEditorData(editor.draftSnapshot[domain]) as Record<string, EditorValue>
       for (const objectId of hardDeleteIds) delete record[objectId]
       changes.push({ propertyPath: domain, nextValue: record })
     }
@@ -1284,10 +1464,12 @@ async function deleteSelectedObjects(): Promise<void> {
   const removedIds = sources.map((object) => object.id)
   if (!editor.setProperties(editor.selectedObjectId, changes, { objectIds: removedIds }, 'DELETE_OBJECT')) return
   markEditorChanged()
-  await nextTick()
-  await nextTick()
-  const next = editorEntities.value.find((object) => !removedIds.includes(object.id))
-  if (next) setSelection(next)
+  if (paths.length) site.hydrateEditorPreviewPaths({
+    content: toRaw(editor.draftSnapshot.content),
+    visual: toRaw(editor.draftSnapshot.visual),
+    behavior: toRaw(editor.draftSnapshot.behavior)
+  }, paths)
+  selectAfterObjectRemoval(removedIds)
   saveStatus.value = `Deleted ${sources.length} object${sources.length === 1 ? '' : 's'}${hardDeleteIds.size < sources.length ? ' (fixed template objects use reversible display removal)' : ''}.`
 }
 
@@ -1312,6 +1494,203 @@ function openPreviewContextMenu(event: MouseEvent): void {
 
 function closeContextMenuOnOutside(event: PointerEvent): void {
   if (contextMenu.value.open && !(event.target as HTMLElement | null)?.closest('.editor-context-menu')) contextMenu.value.open = false
+}
+
+function editableTextTarget(target: HTMLElement, boundary: HTMLElement): HTMLElement | null {
+  if (!['IMG', 'SVG', 'PATH', 'INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) && target.textContent?.trim()) return target
+  return boundary.querySelector<HTMLElement>('h1,h2,h3,h4,h5,h6,p,a,button,span')
+}
+
+async function beginInlineTextEdit(event: MouseEvent): Promise<void> {
+  const boundary = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
+  const entityId = boundary?.dataset.editorObjectId
+  const entity = entityId ? editorEntities.value.find((candidate) => candidate.id === entityId) : undefined
+  const contentProperties = entity?.properties.filter((candidate) => candidate.metadata.category === 'content' && ['text', 'textarea'].includes(candidate.metadata.control)) ?? []
+  if (!boundary || !entity || !contentProperties.length || editor.objectState(entity.id).locked) return
+  const element = editableTextTarget(event.target as HTMLElement, boundary)
+  if (!element) return
+  const visibleText = element.innerText.trim().replace(/\s+/g, ' ')
+  const property = contentProperties.find((candidate) => String(candidate.read()).trim().replace(/\s+/g, ' ') === visibleText)
+    ?? (contentProperties.length === 1 ? contentProperties[0] : undefined)
+  if (!property) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (inlineTextEdit.value) await commitInlineTextEdit()
+  selectEntity(entity.id, boundary)
+  const originalValue = String(property.read())
+  inlineTextEdit.value = { entity, property, element, originalValue }
+  element.classList.add('editor-inline-text-edit')
+  element.setAttribute('contenteditable', 'true')
+  element.setAttribute('role', 'textbox')
+  element.setAttribute('aria-label', `Edit ${entity.label}`)
+  element.focus({ preventScroll: true })
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+  element.addEventListener('blur', handleInlineBlur, { once: true })
+}
+
+function finishInlineElement(edit: InlineTextEdit): void {
+  edit.element.removeEventListener('blur', handleInlineBlur)
+  edit.element.removeAttribute('contenteditable')
+  edit.element.removeAttribute('role')
+  edit.element.removeAttribute('aria-label')
+  edit.element.classList.remove('editor-inline-text-edit')
+}
+
+async function commitInlineTextEdit(): Promise<void> {
+  const edit = inlineTextEdit.value
+  if (!edit) return
+  inlineTextEdit.value = null
+  const value = edit.property.metadata.control === 'textarea' ? edit.element.innerText.trimEnd() : edit.element.innerText.trim()
+  finishInlineElement(edit)
+  if (value === edit.originalValue) return
+  await writeRuntimeProperty(edit.entity, edit.property, value)
+  saveStatus.value = `Updated ${edit.entity.label}.`
+}
+
+function cancelInlineTextEdit(): void {
+  const edit = inlineTextEdit.value
+  if (!edit) return
+  inlineTextEdit.value = null
+  edit.element.innerText = edit.originalValue
+  finishInlineElement(edit)
+  edit.element.blur()
+  saveStatus.value = 'Inline text edit cancelled.'
+}
+
+function handleInlineBlur(): void {
+  void commitInlineTextEdit()
+}
+
+function cycleEditableObject(direction: 1 | -1): void {
+  const editable = editor.objects.filter((object) => !editor.objectState(object.id).hidden)
+  if (!editable.length) return
+  const current = editable.findIndex((object) => object.id === editor.selectedObjectId)
+  const next = editable[(current + direction + editable.length) % editable.length]
+  if (next) selectNavigatorObject(next.id, true)
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  const element = target instanceof HTMLElement ? target : null
+  return Boolean(element?.closest('input,textarea,select,[contenteditable="true"]'))
+}
+
+function handleEditorKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    if (inlineTextEdit.value) {
+      event.preventDefault()
+      cancelInlineTextEdit()
+    }
+    contextMenu.value.open = false
+    return
+  }
+  if (isTextEntryTarget(event.target)) return
+  const modifier = event.ctrlKey || event.metaKey
+  const key = event.key.toLowerCase()
+  if (modifier && key === 'c') {
+    event.preventDefault()
+    copySelectedStyle()
+  } else if (modifier && key === 'v') {
+    event.preventDefault()
+    pasteSelectedStyle()
+  } else if (modifier && key === 'd') {
+    event.preventDefault()
+    void duplicateSelectedObjects()
+  } else if (!modifier && event.key === 'Delete') {
+    event.preventDefault()
+    void deleteSelectedObjects()
+  } else if (!modifier && event.key === 'Tab') {
+    event.preventDefault()
+    cycleEditableObject(event.shiftKey ? -1 : 1)
+  } else if (!modifier && !event.altKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+    event.preventDefault()
+    const amount = event.shiftKey ? 10 : 1
+    nudgeSelection(event.key === 'ArrowLeft' ? -amount : event.key === 'ArrowRight' ? amount : 0, event.key === 'ArrowUp' ? -amount : event.key === 'ArrowDown' ? amount : 0)
+  }
+}
+
+function searchInspector(value: string): void {
+  const query = value.trim().toLocaleLowerCase()
+  if (!query) return
+  const ranked = selectedPanelProperties.value.map((property) => {
+    const exactSearchTerm = property.metadata.searchTerms?.some((term) => term.toLocaleLowerCase() === query)
+    const label = property.metadata.label.toLocaleLowerCase()
+    const key = property.metadata.propertyKey.toLocaleLowerCase()
+    const category = (property.metadata.categoryLabel ?? property.metadata.category).toLocaleLowerCase()
+    const score = exactSearchTerm ? 0 : label === query ? 1 : label.includes(query) ? 2 : key.includes(query) ? 3 : category.includes(query) ? 4 : 99
+    return { property, score }
+  }).filter((item) => item.score < 99).sort((left, right) => left.score - right.score || left.property.metadata.order - right.property.metadata.order)
+  const match = ranked[0]?.property
+  if (!match) return
+  if (match.metadata.presentation !== 'inline') editor.setAccordion(match.metadata.category)
+  void nextTick(() => scrollInspectorToActive(match.key))
+}
+
+function scrollInspectorToActive(propertyKey?: string): void {
+  const selector = propertyKey
+    ? `[data-property-key="${CSS.escape(propertyKey)}"]`
+    : `[data-property-category="${CSS.escape(editor.activeAccordion)}"]`
+  controlPanel.value?.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+watch(propertySearch, (value) => searchInspector(value))
+
+function beginSelectionBox(event: PointerEvent): void {
+  if (
+    event.button !== 0
+    || !previewRuntime.value?.contains(event.target as Node)
+    || (event.target as HTMLElement).closest('[data-editor-object-id]')
+  ) return
+  const bounds = canvasContainer.value?.getBoundingClientRect()
+  if (!bounds) return
+  selectionBoxAdditive = event.ctrlKey || event.metaKey || event.shiftKey
+  selectionBoxMoved = false
+  selectionBox.value = {
+    active: true,
+    startX: event.clientX - bounds.left,
+    startY: event.clientY - bounds.top,
+    currentX: event.clientX - bounds.left,
+    currentY: event.clientY - bounds.top
+  }
+  window.addEventListener('pointermove', moveSelectionBox)
+  window.addEventListener('pointerup', endSelectionBox, { once: true })
+}
+
+function moveSelectionBox(event: PointerEvent): void {
+  const bounds = canvasContainer.value?.getBoundingClientRect()
+  if (!bounds || !selectionBox.value.active) return
+  selectionBox.value.currentX = event.clientX - bounds.left
+  selectionBox.value.currentY = event.clientY - bounds.top
+  selectionBoxMoved = Math.abs(selectionBox.value.currentX - selectionBox.value.startX) > 4 || Math.abs(selectionBox.value.currentY - selectionBox.value.startY) > 4
+}
+
+function endSelectionBox(): void {
+  window.removeEventListener('pointermove', moveSelectionBox)
+  if (!selectionBox.value.active) return
+  const bounds = canvasContainer.value?.getBoundingClientRect()
+  if (bounds && selectionBoxMoved) {
+    const left = bounds.left + Math.min(selectionBox.value.startX, selectionBox.value.currentX)
+    const top = bounds.top + Math.min(selectionBox.value.startY, selectionBox.value.currentY)
+    const right = bounds.left + Math.max(selectionBox.value.startX, selectionBox.value.currentX)
+    const bottom = bounds.top + Math.max(selectionBox.value.startY, selectionBox.value.currentY)
+    const selectedIds = editor.objects.flatMap((object) => {
+      const element = preferredPreviewElement(object.id)
+      if (!element || !element.getClientRects().length) return []
+      const rect = element.getBoundingClientRect()
+      return rect.right >= left && rect.left <= right && rect.bottom >= top && rect.top <= bottom ? [object.id] : []
+    })
+    const nextIds = selectionBoxAdditive ? [...new Set([...editor.selectedObjectIds, ...selectedIds])] : selectedIds
+    editor.setObjectSelection(nextIds, selectedIds.at(-1) ?? editor.selectedObjectId)
+    const primary = editorEntities.value.find((entity) => entity.id === editor.selectedObjectId)
+    if (primary) editor.setAccordion(defaultAccordion(primary))
+    markSessionChanged()
+    void nextTick(updateSelectedOutline)
+  }
+  selectionBox.value.active = false
+  setTimeout(() => { selectionBoxMoved = false }, 0)
 }
 
 function toggleAccordion(category: string): void {
@@ -1362,7 +1741,8 @@ function cancelLibrarySwitch(): void {
     <EditorObjectNavigator
       :objects="editor.objects"
       :selected-object-id="editor.selectedObjectId"
-      :search="editor.draftSnapshot.session.propertySearch"
+      :selected-object-ids="editor.selectedObjectIds"
+      :search="editor.objectSearch"
       :expanded-layers="editor.draftSnapshot.session.expandedLayers"
       :object-states="editor.draftSnapshot.session.objectStates"
       @select="selectNavigatorObject"
@@ -1370,8 +1750,10 @@ function cancelLibrarySwitch(): void {
       @expand="setLayerExpanded"
       @lock="setObjectLocked"
       @hide="setObjectHidden"
+      @reorder="reorderLayerObject"
+      @rename="renameLayerObject"
     />
-    <aside class="control-panel" aria-label="Editor property panel">
+    <aside ref="controlPanel" class="control-panel" aria-label="Editor property panel">
       <div class="panel-heading">
         <div>
           <h1>Inspector</h1>
@@ -1392,8 +1774,14 @@ function cancelLibrarySwitch(): void {
 
       <p v-if="selectedEntity" class="selection-summary" :data-selected-entity-id="selectedEntity.id">
         Editing <strong>{{ selectedEntity.label }}</strong>
+        <em v-if="selectedObjectCount > 1">+ {{ selectedObjectCount - 1 }} selected</em>
         <span>{{ editor.selectedLayer }}</span>
       </p>
+
+      <label class="property-search" for="property-search-input">
+        <span>Search properties</span>
+        <input id="property-search-input" v-model="propertySearch" type="search" placeholder="Color, shadow, layout…" data-property-search />
+      </label>
 
       <div v-if="selectedEntity" class="object-actions" aria-label="Selected object actions">
         <button type="button" :aria-pressed="selectedObjectLocked" @click="setObjectLocked(selectedEntity.id, !selectedObjectLocked)">
@@ -1425,7 +1813,8 @@ function cancelLibrarySwitch(): void {
             <span>{{ group.label }}</span>
             <span aria-hidden="true">{{ editor.activeAccordion === group.key ? '-' : '+' }}</span>
           </button>
-          <div v-show="group.presentation === 'inline' || editor.activeAccordion === group.key" class="accordion-content">
+          <Transition name="accordion-panel">
+          <div v-if="group.presentation === 'inline' || editor.activeAccordion === group.key" class="accordion-content">
             <div
               v-for="row in group.rows"
               :key="row.key"
@@ -1455,6 +1844,7 @@ function cancelLibrarySwitch(): void {
               </label>
             </div>
           </div>
+          </Transition>
         </div>
         <p v-if="!selectedPanelGroups.length" class="empty-properties">No registered properties are available for this entity.</p>
       </section>
@@ -1467,20 +1857,37 @@ function cancelLibrarySwitch(): void {
       <p class="save-status" aria-live="polite">{{ saveStatus }}</p>
     </aside>
 
-    <main class="canvas-container" aria-label="Live editor preview">
+    <main ref="canvasContainer" class="canvas-container" aria-label="Live editor preview" tabindex="0" @contextmenu.prevent="openPreviewContextMenu">
       <div class="preview-toolbar">
         <span class="source-indicator">{{ sourceLabel }}</span>
         <label class="zoom-control">
           <span>Zoom</span>
           <select :value="userZoom === null ? 'fit' : String(userZoom)" @change="setPreviewZoom">
             <option value="fit">Fit</option>
+            <option value="0.25">25%</option>
             <option value="0.5">50%</option>
-            <option value="0.6">60%</option>
             <option value="0.75">75%</option>
             <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
           </select>
         </label>
         <button type="button" class="open-source-button" aria-label="Open draft or favorite" @click="showOpenModal = true">+</button>
+      </div>
+      <div v-if="selectedObjectCount > 1" class="selection-toolbar" role="toolbar" aria-label="Multi-selection alignment">
+        <span>{{ selectedObjectCount }} objects</span>
+        <button type="button" aria-label="Align left" title="Align left" :disabled="!canAlignSelection" @click="alignSelection('left')">L</button>
+        <button type="button" aria-label="Align horizontal center" title="Align center" :disabled="!canAlignSelection" @click="alignSelection('center')">C</button>
+        <button type="button" aria-label="Align right" title="Align right" :disabled="!canAlignSelection" @click="alignSelection('right')">R</button>
+        <button type="button" aria-label="Align top" title="Align top" :disabled="!canAlignSelection" @click="alignSelection('top')">T</button>
+        <button type="button" aria-label="Align vertical middle" title="Align middle" :disabled="!canAlignSelection" @click="alignSelection('middle')">M</button>
+        <button type="button" aria-label="Align bottom" title="Align bottom" :disabled="!canAlignSelection" @click="alignSelection('bottom')">B</button>
+        <button type="button" aria-label="Distribute horizontally" title="Distribute horizontally" :disabled="!canDistributeSelection" @click="distributeSelection('horizontal')">H↔</button>
+        <button type="button" aria-label="Distribute vertically" title="Distribute vertically" :disabled="!canDistributeSelection" @click="distributeSelection('vertical')">V↕</button>
+        <label class="selection-spacing"><span>Gap</span><PropertyInputControl control="number" label="Distribution spacing" :model-value="selectionGap" :step="1" :minimum="0" @update:model-value="updateSelectionGap" /></label>
+        <button type="button" aria-label="Apply horizontal spacing" title="Apply horizontal spacing" :disabled="!canDistributeSelection" @click="distributeSelection('horizontal', true)">Space H</button>
+        <button type="button" aria-label="Apply vertical spacing" title="Apply vertical spacing" :disabled="!canDistributeSelection" @click="distributeSelection('vertical', true)">Space V</button>
       </div>
       <div v-if="initializationError" class="editor-recovery" role="alert">
         <p>{{ saveStatus }}</p>
@@ -1488,15 +1895,33 @@ function cancelLibrarySwitch(): void {
         <button type="button" @click="void initializeEditor()">Retry</button>
       </div>
       <div class="canvas-label">LIVE EDITOR PREVIEW</div>
-      <div ref="canvasScroll" class="canvas-scroll" @scroll="persistPreviewScroll">
+      <div ref="canvasScroll" class="canvas-scroll" :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan">
         <div class="preview-frame" :style="previewFrameStyle">
           <div ref="previewStage" class="preview-stage" :style="previewStageStyle">
-            <div class="editor-preview-runtime" data-editor-mode="true" @click.capture="selectPreviewEntity">
+            <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
               <HomePage editor-preview />
             </div>
           </div>
         </div>
       </div>
+      <div v-if="selectionBox.active" class="selection-box" :style="selectionBoxStyle" aria-hidden="true" />
+      <menu v-if="contextMenu.open" class="editor-context-menu" :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }" aria-label="Object context menu">
+        <button type="button" :disabled="!canDuplicateSelection" @click="void duplicateSelectedObjects(); contextMenu.open = false">Duplicate <kbd>Ctrl+D</kbd></button>
+        <button type="button" :disabled="!canCopyStyle" @click="copySelectedStyle(); contextMenu.open = false">Copy Style <kbd>Ctrl+C</kbd></button>
+        <button type="button" :disabled="!canPasteStyle" @click="pasteSelectedStyle(); contextMenu.open = false">Paste Style <kbd>Ctrl+V</kbd></button>
+        <button type="button" @click="moveSelectionLayer('front')">Bring Front</button>
+        <button type="button" @click="moveSelectionLayer('back')">Send Back</button>
+        <button type="button" class="danger" @click="void deleteSelectedObjects(); contextMenu.open = false">Delete <kbd>Del</kbd></button>
+      </menu>
+      <footer class="editor-status-bar" aria-label="Editor status">
+        <span><strong>Selection</strong>{{ selectedObjectCount ? `${selectedObjectCount} · ${editor.selectedObject?.name ?? editor.selectedObjectId}` : 'None' }}</span>
+        <span><strong>Position</strong>{{ statusPosition }}</span>
+        <span><strong>Size</strong>{{ statusSize }}</span>
+        <span><strong>Draft</strong>{{ statusDraft }}</span>
+        <span><strong>Revision</strong>{{ editor.draftRevisionNumber ?? 'New' }}</span>
+        <span><strong>Zoom</strong>{{ Math.round(previewScale * 100) }}%</span>
+        <span class="performance-status" :data-preview-update-count="previewUpdateCount" :title="`${previewUpdateCount} targeted preview updates`"><strong>Preview</strong>{{ previewFps }} FPS</span>
+      </footer>
     </main>
 
     <div v-if="showOpenModal" class="modal-backdrop" role="presentation" @click.self="showOpenModal = false">
@@ -1547,14 +1972,16 @@ function cancelLibrarySwitch(): void {
 .property-field :deep(:disabled) { cursor: not-allowed; }
 .property-field small { color: #9a806f; font-size: .65rem; font-weight: 500; line-height: 1.35; }
 .property-field :deep(.property-readonly) { display: block; width: 100%; overflow-wrap: anywhere; padding: .62rem; border: 1px dashed rgba(73,54,47,.18); border-radius: 8px; background: rgba(246,244,232,.75); color: #78645b; font: 500 .7rem/1.45 system-ui; }
-.selection-summary { display: grid; gap: .18rem; margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }.selection-summary span { color: #a18b80; font-size: .58rem; overflow-wrap: anywhere; }
+.selection-summary { display: grid; gap: .18rem; margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }.selection-summary span { color: #a18b80; font-size: .58rem; overflow-wrap: anywhere; }.selection-summary em { color: #a44955; font-size: .66rem; font-style: normal; font-weight: 800; }
+.property-search { display: grid; gap: .35rem; margin-top: .85rem; color: #765f55; font-size: .7rem; font-weight: 800; }.property-search input { width: 100%; box-sizing: border-box; border: 1px solid rgba(73,54,47,.19); border-radius: 10px; padding: .62rem .7rem; background: #fffdf7; color: inherit; font: 500 .74rem/1.2 system-ui; }.property-search input:focus { border-color: #b85b69; outline: 2px solid rgba(184,91,105,.18); outline-offset: 1px; }
 .object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
 .object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
 .property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); }
 .property-group--inline { border: 0; border-radius: 0; overflow: visible; background: transparent; }
 .property-group--inline .accordion-content { padding: 0; }
 .accordion-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; padding: .85rem .9rem; background: #fff8ef; color: #5a3e35; font: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-align: left; cursor: pointer; }
-.accordion-content { display: grid; gap: .15rem; padding: 0 .85rem .85rem; }
+.accordion-content { display: grid; gap: .15rem; padding: 0 .85rem .85rem; transition: opacity .18s ease, transform .18s ease; }
+.accordion-panel-enter-active,.accordion-panel-leave-active { overflow: hidden; transition: opacity .18s ease, transform .18s ease; }.accordion-panel-enter-from,.accordion-panel-leave-to { opacity: 0; transform: translateY(-4px); }
 .property-row { display: grid; gap: .7rem; }
 .property-row--paired { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .property-field--disabled { opacity: .48; filter: grayscale(.2); }
@@ -1562,28 +1989,35 @@ function cancelLibrarySwitch(): void {
 .empty-properties { color: #8c7568; font-size: .75rem; }
 .discard-draft-button { width: 100%; margin-top: 1.25rem; border: 1px solid #d9b6b6; border-radius: 10px; padding: .7rem; background: #fffaf4; color: #8d363a; font-weight: 700; cursor: pointer; }
 .save-status { min-height: 1.2em; color: #7b5f3b; font-size: .75rem; }
-.canvas-container { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #ddd6c9; }
+.canvas-container { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #ddd6c9; }.canvas-container:focus-visible { outline: 3px solid rgba(184,91,105,.52); outline-offset: -3px; }
 .preview-toolbar { position: absolute; z-index: 1001; top: .65rem; left: .75rem; display: flex; align-items: center; gap: .55rem; }
 .source-indicator, .zoom-control { padding: .35rem .6rem; border: 1px solid rgba(232,222,208,.9); border-radius: 999px; background: rgba(255,255,255,.92); color: #5a3e35; font-size: .68rem; font-weight: 700; }
 .zoom-control { display: flex; align-items: center; gap: .35rem; }
 .zoom-control select { border: 0; background: transparent; color: inherit; font: inherit; }
 .open-source-button { width: 2rem; height: 2rem; border: 1px solid #e8ded0; border-radius: 50%; background: #fff5eb; color: #8d363a; font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.selection-toolbar { position: absolute; z-index: 1001; top: 3.15rem; left: .75rem; right: .75rem; display: flex; align-items: center; gap: .3rem; width: max-content; max-width: calc(100% - 1.5rem); padding: .38rem .45rem; overflow-x: auto; border: 1px solid rgba(232,222,208,.96); border-radius: 12px; background: rgba(255,253,247,.96); box-shadow: 0 .45rem 1.25rem rgba(73,54,47,.11); color: #5a3e35; scrollbar-width: thin; }.selection-toolbar > span { padding: 0 .35rem; white-space: nowrap; color: #8d5960; font-size: .68rem; font-weight: 800; }.selection-toolbar button { flex: 0 0 auto; min-width: 1.85rem; height: 1.85rem; border: 1px solid rgba(73,54,47,.13); border-radius: 7px; background: #fff8ef; color: #684e45; font-size: .62rem; font-weight: 900; cursor: pointer; }.selection-toolbar button:hover:not(:disabled) { border-color: #c98a8f; background: #fff1e8; color: #8d363a; }.selection-toolbar button:disabled { cursor: not-allowed; opacity: .4; }.selection-spacing { display: flex; align-items: center; gap: .3rem; padding-left: .3rem; color: #80675d; font-size: .6rem; font-weight: 800; }.selection-spacing :deep(.property-input) { width: 4.8rem; }.selection-spacing :deep(input) { border-color: rgba(73,54,47,.17); padding: .34rem .4rem; background: #fff; color: inherit; font: 700 .65rem system-ui; }.selection-spacing :deep(.numeric-scrub) { width: 1.4rem; }
 .editor-recovery { position: absolute; z-index: 1002; inset: 4rem auto auto 50%; transform: translateX(-50%); width: min(90%,440px); padding: 1rem; border: 1px solid #d99898; border-radius: 16px; background: #fffaf4; color: #8d363a; box-shadow: 0 1rem 2rem rgba(73,54,47,.15); }
 .editor-recovery p { margin: 0 0 .35rem; }.editor-recovery small { display: block; margin-bottom: .75rem; }.editor-recovery button { border: 1px solid #e8ded0; border-radius: 10px; padding: .6rem 1rem; background: #fff5eb; color: #5a3e35; cursor: pointer; }
 .canvas-label { position: absolute; z-index: 1000; top: .75rem; right: 1rem; padding: .35rem .55rem; border-radius: 999px; background: rgba(35,28,25,.78); color: #fff; font: 600 .68rem/1 system-ui; letter-spacing: .08em; }
-.canvas-scroll { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; background: #fff; scrollbar-gutter: stable; }
+.canvas-scroll { width: 100%; height: calc(100% - 2.2rem); min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; background: #fff; scrollbar-gutter: stable; }.canvas-scroll.is-panning,.canvas-scroll.is-panning :deep(*) { cursor: grabbing !important; user-select: none !important; }
 .preview-frame { position: relative; margin: 1.5rem auto 7rem; background: #fff; box-shadow: 0 1rem 2rem rgba(73,54,47,.12); }
 .preview-stage { transform-origin: top left; }
 .editor-preview-runtime :deep([data-editor-object-id]) { cursor: pointer; outline-offset: 3px; border-radius: 4px; }
 .editor-preview-runtime :deep([data-editor-object-id]:hover) { outline: 1px dashed rgba(184,91,105,.55); background: transparent; }
-.editor-preview-runtime :deep(.editor-preview-selected) { outline: 3px solid rgba(184,91,105,.95) !important; outline-offset: 4px !important; border-radius: 7px; background: transparent !important; }
+.editor-preview-runtime :deep(.editor-preview-selected) { outline: 1.5px solid rgba(184,91,105,.78) !important; outline-offset: 3px !important; border-radius: 6px; background: transparent !important; }.editor-preview-runtime :deep(.editor-preview-selected--primary) { outline-width: 3px !important; outline-color: rgba(184,91,105,.98) !important; outline-offset: 4px !important; border-radius: 7px; }
 .editor-preview-runtime :deep(.editor-preview-locked) { cursor: default; }.editor-preview-runtime :deep(.editor-preview-locked.editor-preview-selected) { outline-style: dashed !important; outline-color: rgba(139,100,65,.95) !important; }
 .editor-preview-runtime :deep(.editor-preview-hidden) { opacity: .08 !important; pointer-events: none; }.editor-preview-runtime :deep(.editor-preview-hidden.editor-preview-selected) { opacity: .2 !important; outline-style: dotted !important; }
+.editor-preview-runtime :deep(.editor-inline-text-edit) { min-width: 1ch; cursor: text !important; outline: 2px solid rgba(184,91,105,.92) !important; outline-offset: 3px !important; border-radius: 3px; caret-color: #8d363a; background: transparent !important; }
+.editor-preview-runtime :deep(.editor-preview-dragging) { cursor: move !important; will-change: translate; }
+.selection-box { position: absolute; z-index: 1100; pointer-events: none; border: 1.5px solid rgba(184,91,105,.92); border-radius: 4px; background: rgba(184,91,105,.035); box-shadow: 0 0 0 1px rgba(255,255,255,.75) inset; }
+.editor-context-menu { position: absolute; z-index: 1300; display: grid; width: 215px; margin: 0; padding: .42rem; border: 1px solid rgba(73,54,47,.16); border-radius: 12px; background: rgba(255,253,247,.98); box-shadow: 0 .85rem 2.2rem rgba(73,54,47,.2); list-style: none; }.editor-context-menu button { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; border: 0; border-radius: 8px; padding: .55rem .62rem; background: transparent; color: #5a3e35; text-align: left; font: 700 .7rem system-ui; cursor: pointer; }.editor-context-menu button:hover:not(:disabled),.editor-context-menu button:focus-visible { outline: 0; background: #fff1e8; color: #8d363a; }.editor-context-menu button:disabled { cursor: not-allowed; opacity: .4; }.editor-context-menu button.danger { color: #9b3f3f; }.editor-context-menu kbd { color: #a18b80; font: 600 .58rem system-ui; }
+.editor-status-bar { position: absolute; z-index: 1003; inset: auto 0 0; display: flex; align-items: stretch; gap: 0; height: 2.2rem; overflow-x: auto; border-top: 1px solid rgba(73,54,47,.14); background: rgba(246,244,232,.98); color: #765f55; scrollbar-width: thin; }.editor-status-bar span { display: flex; align-items: center; gap: .35rem; flex: 0 0 auto; min-width: 82px; padding: 0 .7rem; border-right: 1px solid rgba(73,54,47,.1); white-space: nowrap; font-size: .61rem; }.editor-status-bar strong { color: #9a806f; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; }.editor-status-bar .performance-status { margin-left: auto; color: #55725d; }
+.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
 .modal-backdrop { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(73,54,47,.35); }
 .source-modal { position: relative; width: min(100%,620px); padding: 2rem; border-radius: 24px; background: #f6f4e8; color: #49362f; box-shadow: 0 1.5rem 4rem rgba(73,54,47,.25); }
 .source-modal h2 { margin: 0; color: #5a3e35; }.source-modal p { color: #7b5f3b; }.modal-close { position: absolute; top: 1rem; right: 1rem; border: 0; background: transparent; font-size: 1.25rem; color: #7b5f3b; cursor: pointer; }
 .source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }.source-options button { display: grid; gap: .55rem; min-height: 140px; border: 1px solid #e8ded0; border-radius: 16px; padding: 1.2rem; background: #fff5eb; color: #5a3e35; text-align: left; cursor: pointer; }.source-options span { color: #7b5f3b; font-size: .85rem; font-weight: 400; }
 .unsaved-actions { display: grid; gap: .65rem; }.unsaved-actions button { border: 1px solid #e8ded0; border-radius: 11px; padding: .75rem 1rem; background: #fffaf4; color: #5a3e35; cursor: pointer; font-weight: 700; }.unsaved-actions .primary-action { background: #8d363a; color: #fff; }
 @media (max-width: 1100px) { .edit-page { grid-template-columns: 210px 330px minmax(0,1fr); }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
-@media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.preview-toolbar { max-width: calc(100% - 1.5rem); }.source-indicator { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.selection-toolbar { top: 3rem; }.editor-status-bar span { min-width: auto; }.editor-status-bar .performance-status { margin-left: 0; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
 </style>

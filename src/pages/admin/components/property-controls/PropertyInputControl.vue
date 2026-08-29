@@ -6,6 +6,7 @@ const props = defineProps<{
   control: EditorControl
   modelValue: string | number | boolean | null
   disabled?: boolean
+  label?: string
   placeholder?: string
   step?: number
   minimum?: number
@@ -84,7 +85,7 @@ onBeforeUnmount(endDrag)
       type="button"
       class="numeric-scrub"
       :disabled="disabled"
-      aria-label="Drag to change numeric value"
+      :aria-label="`Drag to change ${label ?? 'numeric value'}`"
       title="Drag horizontally · Shift ×10 · Alt ×0.1"
       @pointerdown="beginDrag"
     >↔</button>
@@ -93,6 +94,7 @@ onBeforeUnmount(endDrag)
       :value="modelValue ?? ''"
       :disabled="disabled"
       :placeholder="placeholder"
+      :aria-label="label"
       :step="control === 'number' ? (step ?? 'any') : undefined"
       :min="control === 'number' ? minimum : undefined"
       :max="control === 'number' ? maximum : undefined"

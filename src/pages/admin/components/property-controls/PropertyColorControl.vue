@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import PropertyInputControl from './PropertyInputControl.vue'
 
 const props = defineProps<{ modelValue: string | number | boolean | null; disabled?: boolean; label?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -100,6 +101,14 @@ function chooseRecent(value: string): void {
   emit('update:modelValue', value)
 }
 
+function updateChannel(channel: 'red' | 'green' | 'blue', value: string | number): void {
+  const normalized = clampChannel(Number(value))
+  if (channel === 'red') red.value = normalized
+  else if (channel === 'green') green.value = normalized
+  else blue.value = normalized
+  publish()
+}
+
 async function pickFromScreen(): Promise<void> {
   if (!eyedropper.value) return
   try {
@@ -146,9 +155,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutside
         <label><span>HEX</span><input :value="hexText" spellcheck="false" @change="updateHex" /></label>
       </div>
       <div class="rgb-grid">
-        <label><span>R</span><input v-model.number="red" type="number" min="0" max="255" @input="publish" /></label>
-        <label><span>G</span><input v-model.number="green" type="number" min="0" max="255" @input="publish" /></label>
-        <label><span>B</span><input v-model.number="blue" type="number" min="0" max="255" @input="publish" /></label>
+        <label><span>R</span><PropertyInputControl control="number" :model-value="red" :step="1" :minimum="0" :maximum="255" @update:model-value="updateChannel('red', $event)" /></label>
+        <label><span>G</span><PropertyInputControl control="number" :model-value="green" :step="1" :minimum="0" :maximum="255" @update:model-value="updateChannel('green', $event)" /></label>
+        <label><span>B</span><PropertyInputControl control="number" :model-value="blue" :step="1" :minimum="0" :maximum="255" @update:model-value="updateChannel('blue', $event)" /></label>
       </div>
       <label class="alpha-control"><span>Alpha</span><input v-model.number="alpha" type="range" min="0" max="1" step="0.01" @input="publish" /><output>{{ Math.round(alpha * 100) }}%</output></label>
       <button v-if="eyedropper" type="button" class="eyedropper" @click="pickFromScreen">Eyedropper</button>
@@ -171,7 +180,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutside
 .picker-head label,.rgb-grid label { display: grid; gap: .2rem; margin: 0; }
 .picker-head span,.rgb-grid span,.recent-colors > span,.alpha-control > span { color: #8a7166; font-size: .55rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .rgb-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: .4rem; margin-top: .55rem; }
-.rgb-grid input,.picker-head input:not([type='color']) { min-width: 0; width: 100%; padding: .45rem !important; }
+.rgb-grid :deep(input),.picker-head input:not([type='color']) { min-width: 0; width: 100%; padding: .45rem !important; }.rgb-grid :deep(.property-input--numeric) { grid-template-columns: 1.35rem minmax(0,1fr); }.rgb-grid :deep(.numeric-scrub) { font-size: .58rem; }
 .alpha-control { display: grid; grid-template-columns: 2.6rem minmax(0,1fr) 2.3rem; align-items: center; gap: .45rem; margin-top: .65rem; }
 .alpha-control input { width: 100%; }.alpha-control output { font-size: .62rem; text-align: right; }
 .eyedropper { margin-top: .6rem; }

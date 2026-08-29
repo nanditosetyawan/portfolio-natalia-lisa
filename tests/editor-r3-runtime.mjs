@@ -157,20 +157,20 @@ try {
     return {
       labels,
       pairCount:document.querySelectorAll('[data-property-category="font"] .property-row--paired').length,
-      hoverDisabled:document.querySelector('[data-property-key="font.hover"]')?.disabled===true
+      hoverNative:document.querySelector('[data-property-key="font.hover"] input[type="checkbox"]')?.tagName==='INPUT'
     };
   })()`)
-  assert(fontMetadata.labels.indexOf('Font type') < fontMetadata.labels.indexOf('Size'), 'FONT metadata order is wrong')
+  assert(fontMetadata.labels.indexOf('Font') < fontMetadata.labels.indexOf('Size'), 'FONT metadata order is wrong')
   assert(fontMetadata.labels.indexOf('Size') < fontMetadata.labels.indexOf('Spacing'), 'Size/Spacing order is wrong')
-  assert(fontMetadata.labels.includes('Color') && fontMetadata.labels.includes('Shadow') && fontMetadata.labels.includes('Rotate'), 'FONT controls are incomplete')
+  assert(fontMetadata.labels.includes('Color') && fontMetadata.labels.includes('Text Shadow') && fontMetadata.labels.includes('Rotation'), 'FONT controls are incomplete')
   assert(fontMetadata.pairCount >= 2, 'FONT paired rows are missing')
-  assert(fontMetadata.hoverDisabled, 'unsupported FONT Hover is not natively disabled')
+  assert(fontMetadata.hoverNative, 'FONT Hover does not use a native dependency-aware checkbox')
 
   const portfolioResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const title=[...document.querySelectorAll('[data-editor-entity-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];
     title.click(); await tick();
-    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"]');
+    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"] input,[data-property-key="runtime.portfolio-hero.title"] textarea');
     input.value='PORTFOLIO-R3'; input.dispatchEvent(new Event('input',{bubbles:true})); await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     return {selected:editor.selectedEntityId,section:editor.selectedSection,text:title.textContent.trim(),snapshot:editor.draftSnapshot.content.portfolio.title,inputValue:input.value,inputTag:input.tagName,outlined:title.classList.contains('editor-preview-selected')};
@@ -182,7 +182,7 @@ try {
   const lisaResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const name=document.querySelector('[data-editor-entity-id="navigation-brand"]'); name.click(); await tick();
-    const input=document.querySelector('[data-property-key="runtime.navigation-brand.brand"]');
+    const input=document.querySelector('[data-property-key="runtime.navigation-brand.brand"] input,[data-property-key="runtime.navigation-brand.brand"] textarea');
     input.value='LISA R3'; input.dispatchEvent(new Event('input',{bubbles:true})); await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     return {selected:editor.selectedEntityId,section:editor.selectedSection,text:name.textContent.trim(),selector:document.querySelector('[data-admin-entity-select]').value};
@@ -194,7 +194,7 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const card=document.querySelector('[data-certificate-id]');
     const cardId=card.dataset.certificateId; card.click(); await tick();
-    const input=document.querySelector('[data-property-key="runtime.'+cardId+'.title"]');
+    const input=document.querySelector('[data-property-key="runtime.'+cardId+'.title"] input,[data-property-key="runtime.'+cardId+'.title"] textarea');
     input.value='CERTIFICATE R3'; input.dispatchEvent(new Event('input',{bubbles:true})); await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     return {cardId,selected:editor.selectedEntityId,section:editor.selectedSection,snapshotTitle:editor.draftSnapshot.certificateCards.find(item=>item.id===cardId)?.title,previewTitle:card.querySelector('.info-title')?.textContent.trim()};
@@ -214,14 +214,15 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-entity-id="portfolio-profile-media"]'); image.click(); await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
-    const outlineWidth=document.querySelector('[data-property-key="media.outlineWidth"]');
-    const outline=document.querySelector('[data-property-key="media.outlineEnabled"]');
-    const choose=document.querySelector('[data-property-key="media.choose"]');
-    const hover=document.querySelector('[data-property-key="media.hover"]');
+    const control=(selector,leaf)=>{const root=document.querySelector(selector);return root?.matches(leaf)?root:root?.querySelector(leaf)};
+    const outlineWidth=control('[data-property-key="media.outlineWidth"]','input');
+    const outline=control('[data-property-key="media.outlineEnabled"]','input');
+    const choose=control('[data-property-key="media.choose"]','select');
+    const hover=control('[data-property-key="media.hover"]','input');
     const before=outlineWidth.disabled;
     outline.checked=true; outline.dispatchEvent(new Event('change',{bubbles:true})); await tick();
     const after=outlineWidth.disabled;
-    const width=document.querySelector('[data-property-key="media.width"]');
+    const width=control('[data-property-key="media.width"]','input');
     width.value='280px'; width.dispatchEvent(new Event('input',{bubbles:true})); await tick();
     choose.value='media-runtime-secondary'; choose.dispatchEvent(new Event('change',{bubbles:true})); await tick();
     const assignment=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media');
@@ -235,7 +236,7 @@ try {
       chooseTag:choose.tagName,
       chooseOptions:choose.options.length,
       chosenAsset:assignment?.assetId,
-      hoverDisabled:hover.disabled,
+      hoverNative:hover.tagName==='INPUT'&&hover.type==='checkbox',
       width:editor.draftSnapshot.layout['portfolio-profile-media'].width,
       inlineWidth:image.style.width,
       outlined:image.classList.contains('editor-preview-selected'),
@@ -247,7 +248,7 @@ try {
   assert(mediaResult.before && !mediaResult.after, 'Outline thickness dependency did not toggle native disabled')
   assert(!mediaResult.chooseDisabled && mediaResult.chooseTag === 'SELECT' && mediaResult.chooseOptions >= 2, 'repository-backed media selector is unavailable')
   assert(mediaResult.chosenAsset === 'media-runtime-secondary' && mediaResult.selected === 'portfolio-profile-media', 'Choose from Media did not update the selected media entity')
-  assert(mediaResult.hoverDisabled, 'unsupported MEDIA Hover is not natively disabled')
+  assert(mediaResult.hoverNative, 'MEDIA Hover does not use a native dependency-aware checkbox')
   assert(mediaResult.width === '280px' && mediaResult.inlineWidth === '280px', 'MEDIA width did not bind to snapshot/live preview')
   assert(mediaResult.outlined && mediaResult.outlineStyle !== 'none' && mediaResult.outlineWidth === '3px', 'selected media outline is not visible')
   await mkdir(path.join(projectRoot, 'artifacts'), { recursive: true })
@@ -261,7 +262,7 @@ try {
     const blob=await fetch(image.src).then(response=>response.blob());
     const file=new File([blob],'profile-r3.webp',{type:blob.type||'image/webp'});
     const transfer=new DataTransfer(); transfer.items.add(file);
-    const upload=document.querySelector('[data-property-key="media.upload"]');
+    const uploadControl=document.querySelector('[data-property-key="media.upload"]');const upload=uploadControl.matches('input')?uploadControl:uploadControl.querySelector('input');
     upload.files=transfer.files; upload.dispatchEvent(new Event('change',{bubbles:true}));
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     for(let i=0;i<80&&editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media')?.assetId===originalAsset;i++)await new Promise(resolve=>setTimeout(resolve,25));
@@ -276,7 +277,7 @@ try {
 
   const historyResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-    const rotate=document.querySelector('[data-property-key="media.rotate"]');
+    const rotate=document.querySelector('[data-property-key="media.rotate"] input');
     for(let value=1;value<=12;value++){rotate.value=String(value);rotate.dispatchEvent(new Event('input',{bubbles:true}));}
     await tick();
     const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;
@@ -311,7 +312,7 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const title=[...document.querySelectorAll('[data-editor-entity-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];
     title.click(); await tick();
-    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"]'); input.value='PORTFOLIO-R3-SAVED'; input.dispatchEvent(new Event('input',{bubbles:true})); await tick();
+    const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"] input,[data-property-key="runtime.portfolio-hero.title"] textarea'); input.value='PORTFOLIO-R3-SAVED'; input.dispatchEvent(new Event('input',{bubbles:true})); await tick();
     document.querySelector('.tbar-save').click(); return true;
   })()`)
   await waitFor(`document.querySelector('.editor-save-status')?.textContent.trim()==='Saved'`)
@@ -334,7 +335,7 @@ try {
   const restoredCertificate = await evaluate(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').draftSnapshot.certificateCards.some(card=>card.title==='CERTIFICATE R3')`)
   assert(restoredCertificate, 'Certificate did not survive Save Draft and editor reload')
 
-  await evaluate(`(async()=>{const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const input=document.querySelector('[data-property-key="runtime.navigation-brand.brand"]');input.value='UNSAVED';input.dispatchEvent(new Event('input',{bubbles:true}));await tick();document.querySelector('.open-source-button').click();await tick();[...document.querySelectorAll('.source-options button')][0].click();await tick();return true})()`)
+  await evaluate(`(async()=>{const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const input=document.querySelector('[data-property-key="runtime.navigation-brand.brand"] input,[data-property-key="runtime.navigation-brand.brand"] textarea');input.value='UNSAVED';input.dispatchEvent(new Event('input',{bubbles:true}));await tick();document.querySelector('.open-source-button').click();await tick();[...document.querySelectorAll('.source-options button')][0].click();await tick();return true})()`)
   await waitFor(`Boolean(document.querySelector('.unsaved-modal'))`)
   const unsavedActions = await evaluate(`[...document.querySelectorAll('.unsaved-actions button')].map(button=>button.textContent.trim())`)
   assert(JSON.stringify(unsavedActions) === JSON.stringify(['Save Draft & Continue', 'Discard Changes & Continue', 'Cancel']), 'unsaved switch protection actions are incomplete')
