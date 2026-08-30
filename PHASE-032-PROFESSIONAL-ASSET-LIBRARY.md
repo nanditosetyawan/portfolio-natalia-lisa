@@ -8,6 +8,18 @@ Phase 032 replaces the mock Manage Media experience with a repository-backed Ass
 
 The only deliberate product limitation is that Media Favorites are stored as an Admin UI preference in the current browser. This preserves the explicit no-database/no-RLS-change boundary, remains separate from Draft Favorites, and survives browser reloads on that device. It is not cross-device account data.
 
+## AI-limit recovery audit
+
+The resume started from clean commit `d02778e`; Phase 032 had already been implemented, documented, and locally browser-verified before the usage-limit interruption. The retained implementation already covered Parts A-N: the repository-backed library, derived usage index, virtual grid, picker, Editor commands, Favorites, safety classification, bulk workflows, drag/drop, accessibility, performance instrumentation, screenshots, and regression harnesses. None of that work was regenerated.
+
+The resumed audit found three narrow closeout items:
+
+1. An unassigned media reference still present in a Draft Snapshot could be classified as safe because safety checked usages but not raw Snapshot references. Safety now requires both zero usages and zero Snapshot references. Removing an object's last assignment also removes its orphan Snapshot reference while retaining the Asset Library metadata/object; Undo restores the complete previous media model.
+2. Sort/filter and picker-tab behavior had implementation coverage but weaker browser assertions than the final report implied. The harness now executes all five sorts, all seven filtered subsets, Favorites/Recent picker tabs, Favorite add/remove, lazy thumbnail attributes, and ARIA row/column metadata.
+3. `AdminMediaImages.vue`, `AdminMediaVideos.vue`, and `AdminMediaDocuments.vue` had become unreachable after their routes were redirected to the real library. Reference search found no code consumer, so these abandoned mock pages and their old TODOs were removed.
+
+There was no prior Phase 032 application-runtime failure to recover. The first command in this resumed session could not see the host Node executable from the restricted sandbox; the same harness was rerun through the approved host executable and passed. The strengthened final harness also passed. No feature was skipped because of the AI limit.
+
 ## Protected boundaries
 
 - No migration, table, column, RPC, grant, policy, or RLS change.
@@ -152,8 +164,8 @@ Fresh headless Chromium/DevTools evidence from `tests/media-library-runtime.mjs`
 - rendered cards: `25`;
 - virtualization ratio: less than 10% of the data set mounted;
 - filtered result cards: `1`;
-- 80-query burst duration: `42.8 ms`;
-- DevTools ScriptDuration delta: `0.00263 s`;
+- 80-query burst duration: `28.5 ms`;
+- DevTools ScriptDuration delta: `0.00120 s`;
 - DevTools LayoutCount delta: `5`;
 - thumbnails use `loading="lazy"` and `decoding="async"`;
 - ResizeObserver recalculates columns without rendering the full list.
@@ -181,7 +193,8 @@ Verified using actual canonical default data plus repository-uploaded test asset
 
 - the built-in profile asset was indexed with three real usages;
 - every required filter and metadata detail rendered;
-- Media Favorite survived local persistence and remained separate from Draft Favorite;
+- all Newest/Oldest/Name/Size/Usage comparators and Images/Icons/Background/Logo/Unused/Recent/Favorites subsets passed behavioral assertions;
+- Media Favorite add/remove persisted through the browser preference and remained separate from Draft Favorite;
 - built-in delete remained disabled;
 - upload created three `draft/library/*` assets;
 - multi-select and every bulk action executed;
@@ -191,6 +204,7 @@ Verified using actual canonical default data plus repository-uploaded test asset
 - usage click opened Editor and selected `portfolio-profile-media`;
 - picker search/tabs/keyboard/double-click applied an existing asset;
 - Duplicate Reference, Remove, Undo, and Reveal worked;
+- Remove cleared the final orphan Snapshot reference and Undo restored it;
 - drag target highlight appeared and drop changed Snapshot plus the live blob Preview URL;
 - command history remained within 10;
 - no unhandled rejection or serious browser console error occurred.
@@ -206,11 +220,11 @@ The rendered library uses the established cream/rose Admin palette, consistent r
 
 | Boundary | Evidence | Result |
 |---|---|---:|
-| Phase 029F-R3 selection/property/Draft/Favorite | `tests/editor-r3-runtime.mjs` | PASS |
-| Phase 030 object model/registry/validation/Draft-Guest mapping | `tests/editor-object-system-runtime.mjs` | PASS |
-| Phase 031 Editor UX/accessibility/performance | `tests/editor-professional-ux-runtime.mjs` | PASS |
-| Phase 030A Default/Published/rollback/isolation contracts | `tests/default-guest-runtime.mjs` | PASS |
-| Phase 032 library/picker/editor/bulk/performance | `tests/media-library-runtime.mjs` | PASS |
+| Phase 029F-R3 selection/property/Draft/Favorite | `tests/editor-r3-runtime.mjs` rerun after resume | PASS |
+| Phase 030 object model/registry/validation/Draft-Guest mapping | `tests/editor-object-system-runtime.mjs` rerun after resume | PASS |
+| Phase 031 Editor UX/accessibility/performance | `tests/editor-professional-ux-runtime.mjs` rerun after resume | PASS |
+| Phase 030A Default/Published/rollback/isolation contracts | `tests/default-guest-runtime.mjs` rerun after resume | PASS |
+| Phase 032 library/picker/editor/bulk/performance | strengthened `tests/media-library-runtime.mjs` rerun after resume | PASS |
 | Authenticated Cloud mutation rerun | service-role credential unavailable in this session | NOT RUN |
 
 The last authenticated Cloud regression remains recorded in Phase 031A. This phase did not change Auth, normalized CRUD, Messages, Draft/Favorite repositories, Publish/Rollback, Guest Runtime, schema, migrations, RLS, or bucket configuration. No fresh authenticated Cloud evidence is fabricated.
@@ -248,7 +262,16 @@ Modified for Phase 032:
 - `tests/editor-professional-ux-runtime.mjs`
 - `PROJECT-IMPLEMENTATION-LOG.md`
 
-Pre-existing dirty Phase 031A reports, tests, and refreshed artifacts were preserved.
+Completed during the AI-limit resume:
+
+- tightened reference-aware deletion/move safety in `src/stores/mediaLibrary.ts`;
+- removed the final orphan Snapshot reference on Editor Remove in `src/pages/admin/AdminEdit.vue` without deleting the library asset;
+- added explicit virtual-grid row/column/card semantics in `src/pages/admin/components/AssetVirtualGrid.vue`;
+- strengthened `tests/media-library-runtime.mjs` assertions;
+- removed the unreferenced legacy `AdminMediaImages.vue`, `AdminMediaVideos.vue`, and `AdminMediaDocuments.vue` pages;
+- refreshed the two Phase 032 browser screenshots and this report.
+
+During the original Phase 032 implementation, pre-existing Phase 031A reports, tests, and refreshed artifacts were preserved. This resume itself began from a clean worktree.
 
 ## Known limitations
 
@@ -267,14 +290,14 @@ Pre-existing dirty Phase 031A reports, tests, and refreshed artifacts were prese
 | D - Media Picker | PASS | Search, Preview, Favorites, Recent, drag, double-click and keyboard. |
 | E - Editor Integration | PASS | Upload, Choose, Replace, Remove, Duplicate Reference, Reveal. |
 | F - Media Favorites | PASS | Stable-ID browser persistence, explicitly separate from Draft Favorites. |
-| G - Unused Media | PASS | Safe/Used/Published/Draft-only/built-in classification and gates. |
+| G - Unused Media | PASS | Safe/Used/Published/Draft-only/built-in classification; raw Snapshot references now block move/delete. |
 | H - Bulk Actions | PASS | Multi Favorite/Download/Rename/Move/Delete executed in browser. |
 | I - Rename | PASS | Metadata-only single/batch rename; stable identity unchanged. |
 | J - Thumbnails | PASS | Lazy cards show resolution, aspect ratio, and file size where known. |
 | K - Editor UX | PASS | Drag target outline plus immediate Snapshot and Preview update. |
-| L - Search | PASS | Instant name/type/usage/folder search; 80-query stress run passed. |
-| M - Performance | PASS | Virtualization, lazy thumbnails, bounded DOM, DevTools evidence. |
-| N - Accessibility | PASS | Keyboard, ARIA, focus, live status, zero unlabeled tested controls. |
+| L - Search | PASS | Instant name/type/usage/folder search; 80-query stress run passed in 28.5 ms. |
+| M - Performance | PASS | 262 indexed assets, 25 mounted cards, lazy thumbnails, five layouts, 0.00120 s script delta. |
+| N - Accessibility | PASS | Keyboard, ARIA row/column/card semantics, focus, live status, zero unlabeled tested controls. |
 | Static validation | PASS | Typecheck, production build, diff check. |
 | Previous-phase regression | PASS | R3, Object System, Professional UX, Default/Published runtime all rerun. |
 

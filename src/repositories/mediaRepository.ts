@@ -4,6 +4,7 @@ import type { LibraryMediaUpload, MediaAssetRow } from '../types/mediaLibrary'
 
 export const PORTFOLIO_MEDIA_BUCKET = 'portfolio-media'
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
 const localLibraryRows = new Map<string, MediaAssetRow>()
 const localPreviewUrls = new Map<string, string>()
 
@@ -18,6 +19,12 @@ function extensionFor(file: File): string {
 function assertImage(file: File): void {
   if (!file.type.startsWith('image/')) throw new Error('Only image files are allowed')
   if (file.size > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 10 MB limit')
+}
+
+function assertLibraryFile(file: File): void {
+  if (file.type.startsWith('image/')) return assertImage(file)
+  if (file.type !== 'application/pdf') throw new Error('Only image and PDF files are allowed')
+  if (file.size > MAX_DOCUMENT_BYTES) throw new Error('PDF exceeds the 2 MB limit')
 }
 
 function browserUrl(value: string | null | undefined): value is string {
@@ -94,11 +101,13 @@ export async function resolveMediaAssetPreview(row: MediaAssetRow): Promise<stri
 }
 
 export async function uploadLibraryMedia(file: File): Promise<LibraryMediaUpload> {
-  assertImage(file)
+  assertLibraryFile(file)
   const assetId = crypto.randomUUID()
   const extension = extensionFor(file)
   const storagePath = `draft/library/${assetId}.${extension}`
-  const dimensions = await imageDimensions(file)
+  const dimensions = file.type.startsWith('image/')
+    ? await imageDimensions(file)
+    : { width: null, height: null }
   const now = new Date().toISOString()
   const row: MediaAssetRow = {
     id: assetId,

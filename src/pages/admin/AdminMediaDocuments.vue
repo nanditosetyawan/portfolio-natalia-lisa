@@ -29,7 +29,7 @@
         <!-- Hover overlay + actions -->
         <div class="card-hover-overlay">
           <div class="card-actions">
-            <button class="action-btn action-delete" @click.stop="openDeleteModal(item)">
+            <button class="action-btn action-delete" :disabled="!item.asset.safeToDelete" :title="item.asset.safeToDelete ? 'Hapus' : 'Media yang digunakan, bawaan, atau Published tidak dapat dihapus.'" @click.stop="openDeleteModal(item)">
               <Trash2 class="action-icon" />
               <span class="btn-tooltip">Hapus</span>
             </button>
@@ -99,9 +99,10 @@
             <div class="modal-doc-meta">{{ viewTarget.size }} &bull; {{ viewTarget.format }}</div>
           </div>
         </div>
-        <!-- Scrollable document mock content -->
+        <!-- Scrollable document content -->
         <div class="modal-doc-viewer">
-          <div class="doc-page">
+          <iframe v-if="viewTarget.asset.sourceUrl" :src="viewTarget.asset.sourceUrl" :title="viewTarget.name" style="width:100%;min-height:60vh;border:0;background:#fff" />
+          <div v-else class="doc-page">
             <div class="doc-title-block"></div>
             <div class="doc-line long"></div>
             <div class="doc-line medium"></div>
@@ -124,7 +125,7 @@
             <div class="doc-spacer"></div>
             <div class="doc-note">
               <FileText class="doc-note-icon" />
-              <span>Tampilan preview dokumen (Supabase Storage belum terhubung)</span>
+              <span>Source dokumen tidak tersedia</span>
             </div>
           </div>
         </div>
@@ -134,8 +135,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { FileText, Trash2, Eye, Pencil, X, ArrowLeft } from 'lucide-vue-next'
+import { useMediaLibraryStore } from '../../stores/mediaLibrary'
+import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 
 interface MediaItem {
   id: string
@@ -143,45 +146,76 @@ interface MediaItem {
   size: string
   format: string
   color: string
+  asset: MediaLibraryAsset
 }
 
-const items = ref<MediaItem[]>([
-  { id: '1', name: 'cv-natalia-2025.pdf', size: '0.8 MB', format: 'PDF', color: 'linear-gradient(135deg, #c4a87a 0%, #a88455 100%)' },
-  { id: '2', name: 'sertifikat-ahli-k3.pdf', size: '1.4 MB', format: 'PDF', color: 'linear-gradient(135deg, #d4b084 0%, #b8905a 100%)' },
-  { id: '3', name: 'ijazah-s1.pdf', size: '1.1 MB', format: 'PDF', color: 'linear-gradient(135deg, #c4b4a0 0%, #a89a84 100%)' },
-  { id: '4', name: 'sertifikat-bnsp.pdf', size: '0.6 MB', format: 'PDF', color: 'linear-gradient(135deg, #bca880 0%, #a08c64 100%)' },
-  { id: '5', name: 'laporan-klinik-2024.pdf', size: '1.9 MB', format: 'PDF', color: 'linear-gradient(135deg, #c8b49a 0%, #ac9878 100%)' },
-])
+const gradients = [
+  'linear-gradient(135deg, #c4a87a 0%, #a88455 100%)',
+  'linear-gradient(135deg, #d4b084 0%, #b8905a 100%)',
+  'linear-gradient(135deg, #c4b4a0 0%, #a89a84 100%)',
+  'linear-gradient(135deg, #bca880 0%, #a08c64 100%)',
+  'linear-gradient(135deg, #c8b49a 0%, #ac9878 100%)'
+] as const
+
+const library = useMediaLibraryStore()
+const items = computed<MediaItem[]>(() => library.assets
+  .filter((asset) => asset.mimeType === 'application/pdf')
+  .map((asset, index) => ({
+    id: asset.id,
+    name: asset.name,
+    size: formatBytes(asset.fileSize),
+    format: 'PDF',
+    color: gradients[index % gradients.length] ?? gradients[0],
+    asset
+  })))
 
 const deleteTarget = ref<MediaItem | null>(null)
 const editTarget = ref<MediaItem | null>(null)
 const editName = ref('')
 const viewTarget = ref<MediaItem | null>(null)
 
-const openDeleteModal = (item: MediaItem) => { deleteTarget.value = item }
-
-const confirmDelete = () => {
-  if (!deleteTarget.value) return
-  items.value = items.value.filter(i => i.id !== deleteTarget.value!.id)
-  deleteTarget.value = null
-  // TODO: connect to Supabase delete API
+function formatBytes(value: number | null): string {
+  if (value === null) return 'Not available'
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const openEditModal = (item: MediaItem) => {
+function openDeleteModal(item: MediaItem): void {
+  if (item.asset.safeToDelete) deleteTarget.value = item
+}
+
+async function confirmDelete(): Promise<void> {
+  const target = deleteTarget.value
+  if (!target) return
+  try {
+    await library.remove(target.asset)
+    deleteTarget.value = null
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Dokumen tidak dapat dihapus.')
+  }
+}
+
+function openEditModal(item: MediaItem): void {
   editTarget.value = item
   editName.value = item.name
 }
 
-const confirmEdit = () => {
-  if (!editTarget.value || !editName.value.trim()) return
-  const idx = items.value.findIndex(i => i.id === editTarget.value!.id)
-  if (idx !== -1) items.value[idx] = { ...items.value[idx], name: editName.value.trim() }
-  editTarget.value = null
-  // TODO: connect to Supabase update API
+async function confirmEdit(): Promise<void> {
+  const target = editTarget.value
+  if (!target || !editName.value.trim()) return
+  try {
+    await library.rename(target.asset, editName.value.trim())
+    editTarget.value = null
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Nama dokumen tidak dapat disimpan.')
+  }
 }
 
-const cancelEdit = () => { editTarget.value = null; editName.value = '' }
-const openViewModal = (item: MediaItem) => { viewTarget.value = item }
+function cancelEdit(): void { editTarget.value = null; editName.value = '' }
+function openViewModal(item: MediaItem): void { viewTarget.value = item }
+
+onMounted(() => library.refresh().catch(() => undefined))
 </script>
 
 <style scoped>

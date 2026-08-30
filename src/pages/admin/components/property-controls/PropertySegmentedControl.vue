@@ -2,13 +2,14 @@
 defineProps<{
   modelValue: string | number | boolean | null
   disabled?: boolean
+  label?: string
   options?: Array<{ label: string; value: string }>
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <div class="segmented-control" role="group">
+  <div class="segmented-control" role="group" :aria-label="label">
     <button
       v-for="option in options"
       :key="option.value"

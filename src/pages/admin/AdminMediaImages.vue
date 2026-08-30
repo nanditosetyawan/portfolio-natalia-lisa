@@ -15,7 +15,8 @@
       <div v-for="item in items" :key="item.id" class="media-card">
         <!-- Preview -->
         <div class="card-preview" :style="{ background: item.color }">
-          <ImageIcon class="preview-placeholder-icon" />
+          <img v-if="item.asset.thumbnailUrl" :src="item.asset.thumbnailUrl" :alt="item.name" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover" />
+          <ImageIcon v-else class="preview-placeholder-icon" />
         </div>
         <!-- Gradient overlay -->
         <div class="card-gradient"></div>
@@ -24,7 +25,7 @@
         <!-- Hover overlay + actions -->
         <div class="card-hover-overlay">
           <div class="card-actions">
-            <button class="action-btn action-delete" @click.stop="openDeleteModal(item)">
+            <button class="action-btn action-delete" :disabled="!item.asset.safeToDelete" :title="item.asset.safeToDelete ? 'Hapus' : 'Media yang digunakan, bawaan, atau Published tidak dapat dihapus.'" @click.stop="openDeleteModal(item)">
               <Trash2 class="action-icon" />
               <span class="btn-tooltip">Hapus</span>
             </button>
@@ -86,7 +87,8 @@
           <X class="close-icon" />
         </button>
         <div class="modal-view-preview" :style="{ background: viewTarget.color }">
-          <ImageIcon class="modal-view-placeholder-icon" />
+          <img v-if="viewTarget.asset.sourceUrl" :src="viewTarget.asset.sourceUrl" :alt="viewTarget.name" style="width:100%;height:100%;object-fit:contain" />
+          <ImageIcon v-else class="modal-view-placeholder-icon" />
         </div>
         <div class="modal-view-footer">
           <span class="modal-view-filename">{{ viewTarget.name }}</span>
@@ -98,8 +100,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Image as ImageIcon, Trash2, Eye, Pencil, X, ArrowLeft } from 'lucide-vue-next'
+import { useMediaLibraryStore } from '../../stores/mediaLibrary'
+import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 
 interface MediaItem {
   id: string
@@ -107,56 +111,89 @@ interface MediaItem {
   size: string
   format: string
   color: string
+  asset: MediaLibraryAsset
 }
 
-const items = ref<MediaItem[]>([
-  { id: '1', name: 'foto-profil-natalia.webp', size: '1.2 MB', format: 'WEBP', color: 'linear-gradient(135deg, #a8c5a0 0%, #7aab70 100%)' },
-  { id: '2', name: 'banner-portfolio.webp', size: '1.8 MB', format: 'WEBP', color: 'linear-gradient(135deg, #f4a9a0 0%, #e07a70 100%)' },
-  { id: '3', name: 'certificate-bg.webp', size: '0.9 MB', format: 'WEBP', color: 'linear-gradient(135deg, #a0b4d4 0%, #7090bb 100%)' },
-  { id: '4', name: 'about-hero.webp', size: '1.5 MB', format: 'WEBP', color: 'linear-gradient(135deg, #c4a8d4 0%, #9c70bb 100%)' },
-  { id: '5', name: 'contact-bg.webp', size: '0.7 MB', format: 'WEBP', color: 'linear-gradient(135deg, #d4c4a0 0%, #bba870 100%)' },
-  { id: '6', name: 'education-hero.webp', size: '1.1 MB', format: 'WEBP', color: 'linear-gradient(135deg, #a8d4c4 0%, #70bbaa 100%)' },
-])
+const gradients = [
+  'linear-gradient(135deg, #a8c5a0 0%, #7aab70 100%)',
+  'linear-gradient(135deg, #f4a9a0 0%, #e07a70 100%)',
+  'linear-gradient(135deg, #a0b4d4 0%, #7090bb 100%)',
+  'linear-gradient(135deg, #c4a8d4 0%, #9c70bb 100%)',
+  'linear-gradient(135deg, #d4c4a0 0%, #bba870 100%)',
+  'linear-gradient(135deg, #a8d4c4 0%, #70bbaa 100%)'
+] as const
+
+const library = useMediaLibraryStore()
+const items = computed<MediaItem[]>(() => library.assets
+  .filter((asset) => asset.mimeType.startsWith('image/'))
+  .map((asset, index) => ({
+    id: asset.id,
+    name: asset.name,
+    size: formatBytes(asset.fileSize),
+    format: formatLabel(asset),
+    color: gradients[index % gradients.length] ?? gradients[0],
+    asset
+  })))
 
 const deleteTarget = ref<MediaItem | null>(null)
 const editTarget = ref<MediaItem | null>(null)
 const editName = ref('')
 const viewTarget = ref<MediaItem | null>(null)
 
-const openDeleteModal = (item: MediaItem) => {
-  deleteTarget.value = item
+function formatBytes(value: number | null): string {
+  if (value === null) return 'Not available'
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const confirmDelete = () => {
-  if (!deleteTarget.value) return
-  items.value = items.value.filter(i => i.id !== deleteTarget.value!.id)
-  deleteTarget.value = null
-  // TODO: connect to Supabase delete API
+function formatLabel(asset: MediaLibraryAsset): string {
+  return asset.mimeType.split('/')[1]?.replace('svg+xml', 'svg').toUpperCase()
+    || asset.storagePath?.split('.').pop()?.toUpperCase()
+    || 'IMAGE'
 }
 
-const openEditModal = (item: MediaItem) => {
+function openDeleteModal(item: MediaItem): void {
+  if (item.asset.safeToDelete) deleteTarget.value = item
+}
+
+async function confirmDelete(): Promise<void> {
+  const target = deleteTarget.value
+  if (!target) return
+  try {
+    await library.remove(target.asset)
+    deleteTarget.value = null
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Media tidak dapat dihapus.')
+  }
+}
+
+function openEditModal(item: MediaItem): void {
   editTarget.value = item
   editName.value = item.name
 }
 
-const confirmEdit = () => {
-  if (!editTarget.value || !editName.value.trim()) return
-  const idx = items.value.findIndex(i => i.id === editTarget.value!.id)
-  if (idx !== -1) {
-    items.value[idx] = { ...items.value[idx], name: editName.value.trim() }
+async function confirmEdit(): Promise<void> {
+  const target = editTarget.value
+  if (!target || !editName.value.trim()) return
+  try {
+    await library.rename(target.asset, editName.value.trim())
+    editTarget.value = null
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Nama media tidak dapat disimpan.')
   }
-  editTarget.value = null
-  // TODO: connect to Supabase update API
 }
 
-const cancelEdit = () => {
+function cancelEdit(): void {
   editTarget.value = null
   editName.value = ''
 }
 
-const openViewModal = (item: MediaItem) => {
+function openViewModal(item: MediaItem): void {
   viewTarget.value = item
 }
+
+onMounted(() => library.refresh().catch(() => undefined))
 </script>
 
 <style scoped>

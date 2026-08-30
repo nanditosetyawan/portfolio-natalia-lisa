@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ disabled?: boolean; accept?: string }>()
+defineProps<{ disabled?: boolean; accept?: string; label?: string }>()
 const emit = defineEmits<{ file: [file: File] }>()
 function update(event: Event): void {
   const file = (event.target as HTMLInputElement).files?.[0]
@@ -8,5 +8,5 @@ function update(event: Event): void {
 </script>
 
 <template>
-  <input type="file" :disabled="disabled" :accept="accept" @change="update" />
+  <input type="file" :disabled="disabled" :accept="accept" :aria-label="label" @change="update" />
 </template>

@@ -44,6 +44,33 @@ import {
   resolvePropertyPath
 } from '../../editor/propertyRegistry'
 import { applyRegisteredObjectProperties, applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
+import {
+  applyResponsiveObjectProperties,
+  cloneResponsiveObjectChanges,
+  defaultResponsiveCanvasPresetId,
+  effectiveResponsiveLayout,
+  isResponsiveLayoutPropertyEnabled,
+  objectHasResponsiveData,
+  readResponsiveLayoutPropertyState,
+  removeResponsiveObjectChanges,
+  resolveResponsiveLayoutProperties,
+  resolveResponsiveSnapshotProperty,
+  responsiveCanvasPresets,
+  responsiveLayoutFieldPath,
+  responsiveLayoutPropertyChanges,
+  responsiveLayoutResetChanges,
+  responsiveLayoutValues,
+  responsiveSnapshotResetChange,
+  responsiveSnapshotWritePath,
+  responsiveStateLabel,
+  restoreResponsiveObjectProperties,
+  restoreResponsiveSnapshotProperties,
+  type ResponsiveBreakpoint,
+  type ResponsiveCanvasPresetId,
+  type ResponsiveLayoutProperty,
+  type ResponsiveLayoutPropertyState,
+  type ResponsiveSnapshotPropertyState
+} from '../../editor/responsiveLayout'
 import type {
   DraftMediaReference,
   EditorCommandType,
@@ -60,6 +87,7 @@ interface PanelProperty {
   key: string
   metadata: PropertyRegistryEntry
   runtimeProperty?: RuntimeAdminProperty
+  responsiveProperty?: ResponsiveLayoutProperty
 }
 
 interface PanelRow {
@@ -132,6 +160,7 @@ const previewRuntime = ref<HTMLElement | null>(null)
 const fitScale = ref(0.6)
 const userZoom = ref<number | null>(null)
 const previewHeight = ref(900)
+const activeCanvasPresetId = ref<ResponsiveCanvasPresetId>(defaultResponsiveCanvasPresetId)
 const draftScope = ref(`editor-session-${crypto.randomUUID()}`)
 const publishedBaseline = ref<EditorSnapshot | null>(null)
 const mediaInputVersion = ref(0)
@@ -149,6 +178,8 @@ const pendingPreviewObjectIds = new Set<string>()
 let selectedPreviewElement: HTMLElement | null = null
 let previewObserver: ResizeObserver | null = null
 let previewFrameRequest = 0
+let previewHeightTimer: number | null = null
+let previewHeightFrameRequest = 0
 let panPointerId: number | null = null
 let panStartX = 0
 let panStartY = 0
@@ -194,6 +225,9 @@ const selectedRuntimeObjects = computed(() => editor.selectedObjectIds.flatMap((
   const object = editorEntities.value.find((candidate) => candidate.id === objectId)
   return object ? [object] : []
 }))
+const activeCanvasPreset = computed(() => responsiveCanvasPresets.find((preset) => preset.id === activeCanvasPresetId.value) ?? responsiveCanvasPresets[0])
+const activeBreakpoint = computed<ResponsiveBreakpoint>(() => activeCanvasPreset.value.breakpoint)
+const activeCanvasWidth = computed(() => activeCanvasPreset.value.width)
 const previewScale = computed(() => userZoom.value ?? fitScale.value)
 const sourceLabel = computed(() => editor.draftRevisionId
   ? `Editing: ${route.query.source === 'favorite' ? 'Favorite - ' : ''}Draft #${editor.draftRevisionNumber ?? '-'}`
@@ -208,7 +242,7 @@ const propertySearch = computed({
     markSessionChanged()
   }
 })
-const primaryLayout = computed(() => editor.draftSnapshot.layout[editor.selectedObjectId] ?? {})
+const primaryLayout = computed(() => effectiveResponsiveLayout(editor.draftSnapshot, editor.selectedObjectId, activeBreakpoint.value))
 const statusPosition = computed(() => `${formatStatusValue(primaryLayout.value.x, 0)}, ${formatStatusValue(primaryLayout.value.y, 0)}`)
 const statusSize = computed(() => `${formatStatusValue(primaryLayout.value.width, 'auto')} × ${formatStatusValue(primaryLayout.value.height, 'auto')}`)
 const statusDraft = computed(() => editorSaveStatus.value || (editor.hasUnsavedChanges || editorHasChanges.value ? 'Unsaved' : 'Saved'))
@@ -228,12 +262,12 @@ function formatStatusValue(value: EditorValue, fallback: string | number): strin
 }
 
 const previewFrameStyle = computed(() => ({
-  width: `${1440 * previewScale.value}px`,
+  width: `${activeCanvasWidth.value * previewScale.value}px`,
   height: `${previewHeight.value * previewScale.value + 48}px`
 }))
 
 const previewStageStyle = computed(() => ({
-  width: '1440px',
+  width: `${activeCanvasWidth.value}px`,
   transform: `scale(${previewScale.value})`
 }))
 
@@ -285,7 +319,19 @@ const runtimeContentProperties = computed<PanelProperty[]>(() => (selectedEntity
       binding: { kind: 'runtime', path: runtimeProperty.path }
     }
   })))
-const selectedPanelProperties = computed(() => [...runtimeContentProperties.value, ...registryPanelProperties.value]
+const responsivePanelProperties = computed<PanelProperty[]>(() => {
+  const descriptor = selectedDescriptor.value
+  if (!descriptor) return []
+  return resolveResponsiveLayoutProperties(descriptor, activeBreakpoint.value).map((responsiveProperty) => ({
+    key: responsiveProperty.metadata.propertyKey,
+    metadata: responsiveProperty.metadata,
+    responsiveProperty
+  }))
+})
+const responsivePreviewObjectIds = computed(() => editorEntities.value
+  .filter((object) => objectHasResponsiveData(editor.draftSnapshot, object.id))
+  .map((object) => object.id))
+const selectedPanelProperties = computed(() => [...runtimeContentProperties.value, ...registryPanelProperties.value, ...responsivePanelProperties.value]
   .sort((left, right) => (left.metadata.categoryOrder ?? 100) - (right.metadata.categoryOrder ?? 100) || left.metadata.order - right.metadata.order))
 const canCopyStyle = computed(() => registryPanelProperties.value.some((property) => property.metadata.copyable && property.metadata.styleKey))
 const canPasteStyle = computed(() => {
@@ -342,6 +388,26 @@ watch(previewScale, (zoom) => {
   markSessionChanged()
 })
 
+watch(activeCanvasPresetId, async (nextPresetId, previousPresetId) => {
+  const started = performance.now()
+  updatePreviewMetrics()
+  schedulePreviewHeightMeasurement()
+  const nextBreakpoint = responsiveCanvasPresets.find((preset) => preset.id === nextPresetId)?.breakpoint
+  const previousBreakpoint = responsiveCanvasPresets.find((preset) => preset.id === previousPresetId)?.breakpoint
+  if (nextBreakpoint === previousBreakpoint) {
+    previewUpdateDuration.value = performance.now() - started
+    previewUpdateCount.value += 1
+    return
+  }
+  await nextTick()
+  const root = previewStage.value
+  if (root) {
+    for (const objectId of responsivePreviewObjectIds.value) applyEditorPreviewObject(root, objectId)
+  }
+  previewUpdateDuration.value = performance.now() - started
+  previewUpdateCount.value += 1
+})
+
 watch(() => editor.selectedObjectIds.join('|'), () => void nextTick(updateSelectedOutline))
 
 watch(editorEntities, (objects) => {
@@ -371,15 +437,33 @@ function schedulePreviewObjects(objectIds: string[]): void {
     const started = performance.now()
     const root = previewStage.value
     if (root) {
-      if (!pendingPreviewObjectIds.size) applyRegisteredSnapshotProperties(root, editor.draftSnapshot)
-      else for (const objectId of pendingPreviewObjectIds) applyRegisteredObjectProperties(root, editor.draftSnapshot, objectId)
+      if (!pendingPreviewObjectIds.size) applyEditorPreviewSnapshot(root)
+      else for (const objectId of pendingPreviewObjectIds) applyEditorPreviewObject(root, objectId)
     }
     pendingPreviewObjectIds.clear()
     decoratePreviewEntities()
     updateSelectedOutline()
+    schedulePreviewHeightMeasurement()
     previewUpdateDuration.value = performance.now() - started
     previewUpdateCount.value += 1
   })
+}
+
+function applyEditorPreviewObject(root: HTMLElement, objectId: string): void {
+  restoreResponsiveObjectProperties(root, objectId)
+  applyRegisteredObjectProperties(root, editor.draftSnapshot, objectId)
+  const object = editorEntities.value.find((candidate) => candidate.id === objectId)
+  if (object) applyResponsiveObjectProperties(root, editor.draftSnapshot, descriptorFor(object), activeBreakpoint.value)
+}
+
+function applyEditorPreviewSnapshot(root: HTMLElement): void {
+  restoreResponsiveSnapshotProperties(root)
+  applyRegisteredSnapshotProperties(root, editor.draftSnapshot)
+  for (const object of editorEntities.value) {
+    if (objectHasResponsiveData(editor.draftSnapshot, object.id)) {
+      applyResponsiveObjectProperties(root, editor.draftSnapshot, descriptorFor(object), activeBreakpoint.value)
+    }
+  }
 }
 
 async function initializeEditor(): Promise<void> {
@@ -454,8 +538,8 @@ async function initializeEditor(): Promise<void> {
     unregisterPublish = registerEditorPublish(publishCurrentDraft)
     previewObserver = new ResizeObserver(updatePreviewMetrics)
     if (canvasScroll.value) previewObserver.observe(canvasScroll.value)
-    if (previewStage.value) previewObserver.observe(previewStage.value)
     updatePreviewMetrics()
+    schedulePreviewHeightMeasurement(0)
     decoratePreviewEntities()
     applyEditorPreviewStyles()
   } catch (error) {
@@ -479,12 +563,17 @@ onBeforeUnmount(() => {
   endSelectionBox()
   clearMediaDropTarget()
   if (previewFrameRequest) cancelAnimationFrame(previewFrameRequest)
+  if (previewHeightFrameRequest) cancelAnimationFrame(previewHeightFrameRequest)
+  if (previewHeightTimer !== null) window.clearTimeout(previewHeightTimer)
   if (inlineTextEdit.value) cancelInlineTextEdit()
   previewObserver?.disconnect()
   unregisterSave?.()
   unregisterPublish?.()
   resetEditorPublishFeedback()
-  if (previewStage.value) restoreRegisteredSnapshotProperties(previewStage.value)
+  if (previewStage.value) {
+    restoreResponsiveSnapshotProperties(previewStage.value)
+    restoreRegisteredSnapshotProperties(previewStage.value)
+  }
 })
 
 function restoreSelectionFromSession(): void {
@@ -500,6 +589,7 @@ function restoreSelectionFromSession(): void {
 function availableGroups(entity: EditorRuntimeObject): string[] {
   const descriptor = descriptorFor(entity)
   const groups = resolveProperties(descriptor, editor.draftSnapshot).map((property) => property.category)
+  if (resolveResponsiveLayoutProperties(descriptor, activeBreakpoint.value).length) groups.push('responsive')
   if (entity.properties.some((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')) groups.push('font')
   return [...new Set(groups)]
 }
@@ -557,7 +647,7 @@ function findObjectPath(root: Record<string, unknown>, target: Record<string, un
 }
 
 function bindingPath(metadata: PropertyRegistryEntry, entityId: string): string {
-  return resolvePropertyPath(metadata, entityId) ?? metadata.propertyPath
+  return responsiveSnapshotWritePath(metadata, entityId, activeBreakpoint.value)
 }
 
 function fallbackRuntimeValue(metadata: PropertyRegistryEntry): EditorValue {
@@ -566,6 +656,14 @@ function fallbackRuntimeValue(metadata: PropertyRegistryEntry): EditorValue {
 }
 
 function readPanelValue(property: PanelProperty): string | number | boolean | null {
+  if (property.responsiveProperty && selectedEntity.value) {
+    return primitiveValue(readResponsiveLayoutPropertyState(
+      property.responsiveProperty,
+      editor.draftSnapshot,
+      selectedEntity.value.id,
+      activeBreakpoint.value
+    ).value)
+  }
   if (property.runtimeProperty) return property.runtimeProperty.read()
   const metadata = property.metadata
   if (metadata.databaseMapping.kind === 'metadata') {
@@ -595,8 +693,14 @@ function readPanelValue(property: PanelProperty): string | number | boolean | nu
     return primitiveValue(metadata.defaultValue)
   }
   if (metadata.databaseMapping.kind !== 'snapshot' || !selectedEntity.value) return primitiveValue(metadata.defaultValue)
-  const value = readSnapshotPath(editor.draftSnapshot, bindingPath(metadata, selectedEntity.value.id))
-  return primitiveValue(metadata.serializer.deserialize(value ?? fallbackRuntimeValue(metadata) ?? metadata.defaultValue))
+  const state = resolveResponsiveSnapshotProperty(
+    metadata,
+    editor.draftSnapshot,
+    selectedEntity.value.id,
+    activeBreakpoint.value,
+    fallbackRuntimeValue(metadata) ?? metadata.defaultValue
+  )
+  return primitiveValue(metadata.serializer.deserialize(state.value))
 }
 
 function primitiveValue(value: EditorValue): string | number | boolean | null {
@@ -613,6 +717,34 @@ const propertyActionHandlers: Partial<Record<PropertyAction, (value: string | nu
 async function updatePanelProperty(property: PanelProperty, value: string | number | boolean): Promise<void> {
   const entity = selectedEntity.value
   if (!entity || !isPanelPropertyEnabled(property)) return
+  if (property.responsiveProperty) {
+    const serialized = property.metadata.serializer.serialize(value)
+    if (Object.is(readPanelValue(property), serialized)) return
+    const validation = property.metadata.validation.validate(serialized, {
+      entity: descriptorFor(entity),
+      snapshot: editor.draftSnapshot,
+      values: selectedPropertyValues.value
+    })
+    if (validation) {
+      saveStatus.value = validation
+      return
+    }
+    const changes = responsiveLayoutPropertyChanges(
+      property.responsiveProperty,
+      entity.id,
+      activeBreakpoint.value,
+      serialized
+    )
+    if (!editor.setProperties(entity.id, changes, {
+      objectIds: [entity.id],
+      breakpoint: activeBreakpoint.value,
+      responsiveProperty: property.metadata.propertyKey
+    }, 'SET_PROPERTY')) return
+    markEditorChanged()
+    await nextTick()
+    updateSelectedOutline()
+    return
+  }
   if (property.metadata.databaseMapping.kind === 'action') {
     const handler = propertyActionHandlers[property.metadata.databaseMapping.action]
     if (handler) await handler(value, property)
@@ -650,6 +782,17 @@ async function writeRuntimeProperty(entity: EditorRuntimeObject, property: Runti
 function isPanelPropertyEnabled(property: PanelProperty): boolean {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return false
+  if (property.responsiveProperty) {
+    const responsiveProperties = responsivePanelProperties.value.flatMap((candidate) => candidate.responsiveProperty ? [candidate.responsiveProperty] : [])
+    const values = responsiveLayoutValues(responsiveProperties, editor.draftSnapshot, descriptor.entityId, activeBreakpoint.value)
+    return !selectedObjectLocked.value && isResponsiveLayoutPropertyEnabled(
+      property.responsiveProperty,
+      descriptor,
+      editor.draftSnapshot,
+      activeBreakpoint.value,
+      values
+    )
+  }
   if (property.metadata.databaseMapping.kind === 'action'
     && ['remove-media', 'duplicate-media-reference', 'reveal-media-library'].includes(property.metadata.databaseMapping.action)
     && !selectedMediaAssignment.value) return false
@@ -662,9 +805,66 @@ function isPanelPropertyEnabled(property: PanelProperty): boolean {
 }
 
 function panelPropertyError(property: PanelProperty): string {
-  if (!selectedEntity.value || property.metadata.databaseMapping.kind !== 'snapshot') return ''
-  const path = bindingPath(property.metadata, selectedEntity.value.id)
-  return editor.registeredPropertyErrors.find((error) => error.propertyPath === path)?.message ?? ''
+  if (!selectedEntity.value) return ''
+  if (property.responsiveProperty) {
+    return property.metadata.validation.validate(readResponsiveLayoutPropertyState(
+      property.responsiveProperty,
+      editor.draftSnapshot,
+      selectedEntity.value.id,
+      activeBreakpoint.value
+    ).value, {
+      entity: descriptorFor(selectedEntity.value),
+      snapshot: editor.draftSnapshot,
+      values: selectedPropertyValues.value
+    }) ?? ''
+  }
+  if (property.metadata.databaseMapping.kind !== 'snapshot') return ''
+  const state = resolveResponsiveSnapshotProperty(property.metadata, editor.draftSnapshot, selectedEntity.value.id, activeBreakpoint.value)
+  return editor.registeredPropertyErrors.find((error) => error.propertyPath === state.path)?.message ?? ''
+}
+
+function panelResponsiveState(property: PanelProperty): ResponsiveLayoutPropertyState | ResponsiveSnapshotPropertyState | null {
+  const entity = selectedEntity.value
+  if (!entity) return null
+  if (property.responsiveProperty) {
+    return readResponsiveLayoutPropertyState(property.responsiveProperty, editor.draftSnapshot, entity.id, activeBreakpoint.value)
+  }
+  if (property.metadata.databaseMapping.kind !== 'snapshot' || !property.metadata.databaseMapping.path.includes('{entityId}')) return null
+  return resolveResponsiveSnapshotProperty(
+    property.metadata,
+    editor.draftSnapshot,
+    entity.id,
+    activeBreakpoint.value,
+    fallbackRuntimeValue(property.metadata) ?? property.metadata.defaultValue
+  )
+}
+
+function panelResponsiveLabel(property: PanelProperty): string {
+  const state = panelResponsiveState(property)
+  return state ? responsiveStateLabel(state) : ''
+}
+
+function canResetPanelOverride(property: PanelProperty): boolean {
+  const state = panelResponsiveState(property)
+  if (!state?.overridden) return false
+  return Boolean(property.responsiveProperty) || activeBreakpoint.value !== 'desktop'
+}
+
+function resetPanelOverride(property: PanelProperty): void {
+  const entity = selectedEntity.value
+  if (!entity || !canResetPanelOverride(property)) return
+  const changes = property.responsiveProperty
+    ? responsiveLayoutResetChanges(property.responsiveProperty, entity.id, activeBreakpoint.value)
+    : (() => {
+        const change = responsiveSnapshotResetChange(property.metadata, editor.draftSnapshot, entity.id, activeBreakpoint.value)
+        return change ? [change] : []
+      })()
+  if (!changes.length || !editor.setProperties(entity.id, changes, {
+    objectIds: [entity.id],
+    breakpoint: activeBreakpoint.value,
+    responsiveReset: property.metadata.propertyKey
+  }, 'SET_PROPERTY')) return
+  markEditorChanged()
 }
 
 async function handlePropertyFile(property: PanelProperty, file: File): Promise<void> {
@@ -800,9 +1000,16 @@ async function removeSelectedMedia(commandType: EditorCommandType): Promise<void
   const assignment = selectedMediaAssignment.value
   if (!entity || !target || !assignment) return
   const currentMedia = cloneEditorData(editor.draftSnapshot.media)
+  const remainingAssignments = currentMedia.assignments.filter((candidate) => candidate.entityId !== target.id)
+  const assetStillAssigned = remainingAssignments.some((candidate) => candidate.assetId === assignment.assetId)
+  const assetStillUsedAsBackground = Object.values(editor.draftSnapshot.backgrounds)
+    .some((background) => background.imageAssetId === assignment.assetId)
   const nextMedia: SnapshotMediaModel = {
     ...currentMedia,
-    assignments: currentMedia.assignments.filter((candidate) => candidate.entityId !== target.id)
+    references: assetStillAssigned || assetStillUsedAsBackground
+      ? currentMedia.references
+      : currentMedia.references.filter((reference) => reference.assetId !== assignment.assetId),
+    assignments: remainingAssignments
   }
   editor.apply({
     type: commandType,
@@ -853,7 +1060,7 @@ async function duplicateSelectedMediaReference(commandType: EditorCommandType): 
 function revealSelectedMedia(): void {
   const assetId = selectedMediaAssignment.value?.assetId
   if (!assetId) return
-  const href = router.resolve({ name: 'admin-media', query: { asset: assetId } }).href
+  const href = router.resolve({ name: 'admin-asset-library', query: { asset: assetId } }).href
   window.open(href, '_blank', 'noopener,noreferrer')
 }
 
@@ -1128,13 +1335,40 @@ async function syncSnapshotMediaToPreview(): Promise<void> {
 
 function updatePreviewMetrics(): void {
   const viewportWidth = canvasScroll.value?.clientWidth ?? 900
-  fitScale.value = Math.min(1, Math.max(0.34, (viewportWidth - 48) / 1440))
-  void nextTick(() => { previewHeight.value = previewStage.value?.scrollHeight ?? previewHeight.value })
+  fitScale.value = Math.min(1, Math.max(0.18, (viewportWidth - 48) / activeCanvasWidth.value))
+}
+
+function schedulePreviewHeightMeasurement(delay = 90): void {
+  if (previewHeightTimer !== null) window.clearTimeout(previewHeightTimer)
+  previewHeightTimer = window.setTimeout(() => {
+    previewHeightTimer = null
+    previewHeightFrameRequest = requestAnimationFrame(() => {
+      previewHeightFrameRequest = 0
+      previewHeight.value = previewStage.value?.scrollHeight ?? previewHeight.value
+    })
+  }, delay)
 }
 
 function setPreviewZoom(event: Event): void {
   const value = (event.target as HTMLSelectElement).value
   setZoom(value === 'fit' ? null : Number(value))
+}
+
+function handleCanvasPresetKeydown(event: KeyboardEvent, index: number): void {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const last = responsiveCanvasPresets.length - 1
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? last
+      : event.key === 'ArrowLeft'
+        ? (index - 1 + responsiveCanvasPresets.length) % responsiveCanvasPresets.length
+        : (index + 1) % responsiveCanvasPresets.length
+  const preset = responsiveCanvasPresets[nextIndex]
+  if (!preset) return
+  activeCanvasPresetId.value = preset.id
+  void nextTick(() => canvasContainer.value?.querySelector<HTMLElement>(`[data-canvas-preset="${preset.id}"]`)?.focus())
 }
 
 function setZoom(zoom: number | null, focalX?: number, focalY?: number): void {
@@ -1227,7 +1461,7 @@ function endPreviewObjectDrag(event?: PointerEvent): void {
   if (!drag.moved) return
   const offsets = new Map(drag.elements.map((item) => [item.objectId, { x, y }]))
   if (applySelectionOffsets(offsets, 'NUDGE') && previewStage.value) {
-    for (const item of drag.elements) applyRegisteredObjectProperties(previewStage.value, editor.draftSnapshot, item.objectId)
+    for (const item of drag.elements) applyEditorPreviewObject(previewStage.value, item.objectId)
     updateSelectedOutline()
     saveStatus.value = `Moved ${drag.elements.length} object${drag.elements.length === 1 ? '' : 's'}.`
   }
@@ -1310,7 +1544,7 @@ function updateSelectedOutline(): void {
 }
 
 function applyEditorPreviewStyles(): void {
-  if (previewStage.value) applyRegisteredSnapshotProperties(previewStage.value, editor.draftSnapshot)
+  if (previewStage.value) applyEditorPreviewSnapshot(previewStage.value)
   decoratePreviewEntities()
   updateSelectedOutline()
 }
@@ -1343,7 +1577,7 @@ function reorderLayerObject(objectId: string, targetObjectId: string): void {
   const target = editor.objects.find((object) => object.id === targetObjectId)
   if (!source || !target || source.section !== target.section || !editor.reorderObject(objectId, targetObjectId)) return
   const layerObjects = editor.objects.filter((object) => object.section === source.section && object.capabilities.includes('position') && !editor.objectState(object.id).locked)
-  const changes = layerObjects.map((object, index) => ({ propertyPath: `layout.${object.id}.zIndex`, nextValue: index }))
+  const changes = layerObjects.map((object, index) => ({ propertyPath: responsiveLayoutFieldPath(object.id, 'zIndex', activeBreakpoint.value), nextValue: index }))
   if (changes.length) {
     editor.setProperties(objectId, changes, { objectIds: layerObjects.map((object) => object.id), interaction: 'layer-reorder' }, 'REORDER')
     markEditorChanged()
@@ -1429,10 +1663,10 @@ function applySelectionOffsets(offsets: Map<string, { x: number; y: number }>, t
   const editableObjects = editor.selectedObjects.filter((object) => object.capabilities.includes('position') && !editor.objectState(object.id).locked && offsets.has(object.id))
   const changes = editableObjects.flatMap((object) => {
     const offset = offsets.get(object.id) ?? { x: 0, y: 0 }
-    const layout = editor.draftSnapshot.layout[object.id]
+    const layout = effectiveResponsiveLayout(editor.draftSnapshot, object.id, activeBreakpoint.value)
     return [
-      ...(offset.x ? [{ propertyPath: `layout.${object.id}.x`, nextValue: offsetValue(layout?.x, offset.x) }] : []),
-      ...(offset.y ? [{ propertyPath: `layout.${object.id}.y`, nextValue: offsetValue(layout?.y, offset.y) }] : [])
+      ...(offset.x ? [{ propertyPath: responsiveLayoutFieldPath(object.id, 'x', activeBreakpoint.value), nextValue: offsetValue(layout.x, offset.x) }] : []),
+      ...(offset.y ? [{ propertyPath: responsiveLayoutFieldPath(object.id, 'y', activeBreakpoint.value), nextValue: offsetValue(layout.y, offset.y) }] : [])
     ]
   })
   if (!changes.length || !editor.selectedObjectId) return false
@@ -1581,6 +1815,7 @@ async function duplicateSelectedObjects(): Promise<void> {
     }
     if (changed) changes.push({ propertyPath: domain, nextValue: record })
   }
+  for (const pair of pairs) changes.push(...cloneResponsiveObjectChanges(editor.draftSnapshot, pair.sourceId, pair.duplicateId))
   if (!pairs.length || !editor.setProperties(editor.selectedObjectId, changes, {
     objectIds: [...sources.map((object) => object.id), ...pairs.map((pair) => pair.duplicateId)],
     duplicatedObjectIds: pairs.map((pair) => pair.duplicateId)
@@ -1622,6 +1857,7 @@ async function deleteSelectedObjects(): Promise<void> {
       for (const objectId of hardDeleteIds) delete record[objectId]
       changes.push({ propertyPath: domain, nextValue: record })
     }
+    for (const objectId of hardDeleteIds) changes.push(...removeResponsiveObjectChanges(editor.draftSnapshot, objectId))
   }
   const removedIds = sources.map((object) => object.id)
   if (!editor.setProperties(editor.selectedObjectId, changes, { objectIds: removedIds }, 'DELETE_OBJECT')) return
@@ -1638,9 +1874,9 @@ async function deleteSelectedObjects(): Promise<void> {
 function moveSelectionLayer(direction: 'front' | 'back'): void {
   const editable = editor.selectedObjects.filter((object) => object.capabilities.includes('position') && !editor.objectState(object.id).locked)
   if (!editable.length || !editor.selectedObjectId) return
-  const zIndexes = editor.objects.map((object) => Number(editor.draftSnapshot.layout[object.id]?.zIndex ?? 0))
+  const zIndexes = editor.objects.map((object) => Number(effectiveResponsiveLayout(editor.draftSnapshot, object.id, activeBreakpoint.value).zIndex ?? 0))
   const edge = direction === 'front' ? Math.max(0, ...zIndexes) + 1 : Math.min(0, ...zIndexes) - editable.length
-  const changes = editable.map((object, index) => ({ propertyPath: `layout.${object.id}.zIndex`, nextValue: edge + index }))
+  const changes = editable.map((object, index) => ({ propertyPath: responsiveLayoutFieldPath(object.id, 'zIndex', activeBreakpoint.value), nextValue: edge + index }))
   if (editor.setProperties(editor.selectedObjectId, changes, { objectIds: editable.map((object) => object.id), interaction: direction }, 'REORDER')) markEditorChanged()
   contextMenu.value.open = false
 }
@@ -1940,6 +2176,12 @@ function cancelLibrarySwitch(): void {
         <span>{{ editor.selectedLayer }}</span>
       </p>
 
+      <div class="responsive-inspector-context" data-responsive-inspector>
+        <span>Current breakpoint</span>
+        <strong>{{ activeCanvasPreset.label }}</strong>
+        <small>{{ activeBreakpoint === 'desktop' ? 'Editing base values.' : 'Changes create sparse overrides; all other values inherit.' }}</small>
+      </div>
+
       <label class="property-search" for="property-search-input">
         <span>Search properties</span>
         <input id="property-search-input" v-model="propertySearch" type="search" placeholder="Color, shadow, layout…" data-property-search />
@@ -1983,14 +2225,25 @@ function cancelLibrarySwitch(): void {
               class="property-row"
               :class="{ 'property-row--paired': row.properties.length > 1 }"
             >
-              <label
+              <div
                 v-for="property in row.properties"
                 :key="property.key"
                 class="property-field"
                 :class="{ 'property-field--disabled': !isPanelPropertyEnabled(property), 'property-field--error': Boolean(panelPropertyError(property)) }"
                 :title="!isPanelPropertyEnabled(property) ? property.metadata.helperText : undefined"
+                :data-responsive-source="panelResponsiveLabel(property) || undefined"
               >
                 <span>{{ property.metadata.label }}</span>
+                <div v-if="panelResponsiveLabel(property) || canResetPanelOverride(property)" class="property-field-meta">
+                  <span v-if="panelResponsiveLabel(property)" class="responsive-property-state" :class="{ 'is-override': panelResponsiveState(property)?.overridden }">{{ panelResponsiveLabel(property) }}</span>
+                  <button
+                    v-if="canResetPanelOverride(property)"
+                    type="button"
+                    class="reset-override-button"
+                    :aria-label="`Reset ${property.metadata.label} override`"
+                    @click="resetPanelOverride(property)"
+                  >Reset</button>
+                </div>
                 <PropertyControl
                   :key="`${selectedEntity.id}-${property.key}-${property.metadata.control === 'file' ? mediaInputVersion : 0}`"
                   :property="property.metadata"
@@ -2003,7 +2256,7 @@ function cancelLibrarySwitch(): void {
                 />
                 <small v-if="!isPanelPropertyEnabled(property) && property.metadata.helperText">{{ property.metadata.helperText }}</small>
                 <small v-if="panelPropertyError(property)" class="property-error" role="alert">{{ panelPropertyError(property) }}</small>
-              </label>
+              </div>
             </div>
           </div>
           </Transition>
@@ -2031,6 +2284,21 @@ function cancelLibrarySwitch(): void {
     >
       <div class="preview-toolbar">
         <span class="source-indicator">{{ sourceLabel }}</span>
+        <div class="breakpoint-toolbar" role="radiogroup" aria-label="Preview canvas size">
+          <button
+            v-for="(preset, index) in responsiveCanvasPresets"
+            :key="preset.id"
+            type="button"
+            role="radio"
+            :aria-checked="activeCanvasPresetId === preset.id"
+            :aria-label="preset.label"
+            :title="preset.label"
+            :data-canvas-preset="preset.id"
+            :class="{ active: activeCanvasPresetId === preset.id }"
+            @click="activeCanvasPresetId = preset.id"
+            @keydown="handleCanvasPresetKeydown($event, index)"
+          >{{ preset.shortLabel }}</button>
+        </div>
         <label class="zoom-control">
           <span>Zoom</span>
           <select :value="userZoom === null ? 'fit' : String(userZoom)" @change="setPreviewZoom">
@@ -2068,8 +2336,8 @@ function cancelLibrarySwitch(): void {
       <div class="canvas-label">LIVE EDITOR PREVIEW</div>
       <div ref="canvasScroll" class="canvas-scroll" :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan">
         <div class="preview-frame" :style="previewFrameStyle">
-          <div ref="previewStage" class="preview-stage" :style="previewStageStyle">
-            <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
+          <div ref="previewStage" class="preview-stage" :style="previewStageStyle" :data-canvas-width="activeCanvasWidth" :data-responsive-breakpoint="activeBreakpoint">
+            <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" :data-responsive-breakpoint="activeBreakpoint" @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
               <HomePage editor-preview />
             </div>
           </div>
@@ -2090,6 +2358,7 @@ function cancelLibrarySwitch(): void {
         <span><strong>Size</strong>{{ statusSize }}</span>
         <span><strong>Draft</strong>{{ statusDraft }}</span>
         <span><strong>Revision</strong>{{ editor.draftRevisionNumber ?? 'New' }}</span>
+        <span><strong>Breakpoint</strong>{{ activeCanvasPreset.label }}</span>
         <span><strong>Zoom</strong>{{ Math.round(previewScale * 100) }}%</span>
         <span class="performance-status" :data-preview-update-count="previewUpdateCount" :title="`${previewUpdateCount} targeted preview updates`"><strong>Preview</strong>{{ previewFps }} FPS</span>
       </footer>
@@ -2152,6 +2421,7 @@ function cancelLibrarySwitch(): void {
 .property-field small { color: #9a806f; font-size: .65rem; font-weight: 500; line-height: 1.35; }
 .property-field :deep(.property-readonly) { display: block; width: 100%; overflow-wrap: anywhere; padding: .62rem; border: 1px dashed rgba(73,54,47,.18); border-radius: 8px; background: rgba(246,244,232,.75); color: #78645b; font: 500 .7rem/1.45 system-ui; }
 .selection-summary { display: grid; gap: .18rem; margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }.selection-summary span { color: #a18b80; font-size: .58rem; overflow-wrap: anywhere; }.selection-summary em { color: #a44955; font-size: .66rem; font-style: normal; font-weight: 800; }
+.responsive-inspector-context { display: grid; grid-template-columns: 1fr auto; gap: .18rem .65rem; margin-top: .65rem; padding: .65rem .72rem; border: 1px solid rgba(184,91,105,.2); border-radius: 11px; background: linear-gradient(135deg,rgba(255,245,235,.92),rgba(255,253,247,.86)); color: #80675d; font-size: .62rem; }.responsive-inspector-context > span { font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.responsive-inspector-context strong { color: #9b4f5b; }.responsive-inspector-context small { grid-column: 1 / -1; color: #92796d; line-height: 1.4; }
 .property-search { display: grid; gap: .35rem; margin-top: .85rem; color: #765f55; font-size: .7rem; font-weight: 800; }.property-search input { width: 100%; box-sizing: border-box; border: 1px solid rgba(73,54,47,.19); border-radius: 10px; padding: .62rem .7rem; background: #fffdf7; color: inherit; font: 500 .74rem/1.2 system-ui; }.property-search input:focus { border-color: #b85b69; outline: 2px solid rgba(184,91,105,.18); outline-offset: 1px; }
 .object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
 .object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
@@ -2163,16 +2433,18 @@ function cancelLibrarySwitch(): void {
 .accordion-panel-enter-active,.accordion-panel-leave-active { overflow: hidden; transition: opacity .18s ease, transform .18s ease; }.accordion-panel-enter-from,.accordion-panel-leave-to { opacity: 0; transform: translateY(-4px); }
 .property-row { display: grid; gap: .7rem; }
 .property-row--paired { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.property-field-meta { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; min-width: 0; margin-top: -.15rem; }.responsive-property-state { flex: 0 0 auto; padding: .16rem .32rem; border: 1px solid rgba(73,54,47,.12); border-radius: 999px; background: #f5eee5; color: #8a756b; font-size: .5rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }.responsive-property-state.is-override { border-color: rgba(184,91,105,.28); background: #fff0ed; color: #a44955; }.property-field .reset-override-button { width: auto; min-width: 0; border: 0; border-radius: 5px; padding: .16rem .3rem; background: transparent; color: #a44955; font-size: .5rem; line-height: 1; text-decoration: underline; cursor: pointer; }.property-field .reset-override-button:hover { background: #fff0ed; }
 .property-field--disabled { opacity: .48; filter: grayscale(.2); }
 .property-field--error :deep(input),.property-field--error :deep(select),.property-field--error :deep(textarea) { border-color: #bd4c4c !important; box-shadow: 0 0 0 2px rgba(189,76,76,.1); }.property-field .property-error { color: #a53f32; }.validation-summary { margin-top: 1rem; padding: .7rem .75rem; border: 1px solid rgba(165,63,50,.22); border-radius: 10px; background: #fff0eb; color: #8d363a; font-size: .7rem; font-weight: 700; line-height: 1.45; }
 .empty-properties { color: #8c7568; font-size: .75rem; }
 .discard-draft-button { width: 100%; margin-top: 1.25rem; border: 1px solid #d9b6b6; border-radius: 10px; padding: .7rem; background: #fffaf4; color: #8d363a; font-weight: 700; cursor: pointer; }
 .save-status { min-height: 1.2em; color: #7b5f3b; font-size: .75rem; }
 .canvas-container { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #ddd6c9; }.canvas-container:focus-visible { outline: 3px solid rgba(184,91,105,.52); outline-offset: -3px; }
-.preview-toolbar { position: absolute; z-index: 1001; top: .65rem; left: .75rem; display: flex; align-items: center; gap: .55rem; }
+.preview-toolbar { position: absolute; z-index: 1001; top: .65rem; left: .75rem; display: flex; align-items: center; gap: .55rem; max-width: calc(100% - 1.5rem); }
 .source-indicator, .zoom-control { padding: .35rem .6rem; border: 1px solid rgba(232,222,208,.9); border-radius: 999px; background: rgba(255,255,255,.92); color: #5a3e35; font-size: .68rem; font-weight: 700; }
 .zoom-control { display: flex; align-items: center; gap: .35rem; }
 .zoom-control select { border: 0; background: transparent; color: inherit; font: inherit; }
+.breakpoint-toolbar { display: flex; align-items: center; padding: .2rem; border: 1px solid rgba(232,222,208,.95); border-radius: 999px; background: rgba(255,255,255,.94); box-shadow: 0 .25rem .8rem rgba(73,54,47,.06); }.breakpoint-toolbar button { min-width: 2.35rem; height: 1.55rem; border: 0; border-radius: 999px; padding: 0 .38rem; background: transparent; color: #8a756b; font: 800 .56rem/1 system-ui; cursor: pointer; }.breakpoint-toolbar button:hover { color: #8d363a; background: #fff5eb; }.breakpoint-toolbar button.active { background: #a95664; color: #fff; box-shadow: 0 .2rem .5rem rgba(141,54,58,.22); }
 .open-source-button { width: 2rem; height: 2rem; border: 1px solid #e8ded0; border-radius: 50%; background: #fff5eb; color: #8d363a; font-size: 1.4rem; line-height: 1; cursor: pointer; }
 .selection-toolbar { position: absolute; z-index: 1001; top: 3.15rem; left: .75rem; right: .75rem; display: flex; align-items: center; gap: .3rem; width: max-content; max-width: calc(100% - 1.5rem); padding: .38rem .45rem; overflow-x: auto; border: 1px solid rgba(232,222,208,.96); border-radius: 12px; background: rgba(255,253,247,.96); box-shadow: 0 .45rem 1.25rem rgba(73,54,47,.11); color: #5a3e35; scrollbar-width: thin; }.selection-toolbar > span { padding: 0 .35rem; white-space: nowrap; color: #8d5960; font-size: .68rem; font-weight: 800; }.selection-toolbar button { flex: 0 0 auto; min-width: 1.85rem; height: 1.85rem; border: 1px solid rgba(73,54,47,.13); border-radius: 7px; background: #fff8ef; color: #684e45; font-size: .62rem; font-weight: 900; cursor: pointer; }.selection-toolbar button:hover:not(:disabled) { border-color: #c98a8f; background: #fff1e8; color: #8d363a; }.selection-toolbar button:disabled { cursor: not-allowed; opacity: .4; }.selection-spacing { display: flex; align-items: center; gap: .3rem; padding-left: .3rem; color: #80675d; font-size: .6rem; font-weight: 800; }.selection-spacing :deep(.property-input) { width: 4.8rem; }.selection-spacing :deep(input) { border-color: rgba(73,54,47,.17); padding: .34rem .4rem; background: #fff; color: inherit; font: 700 .65rem system-ui; }.selection-spacing :deep(.numeric-scrub) { width: 1.4rem; }
 .editor-recovery { position: absolute; z-index: 1002; inset: 4rem auto auto 50%; transform: translateX(-50%); width: min(90%,440px); padding: 1rem; border: 1px solid #d99898; border-radius: 16px; background: #fffaf4; color: #8d363a; box-shadow: 0 1rem 2rem rgba(73,54,47,.15); }
@@ -2189,15 +2461,19 @@ function cancelLibrarySwitch(): void {
 .editor-preview-runtime :deep(.editor-preview-hidden) { opacity: .08 !important; pointer-events: none; }.editor-preview-runtime :deep(.editor-preview-hidden.editor-preview-selected) { opacity: .2 !important; outline-style: dotted !important; }
 .editor-preview-runtime :deep(.editor-inline-text-edit) { min-width: 1ch; cursor: text !important; outline: 2px solid rgba(184,91,105,.92) !important; outline-offset: 3px !important; border-radius: 3px; caret-color: #8d363a; background: transparent !important; }
 .editor-preview-runtime :deep(.editor-preview-dragging) { cursor: move !important; will-change: translate; }
+.editor-preview-runtime :deep(.editor-responsive-stack > *) { grid-area: 1 / 1; }
+.editor-preview-runtime :deep(.editor-constraint-x-right) { margin-left: auto; transform-origin: right center; }.editor-preview-runtime :deep(.editor-constraint-x-center) { margin-inline: auto; transform-origin: center center; }.editor-preview-runtime :deep(.editor-constraint-x-stretch) { width: auto; align-self: stretch; }.editor-preview-runtime :deep(.editor-constraint-x-scale) { max-width: 100%; transform-origin: left center; }
+.editor-preview-runtime :deep(.editor-constraint-y-bottom) { margin-top: auto; transform-origin: center bottom; }.editor-preview-runtime :deep(.editor-constraint-y-center) { margin-block: auto; transform-origin: center center; }.editor-preview-runtime :deep(.editor-constraint-y-stretch) { height: auto; align-self: stretch; }.editor-preview-runtime :deep(.editor-constraint-y-scale) { max-height: 100%; transform-origin: center top; }
+.editor-preview-runtime :deep(.editor-mobile-safe-area) { box-sizing: border-box; max-width: 100%; padding-top: max(env(safe-area-inset-top),0px); padding-right: max(env(safe-area-inset-right),0px); padding-bottom: max(env(safe-area-inset-bottom),0px); padding-left: max(env(safe-area-inset-left),0px); overflow-x: clip; }
 .selection-box { position: absolute; z-index: 1100; pointer-events: none; border: 1.5px solid rgba(184,91,105,.92); border-radius: 4px; background: rgba(184,91,105,.035); box-shadow: 0 0 0 1px rgba(255,255,255,.75) inset; }
 .editor-context-menu { position: absolute; z-index: 1300; display: grid; width: 215px; margin: 0; padding: .42rem; border: 1px solid rgba(73,54,47,.16); border-radius: 12px; background: rgba(255,253,247,.98); box-shadow: 0 .85rem 2.2rem rgba(73,54,47,.2); list-style: none; }.editor-context-menu button { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; border: 0; border-radius: 8px; padding: .55rem .62rem; background: transparent; color: #5a3e35; text-align: left; font: 700 .7rem system-ui; cursor: pointer; }.editor-context-menu button:hover:not(:disabled),.editor-context-menu button:focus-visible { outline: 0; background: #fff1e8; color: #8d363a; }.editor-context-menu button:disabled { cursor: not-allowed; opacity: .4; }.editor-context-menu button.danger { color: #9b3f3f; }.editor-context-menu kbd { color: #a18b80; font: 600 .58rem system-ui; }
 .editor-status-bar { position: absolute; z-index: 1003; inset: auto 0 0; display: flex; align-items: stretch; gap: 0; height: 2.2rem; overflow-x: auto; border-top: 1px solid rgba(73,54,47,.14); background: rgba(246,244,232,.98); color: #765f55; scrollbar-width: thin; }.editor-status-bar span { display: flex; align-items: center; gap: .35rem; flex: 0 0 auto; min-width: 82px; padding: 0 .7rem; border-right: 1px solid rgba(73,54,47,.1); white-space: nowrap; font-size: .61rem; }.editor-status-bar strong { color: #9a806f; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; }.editor-status-bar .performance-status { margin-left: auto; color: #55725d; }
-.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
+.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
 .modal-backdrop { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(73,54,47,.35); }
 .source-modal { position: relative; width: min(100%,620px); padding: 2rem; border-radius: 24px; background: #f6f4e8; color: #49362f; box-shadow: 0 1.5rem 4rem rgba(73,54,47,.25); }
 .source-modal h2 { margin: 0; color: #5a3e35; }.source-modal p { color: #7b5f3b; }.modal-close { position: absolute; top: 1rem; right: 1rem; border: 0; background: transparent; font-size: 1.25rem; color: #7b5f3b; cursor: pointer; }
 .source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }.source-options button { display: grid; gap: .55rem; min-height: 140px; border: 1px solid #e8ded0; border-radius: 16px; padding: 1.2rem; background: #fff5eb; color: #5a3e35; text-align: left; cursor: pointer; }.source-options span { color: #7b5f3b; font-size: .85rem; font-weight: 400; }
 .unsaved-actions { display: grid; gap: .65rem; }.unsaved-actions button { border: 1px solid #e8ded0; border-radius: 11px; padding: .75rem 1rem; background: #fffaf4; color: #5a3e35; cursor: pointer; font-weight: 700; }.unsaved-actions .primary-action { background: #8d363a; color: #fff; }
 @media (max-width: 1100px) { .edit-page { grid-template-columns: 210px 330px minmax(0,1fr); }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
-@media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.preview-toolbar { max-width: calc(100% - 1.5rem); }.source-indicator { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.selection-toolbar { top: 3rem; }.editor-status-bar span { min-width: auto; }.editor-status-bar .performance-status { margin-left: 0; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.preview-toolbar { overflow-x: auto; scrollbar-width: thin; }.source-indicator { max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.breakpoint-toolbar button { min-width: 2.1rem; }.selection-toolbar { top: 3rem; }.editor-status-bar span { min-width: auto; }.editor-status-bar .performance-status { margin-left: 0; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
 </style>

@@ -8,6 +8,7 @@ const props = defineProps<{
   disabled?: boolean
   placeholder?: string
   enabledValue?: EditorValue
+  label?: string
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -24,7 +25,7 @@ function toggle(event: Event): void {
 <template>
   <div class="toggle-value-control">
     <label class="effect-toggle">
-      <input type="checkbox" :checked="enabled" :disabled="disabled" @change="toggle" />
+      <input type="checkbox" :checked="enabled" :disabled="disabled" :aria-label="`${label ?? 'Property'} enabled`" @change="toggle" />
       <span>{{ enabled ? 'On' : 'Off' }}</span>
     </label>
     <input
@@ -32,6 +33,7 @@ function toggle(event: Event): void {
       :value="value || String(enabledValue ?? '')"
       :disabled="disabled || !enabled"
       :placeholder="placeholder"
+      :aria-label="label"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </div>

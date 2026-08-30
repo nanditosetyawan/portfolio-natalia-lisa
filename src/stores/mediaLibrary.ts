@@ -15,12 +15,11 @@ import {
 import { editorDraftRepository, editorPublishRepository, type RevisionRecord } from '../repositories/editorRevisionRepository'
 import type { EditorSnapshot, SnapshotMediaReference } from '../types/editorSnapshot'
 import type {
+  AssetLibraryQuery,
   MediaAssetKind,
   MediaAssetRow,
   MediaAssetUsage,
-  MediaLibraryAsset,
-  MediaLibraryFilter,
-  MediaLibrarySort
+  MediaLibraryAsset
 } from '../types/mediaLibrary'
 
 const FAVORITES_KEY = 'portfolio:media-favorites:v1'
@@ -182,14 +181,19 @@ export const useMediaLibraryStore = defineStore('media-library', () => {
         const location = sourceLocation(accumulator.locations)
         const publishedUsage = location === 'Published' || location === 'Both'
         const managed = isManagedLibraryPath(storagePath)
-        const safeToDelete = managed && !accumulator.builtIn && !publishedUsage && accumulator.usages.length === 0
+        const hasSnapshotReference = Boolean(accumulator.reference)
+        const safeToDelete = managed && !accumulator.builtIn && !publishedUsage && !hasSnapshotReference && accumulator.usages.length === 0
         const safety: MediaLibraryAsset['safety'] = accumulator.builtIn
           ? 'built-in'
           : publishedUsage
             ? 'published'
-            : accumulator.usages.length
-              ? (location === 'Draft' ? 'draft-only' : 'used')
-              : safeToDelete ? 'safe' : 'used'
+            : location === 'Draft'
+              ? 'draft-only'
+              : accumulator.usages.length
+                ? 'used'
+                : safeToDelete
+                  ? 'safe'
+                  : 'used'
         const usedDates = accumulator.usages.map((usage) => usage.usedAt).filter((value): value is string => Boolean(value))
         return {
           id,
@@ -197,7 +201,7 @@ export const useMediaLibraryStore = defineStore('media-library', () => {
           kind: classifyAsset(name, mimeType, accumulator.usages),
           mimeType,
           sourceUrl,
-          thumbnailUrl: sourceUrl,
+          thumbnailUrl: mimeType.startsWith('image/') ? sourceUrl : '',
           bucket,
           storagePath,
           folder: storagePath?.split('/').slice(0, -1).join('/') ?? 'Built-in',
@@ -307,11 +311,11 @@ export const useMediaLibraryStore = defineStore('media-library', () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  function queryAssets(input: { search: string; filter: MediaLibraryFilter; sort: MediaLibrarySort }): MediaLibraryAsset[] {
+  function queryAssets(input: AssetLibraryQuery): MediaLibraryAsset[] {
     const search = input.search.trim().toLocaleLowerCase()
     const recentBoundary = Date.now() - 7 * 24 * 60 * 60 * 1000
     const filtered = assets.value.filter((asset) => {
-      if (input.filter === 'images' && asset.kind !== 'image') return false
+      if (input.filter === 'images' && (asset.kind !== 'image' || !asset.mimeType.startsWith('image/'))) return false
       if (input.filter === 'icons' && asset.kind !== 'icon') return false
       if (input.filter === 'backgrounds' && asset.kind !== 'background') return false
       if (input.filter === 'logos' && asset.kind !== 'logo') return false

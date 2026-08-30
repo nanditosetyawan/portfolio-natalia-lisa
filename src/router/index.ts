@@ -60,19 +60,24 @@ const router = createRouter({
           component: () => import('../pages/admin/AdminMedia.vue')
         },
         {
+          path: 'media/library',
+          name: 'admin-asset-library',
+          component: () => import('../pages/admin/AdminAssetLibrary.vue')
+        },
+        {
           path: 'media/images',
           name: 'admin-media-images',
-          redirect: { name: 'admin-media', query: { filter: 'images' } }
+          component: () => import('../pages/admin/AdminMediaImages.vue')
         },
         {
           path: 'media/videos',
           name: 'admin-media-videos',
-          redirect: { name: 'admin-media' }
+          component: () => import('../pages/admin/AdminMediaVideos.vue')
         },
         {
           path: 'media/documents',
           name: 'admin-media-documents',
-          redirect: { name: 'admin-media' }
+          component: () => import('../pages/admin/AdminMediaDocuments.vue')
         },
         {
           path: 'maintenance',

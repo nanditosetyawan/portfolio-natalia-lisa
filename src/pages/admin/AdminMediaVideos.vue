@@ -15,6 +15,7 @@
       <div v-for="item in items" :key="item.id" class="media-card">
         <!-- Preview with play overlay -->
         <div class="card-preview" :style="{ background: item.color }">
+          <video v-if="item.asset.sourceUrl" :src="item.asset.sourceUrl" muted preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" />
           <div class="play-btn-indicator">
             <Play class="play-icon" />
           </div>
@@ -26,7 +27,7 @@
         <!-- Hover overlay + actions -->
         <div class="card-hover-overlay">
           <div class="card-actions">
-            <button class="action-btn action-delete" @click.stop="openDeleteModal(item)">
+            <button class="action-btn action-delete" :disabled="!item.asset.safeToDelete" :title="item.asset.safeToDelete ? 'Hapus' : 'Media yang digunakan, bawaan, atau Published tidak dapat dihapus.'" @click.stop="openDeleteModal(item)">
               <Trash2 class="action-icon" />
               <span class="btn-tooltip">Hapus</span>
             </button>
@@ -87,12 +88,12 @@
         <button class="modal-close-btn" @click="viewTarget = null">
           <X class="close-icon" />
         </button>
-        <!-- Video player (mock — no real source yet) -->
         <div class="modal-video-wrap">
-          <div class="video-placeholder" :style="{ background: viewTarget.color }">
+          <video v-if="viewTarget.asset.sourceUrl" :src="viewTarget.asset.sourceUrl" controls autoplay style="width:100%;height:100%;background:#111;object-fit:contain" />
+          <div v-else class="video-placeholder" :style="{ background: viewTarget.color }">
             <div class="video-play-center">
               <Play class="video-play-icon" />
-              <span class="video-mock-label">Video Preview<br /><small>(Supabase Storage belum terhubung)</small></span>
+              <span class="video-mock-label">Video Preview<br /><small>Source tidak tersedia</small></span>
             </div>
           </div>
         </div>
@@ -106,8 +107,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Play, Trash2, Eye, Pencil, X, ArrowLeft } from 'lucide-vue-next'
+import { useMediaLibraryStore } from '../../stores/mediaLibrary'
+import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 
 interface MediaItem {
   id: string
@@ -115,44 +118,81 @@ interface MediaItem {
   size: string
   format: string
   color: string
+  asset: MediaLibraryAsset
 }
 
-const items = ref<MediaItem[]>([
-  { id: '1', name: 'portfolio-intro.mp4', size: '14.2 MB', format: 'MP4', color: 'linear-gradient(135deg, #1a2a3a 0%, #0d1e2e 100%)' },
-  { id: '2', name: 'about-reel.mp4', size: '22.7 MB', format: 'MP4', color: 'linear-gradient(135deg, #1a2c1e 0%, #0d1f10 100%)' },
-  { id: '3', name: 'experience-highlight.mp4', size: '9.8 MB', format: 'MP4', color: 'linear-gradient(135deg, #2c1a2a 0%, #1e0d1e 100%)' },
-  { id: '4', name: 'certificate-promo.mp4', size: '17.4 MB', format: 'MP4', color: 'linear-gradient(135deg, #2a2a1a 0%, #1e1e0d 100%)' },
-])
+const gradients = [
+  'linear-gradient(135deg, #1a2a3a 0%, #0d1e2e 100%)',
+  'linear-gradient(135deg, #1a2c1e 0%, #0d1f10 100%)',
+  'linear-gradient(135deg, #2c1a2a 0%, #1e0d1e 100%)',
+  'linear-gradient(135deg, #2a2a1a 0%, #1e1e0d 100%)'
+] as const
+
+const library = useMediaLibraryStore()
+const items = computed<MediaItem[]>(() => library.assets
+  .filter((asset) => asset.mimeType.startsWith('video/'))
+  .map((asset, index) => ({
+    id: asset.id,
+    name: asset.name,
+    size: formatBytes(asset.fileSize),
+    format: formatLabel(asset),
+    color: gradients[index % gradients.length] ?? gradients[0],
+    asset
+  })))
 
 const deleteTarget = ref<MediaItem | null>(null)
 const editTarget = ref<MediaItem | null>(null)
 const editName = ref('')
 const viewTarget = ref<MediaItem | null>(null)
 
-const openDeleteModal = (item: MediaItem) => { deleteTarget.value = item }
-
-const confirmDelete = () => {
-  if (!deleteTarget.value) return
-  items.value = items.value.filter(i => i.id !== deleteTarget.value!.id)
-  deleteTarget.value = null
-  // TODO: connect to Supabase delete API
+function formatBytes(value: number | null): string {
+  if (value === null) return 'Not available'
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const openEditModal = (item: MediaItem) => {
+function formatLabel(asset: MediaLibraryAsset): string {
+  return asset.mimeType.split('/')[1]?.toUpperCase()
+    || asset.storagePath?.split('.').pop()?.toUpperCase()
+    || 'VIDEO'
+}
+
+function openDeleteModal(item: MediaItem): void {
+  if (item.asset.safeToDelete) deleteTarget.value = item
+}
+
+async function confirmDelete(): Promise<void> {
+  const target = deleteTarget.value
+  if (!target) return
+  try {
+    await library.remove(target.asset)
+    deleteTarget.value = null
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Video tidak dapat dihapus.')
+  }
+}
+
+function openEditModal(item: MediaItem): void {
   editTarget.value = item
   editName.value = item.name
 }
 
-const confirmEdit = () => {
-  if (!editTarget.value || !editName.value.trim()) return
-  const idx = items.value.findIndex(i => i.id === editTarget.value!.id)
-  if (idx !== -1) items.value[idx] = { ...items.value[idx], name: editName.value.trim() }
-  editTarget.value = null
-  // TODO: connect to Supabase update API
+async function confirmEdit(): Promise<void> {
+  const target = editTarget.value
+  if (!target || !editName.value.trim()) return
+  try {
+    await library.rename(target.asset, editName.value.trim())
+    editTarget.value = null
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : 'Nama video tidak dapat disimpan.')
+  }
 }
 
-const cancelEdit = () => { editTarget.value = null; editName.value = '' }
-const openViewModal = (item: MediaItem) => { viewTarget.value = item }
+function cancelEdit(): void { editTarget.value = null; editName.value = '' }
+function openViewModal(item: MediaItem): void { viewTarget.value = item }
+
+onMounted(() => library.refresh().catch(() => undefined))
 </script>
 
 <style scoped>
