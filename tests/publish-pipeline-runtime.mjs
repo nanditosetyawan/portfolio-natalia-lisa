@@ -25,6 +25,8 @@ const profilePath = await mkdtemp(path.join(tmpdir(), 'portfolio-029g-chrome-'))
 const children = []
 const testEmail = `phase029g-${crypto.randomUUID()}@example.invalid`
 const testPassword = `P029g-${crypto.randomUUID()}-Aa1!`
+const experienceId = `phase031a-experience-${crypto.randomUUID()}`
+const messageMarker = `PHASE-031A-MESSAGE-${crypto.randomUUID()}`
 let testUserId = null
 let socket
 let initialPublishedRevision = null
@@ -72,6 +74,8 @@ async function listFolder(folder) {
 }
 
 async function cleanup() {
+  await service.from('messages').delete().eq('message', messageMarker)
+  await service.from('experiences').delete().eq('id', experienceId)
   if (!testUserId) return
   const { data: rows } = await service.from('site_revisions').select('id,status,publication_kind,snapshot,revision_number').eq('created_by', testUserId)
   const publishedNumbers = [...new Set((rows ?? []).filter((row) => row.status === 'published').map((row) => Number(row.revision_number)))]
@@ -175,11 +179,52 @@ try {
   assert(inMemoryContract.drafts === 1 && inMemoryContract.favorite && inMemoryContract.history === 3, 'in-memory publish preservation/history contract failed')
   assert(inMemoryContract.title === 'IN-MEMORY REVISION ONE', 'in-memory rollback did not restore the selected snapshot')
 
-  await evaluate(`(async()=>{const auth=(await import('/src/stores/auth.ts')).useAuthStore();await auth.login(${JSON.stringify(testEmail)},${JSON.stringify(testPassword)});const router=(await import('/src/router/index.ts')).default;await router.push({name:'admin-edit',query:{draft:'new'}});return true})()`)
+  const messageSubmitted = await evaluate(`(async()=>{const repo=await import('/src/repositories/messageRepository.ts');await repo.messageRepository.create({name:'Phase 031A Runtime',email:null,message:${JSON.stringify(messageMarker)}});return true})()`)
+  assert(messageSubmitted, 'guest Message Center submission did not complete')
+
+  const authEvidence = await evaluate(`(async()=>{const auth=(await import('/src/stores/auth.ts')).useAuthStore();await auth.login(${JSON.stringify(testEmail)},${JSON.stringify(testPassword)});return {authenticated:auth.isAuthenticated,admin:auth.isAdmin,userMatches:auth.session?.user?.id===${JSON.stringify(testUserId)}}})()`)
+  assert(authEvidence.authenticated && authEvidence.admin && authEvidence.userMatches, `disposable Admin authentication failed: ${JSON.stringify(authEvidence)}`)
+
+  const crudEvidence = await evaluate(`(async()=>{
+    const {siteRepository}=await import('/src/repositories/siteRepository.ts');
+    const created={id:${JSON.stringify(experienceId)},order:91,frameId:${JSON.stringify(`${experienceId}-frame`)},title:'Phase 031A create',date:'Runtime',description:'Disposable authenticated CRUD record',layout:'layout-text-left'};
+    await siteRepository.createExperience(created);
+    const afterCreate=(await siteRepository.load()).content.experience.items.find(item=>item.id===created.id);
+    const updated={...created,title:'Phase 031A updated',order:92};
+    await siteRepository.updateExperience(updated);
+    const afterUpdate=(await siteRepository.load()).content.experience.items.find(item=>item.id===created.id);
+    await siteRepository.deleteExperience(created.id);
+    const afterDelete=(await siteRepository.load()).content.experience.items.find(item=>item.id===created.id);
+    return {created:afterCreate?.title===created.title,read:afterCreate?.id===created.id,updated:afterUpdate?.title===updated.title&&afterUpdate?.order===updated.order,deleted:!afterDelete};
+  })()`)
+  assert(crudEvidence.created && crudEvidence.read && crudEvidence.updated && crudEvidence.deleted, `authenticated normalized CRUD failed: ${JSON.stringify(crudEvidence)}`)
+
+  await evaluate(`(async()=>{const router=(await import('/src/router/index.ts')).default;await router.push({name:'admin-messages'});return true})()`)
+  await waitFor(`Boolean(document.querySelector('.messages-page'))`)
+  await evaluate(`(()=>{const input=document.querySelector('.search-box input');input.value=${JSON.stringify(messageMarker)};input.dispatchEvent(new Event('input',{bubbles:true}));return true})()`)
+  await waitFor(`[...document.querySelectorAll('.message-row')].some(row=>row.textContent.includes(${JSON.stringify(messageMarker)}))`)
+  await evaluate(`(()=>{const row=[...document.querySelectorAll('.message-row')].find(item=>item.textContent.includes(${JSON.stringify(messageMarker)}));row.click();return true})()`)
+  await waitFor(`document.querySelector('.message-detail .detail-message')?.textContent.includes(${JSON.stringify(messageMarker)})`)
+  await waitFor(`!document.querySelector('.message-row--unread')`)
+  await evaluate(`(()=>{const row=[...document.querySelectorAll('.message-row')].find(item=>item.textContent.includes(${JSON.stringify(messageMarker)}));row.querySelector('.message-save-btn').click();return true})()`)
+  await waitFor(`Boolean(document.querySelector('.message-save-btn--active'))`)
+  const messageState = await evaluate(`(async()=>{const repo=await import('/src/repositories/messageRepository.ts');const row=(await repo.messageRepository.list(${JSON.stringify(messageMarker)}))[0];return {found:Boolean(row),read:Boolean(row?.read_at),saved:Boolean(row?.is_saved)}})()`)
+  assert(messageState.found && messageState.read && messageState.saved, `authenticated Message Center read/save failed: ${JSON.stringify(messageState)}`)
+  await mkdir(path.join(projectRoot, 'artifacts'), { recursive: true })
+  const messagesShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
+  await writeFile(path.join(projectRoot, 'artifacts', 'phase-031a-authenticated-messages.png'), Buffer.from(messagesShot.data, 'base64'))
+  await evaluate(`(()=>{const row=[...document.querySelectorAll('.message-row')].find(item=>item.textContent.includes(${JSON.stringify(messageMarker)}));row.querySelector('.message-delete-btn').click();return true})()`)
+  await waitFor(`Boolean(document.querySelector('.confirm-dialog'))`)
+  await evaluate(`document.querySelector('.confirm-delete').click()`)
+  await waitFor(`![...document.querySelectorAll('.message-row')].some(row=>row.textContent.includes(${JSON.stringify(messageMarker)}))`)
+  const messageDeleted = await evaluate(`(async()=>{const repo=await import('/src/repositories/messageRepository.ts');return (await repo.messageRepository.list(${JSON.stringify(messageMarker)})).length===0})()`)
+  assert(messageDeleted, 'authenticated Message Center delete failed')
+
+  await evaluate(`(async()=>{const router=(await import('/src/router/index.ts')).default;await router.push({name:'admin-edit',query:{draft:'new'}});return true})()`)
   await waitFor(`Boolean(document.querySelector('.edit-page')) && !document.querySelector('.editor-recovery') && Boolean(document.querySelector('[data-editor-entity-id="portfolio-hero"]'))`)
 
   async function editTitle(title) {
-    await evaluate(`(async()=>{const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const target=[...document.querySelectorAll('[data-editor-entity-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];target.click();await tick();const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"]');input.value=${JSON.stringify(title)};input.dispatchEvent(new Event('input',{bubbles:true}));await tick();return true})()`)
+    await evaluate(`(async()=>{const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const target=[...document.querySelectorAll('[data-editor-entity-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];target.click();await tick();const input=document.querySelector('[data-property-key="runtime.portfolio-hero.title"] input,[data-property-key="runtime.portfolio-hero.title"] textarea');input.value=${JSON.stringify(title)};input.dispatchEvent(new Event('input',{bubbles:true}));await tick();return true})()`)
   }
   async function saveDraft() {
     const before = await evaluate(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').draftLockVersion??0`)
@@ -208,7 +253,10 @@ try {
   await publish('Phase 029G revision one', 'phase-029g-publish-confirmation.png')
   const afterFirstPublish = await evaluate(`(async()=>{const repo=await import('/src/repositories/editorRevisionRepository.ts');const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');const active=await repo.guestPublishedRepository.loadPublishedSnapshot();return {revision:active.revision.revision_number,title:active.snapshot.content.portfolio.title,drafts:await repo.editorDraftRepository.countDrafts(),favorites:await repo.favoriteRepository.countFavorites(),draftId:editor.draftRevisionId,history:editor.commandHistory.length,paths:active.snapshot.media.references.map(item=>item.storagePath)}})()`)
   const revisionOne = Number(initialPublishedRevision ?? 0) + 1
-  assert(afterFirstPublish.revision === revisionOne && afterFirstPublish.title === revisionOneTitle, 'first Cloud Publish did not activate the Draft snapshot')
+  assert(
+    afterFirstPublish.revision === revisionOne && afterFirstPublish.title === revisionOneTitle,
+    `first Cloud Publish did not activate the Draft snapshot: ${JSON.stringify({ afterFirstPublish, revisionOne, revisionOneTitle, initialPublishedRevision })}`
+  )
   assert(afterFirstPublish.drafts === 1 && afterFirstPublish.favorites === 1 && afterFirstPublish.draftId === savedDraft.id, 'Publish removed or replaced Draft/Favorite/editor source')
   assert(afterFirstPublish.history === savedDraft.history, 'Publish cleared Editor command history')
   assert(afterFirstPublish.paths.every((value) => value?.startsWith('published/')), 'Published Snapshot contains a non-published media path')
@@ -295,7 +343,10 @@ try {
 
   console.log(JSON.stringify({
     status: 'PASS',
-    scope: 'Phase 029G authenticated Cloud Publish/Guest/Rollback E2E',
+    scope: 'Phase 029G/031A authenticated Cloud regression',
+    auth: true,
+    normalizedCrud: true,
+    messageCenter: true,
     revisions: [revisionOne, revisionTwo, rollbackRevision],
     draftPreserved: true,
     favoritePreserved: true,

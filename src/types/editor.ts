@@ -23,7 +23,7 @@ export type EditorObjectType = BuiltInEditorObjectType | (string & {})
 export type PropertyBinding =
   | { kind: 'snapshot'; path: string }
   | { kind: 'runtime'; path: string }
-  | { kind: 'action'; action: 'upload-media' | 'choose-media' | 'replace-media' | 'set-media-crop' | 'set-media-fit' | 'preview-media' }
+  | { kind: 'action'; action: 'upload-media' | 'choose-media' | 'replace-media' | 'remove-media' | 'duplicate-media-reference' | 'reveal-media-library' | 'set-media-crop' | 'set-media-fit' | 'preview-media' }
   | { kind: 'metadata'; field: 'objectId' | 'objectType' | 'capabilities' | 'validationStatus' | 'section' | 'layer' }
 
 export type EditorCommandType =

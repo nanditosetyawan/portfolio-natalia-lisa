@@ -6,10 +6,11 @@
 
 The professional Editor UX is implemented and locally browser-verified across selection, multi-selection, Inspector controls, Layers, property search, keyboard operation, zoom/pan, context actions, accessibility, and targeted Preview updates.
 
-The phase is not marked PASS for two reasons:
+The phase is not marked PASS for one remaining reason after the Phase 031A closeout:
 
 1. `Ctrl+D` can persistently duplicate metadata-declared repeatable objects, but cannot create a second instance of a fixed template object without extending the canonical Snapshot/rendering model. Phase 031 explicitly prohibited modifying that model.
-2. Authenticated Cloud regressions for Auth, CRUD, Message Center, and the Phase 029G Publish transaction were not rerun because this session had no disposable authenticated/service-role credential. Local Editor, Draft/Favorite, Publish/Rollback contract, Object System, and Default/Published Runtime regressions passed.
+
+The previously unexecuted authenticated Cloud regressions were completed in Phase 031A and passed. See [`PHASE-031A-CLOSEOUT.md`](PHASE-031A-CLOSEOUT.md).
 
 No Phase 032 work was started.
 
@@ -275,10 +276,10 @@ Formal design-reference comparison: **Belum dilakukan.** The checkout contains n
 | Phase 029G Publish/Rollback/Guest isolation | `tests/default-guest-runtime.mjs` published revisions and rollback contract | PASS - local browser contract |
 | Phase 030A Default/Published Runtime | `tests/default-guest-runtime.mjs` | PASS - local browser contract |
 | Phase 031 professional UX | `tests/editor-professional-ux-runtime.mjs` | PASS - local Chromium |
-| Authenticated Phase 029G Cloud transaction | Requires disposable authenticated/service-role credential | NOT RUN |
-| Auth, CRUD, Message Center full browser flows | Outside Editor UX and no authenticated session was available | NOT RUN |
+| Authenticated Phase 029G Cloud transaction | `tests/publish-pipeline-runtime.mjs`; Phase 031A disposable Cloud run | PASS |
+| Auth, CRUD, Message Center full browser flows | Phase 031A disposable Admin browser/repository flow | PASS |
 
-No source under Repository, Draft/Favorite repository contracts, Publish/Rollback, Guest Runtime, Storage, migrations, database, RLS, Auth, CRUD, or Message Center was modified in Phase 031. No regression was observed in executed coverage, but the two unexecuted authenticated suites prevent claiming complete end-to-end regression verification.
+No source under Repository, Draft/Favorite repository contracts, Publish/Rollback, Guest Runtime, Storage, migrations, database, RLS, Auth, CRUD, or Message Center was modified in Phase 031. Phase 031A subsequently completed the authenticated suites without changing those protected boundaries.
 
 ## Static validation
 
@@ -310,7 +311,7 @@ No source under Repository, Draft/Favorite repository contracts, Publish/Rollbac
 | P - Context Menu | PASS | Duplicate, copy/paste style, front/back, delete verified in menu. |
 | Q - Performance | PASS | Metadata memoization, targeted path hydration, rAF batching, DevTools trace. |
 | R - Accessibility | PASS | Keyboard operation, focus-visible, ARIA/state labels; zero unlabeled tested controls. |
-| Phase 029-030A regression | PARTIAL | Local contracts pass; authenticated Cloud/Auth/CRUD/Message Center browser rerun not available. |
+| Phase 029-030A regression | PASS | Local contracts and Phase 031A authenticated Cloud/Auth/CRUD/Message Center browser coverage pass. |
 | Required static validation | PASS | Typecheck, build, and diff check pass. |
 
 ## Remaining work
@@ -318,6 +319,4 @@ No source under Repository, Draft/Favorite repository contracts, Publish/Rollbac
 To turn the verdict into full PASS without weakening persistence guarantees:
 
 1. define an approved canonical persisted representation and Guest renderer for duplicate instances of fixed template objects, then enable `Ctrl+D` for those objects;
-2. provide a disposable authenticated Cloud/browser session and rerun Auth, CRUD, Message Center, Draft/Favorite, Publish, Guest update, and Rollback as one connected regression flow.
-
-These are not replaced with editor-only workarounds because such workarounds would disappear after reload or bypass the canonical Snapshot/Repository boundaries.
+The authenticated connected regression is complete. The remaining fixed-object limitation is not replaced with an editor-only workaround because that workaround would disappear after reload or bypass the canonical Snapshot/Repository boundaries.

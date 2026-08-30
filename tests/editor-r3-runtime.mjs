@@ -217,15 +217,19 @@ try {
     const control=(selector,leaf)=>{const root=document.querySelector(selector);return root?.matches(leaf)?root:root?.querySelector(leaf)};
     const outlineWidth=control('[data-property-key="media.outlineWidth"]','input');
     const outline=control('[data-property-key="media.outlineEnabled"]','input');
-    const choose=control('[data-property-key="media.choose"]','select');
+    const choose=control('[data-property-key="media.choose"]','button');
     const hover=control('[data-property-key="media.hover"]','input');
     const before=outlineWidth.disabled;
     outline.checked=true; outline.dispatchEvent(new Event('change',{bubbles:true})); await tick();
     const after=outlineWidth.disabled;
     const width=control('[data-property-key="media.width"]','input');
     width.value='280px'; width.dispatchEvent(new Event('input',{bubbles:true})); await tick();
-    choose.value='media-runtime-secondary'; choose.dispatchEvent(new Event('change',{bubbles:true})); await tick();
+    choose.click(); await tick();
+    for(let attempt=0;attempt<60&&!document.querySelector('.asset-picker');attempt+=1)await new Promise(resolve=>setTimeout(resolve,20));
     const assignment=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media');
+    const pickerOpen=Boolean(document.querySelector('.asset-picker'));
+    const pickerAssets=document.querySelectorAll('.asset-picker .asset-card').length;
+    document.querySelector('.asset-picker .close-button')?.click(); await tick();
     return {
       selected:editor.selectedEntityId,
       section:editor.selectedSection,
@@ -234,7 +238,8 @@ try {
       after,
       chooseDisabled:choose.disabled,
       chooseTag:choose.tagName,
-      chooseOptions:choose.options.length,
+      pickerOpen,
+      pickerAssets,
       chosenAsset:assignment?.assetId,
       hoverNative:hover.tagName==='INPUT'&&hover.type==='checkbox',
       width:editor.draftSnapshot.layout['portfolio-profile-media'].width,
@@ -246,8 +251,8 @@ try {
   })()`)
   assert(mediaResult.selected === 'portfolio-profile-media' && mediaResult.section === 'Portfolio' && mediaResult.accordion === 'media', 'media preview selection failed')
   assert(mediaResult.before && !mediaResult.after, 'Outline thickness dependency did not toggle native disabled')
-  assert(!mediaResult.chooseDisabled && mediaResult.chooseTag === 'SELECT' && mediaResult.chooseOptions >= 2, 'repository-backed media selector is unavailable')
-  assert(mediaResult.chosenAsset === 'media-runtime-secondary' && mediaResult.selected === 'portfolio-profile-media', 'Choose from Media did not update the selected media entity')
+  assert(!mediaResult.chooseDisabled && mediaResult.chooseTag === 'BUTTON' && mediaResult.pickerOpen && mediaResult.pickerAssets >= 1, 'repository-backed professional media picker is unavailable')
+  assert(mediaResult.chosenAsset === 'media-profile-primary' && mediaResult.selected === 'portfolio-profile-media', 'Opening Choose Existing changed the selected media entity')
   assert(mediaResult.hoverNative, 'MEDIA Hover does not use a native dependency-aware checkbox')
   assert(mediaResult.width === '280px' && mediaResult.inlineWidth === '280px', 'MEDIA width did not bind to snapshot/live preview')
   assert(mediaResult.outlined && mediaResult.outlineStyle !== 'none' && mediaResult.outlineWidth === '3px', 'selected media outline is not visible')

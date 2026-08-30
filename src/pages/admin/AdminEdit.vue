@@ -26,7 +26,9 @@ import {
 import PropertyControl from './components/PropertyControl.vue'
 import PropertyInputControl from './components/property-controls/PropertyInputControl.vue'
 import EditorObjectNavigator from './components/EditorObjectNavigator.vue'
+import AssetPickerModal from './components/AssetPickerModal.vue'
 import { useEditorStore } from '../../stores/editor'
+import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import { createEditorSnapshot } from '../../editor/editorSnapshot'
 import {
   editorPublishErrors,
@@ -52,6 +54,7 @@ import type {
   PropertyVisibilityContext
 } from '../../types/editor'
 import type { EditorSnapshot, SnapshotMediaModel } from '../../types/editorSnapshot'
+import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 
 interface PanelProperty {
   key: string
@@ -112,12 +115,14 @@ const editor = useEditorStore()
 const certificates = useCertificatesStore()
 const editorEntities = useEditorObjectRegistry()
 const photoRegistry = usePhotoAreaRegistry()
+const mediaLibrary = useMediaLibraryStore()
 
 const saveStatus = ref('')
 const initializationError = ref('')
 const editorReady = ref(false)
 const showOpenModal = ref(false)
 const showUnsavedModal = ref(false)
+const showAssetPicker = ref(false)
 const pendingLibrary = ref<LibraryRouteName | null>(null)
 const canvasScroll = ref<HTMLElement | null>(null)
 const canvasContainer = ref<HTMLElement | null>(null)
@@ -136,6 +141,7 @@ const contextMenu = ref<ContextMenuState>({ open: false, x: 0, y: 0 })
 const selectionGap = ref(16)
 const previewUpdateDuration = ref(0)
 const previewUpdateCount = ref(0)
+const mediaDropTargetId = ref<string | null>(null)
 const isPanning = ref(false)
 const mediaPreviewUrls = new Map<string, string>()
 const managedMediaAreaIds = new Set<string>()
@@ -178,6 +184,9 @@ const selectedEntityId = computed({
 })
 const selectedEntity = computed(() => editorEntities.value.find((entity) => entity.id === editor.selectedObjectId))
 const selectedPhotoArea = computed(() => selectedEntity.value?.photoAreaId ? photoRegistry.find(selectedEntity.value.photoAreaId) : undefined)
+const selectedMediaAssignment = computed(() => selectedPhotoArea.value
+  ? editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === selectedPhotoArea.value?.id) ?? null
+  : null)
 const selectedObjectLocked = computed(() => editor.selectedObjectState.locked)
 const selectedObjectHidden = computed(() => editor.selectedObjectState.hidden)
 const selectedObjectCount = computed(() => editor.selectedObjectIds.length)
@@ -244,20 +253,8 @@ function descriptorFor(entity: EditorRuntimeObject): EntityDescriptor {
 }
 
 const selectedDescriptor = computed(() => selectedEntity.value ? descriptorFor(selectedEntity.value) : null)
-const mediaLibraryOptions = computed(() => site.current.mediaAssets
-  .filter((asset) => Boolean(asset.id && asset.source))
-  .map((asset) => ({ label: asset.alt.trim() || asset.id, value: asset.id })))
-
 function resolveRuntimeMetadata(metadata: PropertyRegistryEntry): PropertyRegistryEntry {
-  if (metadata.databaseMapping.kind !== 'action' || metadata.databaseMapping.action !== 'choose-media') return metadata
-  const hasMedia = mediaLibraryOptions.value.length > 0
-  return {
-    ...metadata,
-    options: mediaLibraryOptions.value,
-    dependency: { keys: [], enabled: ({ entity }) => entity.capabilities.includes('media') && hasMedia },
-    enabledRule: ({ entity }) => entity.capabilities.includes('media') && hasMedia,
-    helperText: hasMedia ? undefined : 'No repository media is available.'
-  }
+  return metadata
 }
 
 const registryPanelProperties = computed<PanelProperty[]>(() => {
@@ -436,6 +433,11 @@ async function initializeEditor(): Promise<void> {
       if (photoRegistry.find(assignment.entityId)) managedMediaAreaIds.add(assignment.entityId)
     }
     restoreSelectionFromSession()
+    const requestedObjectId = typeof route.query.object === 'string' ? route.query.object : ''
+    if (requestedObjectId) void nextTick(() => {
+      selectRegisteredObject(requestedObjectId)
+      focusPreviewObject(requestedObjectId)
+    })
     userZoom.value = editor.draftSnapshot.session.userZoom ?? null
     await nextTick()
     if (canvasScroll.value) {
@@ -475,6 +477,7 @@ onBeforeUnmount(() => {
   endCanvasPan()
   endPreviewObjectDrag()
   endSelectionBox()
+  clearMediaDropTarget()
   if (previewFrameRequest) cancelAnimationFrame(previewFrameRequest)
   if (inlineTextEdit.value) cancelInlineTextEdit()
   previewObserver?.disconnect()
@@ -647,6 +650,9 @@ async function writeRuntimeProperty(entity: EditorRuntimeObject, property: Runti
 function isPanelPropertyEnabled(property: PanelProperty): boolean {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return false
+  if (property.metadata.databaseMapping.kind === 'action'
+    && ['remove-media', 'duplicate-media-reference', 'reveal-media-library'].includes(property.metadata.databaseMapping.action)
+    && !selectedMediaAssignment.value) return false
   const context: PropertyVisibilityContext = {
     entity: descriptor,
     snapshot: editor.draftSnapshot,
@@ -667,7 +673,23 @@ async function handlePropertyFile(property: PanelProperty, file: File): Promise<
   await uploadSelectedMedia(file, property.metadata.commandType)
 }
 
-function handlePropertyAction(_property: PanelProperty): void {}
+const propertyButtonActionHandlers: Partial<Record<PropertyAction, (property: PanelProperty) => void | Promise<void>>> = {
+  'choose-media': () => {
+    showAssetPicker.value = true
+    if (!mediaLibrary.lastLoadedAt && !mediaLibrary.loading) void mediaLibrary.refresh().catch((error) => {
+      saveStatus.value = error instanceof Error ? error.message : 'Asset Library could not be loaded.'
+    })
+  },
+  'remove-media': (property) => removeSelectedMedia(property.metadata.commandType),
+  'duplicate-media-reference': (property) => duplicateSelectedMediaReference(property.metadata.commandType),
+  'reveal-media-library': () => revealSelectedMedia()
+}
+
+function handlePropertyAction(property: PanelProperty): void {
+  if (property.metadata.databaseMapping.kind !== 'action' || !isPanelPropertyEnabled(property)) return
+  const handler = propertyButtonActionHandlers[property.metadata.databaseMapping.action]
+  if (handler) void handler(property)
+}
 
 async function setMediaCrop(objectPosition: string, commandType: EditorCommandType): Promise<void> {
   const entity = selectedEntity.value
@@ -701,26 +723,38 @@ async function setMediaFit(objectFit: string, commandType: EditorCommandType): P
   markEditorChanged()
 }
 
-async function chooseExistingMedia(assetId: string, commandType: EditorCommandType): Promise<void> {
+async function chooseExistingMedia(assetInput: string | MediaLibraryAsset, commandType: EditorCommandType): Promise<void> {
   const entity = selectedEntity.value
   const target = selectedPhotoArea.value
-  const asset = site.current.mediaAssets.find((candidate) => candidate.id === assetId)
-  if (!entity?.photoAreaId || !target || !asset?.source) return
+  const assetId = typeof assetInput === 'string' ? assetInput : assetInput.id
+  const libraryAsset = typeof assetInput === 'string' ? mediaLibrary.assets.find((candidate) => candidate.id === assetInput) : assetInput
+  const legacyAsset = site.current.mediaAssets.find((candidate) => candidate.id === assetId)
+  const source = libraryAsset?.sourceUrl || legacyAsset?.source || ''
+  if (!entity?.photoAreaId || !target || !source) return
 
   const currentMedia = cloneEditorData(editor.draftSnapshot.media)
   const currentAssignment = currentMedia.assignments.find((assignment) => assignment.entityId === target.id)
-  const currentReference = currentMedia.references.find((reference) => reference.assetId === asset.id)
-  if (currentAssignment?.assetId === asset.id && currentReference?.uri === asset.source) return
+  const currentReference = currentMedia.references.find((reference) => reference.assetId === assetId)
+  if (currentAssignment?.assetId === assetId && currentReference?.uri === source) return
 
   const nextMedia: SnapshotMediaModel = {
     ...currentMedia,
     references: [
-      ...currentMedia.references.filter((reference) => reference.assetId !== asset.id),
-      { assetId: asset.id, uri: asset.source, mimeType: asset.mimeType, alt: asset.alt }
+      ...currentMedia.references.filter((reference) => reference.assetId !== assetId),
+      {
+        assetId,
+        uri: source,
+        bucket: libraryAsset?.bucket ?? undefined,
+        storagePath: libraryAsset?.storagePath ?? undefined,
+        mimeType: libraryAsset?.mimeType || legacyAsset?.mimeType,
+        width: libraryAsset?.width ?? undefined,
+        height: libraryAsset?.height ?? undefined,
+        alt: libraryAsset?.name || legacyAsset?.alt
+      }
     ],
     assignments: [
       ...currentMedia.assignments.filter((assignment) => assignment.entityId !== target.id),
-      { entityId: target.id, role: target.role, assetId: asset.id, objectPosition: target.objectPosition }
+      { entityId: target.id, role: target.role, assetId, objectPosition: target.objectPosition }
     ]
   }
   editor.apply({
@@ -730,15 +764,143 @@ async function chooseExistingMedia(assetId: string, commandType: EditorCommandTy
     previousValue: currentMedia as unknown as EditorValue,
     nextValue: nextMedia as unknown as EditorValue,
     timestamp: Date.now(),
-    metadata: { assetId: asset.id, photoAreaId: target.id, source: 'media-library' }
+    metadata: { assetId, photoAreaId: target.id, source: 'media-library' }
   })
-  if (isBrowserUrl(asset.source)) mediaPreviewUrls.set(asset.id, asset.source)
+  if (libraryAsset?.bucket && libraryAsset.storagePath?.startsWith('draft/')) {
+    editor.draftMediaReferences = [
+      ...editor.draftMediaReferences.filter((reference) => reference.assetId !== assetId),
+      {
+        assetId,
+        bucket: libraryAsset.bucket,
+        storagePath: libraryAsset.storagePath,
+        mimeType: libraryAsset.mimeType,
+        width: libraryAsset.width ?? 0,
+        height: libraryAsset.height ?? 0,
+        previewUrl: source
+      }
+    ]
+  }
+  if (isBrowserUrl(source)) mediaPreviewUrls.set(assetId, source)
   managedMediaAreaIds.add(target.id)
-  await photoRegistry.updateSource(target.id, asset.source)
+  await photoRegistry.updateSource(target.id, source)
   markEditorChanged()
   saveStatus.value = 'Existing media selected. Save Draft to persist its reference.'
   await nextTick()
   updateSelectedOutline()
+}
+
+async function applyPickerAsset(asset: MediaLibraryAsset): Promise<void> {
+  await chooseExistingMedia(asset, 'SET_IMAGE_REFERENCE')
+  showAssetPicker.value = false
+}
+
+async function removeSelectedMedia(commandType: EditorCommandType): Promise<void> {
+  const entity = selectedEntity.value
+  const target = selectedPhotoArea.value
+  const assignment = selectedMediaAssignment.value
+  if (!entity || !target || !assignment) return
+  const currentMedia = cloneEditorData(editor.draftSnapshot.media)
+  const nextMedia: SnapshotMediaModel = {
+    ...currentMedia,
+    assignments: currentMedia.assignments.filter((candidate) => candidate.entityId !== target.id)
+  }
+  editor.apply({
+    type: commandType,
+    entityId: entity.id,
+    propertyPath: 'media',
+    previousValue: currentMedia as unknown as EditorValue,
+    nextValue: nextMedia as unknown as EditorValue,
+    timestamp: Date.now(),
+    metadata: { assetId: assignment.assetId, photoAreaId: target.id, interaction: 'remove-reference' }
+  })
+  managedMediaAreaIds.add(target.id)
+  await photoRegistry.updateSource(target.id, '')
+  markEditorChanged()
+  saveStatus.value = 'Media reference removed from this object. The Asset Library item was not deleted.'
+}
+
+async function duplicateSelectedMediaReference(commandType: EditorCommandType): Promise<void> {
+  const entity = selectedEntity.value
+  const target = selectedPhotoArea.value
+  const assignment = selectedMediaAssignment.value
+  if (!entity || !target || !assignment) return
+  const currentMedia = cloneEditorData(editor.draftSnapshot.media)
+  const reference = currentMedia.references.find((candidate) => candidate.assetId === assignment.assetId)
+  if (!reference) return
+  const assetId = crypto.randomUUID()
+  const nextMedia: SnapshotMediaModel = {
+    ...currentMedia,
+    references: [...currentMedia.references, { ...reference, assetId }],
+    assignments: currentMedia.assignments.map((candidate) => candidate.entityId === target.id ? { ...candidate, assetId } : candidate)
+  }
+  editor.apply({
+    type: commandType,
+    entityId: entity.id,
+    propertyPath: 'media',
+    previousValue: currentMedia as unknown as EditorValue,
+    nextValue: nextMedia as unknown as EditorValue,
+    timestamp: Date.now(),
+    metadata: { assetId, duplicatedFrom: reference.assetId, photoAreaId: target.id, interaction: 'duplicate-reference' }
+  })
+  const draftReference = editor.draftMediaReferences.find((candidate) => candidate.assetId === reference.assetId)
+  if (draftReference) editor.draftMediaReferences = [...editor.draftMediaReferences, { ...draftReference, assetId }]
+  const previewUrl = mediaPreviewUrls.get(reference.assetId) ?? reference.uri
+  if (previewUrl) mediaPreviewUrls.set(assetId, previewUrl)
+  markEditorChanged()
+  saveStatus.value = 'A separate stable reference now points to the same asset.'
+}
+
+function revealSelectedMedia(): void {
+  const assetId = selectedMediaAssignment.value?.assetId
+  if (!assetId) return
+  const href = router.resolve({ name: 'admin-media', query: { asset: assetId } }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+function clearMediaDropTarget(): void {
+  previewStage.value?.querySelectorAll<HTMLElement>('.editor-media-drop-target').forEach((element) => element.classList.remove('editor-media-drop-target'))
+  mediaDropTargetId.value = null
+}
+
+function mediaDropTarget(event: DragEvent): { entity: EditorRuntimeObject; element: HTMLElement | null } | null {
+  const element = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-editor-object-id]') ?? null
+  const objectId = element?.dataset.editorObjectId
+  const direct = objectId ? editorEntities.value.find((candidate) => candidate.id === objectId && candidate.photoAreaId) : undefined
+  if (direct) return { entity: direct, element }
+  const selected = selectedEntity.value?.photoAreaId ? selectedEntity.value : undefined
+  return selected ? { entity: selected, element: preferredPreviewElement(selected.id) } : null
+}
+
+function handleAssetDragOver(event: DragEvent): void {
+  if (![...(event.dataTransfer?.types ?? [])].includes('application/x-portfolio-asset')) return
+  const target = mediaDropTarget(event)
+  if (!target || editor.objectState(target.entity.id).locked) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  if (mediaDropTargetId.value !== target.entity.id) {
+    clearMediaDropTarget()
+    mediaDropTargetId.value = target.entity.id
+    target.element?.classList.add('editor-media-drop-target')
+  }
+}
+
+function handleAssetDragLeave(event: DragEvent): void {
+  const bounds = canvasContainer.value?.getBoundingClientRect()
+  if (!bounds || event.clientX <= bounds.left || event.clientX >= bounds.right || event.clientY <= bounds.top || event.clientY >= bounds.bottom) clearMediaDropTarget()
+}
+
+async function handleAssetDrop(event: DragEvent): Promise<void> {
+  const assetId = event.dataTransfer?.getData('application/x-portfolio-asset') || event.dataTransfer?.getData('text/plain')
+  const target = mediaDropTarget(event)
+  clearMediaDropTarget()
+  if (!assetId || !target || editor.objectState(target.entity.id).locked) return
+  const asset = mediaLibrary.assets.find((candidate) => candidate.id === assetId)
+  if (!asset) return
+  event.preventDefault()
+  selectEntity(target.entity.id, target.element ?? undefined)
+  await nextTick()
+  await chooseExistingMedia(asset, 'SET_IMAGE_REFERENCE')
+  saveStatus.value = `${asset.name} applied to ${target.entity.label}. Save Draft to persist it.`
 }
 
 async function uploadSelectedMedia(file: File, commandType: EditorCommandType): Promise<void> {
@@ -1857,7 +2019,16 @@ function cancelLibrarySwitch(): void {
       <p class="save-status" aria-live="polite">{{ saveStatus }}</p>
     </aside>
 
-    <main ref="canvasContainer" class="canvas-container" aria-label="Live editor preview" tabindex="0" @contextmenu.prevent="openPreviewContextMenu">
+    <main
+      ref="canvasContainer"
+      class="canvas-container"
+      aria-label="Live editor preview"
+      tabindex="0"
+      @contextmenu.prevent="openPreviewContextMenu"
+      @dragover="handleAssetDragOver"
+      @dragleave="handleAssetDragLeave"
+      @drop="void handleAssetDrop($event)"
+    >
       <div class="preview-toolbar">
         <span class="source-indicator">{{ sourceLabel }}</span>
         <label class="zoom-control">
@@ -1923,6 +2094,14 @@ function cancelLibrarySwitch(): void {
         <span class="performance-status" :data-preview-update-count="previewUpdateCount" :title="`${previewUpdateCount} targeted preview updates`"><strong>Preview</strong>{{ previewFps }} FPS</span>
       </footer>
     </main>
+
+    <AssetPickerModal
+      :open="showAssetPicker"
+      :target-label="selectedEntity?.label"
+      :current-asset-id="selectedMediaAssignment?.assetId"
+      @close="showAssetPicker = false"
+      @apply="void applyPickerAsset($event)"
+    />
 
     <div v-if="showOpenModal" class="modal-backdrop" role="presentation" @click.self="showOpenModal = false">
       <section class="source-modal" role="dialog" aria-modal="true" aria-labelledby="source-modal-title">
@@ -2005,6 +2184,7 @@ function cancelLibrarySwitch(): void {
 .editor-preview-runtime :deep([data-editor-object-id]) { cursor: pointer; outline-offset: 3px; border-radius: 4px; }
 .editor-preview-runtime :deep([data-editor-object-id]:hover) { outline: 1px dashed rgba(184,91,105,.55); background: transparent; }
 .editor-preview-runtime :deep(.editor-preview-selected) { outline: 1.5px solid rgba(184,91,105,.78) !important; outline-offset: 3px !important; border-radius: 6px; background: transparent !important; }.editor-preview-runtime :deep(.editor-preview-selected--primary) { outline-width: 3px !important; outline-color: rgba(184,91,105,.98) !important; outline-offset: 4px !important; border-radius: 7px; }
+.editor-preview-runtime :deep(.editor-media-drop-target) { outline: 4px solid rgba(172,78,94,.98) !important; outline-offset: 6px !important; border-radius: 9px; background: rgba(255,244,236,.12) !important; box-shadow: 0 0 0 5px rgba(255,255,255,.72),0 0 0 9px rgba(172,78,94,.18); }
 .editor-preview-runtime :deep(.editor-preview-locked) { cursor: default; }.editor-preview-runtime :deep(.editor-preview-locked.editor-preview-selected) { outline-style: dashed !important; outline-color: rgba(139,100,65,.95) !important; }
 .editor-preview-runtime :deep(.editor-preview-hidden) { opacity: .08 !important; pointer-events: none; }.editor-preview-runtime :deep(.editor-preview-hidden.editor-preview-selected) { opacity: .2 !important; outline-style: dotted !important; }
 .editor-preview-runtime :deep(.editor-inline-text-edit) { min-width: 1ch; cursor: text !important; outline: 2px solid rgba(184,91,105,.92) !important; outline-offset: 3px !important; border-radius: 3px; caret-color: #8d363a; background: transparent !important; }

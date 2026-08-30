@@ -291,7 +291,7 @@ try {
   assert(inspectorEvidence.colorValue === '#7f4055' && inspectorEvidence.colorFeatures.rgb === 3 && inspectorEvidence.colorFeatures.alpha && inspectorEvidence.colorFeatures.recent && inspectorEvidence.colorFeatures.eyedropperShown === inspectorEvidence.colorFeatures.eyedropperSupported, 'professional color picker is incomplete')
   assert(Math.abs(inspectorEvidence.xShift - inspectorEvidence.x0 - 10) < .001 && Math.abs(inspectorEvidence.xAlt - inspectorEvidence.xShift - .1) < .001 && inspectorEvidence.xDrag > inspectorEvidence.xAlt, 'numeric wheel/modifier/scrub controls failed')
   assert(inspectorEvidence.rotationHidden, 'unsupported rotation was not hidden')
-  for (const label of ['Preview','Upload','Media Picker','Replace','Crop focus','Fit','Width','Height','Opacity','Border','Radius','Outline','Outline Thickness','Rotation']) assert(inspectorEvidence.mediaLabels.includes(label), `MEDIA control missing: ${label}`)
+  for (const label of ['Preview','Upload','Choose Existing','Replace','Remove','Duplicate Reference','Reveal in Library','Crop focus','Fit','Width','Height','Opacity','Border','Radius','Outline','Outline Thickness','Rotation']) assert(inspectorEvidence.mediaLabels.includes(label), `MEDIA control missing: ${label}`)
   assert(inspectorEvidence.thicknessBefore && !inspectorEvidence.thicknessAfter && inspectorEvidence.fitOptions.join('|') === 'Fit|Fill|Contain' && inspectorEvidence.thumbnail, `MEDIA dependency/Fit/thumbnail behavior failed: ${JSON.stringify(inspectorEvidence)}`)
 
   const inspectorShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })

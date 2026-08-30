@@ -62,17 +62,17 @@ const router = createRouter({
         {
           path: 'media/images',
           name: 'admin-media-images',
-          component: () => import('../pages/admin/AdminMediaImages.vue')
+          redirect: { name: 'admin-media', query: { filter: 'images' } }
         },
         {
           path: 'media/videos',
           name: 'admin-media-videos',
-          component: () => import('../pages/admin/AdminMediaVideos.vue')
+          redirect: { name: 'admin-media' }
         },
         {
           path: 'media/documents',
           name: 'admin-media-documents',
-          component: () => import('../pages/admin/AdminMediaDocuments.vue')
+          redirect: { name: 'admin-media' }
         },
         {
           path: 'maintenance',
