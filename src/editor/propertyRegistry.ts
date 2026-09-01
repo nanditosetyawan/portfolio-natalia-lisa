@@ -12,6 +12,21 @@ import type {
   PropertyVisibilityContext
 } from '../types/editor'
 import type { EditorSnapshot } from '../types/editorSnapshot'
+import { propertyTokenMetadata } from './designSystemRegistry'
+import {
+  animationDirectionOptions,
+  animationEaseOptions,
+  animationFillModeOptions,
+  animationPresetRegistry,
+  clickAnimationOptions,
+  entranceAnimationOptions,
+  hoverAnimationOptions,
+  scrollAnimationOptions,
+  scrollPlaybackOptions,
+  textAnimationOptions,
+  timelineModeOptions,
+  type AnimationPropertyField
+} from './animationRegistry'
 
 const always = () => true
 const identitySerializer: PropertySerializer = {
@@ -97,6 +112,24 @@ const supports = (capability: string): PropertyDependencyRule => dependency([], 
 const outlineDependency = dependency(['media.outlineEnabled'], ({ entity, values }) => (
   entity.capabilities.includes('media-outline') && values['media.outlineEnabled'] === true
 ))
+const animationSystemEnabled = dependency(['animation.globalDisabled'], ({ values }) => values['animation.globalDisabled'] !== true)
+const entranceAnimationEnabled = dependency(['animation.globalDisabled', 'animation.type'], ({ values }) => (
+  values['animation.globalDisabled'] !== true && values['animation.type'] !== 'none'
+))
+const loopAnimationEnabled = dependency(['animation.globalDisabled', 'animation.type', 'animation.playOnce'], ({ values }) => (
+  values['animation.globalDisabled'] !== true && values['animation.type'] !== 'none' && values['animation.playOnce'] !== true
+))
+const directionAnimationEnabled = dependency(['animation.globalDisabled', 'animation.type'], ({ values }) => (
+  values['animation.globalDisabled'] !== true && values['animation.type'] !== 'none'
+))
+const configuredAnimationEnabled = dependency([
+  'animation.globalDisabled', 'animation.type', 'animation.hover', 'animation.click', 'animation.scroll', 'animation.text'
+], ({ values }) => values['animation.globalDisabled'] !== true && [
+  values['animation.type'], values['animation.hover'], values['animation.click'], values['animation.scroll'], values['animation.text']
+].some((value) => typeof value === 'string' && value !== 'none'))
+const scrollAnimationEnabled = dependency(['animation.globalDisabled', 'animation.scroll'], ({ values }) => (
+  values['animation.globalDisabled'] !== true && values['animation.scroll'] !== 'none'
+))
 
 const noPreview: PropertyPreviewUpdater = { styles: [], update: () => undefined }
 const stylePreview = (
@@ -150,17 +183,6 @@ const backgroundImagePreview: PropertyPreviewUpdater = {
     setStyle('background-image', reference ? `url("${reference.uri.replaceAll('"', '%22')}")` : '')
   }
 }
-const animationPreview = (
-  property: string,
-  formatter: (value: EditorValue) => string = (value) => value === undefined || value === null ? '' : String(value)
-): PropertyPreviewUpdater => ({
-  styles: [property],
-  update: ({ entityId, snapshot, setStyle }, value) => {
-    const animation = snapshot.animations[entityId]
-    setStyle(property, animation?.enabled && animation.name ? formatter(value) : '')
-  }
-})
-
 export interface PropertyDefinition extends Pick<PropertyRegistryEntry,
   'propertyKey' | 'category' | 'label' | 'control' | 'type' | 'order' | 'commandType' | 'capability' | 'propertyPath' | 'databaseMapping'
 > {
@@ -189,9 +211,11 @@ export interface PropertyDefinition extends Pick<PropertyRegistryEntry,
   enabledValue?: EditorValue
   visibilityRule?: PropertyRegistryEntry['visibilityRule']
   enabledRule?: PropertyRegistryEntry['enabledRule']
+  animationField?: AnimationPropertyField
 }
 
 function defineProperty(definition: PropertyDefinition): PropertyRegistryEntry {
+  const styleToken = definition.styleKey ? propertyTokenMetadata[definition.styleKey] : undefined
   const normalized: PropertyRegistryEntry = {
     ...definition,
     categoryLabel: definition.categoryLabel ?? definition.category.toUpperCase(),
@@ -207,7 +231,8 @@ function defineProperty(definition: PropertyDefinition): PropertyRegistryEntry {
     previewUpdater: definition.previewUpdater ?? noPreview,
     copyable: definition.copyable ?? definition.databaseMapping.kind === 'snapshot',
     dependencyKeys: definition.dependency?.keys ?? [],
-    enabledRule: definition.enabledRule ?? definition.dependency?.enabled
+    enabledRule: definition.enabledRule ?? definition.dependency?.enabled,
+    designToken: styleToken
   }
   return normalized
 }
@@ -276,6 +301,35 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'effects.radius', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Radius', control: 'text', type: 'string', order: 50, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'borderRadius', databaseMapping: snapshot('backgrounds.{entityId}.borderRadius'), defaultValue: '', validation: validCssLength(false, true), previewUpdater: stylePreview('border-radius'), styleKey: 'effects.borderRadius' }),
   defineProperty({ propertyKey: 'effects.background', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Background', control: 'color', type: 'color', order: 60, commandType: 'SET_PROPERTY', capability: 'button-background', propertyPath: 'backgroundColor', databaseMapping: snapshot('buttons.{entityId}.backgroundColor'), defaultValue: '#fffaf4', validation: validColor, previewUpdater: stylePreview('background-color'), styleKey: 'button.backgroundColor' }),
 
+  defineProperty({ propertyKey: 'animation.type', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Animation Type', control: 'select', type: 'enum', order: 10, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'entrance', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...entranceAnimationOptions], validation: validEnum(entranceAnimationOptions.map((option) => option.value)), dependency: animationSystemEnabled, animationField: 'entrance', searchTerms: ['animation', 'entrance'] }),
+  defineProperty({ propertyKey: 'animation.duration', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Duration', control: 'number', type: 'number', order: 20, rowKey: 'animation-timing', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'durationMs', databaseMapping: snapshot('animations.{entityId}.durationMs'), defaultValue: 300, validation: validNumber(0, 60000), dependency: configuredAnimationEnabled, minimum: 0, maximum: 60000, step: 50, unit: 'ms', previewUpdater: noPreview, styleKey: 'animation.durationMs' }),
+  defineProperty({ propertyKey: 'animation.delay', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Delay', control: 'number', type: 'number', order: 30, rowKey: 'animation-timing', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'delayMs', databaseMapping: snapshot('animations.{entityId}.delayMs'), defaultValue: 0, validation: validNumber(0, 60000), dependency: configuredAnimationEnabled, minimum: 0, maximum: 60000, step: 50, unit: 'ms', previewUpdater: noPreview, styleKey: 'animation.delayMs' }),
+  defineProperty({ propertyKey: 'animation.ease', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Ease', control: 'select', type: 'enum', order: 40, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'easing', databaseMapping: snapshot('animations.{entityId}.easing'), defaultValue: 'ease', options: [...animationEaseOptions], validation: validEnum(animationEaseOptions.map((option) => option.value)), dependency: configuredAnimationEnabled, previewUpdater: noPreview, styleKey: 'animation.easing' }),
+  defineProperty({ propertyKey: 'animation.loop', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Loop', control: 'checkbox', type: 'boolean', order: 50, rowKey: 'animation-loop-direction', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'loop', databaseMapping: action('set-animation-config'), defaultValue: false, validation: validBoolean, dependency: loopAnimationEnabled, animationField: 'loop' }),
+  defineProperty({ propertyKey: 'animation.direction', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Direction', control: 'select', type: 'enum', order: 60, rowKey: 'animation-loop-direction', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'direction', databaseMapping: action('set-animation-config'), defaultValue: 'normal', options: [...animationDirectionOptions], validation: validEnum(animationDirectionOptions.map((option) => option.value)), dependency: directionAnimationEnabled, animationField: 'direction' }),
+  defineProperty({ propertyKey: 'animation.fillMode', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Fill Mode', control: 'select', type: 'enum', order: 70, rowKey: 'animation-fill-once', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'fillMode', databaseMapping: action('set-animation-config'), defaultValue: 'both', options: [...animationFillModeOptions], validation: validEnum(animationFillModeOptions.map((option) => option.value)), dependency: configuredAnimationEnabled, animationField: 'fillMode' }),
+  defineProperty({ propertyKey: 'animation.playOnce', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Play Once', control: 'checkbox', type: 'boolean', order: 80, rowKey: 'animation-fill-once', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'playOnce', databaseMapping: action('set-animation-config'), defaultValue: true, validation: validBoolean, dependency: entranceAnimationEnabled, animationField: 'playOnce' }),
+  defineProperty({ propertyKey: 'animation.preview', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Preview', control: 'button', type: 'metadata', order: 90, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'preview', databaseMapping: action('preview-animation'), defaultValue: '', validation: validMetadata, dependency: configuredAnimationEnabled, animationField: 'preview', copyable: false }),
+
+  defineProperty({ propertyKey: 'animation.hover', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Hover Animation', control: 'select', type: 'enum', order: 110, commandType: 'SET_PROPERTY', capability: 'hover-animation', propertyPath: 'hover', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...hoverAnimationOptions], validation: validEnum(hoverAnimationOptions.map((option) => option.value)), dependency: animationSystemEnabled, animationField: 'hover', searchTerms: ['hover'] }),
+  defineProperty({ propertyKey: 'animation.click', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Click Interaction', control: 'select', type: 'enum', order: 120, commandType: 'SET_PROPERTY', capability: 'click-animation', propertyPath: 'click', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...clickAnimationOptions], validation: validEnum(clickAnimationOptions.map((option) => option.value)), dependency: animationSystemEnabled, animationField: 'click', searchTerms: ['click', 'interaction'] }),
+  defineProperty({ propertyKey: 'animation.scroll', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Scroll Animation', control: 'select', type: 'enum', order: 130, commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scroll', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...scrollAnimationOptions], validation: validEnum(scrollAnimationOptions.map((option) => option.value)), dependency: animationSystemEnabled, animationField: 'scroll', searchTerms: ['scroll', 'reveal', 'parallax'] }),
+  defineProperty({ propertyKey: 'animation.scrollPlayback', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Scroll Playback', control: 'segmented', type: 'enum', order: 140, commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scrollPlayback', databaseMapping: action('set-animation-config'), defaultValue: 'once', options: [...scrollPlaybackOptions], validation: validEnum(scrollPlaybackOptions.map((option) => option.value)), dependency: scrollAnimationEnabled, animationField: 'scrollPlayback' }),
+  defineProperty({ propertyKey: 'animation.scrollOffset', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Offset', control: 'number', type: 'number', order: 150, rowKey: 'animation-scroll-trigger', commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scrollOffset', databaseMapping: action('set-animation-config'), defaultValue: 0, validation: validNumber(0, 1000), dependency: scrollAnimationEnabled, minimum: 0, maximum: 1000, step: 1, unit: 'px', animationField: 'scrollOffset' }),
+  defineProperty({ propertyKey: 'animation.scrollThreshold', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Threshold', control: 'number', type: 'number', order: 160, rowKey: 'animation-scroll-trigger', commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scrollThreshold', databaseMapping: action('set-animation-config'), defaultValue: 0, validation: validNumber(0, 1), dependency: scrollAnimationEnabled, minimum: 0, maximum: 1, step: 0.05, animationField: 'scrollThreshold' }),
+  defineProperty({ propertyKey: 'animation.text', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Text Animation', control: 'select', type: 'enum', order: 170, commandType: 'SET_PROPERTY', capability: 'text-animation', propertyPath: 'text', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...textAnimationOptions], validation: validEnum(textAnimationOptions.map((option) => option.value)), dependency: animationSystemEnabled, animationField: 'text', searchTerms: ['text', 'typewriter', 'character', 'word', 'line'] }),
+
+  defineProperty({ propertyKey: 'animation.timelineMode', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Timeline Ordering', control: 'segmented', type: 'enum', order: 180, commandType: 'SET_PROPERTY', capability: 'timeline-animation', propertyPath: 'timelineMode', databaseMapping: action('set-animation-config'), defaultValue: 'parallel', options: [...timelineModeOptions], validation: validEnum(timelineModeOptions.map((option) => option.value)), dependency: configuredAnimationEnabled, animationField: 'timelineMode', searchTerms: ['timeline', 'sequential', 'parallel'] }),
+  defineProperty({ propertyKey: 'animation.timelineDelay', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Timeline Delay', control: 'number', type: 'number', order: 190, commandType: 'SET_PROPERTY', capability: 'timeline-animation', propertyPath: 'timelineDelay', databaseMapping: action('set-animation-config'), defaultValue: 0, validation: validNumber(0, 60000), dependency: configuredAnimationEnabled, minimum: 0, maximum: 60000, step: 50, unit: 'ms', animationField: 'timelineDelay' }),
+  defineProperty({ propertyKey: 'animation.timelinePreview', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Preview Timeline', control: 'timeline', type: 'metadata', order: 200, commandType: 'SET_PROPERTY', capability: 'timeline-animation', propertyPath: 'timelineSummary', databaseMapping: action('preview-animation-timeline'), defaultValue: '', validation: validMetadata, dependency: configuredAnimationEnabled, animationField: 'timelineSummary', copyable: false }),
+
+  defineProperty({ propertyKey: 'animation.preset', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Animation Preset', control: 'select', type: 'enum', order: 210, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'preset', databaseMapping: action('apply-animation-preset'), defaultValue: '', placeholder: 'Choose preset', options: animationPresetRegistry.map((preset) => ({ label: preset.label, value: preset.id })), validation: validEnum(animationPresetRegistry.map((preset) => preset.id)), dependency: animationSystemEnabled, animationField: 'preset', copyable: false }),
+  defineProperty({ propertyKey: 'animation.copy', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Copy Animation', control: 'button', type: 'metadata', order: 220, rowKey: 'animation-copy-paste', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'copy', databaseMapping: action('copy-animation'), defaultValue: '', validation: validMetadata, animationField: 'copy', copyable: false }),
+  defineProperty({ propertyKey: 'animation.paste', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Paste Animation', control: 'button', type: 'metadata', order: 230, rowKey: 'animation-copy-paste', commandType: 'PASTE_STYLE', capability: 'animation', propertyPath: 'paste', databaseMapping: action('paste-animation'), defaultValue: '', validation: validMetadata, animationField: 'paste', copyable: false }),
+  defineProperty({ propertyKey: 'animation.duplicate', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Duplicate Animation', control: 'button', type: 'metadata', order: 240, rowKey: 'animation-duplicate-reset', commandType: 'PASTE_STYLE', capability: 'animation', propertyPath: 'duplicate', databaseMapping: action('duplicate-animation'), defaultValue: '', validation: validMetadata, animationField: 'duplicate', helperText: 'Select two or more objects to duplicate this animation.', copyable: false }),
+  defineProperty({ propertyKey: 'animation.reset', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Reset Animation', control: 'button', type: 'metadata', order: 250, rowKey: 'animation-duplicate-reset', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'reset', databaseMapping: action('reset-animation'), defaultValue: '', validation: validMetadata, animationField: 'reset', copyable: false }),
+  defineProperty({ propertyKey: 'animation.globalDisabled', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Disable All Animations', control: 'checkbox', type: 'boolean', order: 260, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'globalDisabled', databaseMapping: action('set-animation-config'), defaultValue: false, validation: validBoolean, animationField: 'globalDisabled', copyable: false }),
+
   defineProperty({ propertyKey: 'advanced.objectId', category: 'behavior', categoryLabel: 'BEHAVIOR', categoryOrder: 60, label: 'Object ID', control: 'readonly', type: 'metadata', order: 10, commandType: 'SET_PROPERTY', capability: 'advanced', propertyPath: 'objectId', databaseMapping: metadata('objectId'), defaultValue: '', validation: validMetadata, readOnly: true, copyable: false }),
   defineProperty({ propertyKey: 'advanced.capabilities', category: 'behavior', categoryLabel: 'BEHAVIOR', categoryOrder: 60, label: 'Capabilities', control: 'readonly', type: 'metadata', order: 20, commandType: 'SET_PROPERTY', capability: 'advanced', propertyPath: 'capabilities', databaseMapping: metadata('capabilities'), defaultValue: '', validation: validMetadata, readOnly: true, copyable: false }),
   defineProperty({ propertyKey: 'advanced.validation', category: 'behavior', categoryLabel: 'BEHAVIOR', categoryOrder: 60, label: 'Validation status', control: 'readonly', type: 'metadata', order: 30, commandType: 'SET_PROPERTY', capability: 'advanced', propertyPath: 'validationStatus', databaseMapping: metadata('validationStatus'), defaultValue: 'Valid', validation: validMetadata, readOnly: true, copyable: false }),
@@ -294,11 +348,6 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'runtime.buttonTextColor', category: 'font', label: 'Button text color', control: 'color', type: 'color', order: 908, commandType: 'SET_PROPERTY', capability: 'button', propertyPath: 'textColor', databaseMapping: snapshot('buttons.{entityId}.textColor'), defaultValue: '', validation: validColor, previewUpdater: stylePreview('color'), visibilityRule: hidden, styleKey: 'button.textColor' }),
   defineProperty({ propertyKey: 'runtime.buttonBorderColor', category: 'effects', label: 'Button border color', control: 'color', type: 'color', order: 909, commandType: 'SET_PROPERTY', capability: 'button-border', propertyPath: 'borderColor', databaseMapping: snapshot('buttons.{entityId}.borderColor'), defaultValue: '', validation: validColor, previewUpdater: stylePreview('border-color'), visibilityRule: hidden, styleKey: 'button.borderColor' }),
   defineProperty({ propertyKey: 'runtime.buttonRadius', category: 'effects', label: 'Button radius', control: 'text', type: 'string', order: 910, commandType: 'SET_PROPERTY', capability: 'button-radius', propertyPath: 'borderRadius', databaseMapping: snapshot('buttons.{entityId}.borderRadius'), defaultValue: '', validation: validCssLength(false, true), previewUpdater: stylePreview('border-radius'), visibilityRule: hidden, styleKey: 'button.borderRadius' }),
-  defineProperty({ propertyKey: 'runtime.animationEnabled', category: 'behavior', label: 'Animation enabled', control: 'checkbox', type: 'boolean', order: 911, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'enabled', databaseMapping: snapshot('animations.{entityId}.enabled'), defaultValue: false, validation: validBoolean, previewUpdater: animationPreview('animation-name', (_value) => ''), visibilityRule: hidden, styleKey: 'animation.enabled' }),
-  defineProperty({ propertyKey: 'runtime.animationName', category: 'behavior', label: 'Animation', control: 'text', type: 'string', order: 912, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'name', databaseMapping: snapshot('animations.{entityId}.name'), defaultValue: '', validation: validString(128), previewUpdater: animationPreview('animation-name'), visibilityRule: hidden, styleKey: 'animation.name' }),
-  defineProperty({ propertyKey: 'runtime.animationDuration', category: 'behavior', label: 'Animation duration', control: 'number', type: 'number', order: 913, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'durationMs', databaseMapping: snapshot('animations.{entityId}.durationMs'), defaultValue: 0, validation: validNumber(0, 3600000), previewUpdater: animationPreview('animation-duration', (value) => typeof value === 'number' ? `${value}ms` : ''), visibilityRule: hidden, styleKey: 'animation.durationMs' }),
-  defineProperty({ propertyKey: 'runtime.animationDelay', category: 'behavior', label: 'Animation delay', control: 'number', type: 'number', order: 914, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'delayMs', databaseMapping: snapshot('animations.{entityId}.delayMs'), defaultValue: 0, validation: validNumber(0, 3600000), previewUpdater: animationPreview('animation-delay', (value) => typeof value === 'number' ? `${value}ms` : ''), visibilityRule: hidden, styleKey: 'animation.delayMs' }),
-  defineProperty({ propertyKey: 'runtime.animationEasing', category: 'behavior', label: 'Animation easing', control: 'text', type: 'string', order: 915, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'easing', databaseMapping: snapshot('animations.{entityId}.easing'), defaultValue: '', validation: validString(128), previewUpdater: animationPreview('animation-timing-function'), visibilityRule: hidden, styleKey: 'animation.easing' })
 ]
 
 const categoryMetadata: Record<string, { category: string; label: string; order: number; presentation: 'inline' | 'accordion'; capability: string }> = {
@@ -324,7 +373,8 @@ const propertyTypeByControl: Record<EditorControl, EditorPropertyType> = {
   'toggle-text': 'string',
   'toggle-color': 'color',
   segmented: 'enum',
-  thumbnail: 'asset'
+  thumbnail: 'asset',
+  timeline: 'metadata'
 }
 
 const defaultValueByType: Record<EditorPropertyType, EditorValue> = {
@@ -357,7 +407,16 @@ export function ensurePropertyMetadata(definition: {
     presentation: 'accordion' as const,
     capability: normalizedSourceCategory
   }
-  const key = `runtime:${normalizedSourceCategory}:${definition.propertyKey}:${definition.propertyPath ?? definition.propertyKey}`
+  const propertyPath = definition.propertyPath ?? definition.propertyKey
+  const capability = definition.capability ?? category.capability
+  const canonical = entries.find((entry) => (
+    entry.databaseMapping.kind === 'snapshot'
+    && entry.category === category.category
+    && entry.capability === capability
+    && entry.propertyPath === propertyPath
+  ))
+  if (canonical) return canonical
+  const key = `runtime:${normalizedSourceCategory}:${definition.propertyKey}:${propertyPath}`
   const existing = entries.find((entry) => entry.propertyKey === key)
   if (existing) return existing
   const type = definition.valueType ?? propertyTypeByControl[definition.control]
@@ -373,9 +432,9 @@ export function ensurePropertyMetadata(definition: {
     type,
     order: entries.length + 1,
     commandType: 'SET_PROPERTY',
-    capability: definition.capability ?? category.capability,
-    propertyPath: definition.propertyPath ?? definition.propertyKey,
-    databaseMapping: { kind: 'runtime', path: definition.propertyPath ?? definition.propertyKey },
+    capability,
+    propertyPath,
+    databaseMapping: { kind: 'runtime', path: propertyPath },
     defaultValue: defaultValueByType[type],
     copyable: normalizedSourceCategory !== 'content'
   })

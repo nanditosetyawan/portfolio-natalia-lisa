@@ -27,44 +27,44 @@ const builtInRegistrations: EditorObjectTypeRegistration[] = [
   {
     type: 'Text',
     label: 'Text',
-    capabilities: ['content', 'typography', 'font-hover', 'layout', 'position', 'rotate', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['typography', 'layout', 'position', 'rotate', 'effects']
+    capabilities: ['content', 'typography', 'font-hover', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'text-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['typography', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'text-animation', 'timeline-animation']
   },
   {
     type: 'Image',
     label: 'Image',
-    capabilities: ['media', 'media-dimensions', 'media-hover', 'media-outline', 'layout', 'position', 'rotate', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['media-dimensions', 'media-hover', 'media-outline', 'layout', 'position', 'rotate', 'effects']
+    capabilities: ['media', 'media-dimensions', 'media-hover', 'media-outline', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['media-dimensions', 'media-hover', 'media-outline', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation']
   },
   {
     type: 'Button',
     label: 'Button',
-    capabilities: ['content', 'typography', 'font-hover', 'button', 'button-background', 'button-border', 'button-radius', 'layout', 'position', 'rotate', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['typography', 'font-hover', 'button', 'layout', 'position', 'rotate', 'effects']
+    capabilities: ['content', 'typography', 'font-hover', 'button', 'button-background', 'button-border', 'button-radius', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'text-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['typography', 'font-hover', 'button', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'text-animation', 'timeline-animation']
   },
   {
     type: 'Container',
     label: 'Container',
-    capabilities: ['container', 'background', 'layout', 'position', 'rotate', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['background', 'layout', 'position', 'rotate', 'effects']
+    capabilities: ['container', 'background', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['background', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation']
   },
   {
     type: 'Background',
     label: 'Background',
-    capabilities: ['background', 'layout', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['background', 'layout', 'effects']
+    capabilities: ['background', 'layout', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['background', 'layout', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation']
   },
   {
     type: 'Divider',
     label: 'Divider',
-    capabilities: ['divider', 'background', 'layout', 'position', 'rotate', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['background', 'layout', 'position', 'rotate', 'effects']
+    capabilities: ['divider', 'background', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['background', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation']
   },
   {
     type: 'Icon',
     label: 'Icon',
-    capabilities: ['icon', 'color', 'layout', 'position', 'rotate', 'effects', 'advanced'],
-    compatibleStyleCapabilities: ['color', 'layout', 'position', 'rotate', 'effects']
+    capabilities: ['icon', 'color', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation', 'advanced'],
+    compatibleStyleCapabilities: ['color', 'layout', 'position', 'rotate', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'timeline-animation']
   }
 ]
 

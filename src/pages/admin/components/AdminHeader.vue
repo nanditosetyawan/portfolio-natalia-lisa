@@ -4,7 +4,9 @@
       <button
         v-if="showHamburger"
         class="hamburger-btn"
-        aria-label="Open sidebar"
+        :aria-label="props.menuOpen ? 'Close sidebar' : 'Open sidebar'"
+        aria-controls="admin-sidebar"
+        :aria-expanded="props.menuOpen"
         @click="$emit('toggle-sidebar')"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -25,10 +27,12 @@
 interface Props {
   title: string
   showHamburger?: boolean
+  menuOpen?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showHamburger: false
+  showHamburger: false,
+  menuOpen: false
 })
 
 defineEmits(['toggle-sidebar'])
@@ -71,6 +75,11 @@ defineEmits(['toggle-sidebar'])
 
 .hamburger-btn:hover {
   background-color: #FFF5EB;
+}
+
+.hamburger-btn:focus-visible {
+  outline: 2px solid #7B5F3B;
+  outline-offset: 2px;
 }
 
 .page-title {

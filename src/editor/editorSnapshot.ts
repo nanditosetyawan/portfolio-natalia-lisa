@@ -2,6 +2,7 @@ import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/si
 import type { CertificateCard } from '../data/default/certificates'
 import type { MediaUsage, PhotoAreaEntity } from '../types/site'
 import { validateRegisteredProperties } from './propertyRegistry'
+import { validateEncodedAnimationName } from './animationRegistry'
 import {
   EDITOR_SNAPSHOT_READER_VERSION,
   EDITOR_SNAPSHOT_SCHEMA_VERSION,
@@ -191,6 +192,10 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     for (const field of ['durationMs', 'delayMs']) if (settings[field] !== undefined && (typeof settings[field] !== 'number' || !Number.isFinite(settings[field]) || settings[field] < 0 || settings[field] > 3600000)) errors.push(`animations.${key}.${field} is invalid.`)
     if (settings.enabled !== undefined && typeof settings.enabled !== 'boolean') errors.push(`animations.${key}.enabled is invalid.`)
     if (settings.name !== undefined && !validString(settings.name, 128)) errors.push(`animations.${key}.name is invalid.`)
+    else {
+      const animationNameError = validateEncodedAnimationName(settings.name as string | undefined)
+      if (animationNameError) errors.push(`animations.${key}.name is invalid: ${animationNameError}`)
+    }
     if (settings.easing !== undefined && (typeof settings.easing !== 'string' || !/^(?:linear|ease|ease-in|ease-out|ease-in-out|cubic-bezier\([^)]{1,80}\)|steps\([^)]{1,80}\))$/.test(settings.easing))) errors.push(`animations.${key}.easing is invalid.`)
   }
   if (!errors.length) {

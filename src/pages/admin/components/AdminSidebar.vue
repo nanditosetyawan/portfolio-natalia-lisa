@@ -8,8 +8,11 @@
     ></div>
     
     <aside
+      id="admin-sidebar"
       :class="['admin-sidebar', { open: drawerOpen, drawer: isDrawer }]"
       :style="sidebarStyles"
+      :inert="isDrawer && !drawerOpen"
+      :aria-hidden="isDrawer && !drawerOpen"
     >
       <div class="sidebar-header">
         <div class="brand">
@@ -42,7 +45,7 @@
             <router-link
               :to="item.path"
               class="nav-item"
-              :class="{ active: item.path === activePath }"
+              :class="{ active: isItemActive(item.path) }"
               @click="handleNavClick"
             >
               <component :is="getIconComponent(item.icon)" class="nav-icon" />
@@ -68,7 +71,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import { Edit, Image, LayoutDashboard, Wrench, Mail } from 'lucide-vue-next'
+import { Clock3, Edit, FileText, Heart, Image, LayoutDashboard, Mail, Wrench } from 'lucide-vue-next'
 
 interface SidebarItem {
   path: string
@@ -95,6 +98,9 @@ const drawerOpen = computed(() => props.isOpen)
 const iconMap = {
   'layout-dashboard': LayoutDashboard,
   'edit': Edit,
+  'file-text': FileText,
+  'heart': Heart,
+  'clock': Clock3,
   'image': Image,
   'wrench': Wrench,
   'mail': Mail
@@ -103,6 +109,9 @@ const iconMap = {
 const getIconComponent = (iconName: string) => {
   return iconMap[iconName as keyof typeof iconMap] || null
 }
+
+const isItemActive = (path: string) => path === props.activePath
+  || (path !== '/admin' && props.activePath.startsWith(`${path}/`))
 
 const closeSidebar = () => {
   emit('close')
@@ -235,6 +244,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 .hamburger-btn:hover {
   background-color: #FFF5EB;
+}
+
+.hamburger-btn:focus-visible,
+.nav-item:focus-visible,
+.logout-btn:focus-visible {
+  outline: 2px solid #7B5F3B;
+  outline-offset: 2px;
 }
 
 .sidebar-nav {

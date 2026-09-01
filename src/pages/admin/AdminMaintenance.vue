@@ -4,8 +4,9 @@
       <button
         type="button"
         class="maintenance-card maintenance-card--import"
-        aria-label="Import media"
-        @click="handleCardClick('import')"
+        aria-label="Import media — unavailable"
+        title="Not available in this build"
+        disabled
       >
         <span class="maintenance-illustration">
           <Upload class="illustration-icon" />
@@ -24,8 +25,9 @@
       <button
         type="button"
         class="maintenance-card maintenance-card--export"
-        aria-label="Export media"
-        @click="handleCardClick('export')"
+        aria-label="Export media — unavailable"
+        title="Not available in this build"
+        disabled
       >
         <span class="maintenance-illustration">
           <Download class="illustration-icon" />
@@ -44,8 +46,9 @@
       <button
         type="button"
         class="maintenance-card maintenance-card--reset"
-        aria-label="Reset system"
-        @click="handleResetCardClick"
+        aria-label="Reset system — unavailable"
+        title="Not available in this build"
+        disabled
       >
         <span class="maintenance-illustration">
           <RefreshCw class="illustration-icon" />
@@ -64,60 +67,15 @@
       <div class="maintenance-info-banner">
         <Info class="info-icon" />
         <span class="info-text">
-          Reset System will restore the current configuration to the default system state.
+          Maintenance actions are not available in this build.
         </span>
       </div>
     </div>
-
-    <transition name="modal-fade">
-      <div
-        v-if="showResetModal"
-        class="modal-overlay"
-        @click.self="showResetModal = false"
-      >
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-          <div class="modal-header">
-            <h3 id="modal-title" class="modal-title">Reset System</h3>
-            <p class="modal-text">
-              This will reset the current configuration to the default system
-              state. This operation cannot be undone.
-            </p>
-          </div>
-          <div class="modal-actions">
-            <button
-              type="button"
-              class="modal-btn modal-btn--cancel"
-              @click="showResetModal = false"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="modal-btn modal-btn--confirm"
-              @click="showResetModal = false"
-            >
-              Reset System
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Upload, Download, RefreshCw, ChevronRight, Info } from 'lucide-vue-next'
-
-const showResetModal = ref(false)
-
-const handleCardClick = (_action: string) => {
-  // UI shell only - placeholder action
-}
-
-const handleResetCardClick = () => {
-  showResetModal.value = true
-}
 </script>
 
 <style scoped>
@@ -159,6 +117,16 @@ const handleResetCardClick = () => {
 .maintenance-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 30px -8px rgba(90, 62, 53, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.06);
+}
+
+.maintenance-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.maintenance-card:disabled:hover {
+  transform: none;
+  box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.05);
 }
 
 .maintenance-card:focus-visible {
@@ -220,11 +188,11 @@ const handleResetCardClick = () => {
   height: 16px;
 }
 
-.maintenance-card--reset:hover .maintenance-illustration {
+.maintenance-card--reset:not(:disabled):hover .maintenance-illustration {
   background: linear-gradient(150deg, #FFEEEC 0%, #FFEFEE 100%);
 }
 
-.maintenance-card--reset:hover {
+.maintenance-card--reset:not(:disabled):hover {
   box-shadow: 0 12px 30px -8px rgba(180, 78, 42, 0.18), 0 0 0 1px rgba(180, 78, 42, 0.1);
 }
 
@@ -246,90 +214,6 @@ const handleResetCardClick = () => {
   height: 16px;
   flex-shrink: 0;
   color: #B45F04;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(90, 62, 53, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1.5rem;
-}
-
-.modal {
-  background: #FAF9F5;
-  border-radius: 24px;
-  padding: 24px;
-  max-width: 420px;
-  width: 100%;
-  box-shadow: 0 25px 50px -12px rgba(90, 62, 53, 0.25);
-}
-
-.modal-header {
-  margin-bottom: 1rem;
-}
-
-.modal-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #5A3E35;
-}
-
-.modal-text {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #7B5F3B;
-  line-height: 1.5;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 1.25rem;
-}
-
-.modal-btn {
-  padding: 0.5rem 1.25rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid #E8DED0;
-  transition: all 0.2s ease;
-}
-
-.modal-btn--cancel {
-  background: #FFF5EB;
-  color: #7B5F3B;
-}
-
-.modal-btn--cancel:hover {
-  background: #FFE4B5;
-}
-
-.modal-btn--confirm {
-  background: #FFEEEC;
-  color: #B44E2A;
-  border-color: #FCD3BE;
-}
-
-.modal-btn--confirm:hover {
-  background: #FFE1DA;
-}
-
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
 }
 
 @media (max-width: 768px) {

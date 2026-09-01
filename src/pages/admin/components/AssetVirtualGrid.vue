@@ -21,6 +21,7 @@ const viewportWidth = ref(0)
 const viewportHeight = ref(0)
 const scrollTop = ref(0)
 let resizeObserver: ResizeObserver | null = null
+let resizeFrameRequest = 0
 
 const GAP = 16
 const MIN_CARD_WIDTH = 190
@@ -40,8 +41,18 @@ const visibleAssets = computed(() => props.assets.slice(startRow.value * columns
 
 function updateMetrics(): void {
   if (!viewport.value) return
-  viewportWidth.value = viewport.value.clientWidth
-  viewportHeight.value = viewport.value.clientHeight
+  const nextWidth = viewport.value.clientWidth
+  const nextHeight = viewport.value.clientHeight
+  if (viewportWidth.value !== nextWidth) viewportWidth.value = nextWidth
+  if (viewportHeight.value !== nextHeight) viewportHeight.value = nextHeight
+}
+
+function scheduleMetrics(): void {
+  if (resizeFrameRequest) return
+  resizeFrameRequest = requestAnimationFrame(() => {
+    resizeFrameRequest = 0
+    updateMetrics()
+  })
 }
 
 function cardStyle(index: number): Record<string, string> {
@@ -131,12 +142,15 @@ function greatestCommonDivisor(left: number, right: number): number {
 }
 
 onMounted(() => {
-  resizeObserver = new ResizeObserver(updateMetrics)
+  resizeObserver = new ResizeObserver(scheduleMetrics)
   if (viewport.value) resizeObserver.observe(viewport.value)
   updateMetrics()
 })
 
-onBeforeUnmount(() => resizeObserver?.disconnect())
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  if (resizeFrameRequest) cancelAnimationFrame(resizeFrameRequest)
+})
 </script>
 
 <template>

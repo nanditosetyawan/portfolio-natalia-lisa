@@ -10,8 +10,14 @@
       <span class="item-count">{{ items.length }} item</span>
     </div>
 
+    <p v-if="library.error || actionError" class="media-state media-state-error" role="alert">
+      {{ actionError || library.error }}
+    </p>
+    <p v-else-if="library.loading && items.length === 0" class="media-state" role="status">Memuat galeri video…</p>
+    <div v-else-if="items.length === 0" class="media-state" role="status">Belum ada video.</div>
+
     <!-- Media Grid -->
-    <div class="media-grid">
+    <div v-else class="media-grid">
       <div v-for="item in items" :key="item.id" class="media-card">
         <!-- Preview with play overlay -->
         <div class="card-preview" :style="{ background: item.color }">
@@ -27,15 +33,15 @@
         <!-- Hover overlay + actions -->
         <div class="card-hover-overlay">
           <div class="card-actions">
-            <button class="action-btn action-delete" :disabled="!item.asset.safeToDelete" :title="item.asset.safeToDelete ? 'Hapus' : 'Media yang digunakan, bawaan, atau Published tidak dapat dihapus.'" @click.stop="openDeleteModal(item)">
+            <button class="action-btn action-delete" :disabled="!item.asset.safeToDelete" :aria-label="`Hapus ${item.name}`" :title="item.asset.safeToDelete ? 'Hapus' : 'Media yang digunakan, bawaan, atau Published tidak dapat dihapus.'" @click.stop="openDeleteModal(item)">
               <Trash2 class="action-icon" />
               <span class="btn-tooltip">Hapus</span>
             </button>
-            <button class="action-btn action-view" @click.stop="openViewModal(item)">
+            <button class="action-btn action-view" :aria-label="`Lihat ${item.name}`" @click.stop="openViewModal(item)">
               <Eye class="action-icon" />
               <span class="btn-tooltip">Lihat</span>
             </button>
-            <button class="action-btn action-edit" @click.stop="openEditModal(item)">
+            <button class="action-btn action-edit" :aria-label="`Ubah nama ${item.name}`" @click.stop="openEditModal(item)">
               <Pencil class="action-icon" />
               <span class="btn-tooltip">Ubah Nama</span>
             </button>
@@ -46,11 +52,11 @@
 
     <!-- Delete Confirmation Modal -->
     <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
-      <div class="modal-card">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="video-delete-title">
         <div class="modal-icon-wrap modal-icon-delete">
           <Trash2 class="modal-big-icon" />
         </div>
-        <h3 class="modal-title">Hapus Video?</h3>
+        <h3 id="video-delete-title" class="modal-title">Hapus Video?</h3>
         <p class="modal-desc">
           File <strong>{{ deleteTarget.name }}</strong> akan dihapus secara permanen.<br />
           Tindakan ini tidak dapat dibatalkan.
@@ -64,12 +70,14 @@
 
     <!-- Edit / Rename Modal -->
     <div v-if="editTarget" class="modal-backdrop" @click.self="cancelEdit">
-      <div class="modal-card">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="video-rename-title">
         <div class="modal-icon-wrap modal-icon-edit">
           <Pencil class="modal-big-icon" />
         </div>
-        <h3 class="modal-title">Ubah Nama File</h3>
+        <h3 id="video-rename-title" class="modal-title">Ubah Nama File</h3>
+        <label class="sr-only" for="video-rename-input">Nama video baru</label>
         <input
+          id="video-rename-input"
           v-model="editName"
           class="modal-input"
           placeholder="Masukkan nama baru..."
@@ -84,8 +92,8 @@
 
     <!-- View / Video Player Modal -->
     <div v-if="viewTarget" class="modal-backdrop modal-backdrop-view" @click.self="viewTarget = null">
-      <div class="modal-view-card">
-        <button class="modal-close-btn" @click="viewTarget = null">
+      <div class="modal-view-card" role="dialog" aria-modal="true" aria-labelledby="video-preview-title">
+        <button class="modal-close-btn" aria-label="Tutup pratinjau video" @click="viewTarget = null">
           <X class="close-icon" />
         </button>
         <div class="modal-video-wrap">
@@ -98,7 +106,7 @@
           </div>
         </div>
         <div class="modal-view-footer">
-          <span class="modal-view-filename">{{ viewTarget.name }}</span>
+          <span id="video-preview-title" class="modal-view-filename">{{ viewTarget.name }}</span>
           <span class="modal-view-meta">{{ viewTarget.size }} &bull; {{ viewTarget.format }}</span>
         </div>
       </div>
@@ -144,6 +152,7 @@ const deleteTarget = ref<MediaItem | null>(null)
 const editTarget = ref<MediaItem | null>(null)
 const editName = ref('')
 const viewTarget = ref<MediaItem | null>(null)
+const actionError = ref('')
 
 function formatBytes(value: number | null): string {
   if (value === null) return 'Not available'
@@ -159,6 +168,7 @@ function formatLabel(asset: MediaLibraryAsset): string {
 }
 
 function openDeleteModal(item: MediaItem): void {
+  actionError.value = ''
   if (item.asset.safeToDelete) deleteTarget.value = item
 }
 
@@ -169,11 +179,12 @@ async function confirmDelete(): Promise<void> {
     await library.remove(target.asset)
     deleteTarget.value = null
   } catch (error) {
-    window.alert(error instanceof Error ? error.message : 'Video tidak dapat dihapus.')
+    actionError.value = error instanceof Error ? error.message : 'Video tidak dapat dihapus.'
   }
 }
 
 function openEditModal(item: MediaItem): void {
+  actionError.value = ''
   editTarget.value = item
   editName.value = item.name
 }
@@ -185,7 +196,7 @@ async function confirmEdit(): Promise<void> {
     await library.rename(target.asset, editName.value.trim())
     editTarget.value = null
   } catch (error) {
-    window.alert(error instanceof Error ? error.message : 'Nama video tidak dapat disimpan.')
+    actionError.value = error instanceof Error ? error.message : 'Nama video tidak dapat disimpan.'
   }
 }
 
@@ -259,6 +270,17 @@ onMounted(() => library.refresh().catch(() => undefined))
   margin: 0 auto;
 }
 
+.media-state {
+  width: 100%; max-width: 1200px; margin: 0 auto; padding: 2rem;
+  border: 1px dashed #D2C4B4; border-radius: 18px;
+  background: #FAF9F5; color: #7B5F3B; text-align: center;
+}
+.media-state-error { border-style: solid; border-color: #E7B8AC; color: #8E3F29; background: #FFF4F1; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
 .media-card {
   position: relative;
   border-radius: 18px;
@@ -326,7 +348,8 @@ onMounted(() => library.refresh().catch(() => undefined))
   justify-content: center;
   z-index: 3;
 }
-.media-card:hover .card-hover-overlay { opacity: 1; }
+.media-card:hover .card-hover-overlay,
+.media-card:focus-within .card-hover-overlay { opacity: 1; }
 
 .card-actions { display: flex; gap: 12px; align-items: center; }
 
@@ -342,7 +365,12 @@ onMounted(() => library.refresh().catch(() => undefined))
   transform: translateY(6px);
   transition: transform 0.2s ease, box-shadow 0.15s ease;
 }
-.media-card:hover .action-btn { transform: translateY(0); }
+.media-card:hover .action-btn,
+.media-card:focus-within .action-btn { transform: translateY(0); }
+.action-btn:focus-visible,
+.modal-btn:focus-visible,
+.modal-close-btn:focus-visible,
+.back-btn:focus-visible { outline: 2px solid #5A3E35; outline-offset: 2px; }
 .action-btn:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
 .action-icon { width: 18px; height: 18px; }
 

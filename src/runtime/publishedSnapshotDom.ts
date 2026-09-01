@@ -1,5 +1,6 @@
 import { applyRegisteredSnapshotProperties } from '../editor/propertyRuntime'
 import type { EditorSnapshot } from '../types/editorSnapshot'
+import { applyAnimationRuntime } from './animationRuntime'
 
 /**
  * Guest styling deliberately delegates to the same metadata registry used by
@@ -8,4 +9,5 @@ import type { EditorSnapshot } from '../types/editorSnapshot'
  */
 export function applyPublishedSnapshotDom(root: HTMLElement, snapshot: EditorSnapshot): void {
   applyRegisteredSnapshotProperties(root, snapshot)
+  applyAnimationRuntime(root, snapshot, { autoplayEntrance: true, respectReducedMotion: true })
 }

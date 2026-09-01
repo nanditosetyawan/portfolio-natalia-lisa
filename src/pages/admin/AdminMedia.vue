@@ -11,11 +11,11 @@
             'media-card-selected': category.selected,
             'media-card-upload': category.id === 'upload'
           }"
-          role="button"
-          tabindex="0"
+          :role="category.id === 'upload' ? 'button' : undefined"
+          :tabindex="category.id === 'upload' ? 0 : undefined"
           @click="handleCardAction(category)"
-          @keydown.enter="handleCardAction(category)"
-          @keydown.space.prevent="handleCardAction(category)"
+          @keydown.enter="handleUploadCardKey(category)"
+          @keydown.space="handleUploadCardKey(category, $event)"
         >
           <div class="card-illustration">
             <component :is="category.icon" class="illustration-icon" />
@@ -126,7 +126,7 @@
                     @click="submitUploads"
                   >
                     <span v-if="isSubmitting" class="spinner"></span>
-                    <span>{{ isSubmitting ? 'Mengunggah..."' : 'Kirim' }}</span>
+                    <span>{{ isSubmitting ? 'Mengunggah…' : 'Kirim' }}</span>
                   </button>
                 </div>
               </div>
@@ -263,6 +263,12 @@ function handleCardAction(category: MediaCategory): void {
   else if (category.id === 'images') void router.push({ name: 'admin-media-images' })
   else if (category.id === 'videos') void router.push({ name: 'admin-media-videos' })
   else void router.push({ name: 'admin-media-documents' })
+}
+
+function handleUploadCardKey(category: MediaCategory, event?: KeyboardEvent): void {
+  if (category.id !== 'upload') return
+  event?.preventDefault()
+  handleCardAction(category)
 }
 
 function triggerFileSelect(): void {

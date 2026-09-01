@@ -485,19 +485,4 @@ onUnmounted(() => {
   color: #7B5F3B;
 }
 
-.card-message-arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #8D363A;
-  color: #FFFFFF;
-  transition: transform 0.2s ease;
-}
-
-.card-message:hover .card-message-arrow {
-  transform: translateX(3px);
-}
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ClipboardCopy, ClipboardPaste, Eye, EyeOff, Lock, Unlock } from 'lucide-vue-next'
+import { ClipboardCopy, ClipboardPaste, Eye, EyeOff, Lock, Palette, Unlock } from 'lucide-vue-next'
 import HomePage from '../guest/HomePage.vue'
 import type { RuntimeAdminProperty } from '../../composables/useAdminEntityRegistry'
 import { useEditorObjectRegistry, type EditorRuntimeObject } from '../../composables/useEditorObjectRegistry'
@@ -27,8 +27,10 @@ import PropertyControl from './components/PropertyControl.vue'
 import PropertyInputControl from './components/property-controls/PropertyInputControl.vue'
 import EditorObjectNavigator from './components/EditorObjectNavigator.vue'
 import AssetPickerModal from './components/AssetPickerModal.vue'
+import DesignSystemPanel from './components/DesignSystemPanel.vue'
 import { useEditorStore } from '../../stores/editor'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
+import { useDesignSystemStore } from '../../stores/designSystem'
 import { createEditorSnapshot } from '../../editor/editorSnapshot'
 import {
   editorPublishErrors,
@@ -39,17 +41,40 @@ import {
 import { invalidatePublishedRuntimeCache } from '../../runtime/publishedRuntime'
 import {
   isPropertyEnabled,
+  propertyRegistry,
   readSnapshotPath,
   resolveProperties,
   resolvePropertyPath
 } from '../../editor/propertyRegistry'
+import {
+  buttonSizeRegistry,
+  buttonStyleRegistry,
+  designTokenRegistry,
+  propertyTokenMetadata,
+  reusableComponentRegistry
+} from '../../editor/designSystemRegistry'
 import { applyRegisteredObjectProperties, applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
+import {
+  applyAnimationPreset,
+  hasAnimation,
+  readAnimationInspectorValue,
+  updateAnimationConfiguration,
+  type AnimationPropertyField
+} from '../../editor/animationRegistry'
+import {
+  applyAnimationObject,
+  applyAnimationRuntime,
+  prefersReducedMotion,
+  previewAnimation,
+  restoreAnimationRuntime
+} from '../../runtime/animationRuntime'
 import {
   applyResponsiveObjectProperties,
   cloneResponsiveObjectChanges,
   defaultResponsiveCanvasPresetId,
   effectiveResponsiveLayout,
   isResponsiveLayoutPropertyEnabled,
+  materializeResponsiveObjectSnapshot,
   objectHasResponsiveData,
   readResponsiveLayoutPropertyState,
   removeResponsiveObjectChanges,
@@ -61,6 +86,7 @@ import {
   responsiveLayoutResetChanges,
   responsiveLayoutValues,
   responsiveSnapshotResetChange,
+  responsiveSnapshotEntityId,
   responsiveSnapshotWritePath,
   responsiveStateLabel,
   restoreResponsiveObjectProperties,
@@ -80,8 +106,17 @@ import type {
   PropertyRegistryEntry,
   PropertyVisibilityContext
 } from '../../types/editor'
-import type { EditorSnapshot, SnapshotMediaModel } from '../../types/editorSnapshot'
+import type { AnimationSettings, EditorSnapshot, SnapshotMediaModel } from '../../types/editorSnapshot'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
+import type {
+  ButtonSizeId,
+  ButtonVariantId,
+  DesignReferenceContext,
+  DesignScope,
+  SavedComponentPreset,
+  SavedSectionTemplate,
+  TypographyRoleId
+} from '../../types/designSystem'
 
 interface PanelProperty {
   key: string
@@ -144,6 +179,8 @@ const certificates = useCertificatesStore()
 const editorEntities = useEditorObjectRegistry()
 const photoRegistry = usePhotoAreaRegistry()
 const mediaLibrary = useMediaLibraryStore()
+const designSystem = useDesignSystemStore()
+designSystem.initialize()
 
 const saveStatus = ref('')
 const initializationError = ref('')
@@ -151,6 +188,9 @@ const editorReady = ref(false)
 const showOpenModal = ref(false)
 const showUnsavedModal = ref(false)
 const showAssetPicker = ref(false)
+const showDesignSystem = ref(false)
+const animationClipboard = ref<AnimationSettings | null>(null)
+const reducedMotionActive = ref(false)
 const pendingLibrary = ref<LibraryRouteName | null>(null)
 const canvasScroll = ref<HTMLElement | null>(null)
 const canvasContainer = ref<HTMLElement | null>(null)
@@ -171,12 +211,14 @@ const selectionGap = ref(16)
 const previewUpdateDuration = ref(0)
 const previewUpdateCount = ref(0)
 const mediaDropTargetId = ref<string | null>(null)
+const designLinkScopes = ref<Record<string, DesignScope>>({})
 const isPanning = ref(false)
 const mediaPreviewUrls = new Map<string, string>()
 const managedMediaAreaIds = new Set<string>()
 const pendingPreviewObjectIds = new Set<string>()
 let selectedPreviewElement: HTMLElement | null = null
 let previewObserver: ResizeObserver | null = null
+let previewMetricsFrameRequest = 0
 let previewFrameRequest = 0
 let previewHeightTimer: number | null = null
 let previewHeightFrameRequest = 0
@@ -190,6 +232,7 @@ let selectionBoxAdditive = false
 let previewDrag: PreviewDragState | null = null
 let unregisterSave: (() => void) | null = null
 let unregisterPublish: (() => void) | null = null
+let reducedMotionQuery: MediaQueryList | null = null
 
 function cloneEditorData<T>(value: T): T {
   const raw = value && typeof value === 'object' ? toRaw(value as object) : value
@@ -365,6 +408,359 @@ const selectedPanelGroups = computed<PanelGroup[]>(() => {
     })
 })
 
+function designReferenceContext(object: Pick<EditorObject, 'id' | 'section' | 'type'>): DesignReferenceContext {
+  return { objectId: object.id, section: object.section, component: object.type }
+}
+
+function designScopeFor(property: PanelProperty): DesignScope {
+  return designLinkScopes.value[property.key] ?? 'object'
+}
+
+function designReferenceFor(property: PanelProperty) {
+  const entity = selectedEntity.value
+  const styleKey = property.metadata.styleKey
+  return entity && styleKey ? designSystem.resolveReference(designReferenceContext(entity), styleKey) : null
+}
+
+function designReferenceLabel(property: PanelProperty): string {
+  const reference = designReferenceFor(property)
+  const assignment = selectedEntity.value ? designSystem.workspace.typographyAssignments[selectedEntity.value.id] : undefined
+  const styleKey = property.metadata.styleKey
+  const roleValue = assignment && styleKey ? typographyRoleValues(assignment.roleId)[styleKey] : undefined
+  if (!reference && assignment && styleKey && roleValue !== undefined) {
+    return assignment.overriddenStyleKeys.includes(styleKey) ? 'Overridden' : 'Inherited · Typography Role'
+  }
+  if (!reference) return 'Direct value'
+  if (reference.overridden) return 'Overridden'
+  if (reference.scope === 'theme') return 'Global Token'
+  return `Inherited · ${reference.scope === 'component' ? 'Component' : reference.scope === 'section' ? 'Section' : 'Object'}`
+}
+
+function designReferenceTokenLabel(property: PanelProperty): string {
+  const tokenId = designReferenceFor(property)?.tokenId
+  if (tokenId) return designTokenRegistry.find((token) => token.id === tokenId)?.label ?? ''
+  const assignment = selectedEntity.value ? designSystem.workspace.typographyAssignments[selectedEntity.value.id] : undefined
+  return assignment && property.metadata.styleKey && typographyRoleValues(assignment.roleId)[property.metadata.styleKey] !== undefined ? assignment.roleId : ''
+}
+
+function canResetDesignOverride(property: PanelProperty): boolean {
+  if (designReferenceFor(property)?.overridden) return true
+  const entity = selectedEntity.value
+  const styleKey = property.metadata.styleKey
+  const assignment = entity ? designSystem.workspace.typographyAssignments[entity.id] : undefined
+  return Boolean(styleKey && assignment?.overriddenStyleKeys.includes(styleKey))
+}
+
+function markDesignPropertyOverride(entity: EditorRuntimeObject, property: PanelProperty): void {
+  const styleKey = property.metadata.styleKey
+  if (!styleKey || property.responsiveProperty || property.metadata.databaseMapping.kind !== 'snapshot') return
+  designSystem.markOverride(designReferenceContext(entity), styleKey)
+  designSystem.markTypographyOverride(entity.id, styleKey)
+}
+
+function compatibleDesignTokens(property: PanelProperty) {
+  const kinds = property.metadata.designToken?.kinds ?? []
+  return designTokenRegistry.filter((token) => kinds.includes(token.kind))
+}
+
+function stylePropertyForObject(object: EditorObject, styleKey: string): PropertyRegistryEntry | null {
+  return propertyRegistry.find((property) => (
+    property.styleKey === styleKey
+    && property.databaseMapping.kind === 'snapshot'
+    && property.databaseMapping.path.includes('{entityId}')
+    && object.capabilities.includes(property.capability)
+  )) ?? null
+}
+
+function tokenValue(tokenId: string): EditorValue {
+  return designSystem.previewTheme.tokens[tokenId]
+}
+
+function tokenReference(value: EditorValue | { tokenId: string }): value is { tokenId: string } {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && 'tokenId' in value
+}
+
+function setDesignThemeVariables(): void {
+  const root = previewStage.value
+  if (!root) return
+  for (const token of designTokenRegistry) {
+    const value = designSystem.previewTheme.tokens[token.id]
+    root.style.setProperty(token.cssVariable, token.kind === 'duration' && typeof value === 'number' ? `${value}ms` : String(value ?? ''))
+  }
+  root.dataset.designThemeId = designSystem.previewTheme.id
+}
+
+function applyCanonicalStyleValues(
+  objects: EditorObject[],
+  values: Record<string, EditorValue | { tokenId: string }>,
+  interaction: string,
+  registerTokenReferences = true
+): boolean {
+  const changes = new Map<string, EditorValue>()
+  const objectIds = new Set<string>()
+  for (const object of objects) {
+    if (editor.objectState(object.id).locked) continue
+    const context = designReferenceContext(object)
+    for (const [styleKey, rawValue] of Object.entries(values)) {
+      const property = stylePropertyForObject(object, styleKey)
+      if (!property) continue
+      const value = tokenReference(rawValue) ? tokenValue(rawValue.tokenId) : rawValue
+      const serialized = property.serializer.serialize(value)
+      const validation = property.validation.validate(serialized, { entity: object, snapshot: editor.draftSnapshot, values: {} })
+      if (validation) continue
+      const path = resolvePropertyPath(property, object.id)
+      if (!path) continue
+      changes.set(path, serialized)
+      objectIds.add(object.id)
+      if (registerTokenReferences && tokenReference(rawValue)) designSystem.setReference('object', context, styleKey, rawValue.tokenId)
+    }
+  }
+  const primary = objects[0]
+  if (!primary || !changes.size) return false
+  const applied = editor.setProperties(primary.id, [...changes].map(([propertyPath, nextValue]) => ({ propertyPath, nextValue })), {
+    interaction,
+    objectIds: [...objectIds]
+  }, 'SET_PROPERTY')
+  if (applied) {
+    markEditorChanged()
+    saveStatus.value = `${interaction} applied to ${objectIds.size} object${objectIds.size === 1 ? '' : 's'}.`
+  }
+  return applied
+}
+
+function linkedDesignValues(tokenId?: string): { objects: EditorObject[]; valuesByObject: Map<string, Record<string, EditorValue | { tokenId: string }>> } {
+  const valuesByObject = new Map<string, Record<string, EditorValue | { tokenId: string }>>()
+  const styleKeys = Object.keys(propertyTokenMetadata)
+  for (const object of editor.objects) {
+    for (const styleKey of styleKeys) {
+      const reference = designSystem.resolveReference(designReferenceContext(object), styleKey)
+      if (!reference || reference.overridden || (tokenId && reference.tokenId !== tokenId) || !stylePropertyForObject(object, styleKey)) continue
+      valuesByObject.set(object.id, { ...(valuesByObject.get(object.id) ?? {}), [styleKey]: { tokenId: reference.tokenId } })
+    }
+  }
+  return { objects: editor.objects.filter((object) => valuesByObject.has(object.id)), valuesByObject }
+}
+
+function applyLinkedDesignValues(tokenId?: string, interaction = 'Design Token'): boolean {
+  const linked = linkedDesignValues(tokenId)
+  const changes = new Map<string, EditorValue>()
+  const objectIds: string[] = []
+  for (const object of linked.objects) {
+    const values = linked.valuesByObject.get(object.id) ?? {}
+    let changed = false
+    for (const [styleKey, rawValue] of Object.entries(values)) {
+      const property = stylePropertyForObject(object, styleKey)
+      if (!property || !tokenReference(rawValue)) continue
+      const path = resolvePropertyPath(property, object.id)
+      if (!path) continue
+      const serialized = property.serializer.serialize(tokenValue(rawValue.tokenId))
+      if (property.validation.validate(serialized, { entity: object, snapshot: editor.draftSnapshot, values: {} })) continue
+      changes.set(path, serialized)
+      changed = true
+    }
+    if (changed) objectIds.push(object.id)
+  }
+  if (!changes.size) return false
+  const applied = editor.setProperties(objectIds[0] ?? editor.selectedObjectId, [...changes].map(([propertyPath, nextValue]) => ({ propertyPath, nextValue })), { interaction, objectIds }, 'SET_PROPERTY')
+  if (applied) markEditorChanged()
+  return applied
+}
+
+function scaledTypeSize(value: EditorValue): EditorValue {
+  if (typeof value !== 'string') return value
+  const match = /^(\d+(?:\.\d+)?)(rem|em|px)$/.exec(value.trim())
+  const scale = designSystem.previewTheme.tokens['typography-scale']
+  if (!match || typeof scale !== 'number') return value
+  return `${Number((Number(match[1]) * scale).toFixed(4))}${match[2]}`
+}
+
+function typographyRoleValues(roleId: TypographyRoleId): Record<string, EditorValue | { tokenId: string }> {
+  const role = designSystem.previewTheme.typography[roleId]
+  return {
+    'typography.fontFamily': { tokenId: String(role.fontTokenId) },
+    'typography.fontSize': scaledTypeSize(role.fontSize),
+    'typography.fontWeight': role.fontWeight,
+    'typography.lineHeight': role.lineHeight,
+    'typography.letterSpacing': role.letterSpacing,
+    'typography.color': { tokenId: String(role.colorTokenId) }
+  }
+}
+
+function applyTypographyRole(roleId: TypographyRoleId): void {
+  const object = editor.selectedObject
+  if (!object || !object.capabilities.includes('typography')) return
+  designSystem.assignTypography(object.id, roleId)
+  applyCanonicalStyleValues([object], typographyRoleValues(roleId), `Typography ${roleId}`)
+}
+
+function reapplyAssignedTypography(roleId?: TypographyRoleId, styleKey?: string): void {
+  const changes = new Map<string, EditorValue>()
+  const objectIds: string[] = []
+  for (const object of editor.objects) {
+    const assignment = designSystem.workspace.typographyAssignments[object.id]
+    if (!assignment || (roleId && assignment.roleId !== roleId)) continue
+    const values = typographyRoleValues(assignment.roleId)
+    let touched = false
+    for (const [candidateStyleKey, rawValue] of Object.entries(values)) {
+      const roleField = candidateStyleKey.replace('typography.', '')
+      if ((styleKey && roleField !== styleKey) || assignment.overriddenStyleKeys.includes(candidateStyleKey)) continue
+      const property = stylePropertyForObject(object, candidateStyleKey)
+      if (!property) continue
+      const path = resolvePropertyPath(property, object.id)
+      if (!path) continue
+      const value = tokenReference(rawValue) ? tokenValue(rawValue.tokenId) : rawValue
+      changes.set(path, property.serializer.serialize(value))
+      touched = true
+    }
+    if (touched) objectIds.push(object.id)
+  }
+  if (changes.size && editor.setProperties(objectIds[0] ?? editor.selectedObjectId, [...changes].map(([propertyPath, nextValue]) => ({ propertyPath, nextValue })), { interaction: 'Global Typography', objectIds }, 'SET_PROPERTY')) markEditorChanged()
+}
+
+function buttonRecipeValues(variantId: ButtonVariantId, sizeId: ButtonSizeId): Record<string, EditorValue | { tokenId: string }> {
+  const variant = buttonStyleRegistry.find((candidate) => candidate.id === variantId)
+  const size = buttonSizeRegistry.find((candidate) => candidate.id === sizeId)
+  return { ...(variant?.values ?? {}), ...(size?.values ?? {}) }
+}
+
+function applyButtonStyle(payload: { variantId: ButtonVariantId; sizeId: ButtonSizeId }): void {
+  const object = editor.selectedObject
+  if (!object || (!object.capabilities.includes('button') && object.type !== 'Button')) return
+  designSystem.assignButton(object.id, payload.variantId, payload.sizeId)
+  applyCanonicalStyleValues([object], buttonRecipeValues(payload.variantId, payload.sizeId), `Button ${payload.variantId}`)
+}
+
+function applyComponentRecipe(componentId: string): void {
+  const object = editor.selectedObject
+  const component = reusableComponentRegistry.find((candidate) => candidate.id === componentId)
+  if (!object || !component || component.insertMode === 'unavailable-fixed-template' || !component.requiredCapabilities.every((capability) => object.capabilities.includes(capability))) return
+  applyCanonicalStyleValues([object], component.styleValues, `Component ${component.label}`)
+}
+
+function handleDesignTokenChange(payload: { tokenId: string; value: EditorValue }): void {
+  setDesignThemeVariables()
+  applyLinkedDesignValues(payload.tokenId, `Token ${payload.tokenId}`)
+  if (payload.tokenId === 'typography-scale' || ['font-body', 'font-heading', 'color-heading', 'color-text-primary', 'color-text-secondary'].includes(payload.tokenId)) reapplyAssignedTypography()
+}
+
+function applyDesignTheme(themeId: string): void {
+  setDesignThemeVariables()
+  applyLinkedDesignValues(undefined, `Theme ${themeId}`)
+  reapplyAssignedTypography()
+}
+
+function updateDesignScope(property: PanelProperty, event: Event): void {
+  designLinkScopes.value[property.key] = (event.target as HTMLSelectElement).value as DesignScope
+}
+
+function updateDesignReference(property: PanelProperty, event: Event): void {
+  const entity = selectedEntity.value
+  const styleKey = property.metadata.styleKey
+  if (!entity || !styleKey) return
+  const context = designReferenceContext(entity)
+  const scope = designScopeFor(property)
+  const tokenId = (event.target as HTMLSelectElement).value
+  if (!tokenId) {
+    designSystem.removeReference(scope, context, styleKey)
+    return
+  }
+  const token = designTokenRegistry.find((candidate) => candidate.id === tokenId)
+  if (!token || !property.metadata.designToken?.kinds.includes(token.kind)) return
+  designSystem.setReference(scope, context, styleKey, tokenId)
+  const targets = scope === 'theme' ? editor.objects
+    : scope === 'section' ? editor.objects.filter((object) => object.section === entity.section)
+      : scope === 'component' ? editor.objects.filter((object) => object.type === entity.type)
+        : editor.objects.filter((object) => object.id === entity.id)
+  applyCanonicalStyleValues(targets, { [styleKey]: { tokenId } }, `Link ${token.label}`, false)
+}
+
+function resetDesignOverride(property: PanelProperty): void {
+  const entity = selectedEntity.value
+  const styleKey = property.metadata.styleKey
+  if (!entity || !styleKey) return
+  const context = designReferenceContext(entity)
+  const assignment = designSystem.workspace.typographyAssignments[entity.id]
+  const inherited = designSystem.resetObjectOverride(context, styleKey)
+  designSystem.resetTypographyOverride(entity.id, styleKey)
+  if (inherited) {
+    applyCanonicalStyleValues([editor.selectedObject!], { [styleKey]: { tokenId: inherited.tokenId } }, `Reset ${property.metadata.label}`, false)
+    return
+  }
+  if (assignment && styleKey.startsWith('typography.')) {
+    const value = typographyRoleValues(assignment.roleId)[styleKey]
+    if (value !== undefined) applyCanonicalStyleValues([editor.selectedObject!], { [styleKey]: value }, `Reset ${property.metadata.label}`, false)
+  }
+}
+
+function saveSelectedSectionTemplate(): void {
+  const section = editor.selectedSection
+  if (!section) return
+  const styleValues: SavedSectionTemplate['styleValues'] = {}
+  for (const object of editor.objects.filter((candidate) => candidate.section === section)) {
+    const values: Record<string, EditorValue> = {}
+    for (const property of propertyRegistry) {
+      if (!property.styleKey || property.databaseMapping.kind !== 'snapshot' || !object.capabilities.includes(property.capability) || values[property.styleKey] !== undefined) continue
+      const path = resolvePropertyPath(property, object.id)
+      const value = path ? readSnapshotPath(editor.draftSnapshot, path) : undefined
+      if (value !== undefined) values[property.styleKey] = cloneEditorData(value)
+    }
+    if (Object.keys(values).length) styleValues[object.id] = values
+  }
+  const template: SavedSectionTemplate = { id: `section-template-${crypto.randomUUID()}`, name: `${section} Style`, sourceSection: section, createdAt: new Date().toISOString(), styleValues }
+  designSystem.saveSectionTemplate(template)
+  saveStatus.value = `${section} saved to the Template Library.`
+}
+
+function applySectionTemplate(templateId: string): void {
+  const template = designSystem.workspace.sectionTemplates.find((candidate) => candidate.id === templateId)
+  if (!template) return
+  const objects = editor.objects.filter((object) => object.section === template.sourceSection && template.styleValues[object.id])
+  const changes = new Map<string, EditorValue>()
+  for (const object of objects) {
+    for (const [styleKey, value] of Object.entries(template.styleValues[object.id] ?? {})) {
+      const property = stylePropertyForObject(object, styleKey)
+      const path = property ? resolvePropertyPath(property, object.id) : null
+      if (property && path) changes.set(path, property.serializer.serialize(value))
+    }
+  }
+  if (changes.size && editor.setProperties(objects[0]?.id ?? editor.selectedObjectId, [...changes].map(([propertyPath, nextValue]) => ({ propertyPath, nextValue })), { interaction: 'Section Template', objectIds: objects.map((object) => object.id) }, 'PASTE_STYLE')) {
+    markEditorChanged()
+    saveStatus.value = `${template.name} applied.`
+  }
+}
+
+function saveSelectedComponentPreset(): void {
+  const object = editor.selectedObject
+  if (!object) return
+  const styleValues: Record<string, EditorValue> = {}
+  for (const property of propertyRegistry) {
+    if (!property.styleKey || property.databaseMapping.kind !== 'snapshot' || !object.capabilities.includes(property.capability) || styleValues[property.styleKey] !== undefined) continue
+    const path = resolvePropertyPath(property, object.id)
+    const value = path ? readSnapshotPath(editor.draftSnapshot, path) : undefined
+    if (value !== undefined) styleValues[property.styleKey] = cloneEditorData(value)
+  }
+  const preset: SavedComponentPreset = { id: `component-preset-${crypto.randomUUID()}`, name: `${object.name} Style`, sourceType: object.type, createdAt: new Date().toISOString(), styleValues }
+  designSystem.saveComponentPreset(preset)
+  saveStatus.value = `${preset.name} saved.`
+}
+
+function applyComponentPreset(presetId: string): void {
+  const object = editor.selectedObject
+  const preset = designSystem.workspace.componentPresets.find((candidate) => candidate.id === presetId)
+  if (!object || !preset || object.type !== preset.sourceType) {
+    saveStatus.value = 'Select a compatible object before applying this preset.'
+    return
+  }
+  applyCanonicalStyleValues([object], preset.styleValues, `Preset ${preset.name}`, false)
+}
+
+function selectDesignSection(section: string): void {
+  const object = editor.objects.find((candidate) => candidate.section === section)
+  if (!object) return
+  selectNavigatorObject(object.id, true)
+  showDesignSystem.value = false
+}
+
 watch(() => editor.previewMutation.version, async () => {
   const mutation = editor.previewMutation
   const sitePaths = mutation.propertyPaths.filter((path) => /^(content|visual|behavior)(\.|$)/.test(path))
@@ -416,6 +812,7 @@ watch(editorEntities, (objects) => {
   void nextTick(() => {
     decoratePreviewEntities()
     applyEditorPreviewStyles()
+    setDesignThemeVariables()
   })
 }, { deep: false })
 
@@ -454,6 +851,7 @@ function applyEditorPreviewObject(root: HTMLElement, objectId: string): void {
   applyRegisteredObjectProperties(root, editor.draftSnapshot, objectId)
   const object = editorEntities.value.find((candidate) => candidate.id === objectId)
   if (object) applyResponsiveObjectProperties(root, editor.draftSnapshot, descriptorFor(object), activeBreakpoint.value)
+  applyAnimationObject(root, editor.draftSnapshot, objectId, { breakpoint: activeBreakpoint.value, autoplayEntrance: false, respectReducedMotion: true })
 }
 
 function applyEditorPreviewSnapshot(root: HTMLElement): void {
@@ -464,12 +862,15 @@ function applyEditorPreviewSnapshot(root: HTMLElement): void {
       applyResponsiveObjectProperties(root, editor.draftSnapshot, descriptorFor(object), activeBreakpoint.value)
     }
   }
+  applyAnimationRuntime(root, editor.draftSnapshot, { breakpoint: activeBreakpoint.value, autoplayEntrance: true, respectReducedMotion: true })
 }
 
 async function initializeEditor(): Promise<void> {
   initializationError.value = ''
   editorReady.value = false
   previewObserver?.disconnect()
+  if (previewMetricsFrameRequest) cancelAnimationFrame(previewMetricsFrameRequest)
+  previewMetricsFrameRequest = 0
   unregisterSave?.()
   unregisterPublish?.()
   previewObserver = null
@@ -536,7 +937,7 @@ async function initializeEditor(): Promise<void> {
     editorReady.value = true
     unregisterSave = registerEditorSave(saveDraft)
     unregisterPublish = registerEditorPublish(publishCurrentDraft)
-    previewObserver = new ResizeObserver(updatePreviewMetrics)
+    previewObserver = new ResizeObserver(schedulePreviewMetrics)
     if (canvasScroll.value) previewObserver.observe(canvasScroll.value)
     updatePreviewMetrics()
     schedulePreviewHeightMeasurement(0)
@@ -552,17 +953,23 @@ async function initializeEditor(): Promise<void> {
 onMounted(() => {
   window.addEventListener('keydown', handleEditorKeydown)
   document.addEventListener('pointerdown', closeContextMenuOnOutside)
+  reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  reducedMotionActive.value = prefersReducedMotion()
+  reducedMotionQuery.addEventListener('change', handleReducedMotionChange)
   void initializeEditor()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleEditorKeydown)
   document.removeEventListener('pointerdown', closeContextMenuOnOutside)
+  reducedMotionQuery?.removeEventListener('change', handleReducedMotionChange)
+  reducedMotionQuery = null
   endCanvasPan()
   endPreviewObjectDrag()
   endSelectionBox()
   clearMediaDropTarget()
   if (previewFrameRequest) cancelAnimationFrame(previewFrameRequest)
+  if (previewMetricsFrameRequest) cancelAnimationFrame(previewMetricsFrameRequest)
   if (previewHeightFrameRequest) cancelAnimationFrame(previewHeightFrameRequest)
   if (previewHeightTimer !== null) window.clearTimeout(previewHeightTimer)
   if (inlineTextEdit.value) cancelInlineTextEdit()
@@ -571,10 +978,20 @@ onBeforeUnmount(() => {
   unregisterPublish?.()
   resetEditorPublishFeedback()
   if (previewStage.value) {
+    restoreAnimationRuntime(previewStage.value)
     restoreResponsiveSnapshotProperties(previewStage.value)
     restoreRegisteredSnapshotProperties(previewStage.value)
   }
 })
+
+function handleReducedMotionChange(event: MediaQueryListEvent): void {
+  reducedMotionActive.value = event.matches
+  if (previewStage.value) applyAnimationRuntime(previewStage.value, editor.draftSnapshot, {
+    breakpoint: activeBreakpoint.value,
+    autoplayEntrance: false,
+    respectReducedMotion: true
+  })
+}
 
 function restoreSelectionFromSession(): void {
   const session = editor.draftSnapshot.session
@@ -678,6 +1095,13 @@ function readPanelValue(property: PanelProperty): string | number | boolean | nu
     return valueByField[metadata.databaseMapping.field]
   }
   if (metadata.databaseMapping.kind === 'action') {
+    if (metadata.animationField && selectedEntity.value) {
+      return primitiveValue(readAnimationInspectorValue(
+        metadata.animationField,
+        effectiveAnimationSettings(selectedEntity.value.id),
+        editor.draftSnapshot.animations.__global__
+      ))
+    }
     const targetId = selectedPhotoArea.value?.id
     const assignment = targetId ? editor.draftSnapshot.media.assignments.find((candidate) => candidate.entityId === targetId) : undefined
     if (metadata.databaseMapping.action === 'choose-media') return assignment?.assetId ?? ''
@@ -711,7 +1135,116 @@ type PropertyAction = Extract<PropertyRegistryEntry['databaseMapping'], { kind: 
 const propertyActionHandlers: Partial<Record<PropertyAction, (value: string | number | boolean, property: PanelProperty) => Promise<void>>> = {
   'choose-media': async (value, property) => chooseExistingMedia(String(value), property.metadata.commandType),
   'set-media-crop': async (value, property) => setMediaCrop(String(value), property.metadata.commandType),
-  'set-media-fit': async (value, property) => setMediaFit(String(value), property.metadata.commandType)
+  'set-media-fit': async (value, property) => setMediaFit(String(value), property.metadata.commandType),
+  'set-animation-config': async (value, property) => updateSelectedAnimationConfig(property.metadata.animationField, value),
+  'apply-animation-preset': async (value) => applySelectedAnimationPreset(String(value))
+}
+
+function animationRecordChanges(objectId: string, settings: AnimationSettings): Array<{ propertyPath: string; nextValue: EditorValue }> {
+  const targetId = animationTargetId(objectId)
+  return (['name', 'durationMs', 'delayMs', 'easing', 'enabled'] as const).map((field) => ({
+    propertyPath: `animations.${targetId}.${field}`,
+    nextValue: settings[field]
+  }))
+}
+
+function animationTargetId(objectId: string): string {
+  return activeBreakpoint.value === 'desktop'
+    ? objectId
+    : responsiveSnapshotEntityId(activeBreakpoint.value, objectId)
+}
+
+function effectiveAnimationSettings(objectId: string): AnimationSettings | undefined {
+  return materializeResponsiveObjectSnapshot(editor.draftSnapshot, objectId, activeBreakpoint.value).animations[objectId]
+}
+
+function commitAnimationSettings(
+  objectIds: string[],
+  settings: AnimationSettings,
+  interaction: string,
+  commandType: EditorCommandType = 'SET_PROPERTY'
+): boolean {
+  const editableIds = [...new Set(objectIds)].filter((objectId) => !editor.objectState(objectId).locked)
+  if (!editableIds.length) return false
+  const changes = editableIds.flatMap((objectId) => animationRecordChanges(objectId, settings))
+  const applied = editor.setProperties(editableIds[0] ?? editor.selectedObjectId, changes, { interaction, objectIds: editableIds }, commandType)
+  if (applied) markEditorChanged()
+  return applied
+}
+
+function updateSelectedAnimationConfig(field: AnimationPropertyField | undefined, value: EditorValue): void {
+  const entity = selectedEntity.value
+  if (!entity || !field) return
+  if (field === 'globalDisabled') {
+    const objectIds = editor.objects.map((object) => object.id)
+    if (editor.setProperties(entity.id, [{ propertyPath: 'animations.__global__.enabled', nextValue: !Boolean(value) }], {
+      interaction: 'Disable All Animations',
+      objectIds
+    }, 'SET_PROPERTY')) {
+      markEditorChanged()
+      saveStatus.value = value ? 'All animations are disabled for Preview and Guest Runtime.' : 'Animations are enabled.'
+    }
+    return
+  }
+  if (['preset', 'preview', 'timelineSummary', 'copy', 'paste', 'duplicate', 'reset'].includes(field)) return
+  const current = effectiveAnimationSettings(entity.id)
+  const next = updateAnimationConfiguration(current, field as Parameters<typeof updateAnimationConfiguration>[1], value)
+  if (commitAnimationSettings([entity.id], next, `Animation ${field}`)) saveStatus.value = `${entity.label} animation updated.`
+}
+
+function applySelectedAnimationPreset(presetId: string): void {
+  const entity = selectedEntity.value
+  if (!entity || !presetId) return
+  const next = applyAnimationPreset(effectiveAnimationSettings(entity.id), presetId)
+  if (next && commitAnimationSettings([entity.id], next, `Animation Preset ${presetId}`)) saveStatus.value = 'Animation preset applied.'
+}
+
+function previewSelectedAnimation(timeline = false): void {
+  const root = previewStage.value
+  const entity = selectedEntity.value
+  if (!root || !entity) return
+  const result = previewAnimation(root, editor.draftSnapshot, entity.id, timeline ? 'timeline' : 'animation', activeBreakpoint.value)
+  saveStatus.value = result.played
+    ? `${timeline ? 'Timeline' : 'Animation'} preview: ${result.tracks.join(', ')}.`
+    : result.reason === 'reduced-motion'
+      ? 'Preview is disabled because reduced motion is active.'
+      : result.reason === 'disabled'
+        ? 'Preview is disabled by the global animation setting.'
+        : 'Configure at least one animation track before previewing.'
+}
+
+function copySelectedAnimation(): void {
+  const entity = selectedEntity.value
+  const settings = entity ? effectiveAnimationSettings(entity.id) : undefined
+  if (!entity || !hasAnimation(settings)) return
+  animationClipboard.value = cloneEditorData(settings ?? {})
+  saveStatus.value = `${entity.label} animation copied.`
+}
+
+function pasteSelectedAnimation(): void {
+  const entity = selectedEntity.value
+  if (!entity || !animationClipboard.value) return
+  if (commitAnimationSettings([entity.id], cloneEditorData(animationClipboard.value), 'Paste Animation', 'PASTE_STYLE')) saveStatus.value = `Animation pasted to ${entity.label}.`
+}
+
+function duplicateSelectedAnimation(): void {
+  const entity = selectedEntity.value
+  const settings = entity ? effectiveAnimationSettings(entity.id) : undefined
+  const targets = editor.selectedObjectIds.filter((objectId) => objectId !== entity?.id)
+  if (!entity || !hasAnimation(settings) || !targets.length) return
+  if (commitAnimationSettings(targets, cloneEditorData(settings ?? {}), 'Duplicate Animation', 'PASTE_STYLE')) saveStatus.value = `Animation duplicated to ${targets.length} object${targets.length === 1 ? '' : 's'}.`
+}
+
+function resetSelectedAnimation(): void {
+  const entity = selectedEntity.value
+  if (!entity || !hasAnimation(effectiveAnimationSettings(entity.id))) return
+  if (editor.setProperties(entity.id, [{ propertyPath: `animations.${animationTargetId(entity.id)}`, nextValue: undefined }], {
+    interaction: 'Reset Animation',
+    objectIds: [entity.id]
+  }, 'SET_PROPERTY')) {
+    markEditorChanged()
+    saveStatus.value = `${entity.label} animation reset.`
+  }
 }
 
 async function updatePanelProperty(property: PanelProperty, value: string | number | boolean): Promise<void> {
@@ -747,7 +1280,19 @@ async function updatePanelProperty(property: PanelProperty, value: string | numb
   }
   if (property.metadata.databaseMapping.kind === 'action') {
     const handler = propertyActionHandlers[property.metadata.databaseMapping.action]
-    if (handler) await handler(value, property)
+    if (handler) {
+      const serialized = property.metadata.serializer.serialize(value)
+      const validation = property.metadata.validation.validate(serialized, {
+        entity: descriptorFor(entity),
+        snapshot: editor.draftSnapshot,
+        values: selectedPropertyValues.value
+      })
+      if (validation) {
+        saveStatus.value = validation
+        return
+      }
+      await handler(primitiveValue(serialized) ?? '', property)
+    }
     return
   }
   if (property.runtimeProperty) {
@@ -759,6 +1304,7 @@ async function updatePanelProperty(property: PanelProperty, value: string | numb
   const serialized = property.metadata.serializer.serialize(value)
   const applied = editor.setProperty(entity.id, path, serialized, property.metadata.commandType, { coalesceKey: `${entity.id}:${path}` })
   if (!applied) return
+  markDesignPropertyOverride(entity, property)
   markEditorChanged()
   await nextTick()
   updateSelectedOutline()
@@ -796,6 +1342,14 @@ function isPanelPropertyEnabled(property: PanelProperty): boolean {
   if (property.metadata.databaseMapping.kind === 'action'
     && ['remove-media', 'duplicate-media-reference', 'reveal-media-library'].includes(property.metadata.databaseMapping.action)
     && !selectedMediaAssignment.value) return false
+  if (property.metadata.databaseMapping.kind === 'action') {
+    const actionName = property.metadata.databaseMapping.action
+    const settings = effectiveAnimationSettings(descriptor.entityId)
+    if (['preview-animation', 'preview-animation-timeline'].includes(actionName) && reducedMotionActive.value) return false
+    if (['copy-animation', 'reset-animation'].includes(actionName) && !hasAnimation(settings)) return false
+    if (actionName === 'paste-animation' && !animationClipboard.value) return false
+    if (actionName === 'duplicate-animation' && (!hasAnimation(settings) || editor.selectedObjectIds.length < 2)) return false
+  }
   const context: PropertyVisibilityContext = {
     entity: descriptor,
     snapshot: editor.draftSnapshot,
@@ -882,7 +1436,13 @@ const propertyButtonActionHandlers: Partial<Record<PropertyAction, (property: Pa
   },
   'remove-media': (property) => removeSelectedMedia(property.metadata.commandType),
   'duplicate-media-reference': (property) => duplicateSelectedMediaReference(property.metadata.commandType),
-  'reveal-media-library': () => revealSelectedMedia()
+  'reveal-media-library': () => revealSelectedMedia(),
+  'preview-animation': () => previewSelectedAnimation(false),
+  'preview-animation-timeline': () => previewSelectedAnimation(true),
+  'copy-animation': () => copySelectedAnimation(),
+  'paste-animation': () => pasteSelectedAnimation(),
+  'duplicate-animation': () => duplicateSelectedAnimation(),
+  'reset-animation': () => resetSelectedAnimation()
 }
 
 function handlePropertyAction(property: PanelProperty): void {
@@ -1335,7 +1895,16 @@ async function syncSnapshotMediaToPreview(): Promise<void> {
 
 function updatePreviewMetrics(): void {
   const viewportWidth = canvasScroll.value?.clientWidth ?? 900
-  fitScale.value = Math.min(1, Math.max(0.18, (viewportWidth - 48) / activeCanvasWidth.value))
+  const nextScale = Math.min(1, Math.max(0.18, (viewportWidth - 48) / activeCanvasWidth.value))
+  if (fitScale.value !== nextScale) fitScale.value = nextScale
+}
+
+function schedulePreviewMetrics(): void {
+  if (previewMetricsFrameRequest) return
+  previewMetricsFrameRequest = requestAnimationFrame(() => {
+    previewMetricsFrameRequest = 0
+    updatePreviewMetrics()
+  })
 }
 
 function schedulePreviewHeightMeasurement(delay = 90): void {
@@ -1545,6 +2114,7 @@ function updateSelectedOutline(): void {
 
 function applyEditorPreviewStyles(): void {
   if (previewStage.value) applyEditorPreviewSnapshot(previewStage.value)
+  setDesignThemeVariables()
   decoratePreviewEntities()
   updateSelectedOutline()
 }
@@ -2157,7 +2727,10 @@ function cancelLibrarySwitch(): void {
           <h1>Inspector</h1>
           <span class="panel-hint">Professional Object Editor</span>
         </div>
-        <span v-if="selectedEntity" class="selected-kind">{{ selectedEntity.type }}</span>
+        <div class="panel-heading-actions">
+          <span v-if="selectedEntity" class="selected-kind">{{ selectedEntity.type }}</span>
+          <button type="button" class="design-system-button" @click="showDesignSystem = true"><Palette :size="14" />Design</button>
+        </div>
       </div>
 
       <label class="field-label" for="section-select">Section</label>
@@ -2244,6 +2817,20 @@ function cancelLibrarySwitch(): void {
                     @click="resetPanelOverride(property)"
                   >Reset</button>
                 </div>
+                <div v-if="property.metadata.designToken && property.metadata.styleKey && !property.responsiveProperty" class="design-reference-control" :data-design-reference="designReferenceLabel(property)">
+                  <div>
+                    <span class="design-reference-state" :class="{ 'is-override': designReferenceLabel(property) === 'Overridden' }">{{ designReferenceLabel(property) }}</span>
+                    <small v-if="designReferenceTokenLabel(property)">Referenced Token · {{ designReferenceTokenLabel(property) }}</small>
+                  </div>
+                  <select :value="designScopeFor(property)" :aria-label="`${property.metadata.label} token scope`" @change="updateDesignScope(property, $event)">
+                    <option value="theme">Theme</option><option value="section">Section</option><option value="component">Component</option><option value="object">Object</option>
+                  </select>
+                  <select :value="designReferenceFor(property)?.tokenId ?? ''" :aria-label="`${property.metadata.label} referenced token`" @change="updateDesignReference(property, $event)">
+                    <option value="">Direct</option>
+                    <option v-for="token in compatibleDesignTokens(property)" :key="token.id" :value="token.id">{{ token.label }}</option>
+                  </select>
+                  <button v-if="canResetDesignOverride(property)" type="button" @click="resetDesignOverride(property)">Reset</button>
+                </div>
                 <PropertyControl
                   :key="`${selectedEntity.id}-${property.key}-${property.metadata.control === 'file' ? mediaInputVersion : 0}`"
                   :property="property.metadata"
@@ -2313,6 +2900,7 @@ function cancelLibrarySwitch(): void {
           </select>
         </label>
         <button type="button" class="open-source-button" aria-label="Open draft or favorite" @click="showOpenModal = true">+</button>
+        <button type="button" class="open-design-button" aria-label="Open Design System" @click="showDesignSystem = true"><Palette :size="15" /></button>
       </div>
       <div v-if="selectedObjectCount > 1" class="selection-toolbar" role="toolbar" aria-label="Multi-selection alignment">
         <span>{{ selectedObjectCount }} objects</span>
@@ -2370,6 +2958,29 @@ function cancelLibrarySwitch(): void {
       :current-asset-id="selectedMediaAssignment?.assetId"
       @close="showAssetPicker = false"
       @apply="void applyPickerAsset($event)"
+    />
+
+    <DesignSystemPanel
+      :open="showDesignSystem"
+      :selected-object-id="editor.selectedObjectId"
+      :selected-object-type="editor.selectedObject?.type ?? ''"
+      :selected-section="editor.selectedSection"
+      :selected-capabilities="editor.selectedCapabilities"
+      :available-sections="sections"
+      @close="showDesignSystem = false"
+      @token-change="handleDesignTokenChange"
+      @theme-preview="applyDesignTheme"
+      @theme-activate="applyDesignTheme"
+      @typography-change="reapplyAssignedTypography($event.roleId, $event.styleKey)"
+      @typography-apply="applyTypographyRole"
+      @button-apply="applyButtonStyle"
+      @component-apply="applyComponentRecipe"
+      @section-select="selectDesignSection"
+      @section-template-save="saveSelectedSectionTemplate"
+      @section-template-apply="applySectionTemplate"
+      @section-template-delete="designSystem.deleteSectionTemplate($event)"
+      @component-preset-save="saveSelectedComponentPreset"
+      @component-preset-apply="applyComponentPreset"
     />
 
     <div v-if="showOpenModal" class="modal-backdrop" role="presentation" @click.self="showOpenModal = false">
@@ -2446,6 +3057,7 @@ function cancelLibrarySwitch(): void {
 .zoom-control select { border: 0; background: transparent; color: inherit; font: inherit; }
 .breakpoint-toolbar { display: flex; align-items: center; padding: .2rem; border: 1px solid rgba(232,222,208,.95); border-radius: 999px; background: rgba(255,255,255,.94); box-shadow: 0 .25rem .8rem rgba(73,54,47,.06); }.breakpoint-toolbar button { min-width: 2.35rem; height: 1.55rem; border: 0; border-radius: 999px; padding: 0 .38rem; background: transparent; color: #8a756b; font: 800 .56rem/1 system-ui; cursor: pointer; }.breakpoint-toolbar button:hover { color: #8d363a; background: #fff5eb; }.breakpoint-toolbar button.active { background: #a95664; color: #fff; box-shadow: 0 .2rem .5rem rgba(141,54,58,.22); }
 .open-source-button { width: 2rem; height: 2rem; border: 1px solid #e8ded0; border-radius: 50%; background: #fff5eb; color: #8d363a; font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.open-design-button { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid #e8ded0; border-radius: 50%; background: #fff5eb; color: #8d363a; cursor: pointer; }
 .selection-toolbar { position: absolute; z-index: 1001; top: 3.15rem; left: .75rem; right: .75rem; display: flex; align-items: center; gap: .3rem; width: max-content; max-width: calc(100% - 1.5rem); padding: .38rem .45rem; overflow-x: auto; border: 1px solid rgba(232,222,208,.96); border-radius: 12px; background: rgba(255,253,247,.96); box-shadow: 0 .45rem 1.25rem rgba(73,54,47,.11); color: #5a3e35; scrollbar-width: thin; }.selection-toolbar > span { padding: 0 .35rem; white-space: nowrap; color: #8d5960; font-size: .68rem; font-weight: 800; }.selection-toolbar button { flex: 0 0 auto; min-width: 1.85rem; height: 1.85rem; border: 1px solid rgba(73,54,47,.13); border-radius: 7px; background: #fff8ef; color: #684e45; font-size: .62rem; font-weight: 900; cursor: pointer; }.selection-toolbar button:hover:not(:disabled) { border-color: #c98a8f; background: #fff1e8; color: #8d363a; }.selection-toolbar button:disabled { cursor: not-allowed; opacity: .4; }.selection-spacing { display: flex; align-items: center; gap: .3rem; padding-left: .3rem; color: #80675d; font-size: .6rem; font-weight: 800; }.selection-spacing :deep(.property-input) { width: 4.8rem; }.selection-spacing :deep(input) { border-color: rgba(73,54,47,.17); padding: .34rem .4rem; background: #fff; color: inherit; font: 700 .65rem system-ui; }.selection-spacing :deep(.numeric-scrub) { width: 1.4rem; }
 .editor-recovery { position: absolute; z-index: 1002; inset: 4rem auto auto 50%; transform: translateX(-50%); width: min(90%,440px); padding: 1rem; border: 1px solid #d99898; border-radius: 16px; background: #fffaf4; color: #8d363a; box-shadow: 0 1rem 2rem rgba(73,54,47,.15); }
 .editor-recovery p { margin: 0 0 .35rem; }.editor-recovery small { display: block; margin-bottom: .75rem; }.editor-recovery button { border: 1px solid #e8ded0; border-radius: 10px; padding: .6rem 1rem; background: #fff5eb; color: #5a3e35; cursor: pointer; }
@@ -2468,12 +3080,13 @@ function cancelLibrarySwitch(): void {
 .selection-box { position: absolute; z-index: 1100; pointer-events: none; border: 1.5px solid rgba(184,91,105,.92); border-radius: 4px; background: rgba(184,91,105,.035); box-shadow: 0 0 0 1px rgba(255,255,255,.75) inset; }
 .editor-context-menu { position: absolute; z-index: 1300; display: grid; width: 215px; margin: 0; padding: .42rem; border: 1px solid rgba(73,54,47,.16); border-radius: 12px; background: rgba(255,253,247,.98); box-shadow: 0 .85rem 2.2rem rgba(73,54,47,.2); list-style: none; }.editor-context-menu button { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; border: 0; border-radius: 8px; padding: .55rem .62rem; background: transparent; color: #5a3e35; text-align: left; font: 700 .7rem system-ui; cursor: pointer; }.editor-context-menu button:hover:not(:disabled),.editor-context-menu button:focus-visible { outline: 0; background: #fff1e8; color: #8d363a; }.editor-context-menu button:disabled { cursor: not-allowed; opacity: .4; }.editor-context-menu button.danger { color: #9b3f3f; }.editor-context-menu kbd { color: #a18b80; font: 600 .58rem system-ui; }
 .editor-status-bar { position: absolute; z-index: 1003; inset: auto 0 0; display: flex; align-items: stretch; gap: 0; height: 2.2rem; overflow-x: auto; border-top: 1px solid rgba(73,54,47,.14); background: rgba(246,244,232,.98); color: #765f55; scrollbar-width: thin; }.editor-status-bar span { display: flex; align-items: center; gap: .35rem; flex: 0 0 auto; min-width: 82px; padding: 0 .7rem; border-right: 1px solid rgba(73,54,47,.1); white-space: nowrap; font-size: .61rem; }.editor-status-bar strong { color: #9a806f; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; }.editor-status-bar .performance-status { margin-left: auto; color: #55725d; }
-.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
+.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible,.design-system-button:focus-visible,.design-reference-control button:focus-visible,.design-reference-control select:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
 .modal-backdrop { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(73,54,47,.35); }
 .source-modal { position: relative; width: min(100%,620px); padding: 2rem; border-radius: 24px; background: #f6f4e8; color: #49362f; box-shadow: 0 1.5rem 4rem rgba(73,54,47,.25); }
 .source-modal h2 { margin: 0; color: #5a3e35; }.source-modal p { color: #7b5f3b; }.modal-close { position: absolute; top: 1rem; right: 1rem; border: 0; background: transparent; font-size: 1.25rem; color: #7b5f3b; cursor: pointer; }
 .source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }.source-options button { display: grid; gap: .55rem; min-height: 140px; border: 1px solid #e8ded0; border-radius: 16px; padding: 1.2rem; background: #fff5eb; color: #5a3e35; text-align: left; cursor: pointer; }.source-options span { color: #7b5f3b; font-size: .85rem; font-weight: 400; }
 .unsaved-actions { display: grid; gap: .65rem; }.unsaved-actions button { border: 1px solid #e8ded0; border-radius: 11px; padding: .75rem 1rem; background: #fffaf4; color: #5a3e35; cursor: pointer; font-weight: 700; }.unsaved-actions .primary-action { background: #8d363a; color: #fff; }
+.panel-heading-actions { display: flex; align-items: center; gap: .35rem; }.design-system-button { display: inline-flex; align-items: center; gap: .25rem; border: 1px solid rgba(184,91,105,.22); border-radius: 999px; padding: .38rem .5rem; background: #fff1e8; color: #944853; font-size: .58rem; font-weight: 850; cursor: pointer; }.design-reference-control { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .3rem; align-items: center; margin-bottom: .25rem; padding: .45rem; border: 1px solid rgba(184,91,105,.14); border-radius: 8px; background: #fffaf4; }.design-reference-control > div { min-width: 0; display: grid; gap: .1rem; }.design-reference-control > div small { overflow: hidden; color: #9a786f; font-size: .47rem; text-overflow: ellipsis; white-space: nowrap; }.design-reference-state { width: max-content; max-width: 100%; overflow: hidden; border-radius: 999px; padding: .14rem .3rem; background: #eee6dd; color: #7f6a60; font-size: .48rem; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }.design-reference-state.is-override { background: #ffe6df; color: #9c4653; }.design-reference-control select { min-width: 0; max-width: 7rem; border: 1px solid rgba(73,54,47,.15); border-radius: 6px; padding: .3rem; background: #fff; color: #684e45; font-size: .5rem; }.design-reference-control select:nth-of-type(2) { grid-column: 1 / -1; max-width: none; }.design-reference-control button { grid-column: 1 / -1; justify-self: end; border: 0; background: transparent; color: #a44955; font-size: .5rem; font-weight: 800; text-decoration: underline; cursor: pointer; }
 @media (max-width: 1100px) { .edit-page { grid-template-columns: 210px 330px minmax(0,1fr); }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
 @media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.preview-toolbar { overflow-x: auto; scrollbar-width: thin; }.source-indicator { max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.breakpoint-toolbar button { min-width: 2.1rem; }.selection-toolbar { top: 3rem; }.editor-status-bar span { min-width: auto; }.editor-status-bar .performance-status { margin-left: 0; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
 </style>

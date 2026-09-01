@@ -14,6 +14,7 @@ const naturalHeight = ref(0)
 const renderedWidth = ref(0)
 const renderedHeight = ref(0)
 let resizeObserver: ResizeObserver | undefined
+let resizeFrameRequest = 0
 
 const imageStyle = computed(() => ({
   width: `${renderedWidth.value}px`,
@@ -29,8 +30,18 @@ function measure() {
     Math.max(boundary.clientWidth / naturalWidth.value, boundary.clientHeight / naturalHeight.value),
     1
   )
-  renderedWidth.value = naturalWidth.value * scale
-  renderedHeight.value = naturalHeight.value * scale
+  const nextWidth = naturalWidth.value * scale
+  const nextHeight = naturalHeight.value * scale
+  if (renderedWidth.value !== nextWidth) renderedWidth.value = nextWidth
+  if (renderedHeight.value !== nextHeight) renderedHeight.value = nextHeight
+}
+
+function scheduleMeasure() {
+  if (resizeFrameRequest) return
+  resizeFrameRequest = requestAnimationFrame(() => {
+    resizeFrameRequest = 0
+    measure()
+  })
 }
 
 function onImageLoad(event: Event) {
@@ -54,11 +65,14 @@ watch(() => props.source, async () => {
 })
 
 onMounted(() => {
-  resizeObserver = new ResizeObserver(measure)
+  resizeObserver = new ResizeObserver(scheduleMeasure)
   if (boundaryRef.value) resizeObserver.observe(boundaryRef.value)
 })
 
-onBeforeUnmount(() => resizeObserver?.disconnect())
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  if (resizeFrameRequest) cancelAnimationFrame(resizeFrameRequest)
+})
 </script>
 
 <template>

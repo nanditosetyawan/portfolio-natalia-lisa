@@ -11,6 +11,7 @@ import PropertyColorControl from './property-controls/PropertyColorControl.vue'
 import PropertySegmentedControl from './property-controls/PropertySegmentedControl.vue'
 import PropertyThumbnailControl from './property-controls/PropertyThumbnailControl.vue'
 import PropertyToggleValueControl from './property-controls/PropertyToggleValueControl.vue'
+import PropertyTimelineControl from './property-controls/PropertyTimelineControl.vue'
 
 const renderers = new Map<EditorControl, Component>([
   ['text', PropertyInputControl],
@@ -26,7 +27,8 @@ const renderers = new Map<EditorControl, Component>([
   ['toggle-text', PropertyToggleValueControl],
   ['toggle-color', PropertyToggleValueControl],
   ['segmented', PropertySegmentedControl],
-  ['thumbnail', PropertyThumbnailControl]
+  ['thumbnail', PropertyThumbnailControl],
+  ['timeline', PropertyTimelineControl]
 ])
 
 export function registerPropertyControlRenderer(control: EditorControl, component: Component): void {
