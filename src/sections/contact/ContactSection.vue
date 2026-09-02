@@ -172,7 +172,7 @@ const contentStyle = computed(() => ({
 
       <!-- Right: person image -->
       <div class="contact-person" aria-label="Person image">
-        <img :src="contactImageSrc" alt="Person image" class="contact-person-image" :data-media-usage-id="contact.personMediaUsageId" :style="{
+        <img :src="contactImageSrc" alt="Person image" class="contact-person-image" width="740" height="1343" loading="lazy" decoding="async" :data-media-usage-id="contact.personMediaUsageId" :style="{
           width: vConfig.personImage.width,
           height: vConfig.personImage.height,
           filter: vConfig.personImage.filter,

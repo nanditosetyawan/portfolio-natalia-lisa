@@ -192,6 +192,10 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
       data-media-usage-id="about-foreground-portrait"
       :src="foregroundSource"
       alt="Lisa Natalia"
+      width="740"
+      height="1343"
+      loading="lazy"
+      decoding="async"
       :style="{
         zIndex: vConfig.foregroundPortrait.zIndex,
         objectPosition: site.mediaObjectPositionForUsage('about-foreground-portrait')
@@ -501,7 +505,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: var(--placeholder-font-size, 0.65rem);
-  opacity: 0.7;
+  opacity: 1;
 }
 
 /* Back frame 2 - lower right */

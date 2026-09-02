@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RotateCcw, ShieldCheck } from 'lucide-vue-next'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { Clock3, LoaderCircle, RotateCcw, ShieldCheck } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import ProductEmptyState from '../../components/ProductEmptyState.vue'
+import ProductSkeleton from '../../components/ProductSkeleton.vue'
+import { productFeedback } from '../../composables/useProductFeedback'
 import {
   editorPublishRepository,
   PublishConflictError,
@@ -9,12 +13,14 @@ import {
 import { invalidatePublishedRuntimeCache } from '../../runtime/publishedRuntime'
 
 const history = ref<RevisionRecord[]>([])
+const router = useRouter()
 const isLoading = ref(true)
 const isRollingBack = ref(false)
 const errorMessage = ref('')
 const statusMessage = ref('')
 const rollbackTarget = ref<RevisionRecord | null>(null)
 const rollbackNote = ref('')
+const rollbackNoteInput = ref<HTMLTextAreaElement | null>(null)
 const currentRevision = computed(() => history.value[0]?.revision_number ?? null)
 
 function formatDate(value: string | null): string {
@@ -30,7 +36,10 @@ async function loadHistory(): Promise<void> {
   isLoading.value = true
   errorMessage.value = ''
   try { history.value = await editorPublishRepository.getHistory() }
-  catch (error) { errorMessage.value = error instanceof Error ? error.message : 'Publish History could not be loaded.' }
+  catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Publish History could not be loaded.'
+    productFeedback.error('Publish History unavailable', errorMessage.value)
+  }
   finally { isLoading.value = false }
 }
 
@@ -39,6 +48,7 @@ function requestRollback(revision: RevisionRecord): void {
   rollbackTarget.value = revision
   rollbackNote.value = ''
   errorMessage.value = ''
+  void nextTick(() => rollbackNoteInput.value?.focus())
 }
 
 function cancelRollback(): void {
@@ -58,12 +68,14 @@ async function confirmRollback(): Promise<void> {
     })
     invalidatePublishedRuntimeCache(activated.revision_number)
     statusMessage.value = `Rollback activated as Published revision #${activated.revision_number}. Drafts were not modified.`
+    productFeedback.success(`Revision #${activated.revision_number} is live`, 'Rollback created a new Published revision. Drafts and Favorites were not modified.')
     rollbackTarget.value = null
     await loadHistory()
   } catch (error) {
     errorMessage.value = error instanceof PublishConflictError
       ? `${error.message} Reload Publish History before retrying.`
       : error instanceof Error ? error.message : 'Rollback failed.'
+    productFeedback.error('Rollback failed', errorMessage.value)
   } finally { isRollingBack.value = false }
 }
 
@@ -83,8 +95,15 @@ onMounted(loadHistory)
 
     <p v-if="statusMessage" class="history-status" aria-live="polite">{{ statusMessage }}</p>
     <p v-if="errorMessage && !rollbackTarget" class="history-error" role="alert">{{ errorMessage }}</p>
-    <p v-if="isLoading" class="history-empty">Loading Publish History…</p>
-    <p v-else-if="!history.length" class="history-empty">No Published Snapshot exists yet. Publish a saved Draft from the Editor.</p>
+    <ProductSkeleton v-if="isLoading" variant="list" :count="4" label="Loading Publish History" />
+    <ProductEmptyState v-else-if="errorMessage && !history.length" title="Publish History could not be loaded" :description="errorMessage" eyebrow="Connection issue" :icon="RotateCcw" tone="error">
+      <button type="button" @click="void loadHistory()">Retry</button>
+      <button type="button" @click="router.push('/admin/drafts')">Open Draft Library</button>
+    </ProductEmptyState>
+    <ProductEmptyState v-else-if="!history.length" title="No Published revisions yet" description="Save a Draft, review it in the Editor, then Publish when it is ready for Guest Runtime." :icon="Clock3">
+      <button type="button" @click="router.push('/admin/drafts')">Open Draft Library</button>
+      <button type="button" @click="router.push('/admin/edit')">Open Editor</button>
+    </ProductEmptyState>
 
     <div v-else class="history-list">
       <article v-for="revision in history" :key="revision.id" class="history-card" :class="{ 'history-card--current': revision.revision_number === currentRevision }">
@@ -110,16 +129,16 @@ onMounted(loadHistory)
     </div>
 
     <div v-if="rollbackTarget" class="rollback-backdrop" @click.self="cancelRollback">
-      <section class="rollback-modal" role="dialog" aria-modal="true" aria-labelledby="rollback-title">
+      <section class="rollback-modal" role="dialog" aria-modal="true" aria-labelledby="rollback-title" @keydown.esc="cancelRollback">
         <p>Atomic rollback</p>
         <h2 id="rollback-title">Restore revision #{{ rollbackTarget.revision_number }}?</h2>
         <span>This creates a new Published revision. The selected history row, every Draft, and every Favorite remain unchanged.</span>
         <label for="rollback-note">Rollback note <small>(optional)</small></label>
-        <textarea id="rollback-note" v-model="rollbackNote" maxlength="500" rows="3"></textarea>
+        <textarea id="rollback-note" ref="rollbackNoteInput" v-model="rollbackNote" maxlength="500" rows="3"></textarea>
         <p v-if="errorMessage" class="history-error" role="alert">{{ errorMessage }}</p>
         <div>
           <button type="button" class="rollback-cancel" :disabled="isRollingBack" @click="cancelRollback">Cancel</button>
-          <button type="button" class="rollback-confirm" :disabled="isRollingBack" @click="confirmRollback">{{ isRollingBack ? 'Activating…' : 'Activate rollback' }}</button>
+          <button type="button" class="rollback-confirm" :disabled="isRollingBack" @click="confirmRollback"><LoaderCircle v-if="isRollingBack" class="spin" :size="16" />{{ isRollingBack ? 'Activating…' : 'Activate rollback' }}</button>
         </div>
       </section>
     </div>
@@ -163,5 +182,9 @@ onMounted(loadHistory)
 .rollback-modal button { padding: .68rem .95rem; border-radius: 999px; font-weight: 900; cursor: pointer; }
 .rollback-cancel { border: 1px solid #d9bcb1; color: #5a3e35; background: transparent; }
 .rollback-confirm { border: 1px solid #b85b69; color: #fff; background: #b85b69; }
+.rollback-confirm { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; }
+.spin { animation: history-spin .8s linear infinite; }
+@keyframes history-spin { to { transform: rotate(360deg); } }
 @media (max-width: 760px) { .history-header { align-items: flex-start; flex-direction: column; } .history-card { grid-template-columns: auto 1fr; } .rollback-button { grid-column: 1 / -1; justify-content: center; } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 </style>

@@ -77,6 +77,7 @@ const isDarkSection  = ref(true)   // default: Home is dark
 
 // Lenis instance
 let lenis: Lenis | null = null
+let lenisFrameId = 0
 const educationCollegeMagnet = useEducationCollegeMagnet()
 
 // Scroll tracking — mirrors dom.ts reference pattern
@@ -116,7 +117,6 @@ function tick() {
     suppressHide        = false
     clearPauseTimer()
     lastScrollY = currentY
-    rafId = requestAnimationFrame(tick)
     return
   }
 
@@ -173,7 +173,14 @@ function tick() {
   }
 
   lastScrollY = currentY
-  rafId = requestAnimationFrame(tick)
+}
+
+function scheduleTick() {
+  if (rafId) return
+  rafId = requestAnimationFrame(() => {
+    rafId = 0
+    tick()
+  })
 }
 
 function clearPauseTimer() {
@@ -192,16 +199,22 @@ function startPauseTimer() {
 // ──────────────────────────────────────────
 // ACTIVE PILL POSITION UPDATE
 // ──────────────────────────────────────────
+let pillFrameId = 0
+
 function updatePill(key: string) {
   nextTick(() => {
-    if (!menuRef.value || !pillRef.value) return
-    const link = menuRef.value.querySelector(`[data-key="${key}"]`) as HTMLElement | null
-    if (!link) return
-    const menuRect  = menuRef.value.getBoundingClientRect()
-    const linkRect  = link.getBoundingClientRect()
-    const left = linkRect.left - menuRect.left
-    pillRef.value.style.left  = `${left}px`
-    pillRef.value.style.width = `${linkRect.width}px`
+    if (pillFrameId) cancelAnimationFrame(pillFrameId)
+    pillFrameId = requestAnimationFrame(() => {
+      pillFrameId = 0
+      if (!menuRef.value || !pillRef.value) return
+      const link = menuRef.value.querySelector(`[data-key="${key}"]`) as HTMLElement | null
+      if (!link) return
+      const menuRect  = menuRef.value.getBoundingClientRect()
+      const linkRect  = link.getBoundingClientRect()
+      const left = linkRect.left - menuRect.left
+      pillRef.value.style.left  = `${left}px`
+      pillRef.value.style.width = `${linkRect.width}px`
+    })
   })
 }
 
@@ -253,10 +266,10 @@ function initLenis() {
   educationCollegeMagnet.attachLenis(lenis)
 
   function lenisRaf(time: number) {
-    lenis!.raf(time)
-    requestAnimationFrame(lenisRaf)
+    if (!document.hidden) lenis?.raf(time)
+    lenisFrameId = requestAnimationFrame(lenisRaf)
   }
-  requestAnimationFrame(lenisRaf)
+  lenisFrameId = requestAnimationFrame(lenisRaf)
 }
 
 // ──────────────────────────────────────────
@@ -323,7 +336,8 @@ const navClass = computed(() => ({
 onMounted(() => {
   lastScrollY = window.scrollY
   initLenis()
-  rafId = requestAnimationFrame(tick)
+  window.addEventListener('scroll', scheduleTick, { passive: true })
+  scheduleTick()
   initObserver()
   // Initial pill position
   updatePill(activeKey.value)
@@ -337,6 +351,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   cancelAnimationFrame(rafId)
+  cancelAnimationFrame(pillFrameId)
+  cancelAnimationFrame(lenisFrameId)
+  window.removeEventListener('scroll', scheduleTick)
   clearPauseTimer()
   observer?.disconnect()
   educationCollegeMagnet.destroy()

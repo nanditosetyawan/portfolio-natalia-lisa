@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Heart, ImageOff, ShieldCheck } from 'lucide-vue-next'
+import { Heart, ImageOff, SearchX, ShieldCheck } from 'lucide-vue-next'
+import ProductEmptyState from '../../../components/ProductEmptyState.vue'
+import ProductSkeleton from '../../../components/ProductSkeleton.vue'
 import type { MediaLibraryAsset } from '../../../types/mediaLibrary'
 
 const props = defineProps<{
@@ -14,6 +16,7 @@ const emit = defineEmits<{
   select: [asset: MediaLibraryAsset, mode: 'replace' | 'toggle' | 'range']
   activate: [asset: MediaLibraryAsset]
   favorite: [asset: MediaLibraryAsset]
+  reset: []
 }>()
 
 const viewport = ref<HTMLElement | null>(null)
@@ -164,7 +167,8 @@ onBeforeUnmount(() => {
     :aria-busy="busy"
     @scroll="scrollTop = ($event.currentTarget as HTMLElement).scrollTop"
   >
-    <div class="asset-grid-canvas" :style="{ height: `${canvasHeight}px` }">
+    <ProductSkeleton v-if="busy && !assets.length" class="asset-grid-loading" variant="cards" :count="6" label="Loading media assets" />
+    <div v-else class="asset-grid-canvas" :style="{ height: `${canvasHeight}px` }">
       <article
         v-for="item in visibleAssets"
         :key="item.asset.id"
@@ -205,7 +209,9 @@ onBeforeUnmount(() => {
         </div>
       </article>
     </div>
-    <p v-if="!assets.length && !busy" class="empty-grid">No assets match this view.</p>
+    <ProductEmptyState v-if="!assets.length && !busy" compact title="No assets found" description="No media matches the current search and filter selection." eyebrow="Asset Library" :icon="SearchX">
+      <button type="button" @click="emit('reset')">Clear filters</button>
+    </ProductEmptyState>
   </div>
 </template>
 
@@ -228,6 +234,6 @@ onBeforeUnmount(() => {
 .asset-card-body small { display: inline-flex; align-items: center; gap: .22rem; width: fit-content; color: #8a7064; font-size: .58rem; font-weight: 800; }
 .asset-card-body .safety-safe { color: #557a61; }
 .asset-card-body .safety-published { color: #9f5964; }
-.empty-grid { position: sticky; left: 0; display: grid; place-items: center; min-height: 320px; margin: 0; color: #8c7568; font-size: .8rem; }
+.asset-grid-loading { padding:.8rem; }
 @media (prefers-reduced-motion: reduce) { .asset-card { transition: none; } }
 </style>

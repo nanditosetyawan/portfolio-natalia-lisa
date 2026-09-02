@@ -378,7 +378,7 @@ export const defaultAboutConfig: AboutVisualConfig = {
 function createAboutPlaceholder() {
   return {
     color: '#8D363A',
-    opacity: 0.5,
+    opacity: 1,
     borderWidth: '2px',
     fontSize: '0.65rem',
     labelOffset: '0.45rem',

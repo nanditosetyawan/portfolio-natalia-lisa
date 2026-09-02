@@ -48,7 +48,7 @@ function onImageLoad(event: Event) {
   const image = event.currentTarget as HTMLImageElement
   naturalWidth.value = image.naturalWidth
   naturalHeight.value = image.naturalHeight
-  measure()
+  scheduleMeasure()
 }
 
 watch(() => props.source, async () => {
@@ -60,7 +60,7 @@ watch(() => props.source, async () => {
   if (imageRef.value?.complete && imageRef.value.naturalWidth) {
     naturalWidth.value = imageRef.value.naturalWidth
     naturalHeight.value = imageRef.value.naturalHeight
-    measure()
+    scheduleMeasure()
   }
 })
 
@@ -88,6 +88,8 @@ onBeforeUnmount(() => {
       class="photo-area-image"
       :src="source"
       :alt="alt"
+      loading="lazy"
+      decoding="async"
       :style="imageStyle"
       :data-natural-width="naturalWidth || undefined"
       :data-natural-height="naturalHeight || undefined"

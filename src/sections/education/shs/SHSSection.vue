@@ -318,7 +318,7 @@ const vConfig = computed(() => site.current.visual.shs)
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: var(--placeholder-font-size, 0.65rem);
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .polaroid-bottom {

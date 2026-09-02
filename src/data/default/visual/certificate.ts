@@ -692,7 +692,7 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.4rem',
-    color: '#F28C38',
+    color: '#99500F',
     marginBottom: '0.4rem',
   },
   infoCalendarIcon: {

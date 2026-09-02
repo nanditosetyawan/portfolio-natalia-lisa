@@ -1,9 +1,12 @@
-import { supabaseTableRows, supabaseRpc, isSupabaseConfigured } from '../lib/supabaseRest'
-import { supabaseClient } from '../lib/supabaseClient'
+import { supabaseTableRows, supabaseRpc, isSupabaseConfigured, supabasePublicStorageUrl } from '../lib/supabaseRest'
 import type { EditorSnapshot } from '../types/editorSnapshot'
 import { deserializeEditorSnapshot, serializeEditorSnapshot, validateEditorSnapshot } from '../editor/editorSnapshot'
 import type { DraftMediaReference } from '../types/editor'
 import type { SnapshotMediaReference } from '../types/editorSnapshot'
+
+async function loadSupabaseClient() {
+  return (await import('../lib/supabaseClient')).supabaseClient
+}
 
 export type RevisionStatus = 'draft' | 'published' | 'archived'
 
@@ -239,6 +242,7 @@ function assertUsableMediaBlob(blob: Blob, expectedMimeType: string, label: stri
 }
 
 async function prepareSupabasePublishedSnapshot(snapshot: EditorSnapshot, revisionNumber: number): Promise<EditorSnapshot> {
+  const supabaseClient = await loadSupabaseClient()
   const prepared = clone(snapshot)
   const attemptId = crypto.randomUUID()
   prepared.media.references = await Promise.all(prepared.media.references.map(async (reference) => {
@@ -534,6 +538,7 @@ export class SupabaseEditorDraftRepository implements EditorDraftRepository {
     const assetId = crypto.randomUUID()
     const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin'
     const storagePath = `draft/${draftScope}/${assetId}.${extension}`
+    const supabaseClient = await loadSupabaseClient()
     const { error } = await supabaseClient.storage.from('portfolio-media').upload(storagePath, file, { upsert: false, contentType: file.type })
     if (error) throw new Error(`Draft media upload failed: ${error.message}`)
     const { data, error: signedError } = await supabaseClient.storage.from('portfolio-media').createSignedUrl(storagePath, 3600)
@@ -542,6 +547,7 @@ export class SupabaseEditorDraftRepository implements EditorDraftRepository {
   }
 
   async getDraftMediaUrl(reference: DraftMediaReference): Promise<string> {
+    const supabaseClient = await loadSupabaseClient()
     const { data, error } = await supabaseClient.storage.from(reference.bucket).createSignedUrl(reference.storagePath, 3600)
     if (error) throw new Error(`Draft media preview failed: ${error.message}`)
     return data.signedUrl
@@ -571,9 +577,8 @@ export class SupabaseGuestPublishedRepository implements GuestPublishedRepositor
     const resolved = clone(snapshot)
     resolved.media.references = resolved.media.references.map((reference) => {
       if (reference.bucket !== 'portfolio-media' || !reference.storagePath?.startsWith('published/')) throw new Error(`Guest Runtime rejected non-Published media ${reference.assetId}.`)
-      const { data } = supabaseClient.storage.from('portfolio-media').getPublicUrl(reference.storagePath)
-      if (!data.publicUrl) throw new Error(`Published media URL failed for ${reference.assetId}.`)
-      return { ...reference, uri: data.publicUrl }
+      const publicUrl = supabasePublicStorageUrl('portfolio-media', reference.storagePath)
+      return { ...reference, uri: publicUrl }
     })
     return resolved
   }

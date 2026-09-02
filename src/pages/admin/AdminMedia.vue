@@ -47,10 +47,15 @@
             <div
               class="dropzone-card"
               :class="{ 'drag-active': isDragActive }"
+              role="button"
+              tabindex="0"
+              aria-label="Pilih file media untuk diunggah"
               @dragover.prevent="onDragOver"
               @dragleave.prevent="onDragLeave"
               @drop.prevent="onDrop"
               @click="triggerFileSelect"
+              @keydown.enter.prevent="triggerFileSelect"
+              @keydown.space.prevent="triggerFileSelect"
             >
               <input
                 type="file"
@@ -58,6 +63,7 @@
                 multiple
                 accept=".webp,.pdf,.gif"
                 class="hidden-file-input"
+                @click.stop
                 @change="onFileSelected"
               />
               <div class="dropzone-content">
@@ -112,7 +118,7 @@
                         <span class="item-type">{{ fileItem.extension.toUpperCase() }}</span>
                       </div>
                     </div>
-                    <button class="remove-item-btn" @click.stop="removeFile(fileItem.id)" title="Hapus">
+                    <button class="remove-item-btn" :aria-label="`Hapus ${fileItem.name} dari antrean`" @click.stop="removeFile(fileItem.id)" title="Hapus">
                       <X class="remove-icon" />
                     </button>
                   </div>
@@ -123,6 +129,7 @@
                   <button
                     class="submit-upload-btn"
                     :disabled="isSubmitting"
+                    :aria-busy="isSubmitting"
                     @click="submitUploads"
                   >
                     <span v-if="isSubmitting" class="spinner"></span>
@@ -163,6 +170,7 @@ import {
   FileUp
 } from 'lucide-vue-next'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
+import { productFeedback } from '../../composables/useProductFeedback'
 
 interface MediaCategory {
   id: 'upload' | 'images' | 'videos' | 'documents'
@@ -253,6 +261,7 @@ onMounted(async () => {
     await library.refresh()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Media tidak dapat dimuat.'
+    productFeedback.error('Media tidak dapat dimuat', errorMessage.value)
   }
 })
 
@@ -299,19 +308,19 @@ function getFileIcon(extension: string): Component {
 function validateAndAddFiles(files: FileList): void {
   errorMessage.value = ''
   if (uploadedFiles.value.length + files.length > 5) {
-    errorMessage.value = 'Maksimal upload adalah 5 file.'
+    setUploadError('Maksimal upload adalah 5 file.')
     return
   }
 
   for (const file of Array.from(files)) {
     const extension = file.name.split('.').pop()?.toLowerCase() || ''
     if (!['webp', 'pdf', 'gif'].includes(extension)) {
-      errorMessage.value = `Format file .${extension} tidak didukung. Hanya WEBP, PDF, dan GIF.`
+      setUploadError(`Format file .${extension} tidak didukung. Hanya WEBP, PDF, dan GIF.`)
       return
     }
     const maximum = extension === 'gif' ? 10 * 1024 * 1024 : 2 * 1024 * 1024
     if (file.size > maximum) {
-      errorMessage.value = `File "${file.name}" melebihi batas ${extension === 'gif' ? '10MB' : '2MB'}.`
+      setUploadError(`File "${file.name}" melebihi batas ${extension === 'gif' ? '10MB' : '2MB'}.`)
       return
     }
     if (uploadedFiles.value.some((candidate) => candidate.name === file.name)) continue
@@ -341,15 +350,23 @@ function removeFile(id: string): void {
   uploadedFiles.value = uploadedFiles.value.filter((file) => file.id !== id)
 }
 
+function setUploadError(message: string): void {
+  errorMessage.value = message
+  productFeedback.error('Upload belum dapat dilanjutkan', message)
+}
+
 async function submitUploads(): Promise<void> {
   if (!uploadedFiles.value.length || isSubmitting.value) return
   isSubmitting.value = true
   errorMessage.value = ''
+  const uploadCount = uploadedFiles.value.length
   try {
     for (const file of uploadedFiles.value) await library.upload(file.file)
     uploadedFiles.value = []
+    productFeedback.success('Upload selesai', `${uploadCount} file berhasil ditambahkan ke Media Library.`)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Upload media gagal.'
+    productFeedback.error('Upload media gagal', errorMessage.value)
   } finally {
     isSubmitting.value = false
   }

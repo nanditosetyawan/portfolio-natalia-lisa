@@ -1,0 +1,21 @@
+{
+  "name": "Lisa Natalia Portfolio",
+  "short_name": "Portfolio",
+  "description": "Published portfolio of Lisa Natalia.",
+  "id": "/#/",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F6F4E8",
+  "theme_color": "#F6F4E8",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

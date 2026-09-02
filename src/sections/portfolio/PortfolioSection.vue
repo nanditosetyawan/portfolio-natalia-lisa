@@ -61,7 +61,7 @@ const wrapperTransform = computed(() => {
     }"
   >
     <GuestNavbar />
-    <main id="main" class="main-content" :data-entity-id="site.current.content.portfolio.id">
+    <main id="main" tabindex="-1" class="main-content" :data-entity-id="site.current.content.portfolio.id">
       <div class="portfolio-layout">
         <h1
           class="portfolio-title"
@@ -85,7 +85,7 @@ const wrapperTransform = computed(() => {
           transform: wrapperTransform,
           zIndex: vConfig.profileImageWrapper.zIndex
         }">
-          <img :src="profileImageSrc" :alt="site.current.content.profile.name" class="profile-image" :data-entity-id="site.current.content.profile.id" :data-media-usage-id="site.current.content.profile.mediaUsageId" :style="{
+          <img :src="profileImageSrc" :alt="site.current.content.profile.name" class="profile-image" width="740" height="1343" loading="eager" decoding="async" fetchpriority="high" :data-entity-id="site.current.content.profile.id" :data-media-usage-id="site.current.content.profile.mediaUsageId" :style="{
             width: imgWidth,
             height: vConfig.profileImage.height,
             maxWidth: vConfig.profileImage.maxWidth,

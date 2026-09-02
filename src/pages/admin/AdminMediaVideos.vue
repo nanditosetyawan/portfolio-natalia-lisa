@@ -10,11 +10,30 @@
       <span class="item-count">{{ items.length }} item</span>
     </div>
 
-    <p v-if="library.error || actionError" class="media-state media-state-error" role="alert">
-      {{ actionError || library.error }}
-    </p>
-    <p v-else-if="library.loading && items.length === 0" class="media-state" role="status">Memuat galeri video…</p>
-    <div v-else-if="items.length === 0" class="media-state" role="status">Belum ada video.</div>
+    <ProductEmptyState
+      v-if="library.error || actionError"
+      class="media-state-panel"
+      title="Galeri video belum dapat dimuat"
+      :description="actionError || library.error || 'Periksa koneksi lalu coba lagi.'"
+      eyebrow="Media error"
+      :icon="VideoIcon"
+      tone="error"
+    >
+      <button type="button" @click="refreshLibrary">Coba lagi</button>
+      <button type="button" @click="$router.push({ name: 'admin-media' })">Kembali</button>
+    </ProductEmptyState>
+    <ProductSkeleton v-else-if="library.loading && items.length === 0" class="media-state-panel" variant="cards" :count="6" label="Memuat galeri video" />
+    <ProductEmptyState
+      v-else-if="items.length === 0"
+      class="media-state-panel"
+      title="Belum ada video"
+      description="Unggah video dari halaman Manage Media agar koleksi Anda tampil di sini."
+      eyebrow="Galeri video"
+      :icon="VideoIcon"
+    >
+      <button type="button" @click="$router.push({ name: 'admin-media' })">Unggah media</button>
+      <button type="button" @click="refreshLibrary">Muat ulang</button>
+    </ProductEmptyState>
 
     <!-- Media Grid -->
     <div v-else class="media-grid">
@@ -52,7 +71,7 @@
 
     <!-- Delete Confirmation Modal -->
     <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="video-delete-title">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="video-delete-title" @keydown.esc="deleteTarget = null">
         <div class="modal-icon-wrap modal-icon-delete">
           <Trash2 class="modal-big-icon" />
         </div>
@@ -62,7 +81,7 @@
           Tindakan ini tidak dapat dibatalkan.
         </p>
         <div class="modal-actions">
-          <button class="modal-btn modal-btn-cancel" @click="deleteTarget = null">Batal</button>
+          <button class="modal-btn modal-btn-cancel" autofocus @click="deleteTarget = null">Batal</button>
           <button class="modal-btn modal-btn-danger" @click="confirmDelete">Hapus</button>
         </div>
       </div>
@@ -70,7 +89,7 @@
 
     <!-- Edit / Rename Modal -->
     <div v-if="editTarget" class="modal-backdrop" @click.self="cancelEdit">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="video-rename-title">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="video-rename-title" @keydown.esc="cancelEdit">
         <div class="modal-icon-wrap modal-icon-edit">
           <Pencil class="modal-big-icon" />
         </div>
@@ -81,6 +100,7 @@
           v-model="editName"
           class="modal-input"
           placeholder="Masukkan nama baru..."
+          autofocus
           @keydown.enter="confirmEdit"
         />
         <div class="modal-actions">
@@ -92,8 +112,8 @@
 
     <!-- View / Video Player Modal -->
     <div v-if="viewTarget" class="modal-backdrop modal-backdrop-view" @click.self="viewTarget = null">
-      <div class="modal-view-card" role="dialog" aria-modal="true" aria-labelledby="video-preview-title">
-        <button class="modal-close-btn" aria-label="Tutup pratinjau video" @click="viewTarget = null">
+      <div class="modal-view-card" role="dialog" aria-modal="true" aria-labelledby="video-preview-title" @keydown.esc="viewTarget = null">
+        <button class="modal-close-btn" autofocus aria-label="Tutup pratinjau video" @click="viewTarget = null">
           <X class="close-icon" />
         </button>
         <div class="modal-video-wrap">
@@ -116,9 +136,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Play, Trash2, Eye, Pencil, X, ArrowLeft } from 'lucide-vue-next'
+import { Play, Trash2, Eye, Pencil, X, ArrowLeft, Video as VideoIcon } from 'lucide-vue-next'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
+import ProductEmptyState from '../../components/ProductEmptyState.vue'
+import ProductSkeleton from '../../components/ProductSkeleton.vue'
+import { productFeedback } from '../../composables/useProductFeedback'
 
 interface MediaItem {
   id: string
@@ -178,8 +201,10 @@ async function confirmDelete(): Promise<void> {
   try {
     await library.remove(target.asset)
     deleteTarget.value = null
+    productFeedback.success('Video dihapus', `${target.name} telah dihapus dari Media Library.`)
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : 'Video tidak dapat dihapus.'
+    productFeedback.error('Video tidak dapat dihapus', actionError.value)
   }
 }
 
@@ -194,16 +219,28 @@ async function confirmEdit(): Promise<void> {
   if (!target || !editName.value.trim()) return
   try {
     await library.rename(target.asset, editName.value.trim())
+    productFeedback.success('Nama video diperbarui', `${target.name} sekarang bernama ${editName.value.trim()}.`)
     editTarget.value = null
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : 'Nama video tidak dapat disimpan.'
+    productFeedback.error('Nama video tidak dapat disimpan', actionError.value)
   }
 }
 
 function cancelEdit(): void { editTarget.value = null; editName.value = '' }
 function openViewModal(item: MediaItem): void { viewTarget.value = item }
 
-onMounted(() => library.refresh().catch(() => undefined))
+async function refreshLibrary(): Promise<void> {
+  actionError.value = ''
+  try {
+    await library.refresh()
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : 'Galeri video tidak dapat dimuat.'
+    productFeedback.error('Galeri video tidak dapat dimuat', actionError.value)
+  }
+}
+
+onMounted(() => void refreshLibrary())
 </script>
 
 <style scoped>
@@ -270,12 +307,7 @@ onMounted(() => library.refresh().catch(() => undefined))
   margin: 0 auto;
 }
 
-.media-state {
-  width: 100%; max-width: 1200px; margin: 0 auto; padding: 2rem;
-  border: 1px dashed #D2C4B4; border-radius: 18px;
-  background: #FAF9F5; color: #7B5F3B; text-align: center;
-}
-.media-state-error { border-style: solid; border-color: #E7B8AC; color: #8E3F29; background: #FFF4F1; }
+.media-state-panel { width: 100%; max-width: 1200px; margin: 0 auto; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;

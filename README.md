@@ -1,12 +1,20 @@
 # Tali-Temali Portfolio
 
-Vue 3 + TypeScript + Vite portfolio application with Guest and Admin views.
+Vue 3 + TypeScript + Vite portfolio application with an isolated Guest Runtime and authenticated Admin Editor.
+
+## Runtime model
+
+- Guest renders the active Published Snapshot, or the immutable Default Snapshot when no Published revision exists.
+- Drafts and Favorites remain Admin-only and never become Guest input.
+- Publish and rollback continue through the existing repository/RPC boundaries.
+- `portfolio-media` remains PUBLIC. Guest references only `published/*`; Editor staging uses `draft/*`.
 
 ## Requirements
 
-- Node.js and npm
-- A Supabase Cloud project
-- A publishable Supabase key
+- Node.js 22 or newer
+- npm
+- A Supabase Cloud project with the repository migrations already applied
+- A frontend-safe Supabase publishable key
 
 ## Local setup
 
@@ -15,31 +23,54 @@ npm ci
 Copy-Item .env.example .env
 ```
 
-Set the Cloud project URL and publishable key in `.env`:
+Configure:
 
 ```text
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+VITE_SITE_URL=https://portfolio.example.com
 ```
 
-Run the development server:
+`VITE_BUILD_ID` is optional. CI may supply a commit SHA; otherwise Vite creates a timestamp identifier used for service-worker cache rotation.
+
+Never expose a Supabase secret or service-role key in a `VITE_*` variable. Frontend access relies on a publishable key plus the existing grants and RLS policies.
+
+Run locally:
 
 ```powershell
 npm run dev
 ```
 
-## Production deployment
-
-Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the deployment environment, then build the static output:
+## Production build
 
 ```powershell
 npm ci
+npx vue-tsc --noEmit
 npm run build
 ```
 
-Deploy the generated `dist/` directory to a static host at the site root. The application uses hash-based routing, so the host does not need server-side route rewrites.
+Deploy `dist/` at the site root over HTTPS. The application uses hash routing, so origin-level SPA rewrite rules are not required. PWA scope and asset URLs assume root deployment.
 
-Never expose a Supabase service-role or secret key in frontend environment variables.
+The build emits hashed chunks, a Vite manifest, `robots.txt`, `sitemap.xml`, a web-app manifest, service worker, offline fallback, and social-preview assets. Set `VITE_SITE_URL` in the production build; otherwise local builds intentionally use `http://localhost` in generated crawler files.
+
+## Backup and recovery
+
+Authenticated Admins can use `/admin/maintenance` to:
+
+- export a complete JSON backup;
+- export an uncompressed ZIP package with separated Published, Draft, Favorite, Theme, Token, and diagnostic manifests;
+- export each data category separately;
+- validate app-generated JSON/ZIP packages without mutating repositories or Storage.
+
+Backups contain stable media references, not media binaries or credentials. See [RECOVERY-GUIDE.md](RECOVERY-GUIDE.md).
+
+## Documentation
+
+- [Deployment Guide](DEPLOYMENT-GUIDE.md)
+- [Architecture](ARCHITECTURE.md)
+- [Recovery Guide](RECOVERY-GUIDE.md)
+- [Production Checklist](DEPLOYMENT-CHECKLIST.md)
+- [Known Limitations](KNOWN-LIMITATIONS.md)
 
 ## Validation
 
@@ -49,4 +80,4 @@ npm run build
 git diff --check
 ```
 
-See `DEPLOYMENT-CHECKLIST.md`, `KNOWN-LIMITATIONS.md`, and `PROJECT-COMPLETION-REPORT.md` for the closing status.
+Phase-specific browser harnesses live under `tests/` and write evidence to `artifacts/`.

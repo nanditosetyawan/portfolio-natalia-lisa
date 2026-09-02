@@ -127,7 +127,7 @@ export const defaultExperienceConfig: ExperienceVisualConfig = {
     fontFamily: "Georgia, 'Times New Roman', serif"
   },
   date: {
-    color: '#FF9A86',
+    color: '#9A4738',
     fontSize: '0.95rem',
     fontWeight: 500,
     fontFamily: "'Inter', system-ui, sans-serif"
@@ -205,7 +205,7 @@ export function createExperienceFrameConfig(
       borderRadius: '4px',
       placeholder: {
         color: '#8D363A',
-        opacity: 0.5,
+        opacity: 1,
         borderWidth: '2px',
         fontSize: '0.65rem',
         labelOffset: '0.45rem'

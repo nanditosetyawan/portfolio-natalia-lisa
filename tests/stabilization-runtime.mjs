@@ -264,7 +264,7 @@ try {
   checkpoint('Message interactions audited')
 
   await navigate('/admin/maintenance', '.maintenance-page', 'Maintenance')
-  const maintenanceEvidence = await evaluate(`(async()=>{const buttons=[...document.querySelectorAll('.maintenance-card')];const before=document.body.innerText;buttons[0]?.click();await new Promise(resolve=>requestAnimationFrame(resolve));const importNoop=location.hash.includes('/admin/maintenance')&&document.body.innerText===before;buttons[1]?.click();await new Promise(resolve=>requestAnimationFrame(resolve));const exportNoop=location.hash.includes('/admin/maintenance')&&document.body.innerText===before;buttons[2]?.click();await new Promise(resolve=>requestAnimationFrame(resolve));const resetDialog=Boolean(document.querySelector('[role="dialog"]'));return {enabled:buttons.filter(button=>!button.disabled).length,importNoop,exportNoop,resetDialog}})()`)
+  const maintenanceEvidence = await evaluate(`(async()=>{const buttons=[...document.querySelectorAll('.maintenance-card')];const input=document.querySelector('.maintenance-file-input');buttons[1]?.click();for(let attempt=0;attempt<100&&!document.querySelector('.maintenance-modal');attempt+=1)await new Promise(resolve=>setTimeout(resolve,20));const exportDialog=Boolean(document.querySelector('.maintenance-modal'));const exportActions=document.querySelectorAll('.export-primary-actions button').length;document.querySelector('.modal-close')?.click();await new Promise(resolve=>requestAnimationFrame(resolve));buttons[2]?.click();return {enabled:buttons.filter(button=>!button.disabled).length,importInput:Boolean(input)&&input.accept.includes('.zip'),exportDialog,exportActions,resetDisabled:Boolean(buttons[2]?.disabled),resetDialog:Boolean(document.querySelector('[role="dialog"]'))}})()`)
 
   await setViewport(390, 844)
   await evaluate(`(()=>{const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;pinia._s.get('auth').$patch({isAdmin:false,isInitialized:true,isLoading:false});return true})()`)
@@ -324,7 +324,7 @@ try {
   if (dashboardNavigation['Open Favorite Drafts'] !== '/admin/favorites') failures.push('Favorite dashboard card navigation failed')
   if (dashboardNavigation['Open Messages'] !== '/admin/messages') failures.push('Message dashboard card navigation failed')
   if (!messageEvidence.read || !messageEvidence.saved || !messageEvidence.searched || !messageEvidence.dialog) failures.push('Message Center interaction contract failed')
-  if (maintenanceEvidence.enabled !== 0 || maintenanceEvidence.resetDialog) failures.push('Unavailable Maintenance controls are still actionable')
+  if (maintenanceEvidence.enabled !== 2 || !maintenanceEvidence.importInput || !maintenanceEvidence.exportDialog || maintenanceEvidence.exportActions !== 2 || !maintenanceEvidence.resetDisabled || maintenanceEvidence.resetDialog) failures.push('Phase 036 Maintenance export/import contract failed')
   if (sidebarEvidence.open.expanded !== 'true' || sidebarEvidence.open.inert || sidebarEvidence.open.ariaHidden !== 'false') failures.push('Open sidebar semantics failed')
   if (!sidebarEvidence.closed.inert || sidebarEvidence.closed.ariaHidden !== 'true') failures.push('Closed sidebar remains exposed')
   if ([guestFrames, mediaFrames, editorFrames].some((sample) => sample.fps < 50)) failures.push('Frame sample fell below 50 FPS')

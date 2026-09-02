@@ -31,11 +31,13 @@
           </span>
           <span v-if="editorPublishStatus" class="editor-publish-status" :class="{ 'editor-publish-status--failed': editorPublishStatus === 'Failed' }">{{ editorPublishStatus }}</span>
           <button class="tbar-btn tbar-save" title="Save Draft (Ctrl+S)" :disabled="isSaving || editor.isPublishing" @click="handleEditorSave">
-            <Save />
+            <LoaderCircle v-if="isSaving" class="spin" />
+            <Save v-else />
             <span>{{ isSaving ? 'Saving…' : 'Save Draft' }}</span>
           </button>
           <button class="tbar-btn tbar-publish" :disabled="publishDisabled" :title="publishDisabledReason" @click="openPublishDialog">
-            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <LoaderCircle v-if="editor.isPublishing" class="spin" aria-hidden="true" />
+            <svg v-else aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6l-6-6z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
               <line x1="8" y1="13" x2="16" y2="13"></line>
@@ -52,7 +54,7 @@
     </div>
 
     <div v-if="showPublishDialog" class="publish-modal-backdrop" role="presentation" @click.self="closePublishDialog">
-      <section class="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title">
+      <section class="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title" tabindex="-1" @keydown.esc="closePublishDialog">
         <p class="publish-modal-kicker">Published Runtime</p>
         <h2 id="publish-dialog-title">Publish this saved Draft?</h2>
         <p>Draft #{{ editor.draftRevisionNumber ?? '-' }} remains in the Draft Library. Favorites and Editor history will not be removed.</p>
@@ -62,7 +64,7 @@
           <li v-for="error in editorPublishErrors" :key="error">{{ error }}</li>
         </ul>
         <div class="publish-modal-actions">
-          <button type="button" class="publish-cancel" :disabled="editor.isPublishing" @click="closePublishDialog">Cancel</button>
+          <button ref="publishCancelButton" type="button" class="publish-cancel" :disabled="editor.isPublishing" @click="closePublishDialog">Cancel</button>
           <button type="button" class="publish-confirm" :disabled="editor.isPublishing" @click="confirmPublish">
             {{ editor.isPublishing ? 'Publishing…' : 'Publish atomically' }}
           </button>
@@ -73,15 +75,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Undo, Redo, Save } from 'lucide-vue-next'
+import { LoaderCircle, Undo, Redo, Save } from 'lucide-vue-next'
 import { useAuthStore } from '../../../stores/auth'
 import AdminSidebar from './AdminSidebar.vue'
 import AdminHeader from './AdminHeader.vue'
 import { editorHasChanges, editorSaveStatus, markEditorChanged, saveEditor } from '../../../composables/useEditorSession'
 import { editorPublishErrors, editorPublishStatus, publishEditor, resetEditorPublishFeedback } from '../../../composables/useEditorPublish'
 import { useEditorStore } from '../../../stores/editor'
+import { productFeedback } from '../../../composables/useProductFeedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -90,6 +93,7 @@ const sidebarOpen = ref(false)
 const isSaving = ref(false)
 const showPublishDialog = ref(false)
 const publishNote = ref('')
+const publishCancelButton = ref<HTMLButtonElement | null>(null)
 const editor = useEditorStore()
 
 const sidebarItems = [
@@ -110,7 +114,12 @@ const handleLogout = async () => {
 
 const handleEditorSave = async () => {
   isSaving.value = true
-  try { await saveEditor() } catch { /* save action owns the visible recoverable error */ } finally {
+  try {
+    await saveEditor()
+    productFeedback.success('Draft saved', `Draft #${editor.draftRevisionNumber ?? 'new'} is safely stored.`)
+  } catch (error) {
+    productFeedback.error('Draft save failed', error instanceof Error ? error.message : 'Your local changes were kept. Retry when ready.')
+  } finally {
     isSaving.value = false
   }
 }
@@ -134,11 +143,13 @@ const publishDisabledReason = computed(() => {
   return editor.isPublishing ? 'Publish is in progress.' : 'Publish the saved Draft.'
 })
 
-function openPublishDialog(): void {
+async function openPublishDialog(): Promise<void> {
   if (publishDisabled.value) return
   resetEditorPublishFeedback()
   publishNote.value = ''
   showPublishDialog.value = true
+  await nextTick()
+  publishCancelButton.value?.focus()
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -175,8 +186,10 @@ function closePublishDialog(): void {
 async function confirmPublish(): Promise<void> {
   try {
     await publishEditor(publishNote.value)
+    productFeedback.success('Published successfully', `Guest Runtime now uses revision #${editor.publishedRevisionNumber ?? '-'}. The Draft remains available.`)
     showPublishDialog.value = false
-  } catch {
+  } catch (error) {
+    productFeedback.error('Publish failed', editorPublishErrors.value[0] ?? (error instanceof Error ? error.message : 'The current Published revision remains active.'))
     // AdminEdit normalizes repository failures and keeps them visible here.
   }
 }
@@ -322,4 +335,6 @@ const isEditPage = computed(() => route.path === '/admin/edit')
 .publish-cancel { border: 1px solid #ddc9bf; color: #5a3e35; background: transparent; }
 .publish-confirm { border: 1px solid #ff9a86; color: #fff; background: #ff8d79; }
 .publish-modal-actions button:disabled { cursor: wait; opacity: .65; }
+.spin{animation:admin-layout-spin .8s linear infinite}@keyframes admin-layout-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
 </style>

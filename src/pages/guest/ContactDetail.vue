@@ -11,7 +11,7 @@
         <!-- Left Side: Responsive Photo Placeholder / Input Image -->
         <div class="contact2-left">
           <div class="contact2-photo-frame">
-            <img v-if="adminInputImage" :src="adminInputImage" alt="Lisa Natalia" class="contact2-portrait-image" />
+            <img v-if="adminInputImage" :src="adminInputImage" alt="Lisa Natalia" class="contact2-portrait-image" loading="eager" decoding="async" fetchpriority="high" />
             <div v-else class="contact2-photo-placeholder">
               <div class="contact2-placeholder-decor-line"></div>
               <span class="contact2-placeholder-text">Photo Area</span>
@@ -30,14 +30,14 @@
             
             <!-- Horizontal Social Circle Buttons -->
             <div class="social-circle-buttons">
-              <a href="https://wa.me/#" target="_blank" class="social-circle-btn" aria-label="WhatsApp">
-                <img :src="waLogo" alt="WhatsApp" class="social-logo-img" />
+              <a href="https://wa.me/#" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="WhatsApp">
+                <img :src="waLogo" alt="WhatsApp" class="social-logo-img" decoding="async" />
               </a>
-              <a href="https://linkedin.com/in/#" target="_blank" class="social-circle-btn" aria-label="LinkedIn">
-                <img :src="linkedinLogo" alt="LinkedIn" class="social-logo-img" />
+              <a href="https://linkedin.com/in/#" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="LinkedIn">
+                <img :src="linkedinLogo" alt="LinkedIn" class="social-logo-img" decoding="async" />
               </a>
-              <a href="#" target="_blank" class="social-circle-btn" aria-label="CV / Resume">
-                <img :src="cvLogo" alt="CV" class="social-logo-img" />
+              <a href="#" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="CV / Resume">
+                <img :src="cvLogo" alt="CV" class="social-logo-img" decoding="async" />
               </a>
             </div>
           </div>
@@ -116,7 +116,7 @@
         <!-- Right Column: Tall Photo Box matching Card Height (1/3 Width) -->
         <div class="message-right-column">
           <div class="message-photo-frame">
-            <img v-if="messageInputImage" :src="messageInputImage" alt="Message illustration" class="message-portrait-image" />
+            <img v-if="messageInputImage" :src="messageInputImage" alt="Message illustration" class="message-portrait-image" loading="lazy" decoding="async" />
             <div v-else class="message-photo-placeholder">
               <div class="message-placeholder-decor-line"></div>
               <span class="message-placeholder-text">Photo Area</span>

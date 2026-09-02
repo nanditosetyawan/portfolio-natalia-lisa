@@ -23,6 +23,7 @@ import {
   registerEditorSave,
   saveEditor
 } from '../../composables/useEditorSession'
+import { productFeedback } from '../../composables/useProductFeedback'
 import PropertyControl from './components/PropertyControl.vue'
 import PropertyInputControl from './components/property-controls/PropertyInputControl.vue'
 import EditorObjectNavigator from './components/EditorObjectNavigator.vue'
@@ -1545,6 +1546,7 @@ async function chooseExistingMedia(assetInput: string | MediaLibraryAsset, comma
   await photoRegistry.updateSource(target.id, source)
   markEditorChanged()
   saveStatus.value = 'Existing media selected. Save Draft to persist its reference.'
+  productFeedback.success('Media updated', `${libraryAsset?.name || legacyAsset?.alt || 'The selected asset'} is now used by ${entity.label}.`)
   await nextTick()
   updateSelectedOutline()
 }
@@ -1584,6 +1586,7 @@ async function removeSelectedMedia(commandType: EditorCommandType): Promise<void
   await photoRegistry.updateSource(target.id, '')
   markEditorChanged()
   saveStatus.value = 'Media reference removed from this object. The Asset Library item was not deleted.'
+  productFeedback.success('Media removed', `The reference was removed from ${entity.label}. The library asset remains available.`)
 }
 
 async function duplicateSelectedMediaReference(commandType: EditorCommandType): Promise<void> {
@@ -1716,8 +1719,10 @@ async function uploadSelectedMedia(file: File, commandType: EditorCommandType): 
     mediaInputVersion.value += 1
     markEditorChanged()
     saveStatus.value = 'Image staged. Save Draft to persist its reference.'
+    productFeedback.success('Upload complete', `${file.name} is staged for this Draft.`)
   } catch (error) {
     saveStatus.value = error instanceof Error ? error.message : 'Image upload failed.'
+    productFeedback.error('Upload failed', saveStatus.value)
   }
 }
 
@@ -1819,7 +1824,16 @@ async function publishCurrentDraft(note: string): Promise<void> {
 }
 
 async function discardDraft(): Promise<void> {
-  if (editor.draftRevisionId && !window.confirm('Discard this Draft? The Published site will not be changed.')) return
+  if (editor.draftRevisionId) {
+    const accepted = await productFeedback.confirm({
+      title: 'Discard this Draft?',
+      message: 'Unsaved editor changes and this Draft revision will be discarded. The Published site will not be changed.',
+      confirmLabel: 'Discard Draft',
+      cancelLabel: 'Keep editing',
+      tone: 'danger'
+    })
+    if (!accepted) return
+  }
   try {
     await editorDraftRepository.discardDraft(editor.draftRevisionId ?? undefined)
     const published = await guestPublishedRepository.loadPublishedSnapshot()
@@ -1841,9 +1855,11 @@ async function discardDraft(): Promise<void> {
     editorHasChanges.value = false
     editorSaveStatus.value = 'Saved'
     saveStatus.value = 'Draft discarded. Published-derived workspace restored.'
+    productFeedback.success('Draft discarded', 'The Published-derived workspace has been restored.')
   } catch (error) {
     editorSaveStatus.value = 'Error / Unsaved'
     saveStatus.value = error instanceof Error ? error.message : 'Draft could not be discarded.'
+    productFeedback.error('Draft could not be discarded', saveStatus.value)
   }
 }
 

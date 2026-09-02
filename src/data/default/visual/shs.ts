@@ -216,7 +216,7 @@ export const defaultSHSConfig: SHSVisualConfig = {
     gap: '3rem'
   },
   label: {
-    color: '#FF9A86',
+    color: '#9A4738',
     fontSize: '1.15rem',
     fontWeight: 700,
     letterSpacing: '0.04em',
@@ -232,7 +232,7 @@ export const defaultSHSConfig: SHSVisualConfig = {
     fontFamily: "Georgia, 'Times New Roman', serif"
   },
   calendar: {
-    color: '#FF9A86',
+    color: '#9A4738',
     fontSize: '1.05rem',
     fontWeight: 600,
     family: "'Inter', system-ui, sans-serif",
@@ -389,7 +389,7 @@ export const defaultSHSConfig: SHSVisualConfig = {
 function createSHSPlaceholder() {
   return {
     color: '#8D363A',
-    opacity: 0.5,
+    opacity: 1,
     borderWidth: '2px',
     fontSize: '0.65rem',
     labelOffset: '0.45rem',

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tali-Temali portfolio">
+  <rect width="512" height="512" rx="116" fill="#F6F4E8"/>
+  <circle cx="256" cy="256" r="176" fill="#B85B69"/>
+  <path d="M162 176h188M256 176v188" fill="none" stroke="#FFFDF7" stroke-width="52" stroke-linecap="round"/>
+</svg>

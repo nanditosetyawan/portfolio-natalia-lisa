@@ -10,11 +10,30 @@
       <span class="item-count">{{ items.length }} item</span>
     </div>
 
-    <p v-if="library.error || actionError" class="media-state media-state-error" role="alert">
-      {{ actionError || library.error }}
-    </p>
-    <p v-else-if="library.loading && items.length === 0" class="media-state" role="status">Memuat galeri gambar…</p>
-    <div v-else-if="items.length === 0" class="media-state" role="status">Belum ada gambar.</div>
+    <ProductEmptyState
+      v-if="library.error || actionError"
+      class="media-state-panel"
+      title="Galeri gambar belum dapat dimuat"
+      :description="actionError || library.error || 'Periksa koneksi lalu coba lagi.'"
+      eyebrow="Media error"
+      :icon="ImageIcon"
+      tone="error"
+    >
+      <button type="button" @click="refreshLibrary">Coba lagi</button>
+      <button type="button" @click="$router.push({ name: 'admin-media' })">Kembali</button>
+    </ProductEmptyState>
+    <ProductSkeleton v-else-if="library.loading && items.length === 0" class="media-state-panel" variant="cards" :count="6" label="Memuat galeri gambar" />
+    <ProductEmptyState
+      v-else-if="items.length === 0"
+      class="media-state-panel"
+      title="Belum ada gambar"
+      description="Unggah gambar dari halaman Manage Media agar koleksi Anda tampil di sini."
+      eyebrow="Galeri gambar"
+      :icon="ImageIcon"
+    >
+      <button type="button" @click="$router.push({ name: 'admin-media' })">Unggah media</button>
+      <button type="button" @click="refreshLibrary">Muat ulang</button>
+    </ProductEmptyState>
 
     <!-- Media Grid -->
     <div v-else class="media-grid">
@@ -50,7 +69,7 @@
 
     <!-- Delete Confirmation Modal -->
     <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="image-delete-title">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="image-delete-title" @keydown.esc="deleteTarget = null">
         <div class="modal-icon-wrap modal-icon-delete">
           <Trash2 class="modal-big-icon" />
         </div>
@@ -60,7 +79,7 @@
           Tindakan ini tidak dapat dibatalkan.
         </p>
         <div class="modal-actions">
-          <button class="modal-btn modal-btn-cancel" @click="deleteTarget = null">Batal</button>
+          <button class="modal-btn modal-btn-cancel" autofocus @click="deleteTarget = null">Batal</button>
           <button class="modal-btn modal-btn-danger" @click="confirmDelete">Hapus</button>
         </div>
       </div>
@@ -68,7 +87,7 @@
 
     <!-- Edit / Rename Modal -->
     <div v-if="editTarget" class="modal-backdrop" @click.self="cancelEdit">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="image-rename-title">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="image-rename-title" @keydown.esc="cancelEdit">
         <div class="modal-icon-wrap modal-icon-edit">
           <Pencil class="modal-big-icon" />
         </div>
@@ -79,6 +98,7 @@
           v-model="editName"
           class="modal-input"
           placeholder="Masukkan nama baru..."
+          autofocus
           @keydown.enter="confirmEdit"
         />
         <div class="modal-actions">
@@ -90,8 +110,8 @@
 
     <!-- View / Lightbox Modal -->
     <div v-if="viewTarget" class="modal-backdrop modal-backdrop-view" @click.self="viewTarget = null">
-      <div class="modal-view-card" role="dialog" aria-modal="true" aria-labelledby="image-preview-title">
-        <button class="modal-close-btn" aria-label="Tutup pratinjau gambar" @click="viewTarget = null">
+      <div class="modal-view-card" role="dialog" aria-modal="true" aria-labelledby="image-preview-title" @keydown.esc="viewTarget = null">
+        <button class="modal-close-btn" autofocus aria-label="Tutup pratinjau gambar" @click="viewTarget = null">
           <X class="close-icon" />
         </button>
         <div class="modal-view-preview" :style="{ background: viewTarget.color }">
@@ -112,6 +132,9 @@ import { computed, onMounted, ref } from 'vue'
 import { Image as ImageIcon, Trash2, Eye, Pencil, X, ArrowLeft } from 'lucide-vue-next'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
+import ProductEmptyState from '../../components/ProductEmptyState.vue'
+import ProductSkeleton from '../../components/ProductSkeleton.vue'
+import { productFeedback } from '../../composables/useProductFeedback'
 
 interface MediaItem {
   id: string
@@ -173,8 +196,10 @@ async function confirmDelete(): Promise<void> {
   try {
     await library.remove(target.asset)
     deleteTarget.value = null
+    productFeedback.success('Gambar dihapus', `${target.name} telah dihapus dari Media Library.`)
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : 'Media tidak dapat dihapus.'
+    productFeedback.error('Gambar tidak dapat dihapus', actionError.value)
   }
 }
 
@@ -189,9 +214,11 @@ async function confirmEdit(): Promise<void> {
   if (!target || !editName.value.trim()) return
   try {
     await library.rename(target.asset, editName.value.trim())
+    productFeedback.success('Nama gambar diperbarui', `${target.name} sekarang bernama ${editName.value.trim()}.`)
     editTarget.value = null
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : 'Nama media tidak dapat disimpan.'
+    productFeedback.error('Nama gambar tidak dapat disimpan', actionError.value)
   }
 }
 
@@ -204,7 +231,17 @@ function openViewModal(item: MediaItem): void {
   viewTarget.value = item
 }
 
-onMounted(() => library.refresh().catch(() => undefined))
+async function refreshLibrary(): Promise<void> {
+  actionError.value = ''
+  try {
+    await library.refresh()
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : 'Galeri gambar tidak dapat dimuat.'
+    productFeedback.error('Galeri gambar tidak dapat dimuat', actionError.value)
+  }
+}
+
+onMounted(() => void refreshLibrary())
 </script>
 
 <style scoped>
@@ -283,23 +320,10 @@ onMounted(() => library.refresh().catch(() => undefined))
   margin: 0 auto;
 }
 
-.media-state {
+.media-state-panel {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  border: 1px dashed #D2C4B4;
-  border-radius: 18px;
-  background: #FAF9F5;
-  color: #7B5F3B;
-  text-align: center;
-}
-
-.media-state-error {
-  border-style: solid;
-  border-color: #E7B8AC;
-  color: #8E3F29;
-  background: #FFF4F1;
 }
 
 .sr-only {

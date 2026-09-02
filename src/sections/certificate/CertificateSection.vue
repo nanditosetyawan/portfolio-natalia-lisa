@@ -23,6 +23,7 @@ const certificateOrigin = (id: string) => (
 // ===== Expand State =====
 const expandedCards = ref<Set<string>>(new Set())
 const currentSlides = reactive<Record<string, number>>({})
+const downloadMessage = ref('')
 const slideTimers: Record<string, ReturnType<typeof setInterval>> = {}
 
 function isExpanded(id: string): boolean {
@@ -73,10 +74,10 @@ function goToSlide(id: string, index: number) {
 function downloadCert(card: CertificateCard) {
   const validImages = card.detailImages.map((image) => photoSource(image)).filter(Boolean)
   if (validImages.length === 0) {
-    // Placeholder: no actual image files yet
-    alert(`Gambar sertifikat "${card.title}" belum tersedia.\nGanti URL di data cards untuk mengaktifkan download.`)
+    downloadMessage.value = `Gambar sertifikat "${card.title}" belum tersedia.`
     return
   }
+  downloadMessage.value = `${validImages.length} file sertifikat mulai diunduh.`
   // Download each image individually
   validImages.forEach((imgUrl, i) => {
     const a = document.createElement('a')
@@ -443,6 +444,7 @@ onBeforeUnmount(() => {
     <p v-else-if="certificatesStore.errorMessage" class="certificate-status certificate-status-error" role="status" aria-live="polite">
       {{ certificatesStore.errorMessage }}
     </p>
+    <p v-if="downloadMessage" class="certificate-status" role="status" aria-live="polite">{{ downloadMessage }}</p>
 
     <!-- Bottom refresh button (kept as-is) -->
     <div class="bottom-action">
@@ -706,15 +708,17 @@ onBeforeUnmount(() => {
   opacity: 0.9;
 }
 .placeholder-label {
+  color: #362D25;
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 500;
   line-height: 1.2;
 }
 .placeholder-sublabel {
+  color: #362D25;
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.75rem;
-  opacity: 0.8;
+  opacity: 1;
   line-height: 1.1;
 }
 /* --- Region 2: Text block in center --- */
@@ -729,7 +733,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: #F28C38; /* Accent color orange */
+  color: #99500F; /* Accessible orange accent on the card surface. */
   margin-bottom: 0.4rem;
 }
 .info-calendar-icon {

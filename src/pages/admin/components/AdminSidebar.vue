@@ -229,7 +229,10 @@ const handleKeydown = (e: KeyboardEvent) => {
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
   background: none;
   border: none;
   color: #7B5F3B;

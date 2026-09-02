@@ -11,6 +11,13 @@ export function setSupabaseAccessToken(token: string | null): void {
   accessToken = token
 }
 
+export function supabasePublicStorageUrl(bucket: string, storagePath: string): string {
+  if (!isSupabaseConfigured()) throw new Error('Supabase environment is not configured')
+  const encodedBucket = encodeURIComponent(bucket)
+  const encodedPath = storagePath.split('/').map((segment) => encodeURIComponent(segment)).join('/')
+  return `${configuredUrl}/storage/v1/object/public/${encodedBucket}/${encodedPath}`
+}
+
 function authorizationToken(): string {
   return accessToken ?? publishableKey
 }
@@ -22,21 +29,34 @@ export async function supabaseRestRequest<T>(
     query?: string
     body?: unknown
     prefer?: string
+    timeoutMs?: number
   } = {}
 ): Promise<T> {
   if (!isSupabaseConfigured()) throw new Error('Supabase environment is not configured')
+  if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Network unavailable. Check your connection and retry.')
 
-  const response = await fetch(`${configuredUrl}/rest/v1/${table}${options.query ?? ''}`, {
-    method: options.method ?? 'GET',
-    headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${authorizationToken()}`,
-      Accept: 'application/json',
-      ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      ...(options.prefer === undefined ? {} : { Prefer: options.prefer })
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
-  })
+  const controller = new AbortController()
+  const timeout = globalThis.setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000)
+  let response: Response
+  try {
+    response = await fetch(`${configuredUrl}/rest/v1/${table}${options.query ?? ''}`, {
+      method: options.method ?? 'GET',
+      headers: {
+        apikey: publishableKey,
+        Authorization: `Bearer ${authorizationToken()}`,
+        Accept: 'application/json',
+        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(options.prefer === undefined ? {} : { Prefer: options.prefer })
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: controller.signal
+    })
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Supabase request timed out. Retry when the connection is stable.')
+    throw new Error(error instanceof Error ? `Supabase network request failed: ${error.message}` : 'Supabase network request failed.')
+  } finally {
+    globalThis.clearTimeout(timeout)
+  }
 
   if (!response.ok) {
     const detail = await response.text()

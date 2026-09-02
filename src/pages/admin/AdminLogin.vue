@@ -44,9 +44,12 @@
         </div>
 
         <p v-if="auth.errorMessage" class="login-error" role="alert">{{ auth.errorMessage }}</p>
-        <button type="submit" :disabled="auth.isLoading">
+        <button type="submit" :disabled="auth.isLoading" :aria-busy="auth.isLoading">
           <span>{{ auth.isLoading ? 'Signing in…' : 'Sign in' }}</span>
-          <span class="button-arrow" aria-hidden="true"><ArrowRight :size="15" stroke-width="1.8" /></span>
+          <span class="button-arrow" aria-hidden="true">
+            <LoaderCircle v-if="auth.isLoading" class="login-spinner" :size="15" stroke-width="1.8" />
+            <ArrowRight v-else :size="15" stroke-width="1.8" />
+          </span>
         </button>
         <p class="secure-note"><span aria-hidden="true">✧</span> Secure administrator access</p>
       </form>
@@ -56,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ArrowRight, LockKeyhole, Mail, Sparkles } from 'lucide-vue-next'
+import { ArrowRight, LoaderCircle, LockKeyhole, Mail, Sparkles } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
@@ -113,6 +116,7 @@ async function submit() {
 .login-card button:focus-visible { outline: 3px solid rgba(198, 120, 127, .3); outline-offset: 3px; }
 .login-card button:disabled { opacity: .6; cursor: wait; }
 .button-arrow { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border: 1px solid rgba(255, 255, 255, .45); border-radius: 50%; font-size: 1.1rem; line-height: 1; transition: transform .2s ease; }
+.login-spinner { animation: login-spin .8s linear infinite; }
 .login-card button:hover:not(:disabled) .button-arrow { transform: translateX(2px); }
 .login-error { padding: .7rem .8rem; border: 1px solid rgba(163, 61, 50, .16); border-radius: .6rem; color: #a33d32; background: #fff1ef; font-size: .78rem; }
 .secure-note { color: #b4999a; font-size: .7rem; text-align: center; }
@@ -121,6 +125,7 @@ async function submit() {
 .ornament-one { width: 14rem; height: 14rem; top: -6rem; left: -4rem; }
 .ornament-two { width: 9rem; height: 9rem; right: 7%; bottom: -4rem; border-color: rgba(219, 166, 106, .25); }
 .ornament-three { width: 1rem; height: 1rem; top: 14%; right: 15%; border-width: 2px; box-shadow: 1.4rem 1.8rem 0 -3px #d98788, -1rem 3rem 0 -4px #e2b06f; }
+@keyframes login-spin { to { transform: rotate(360deg); } }
 @media (max-width: 700px) {
   .admin-login { width: 100%; box-sizing: border-box; padding: 1rem; }
   .login-shell { width: calc(100vw - 2rem); max-width: calc(100vw - 2rem); grid-template-columns: 1fr; border-radius: 1.25rem; }
@@ -133,5 +138,6 @@ async function submit() {
 }
 @media (prefers-reduced-motion: reduce) {
   .field-control, .login-card button, .button-arrow { transition: none; }
+  .login-spinner { animation: none; }
 }
 </style>

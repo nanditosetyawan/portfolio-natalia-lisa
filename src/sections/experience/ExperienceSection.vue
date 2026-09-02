@@ -249,9 +249,12 @@ const sectionRef = ref<HTMLElement | null>(null)
 const rafProgress = ref(0)   // drives card transforms
 let rafId = 0
 const isDesktop = ref(false)
+let sectionObserver: IntersectionObserver | null = null
+let sectionVisible = false
 
 function loop() {
-  if (sectionRef.value && isDesktop.value) {
+  rafId = 0
+  if (sectionRef.value && isDesktop.value && sectionVisible) {
     const rect = sectionRef.value.getBoundingClientRect()
     // scrolled = how many px we've scrolled past the section top
     // When section top == viewport top: scrolled = 0
@@ -261,21 +264,37 @@ function loop() {
     const raw = scrolled / vh
     rafProgress.value = Math.max(0, Math.min(Math.max(0, items.value.length - 1), raw))
   }
-  rafId = requestAnimationFrame(loop)
+  if (isDesktop.value && sectionVisible) rafId = requestAnimationFrame(loop)
+}
+
+function scheduleLoop() {
+  if (!rafId && isDesktop.value && sectionVisible) rafId = requestAnimationFrame(loop)
 }
 
 function onResize() {
   isDesktop.value = window.innerWidth > 900
+  if (!isDesktop.value && rafId) {
+    cancelAnimationFrame(rafId)
+    rafId = 0
+  } else scheduleLoop()
 }
 
 onMounted(() => {
   onResize()
   window.addEventListener('resize', onResize)
-  rafId = requestAnimationFrame(loop)
+  sectionObserver = new IntersectionObserver(([entry]) => {
+    sectionVisible = Boolean(entry?.isIntersecting)
+    if (!sectionVisible && rafId) {
+      cancelAnimationFrame(rafId)
+      rafId = 0
+    } else scheduleLoop()
+  }, { rootMargin: '100% 0px' })
+  if (sectionRef.value) sectionObserver.observe(sectionRef.value)
 })
 
 onUnmounted(() => {
   cancelAnimationFrame(rafId)
+  sectionObserver?.disconnect()
   window.removeEventListener('resize', onResize)
 })
 
@@ -616,7 +635,7 @@ const dotTopVh = computed(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  opacity: 0.7;
+  opacity: 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════

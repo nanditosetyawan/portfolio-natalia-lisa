@@ -1,6 +1,7 @@
 <template>
   <div class="dashboard">
     <div class="dashboard-main">
+      <p v-if="metricsError" class="dashboard-error" role="alert">Dashboard counts are temporarily unavailable. <button type="button" @click.stop="void loadMetrics()">Retry</button></p>
       <div class="dashboard-row1">
         <div class="card card-draft card-link" role="button" tabindex="0" aria-label="Open Draft Library" @click="goToDrafts" @keydown.enter="goToDrafts" @keydown.space.prevent="goToDrafts">
           <div class="card-image">
@@ -23,7 +24,8 @@
               </span>
               <h2 class="card-draft-title">Draf</h2>
             </div>
-            <p class="card-draft-desc">{{ draftCount }} / 10 drafts</p>
+            <ProductSkeleton v-if="metricsLoading" variant="inline" label="Loading Draft count" />
+            <p v-else class="card-draft-desc">{{ draftCount }} / 10 drafts</p>
             <div class="capacity-track" aria-hidden="true"><span :style="{ width: `${Math.min(100, draftCount * 10)}%` }"></span></div>
           </div>
         </div>
@@ -50,8 +52,8 @@
               </span>
               <h2 class="card-published-title">Published</h2>
             </div>
-            <p class="card-published-desc">{{ publishedRevision === null ? 'No active Published Snapshot' : `Live revision #${publishedRevision}` }}</p>
-            <p class="card-published-date">{{ publishedAt ? `Published ${formatPublishedDate(publishedAt)}` : 'Open Publish History' }}</p>
+            <ProductSkeleton v-if="metricsLoading" variant="inline" label="Loading Published revision" />
+            <template v-else><p class="card-published-desc">{{ publishedRevision === null ? 'No active Published Snapshot' : `Live revision #${publishedRevision}` }}</p><p class="card-published-date">{{ publishedAt ? `Published ${formatPublishedDate(publishedAt)}` : 'Open Publish History' }}</p></template>
             <div class="card-bottom">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 22L12 6L9 9L12 12L15 9L12 6"/>
@@ -114,7 +116,8 @@
               </span>
               <h3 class="card-favorite-title">Favorite</h3>
             </div>
-            <p class="card-favorite-desc">{{ favoriteCount }} / 8 favorites</p>
+            <ProductSkeleton v-if="metricsLoading" variant="inline" label="Loading Favorite count" />
+            <p v-else class="card-favorite-desc">{{ favoriteCount }} / 8 favorites</p>
             <div class="capacity-track" aria-hidden="true"><span :style="{ width: `${Math.min(100, favoriteCount * 12.5)}%` }"></span></div>
           </div>
         </div>
@@ -139,6 +142,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import ProductSkeleton from '../../components/ProductSkeleton.vue'
+import { productFeedback } from '../../composables/useProductFeedback'
 import { editorDraftRepository, favoriteRepository, guestPublishedRepository } from '../../repositories/editorRevisionRepository'
 
 const router = useRouter()
@@ -150,6 +155,8 @@ const draftCount = ref(0)
 const favoriteCount = ref(0)
 const publishedRevision = ref<number | null>(null)
 const publishedAt = ref<string | null>(null)
+const metricsLoading = ref(true)
+const metricsError = ref('')
 
 function formatPublishedDate(value: string): string {
   return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Asia/Jakarta' }).format(new Date(value))
@@ -193,6 +200,44 @@ function updateClock(): void {
   clockTime.value = formatTime()
 }
 
+function stopClock(): void {
+  if (timer === null) return
+  clearInterval(timer)
+  timer = null
+}
+
+function startClock(): void {
+  updateClock()
+  stopClock()
+  if (!document.hidden) timer = setInterval(updateClock, 1000)
+}
+
+function handleVisibilityChange(): void {
+  if (document.hidden) stopClock()
+  else startClock()
+}
+
+async function loadMetrics(): Promise<void> {
+  metricsLoading.value = true
+  metricsError.value = ''
+  try {
+    const [drafts, favorites, published] = await Promise.all([
+      editorDraftRepository.countDrafts(),
+      favoriteRepository.countFavorites(),
+      guestPublishedRepository.loadPublishedSnapshot()
+    ])
+    draftCount.value = drafts
+    favoriteCount.value = favorites
+    publishedRevision.value = published?.revision.revision_number ?? null
+    publishedAt.value = published?.revision.published_at ?? null
+  } catch (error) {
+    metricsError.value = error instanceof Error ? error.message : 'Dashboard data could not be loaded.'
+    productFeedback.warning('Dashboard counts unavailable', 'Navigation remains available. Retry when the connection is stable.')
+  } finally {
+    metricsLoading.value = false
+  }
+}
+
 async function syncTime(): Promise<void> {
   try {
     const res = await fetch('https://timeapi.io/api/Time/current/zone?timezone=Asia/Jakarta')
@@ -223,28 +268,16 @@ async function syncTime(): Promise<void> {
   }
 }
 
-onMounted(async () => {
-  try {
-    const [drafts, favorites, published] = await Promise.all([
-      editorDraftRepository.countDrafts(),
-      favoriteRepository.countFavorites(),
-      guestPublishedRepository.loadPublishedSnapshot()
-    ])
-    draftCount.value = drafts
-    favoriteCount.value = favorites
-    publishedRevision.value = published?.revision.revision_number ?? null
-    publishedAt.value = published?.revision.published_at ?? null
-  } catch { /* dashboard remains usable while data is unavailable */ }
-  await syncTime()
-  updateClock()
-  timer = setInterval(updateClock, 1000)
+onMounted(() => {
+  startClock()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  void loadMetrics()
+  void syncTime().then(updateClock)
 })
 
 onUnmounted(() => {
-  if (timer !== null) {
-    clearInterval(timer)
-    timer = null
-  }
+  stopClock()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -273,6 +306,7 @@ onUnmounted(() => {
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
+.dashboard-error{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 1rem;padding:.75rem 1rem;border:1px solid #e2b9b9;border-radius:16px;color:#963f47;background:#fff3ef;font-size:.78rem}.dashboard-error button{border:0;color:inherit;background:transparent;font-weight:900;text-decoration:underline;cursor:pointer}
 
 .card {
   background-color: #FFFFFF;

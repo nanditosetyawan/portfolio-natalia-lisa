@@ -39,6 +39,11 @@ function applyAsset(asset = selectedAsset.value): void {
   if (asset) emit('apply', asset)
 }
 
+function resetView(): void {
+  search.value = ''
+  filter.value = 'all'
+}
+
 function handleDialogKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.preventDefault()
@@ -91,6 +96,7 @@ watch(() => props.open, async (open) => {
           @select="selectAsset($event)"
           @activate="applyAsset($event)"
           @favorite="library.toggleFavorite($event.id)"
+          @reset="resetView"
         />
       </div>
 

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Download, ExternalLink, FolderInput, Grid3X3, Heart, Pencil, Search, Trash2, Upload, X } from 'lucide-vue-next'
 import AssetVirtualGrid from './components/AssetVirtualGrid.vue'
+import { productFeedback } from '../../composables/useProductFeedback'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import type { MediaAssetUsage, MediaLibraryAsset, MediaLibraryFilter, MediaLibrarySort } from '../../types/mediaLibrary'
 
@@ -79,6 +80,18 @@ function clearSelection(): void {
   selectionAnchorId.value = null
 }
 
+function resetView(): void {
+  search.value = ''
+  filter.value = 'all'
+  sort.value = 'newest'
+  clearSelection()
+}
+
+function reportFailure(title: string, error: unknown, fallback: string): void {
+  statusMessage.value = error instanceof Error ? error.message : fallback
+  productFeedback.error(title, statusMessage.value)
+}
+
 function activateAsset(asset: MediaLibraryAsset): void {
   selectAsset(asset, 'replace')
 }
@@ -86,6 +99,14 @@ function activateAsset(asset: MediaLibraryAsset): void {
 function favoriteSelection(force = true): void {
   for (const asset of selectedAssets.value) library.toggleFavorite(asset.id, force)
   statusMessage.value = force ? `${selectedAssets.value.length} asset(s) added to media favorites.` : 'Removed from media favorites.'
+  productFeedback.success(force ? 'Added to media favorites' : 'Removed from media favorites', statusMessage.value)
+}
+
+function toggleAssetFavorite(asset: MediaLibraryAsset): void {
+  const nextFavorite = !asset.isFavorite
+  library.toggleFavorite(asset.id, nextFavorite)
+  statusMessage.value = nextFavorite ? `${asset.name} added to media favorites.` : `${asset.name} removed from media favorites.`
+  productFeedback.success(nextFavorite ? 'Added to media favorites' : 'Removed from media favorites', asset.name)
 }
 
 function beginRename(): void {
@@ -106,8 +127,9 @@ async function confirmRename(): Promise<void> {
     statusMessage.value = targets.length === 1
       ? `Renamed to ${renameValue.value.trim()}. Stable references were unchanged.`
       : `${targets.length} assets renamed with numbered metadata. Stable references were unchanged.`
+    productFeedback.success('Asset metadata renamed', statusMessage.value)
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : 'Rename failed.'
+    reportFailure('Rename failed', error, 'Rename failed.')
   }
 }
 
@@ -122,8 +144,9 @@ async function confirmMove(): Promise<void> {
     for (const asset of selectedAssets.value) await library.move(asset, moveFolder.value)
     showMoveDialog.value = false
     statusMessage.value = `${selectedAssets.value.length} asset(s) moved. Stable references were preserved.`
+    productFeedback.success('Assets moved', statusMessage.value)
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : 'Move failed.'
+    reportFailure('Move failed', error, 'Move failed.')
   }
 }
 
@@ -134,8 +157,9 @@ async function confirmDelete(): Promise<void> {
     showDeleteDialog.value = false
     clearSelection()
     statusMessage.value = `${targets.length} unused asset(s) deleted.`
+    productFeedback.success('Unused assets deleted', statusMessage.value)
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : 'Delete failed.'
+    reportFailure('Delete failed', error, 'Delete failed.')
   }
 }
 
@@ -143,8 +167,19 @@ async function downloadSelection(): Promise<void> {
   try {
     for (const asset of selectedAssets.value) await library.download(asset)
     statusMessage.value = `${selectedAssets.value.length} download(s) started.`
+    productFeedback.success('Download started', statusMessage.value)
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : 'Download failed.'
+    reportFailure('Download failed', error, 'Download failed.')
+  }
+}
+
+async function downloadAsset(asset: MediaLibraryAsset): Promise<void> {
+  try {
+    await library.download(asset)
+    statusMessage.value = `Download started for ${asset.name}.`
+    productFeedback.success('Download started', asset.name)
+  } catch (error) {
+    reportFailure('Download failed', error, 'Download failed.')
   }
 }
 
@@ -160,8 +195,9 @@ async function uploadFiles(event: Event): Promise<void> {
     primaryId.value = uploaded.at(-1)?.id ?? null
     selectionAnchorId.value = primaryId.value
     statusMessage.value = `${uploaded.length} asset(s) uploaded to draft/library.`
+    productFeedback.success('Upload complete', statusMessage.value)
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : 'Upload failed.'
+    reportFailure('Upload failed', error, 'Upload failed.')
   } finally {
     input.value = ''
   }
@@ -200,6 +236,16 @@ function applyRouteState(): void {
   }
 }
 
+async function refreshLibrary(showFeedback = true): Promise<void> {
+  try {
+    await library.refresh()
+    applyRouteState()
+    if (showFeedback) productFeedback.success('Asset Library refreshed', `${library.assets.length} asset(s) available.`)
+  } catch (error) {
+    reportFailure('Asset Library unavailable', error, 'Asset data could not be loaded. Retry when the connection is available.')
+  }
+}
+
 watch(filter, (value) => {
   const nextQuery = { ...route.query }
   if (value === 'all') delete nextQuery.filter
@@ -213,14 +259,7 @@ watch(visibleAssets, (assets) => {
   if (primaryId.value && !visibleIds.has(primaryId.value)) primaryId.value = selectedIds.value[0] ?? null
 })
 
-onMounted(async () => {
-  try {
-    await library.refresh()
-    applyRouteState()
-  } catch {
-    statusMessage.value = 'Asset data could not be loaded. Retry when the connection is available.'
-  }
-})
+onMounted(() => void refreshLibrary(false))
 </script>
 
 <template>
@@ -232,8 +271,8 @@ onMounted(async () => {
         <p>Search, inspect and safely manage every portfolio image reference.</p>
       </div>
       <div class="header-actions">
-        <button type="button" class="secondary" :disabled="library.loading" @click="void library.refresh()">Refresh</button>
-        <button type="button" class="primary" :disabled="library.mutating" @click="uploadInput?.click()"><Upload :size="16" />Upload</button>
+        <button type="button" class="secondary" :disabled="library.loading" :aria-busy="library.loading" @click="void refreshLibrary()">Refresh</button>
+        <button type="button" class="primary" :disabled="library.mutating" :aria-busy="library.mutating" @click="uploadInput?.click()"><Upload :size="16" />Upload</button>
         <input ref="uploadInput" class="sr-only" type="file" accept="image/*" multiple aria-label="Upload media files" @change="uploadFiles" />
       </div>
     </header>
@@ -273,7 +312,7 @@ onMounted(async () => {
       <button type="button" class="clear-selection" @click="clearSelection"><X :size="14" />Clear</button>
     </section>
 
-    <p v-if="library.error" class="library-error" role="alert">{{ library.error }} <button type="button" @click="void library.refresh()">Retry</button></p>
+    <p v-if="library.error" class="library-error" role="alert">{{ library.error }} <button type="button" @click="void refreshLibrary()">Retry</button></p>
     <p class="library-status" aria-live="polite">{{ statusMessage }}</p>
 
     <div class="library-workspace">
@@ -289,17 +328,18 @@ onMounted(async () => {
           :busy="library.loading"
           @select="selectAsset"
           @activate="activateAsset"
-          @favorite="library.toggleFavorite($event.id)"
+          @favorite="toggleAssetFavorite"
+          @reset="resetView"
         />
       </section>
 
       <aside class="asset-details" aria-label="Asset details" aria-live="polite">
         <template v-if="selectedAsset">
           <div class="detail-preview">
-            <iframe v-if="selectedAsset.sourceUrl && selectedAsset.mimeType === 'application/pdf'" :src="selectedAsset.sourceUrl" :title="selectedAsset.name" style="width:100%;height:100%;border:0;background:#fff" />
+            <iframe v-if="selectedAsset.sourceUrl && selectedAsset.mimeType === 'application/pdf'" :src="selectedAsset.sourceUrl" :title="selectedAsset.name" loading="lazy" sandbox="" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;background:#fff" />
             <img v-else-if="selectedAsset.sourceUrl" :src="selectedAsset.sourceUrl" :alt="selectedAsset.name" />
             <span v-else>Preview unavailable</span>
-            <button type="button" :aria-label="selectedAsset.isFavorite ? 'Remove from media favorites' : 'Add to media favorites'" :aria-pressed="selectedAsset.isFavorite" @click="library.toggleFavorite(selectedAsset.id)">
+            <button type="button" :aria-label="selectedAsset.isFavorite ? 'Remove from media favorites' : 'Add to media favorites'" :aria-pressed="selectedAsset.isFavorite" @click="toggleAssetFavorite(selectedAsset)">
               <Heart :size="17" :fill="selectedAsset.isFavorite ? 'currentColor' : 'none'" />
             </button>
           </div>
@@ -330,7 +370,7 @@ onMounted(async () => {
           </section>
           <div class="detail-actions">
             <button type="button" @click="beginRename"><Pencil :size="14" />Rename metadata</button>
-            <button type="button" @click="void library.download(selectedAsset)"><Download :size="14" />Download</button>
+            <button type="button" @click="void downloadAsset(selectedAsset)"><Download :size="14" />Download</button>
           </div>
           <p class="favorite-note">Media favorites are an Admin UI preference saved in this browser and are separate from Draft Favorites.</p>
         </template>
@@ -343,7 +383,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="showRenameDialog" class="dialog-backdrop" @click.self="showRenameDialog = false">
-      <form class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title" @submit.prevent="void confirmRename()">
+      <form class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title" @keydown.esc="showRenameDialog = false" @submit.prevent="void confirmRename()">
         <h2 id="rename-title">Rename asset metadata</h2>
         <p>The asset ID and every existing reference stay unchanged. Multiple assets receive a numbered suffix.</p>
         <label><span>{{ selectedAssets.length === 1 ? 'Name' : 'Name prefix' }}</span><input v-model="renameValue" maxlength="150" required autofocus /></label>
@@ -352,19 +392,19 @@ onMounted(async () => {
     </div>
 
     <div v-if="showMoveDialog" class="dialog-backdrop" @click.self="showMoveDialog = false">
-      <form class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="move-title" @submit.prevent="void confirmMove()">
+      <form class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="move-title" @keydown.esc="showMoveDialog = false" @submit.prevent="void confirmMove()">
         <h2 id="move-title">Move unused assets</h2>
         <p>Move is available only before an asset is referenced. Leave blank for the library root.</p>
-        <label><span>Folder under draft/library/</span><input v-model="moveFolder" placeholder="campaign/portraits" /></label>
+        <label><span>Folder under draft/library/</span><input v-model="moveFolder" autofocus placeholder="campaign/portraits" /></label>
         <div><button type="button" @click="showMoveDialog = false">Cancel</button><button type="submit" class="primary" :disabled="library.mutating">Move</button></div>
       </form>
     </div>
 
     <div v-if="showDeleteDialog" class="dialog-backdrop" @click.self="showDeleteDialog = false">
-      <section class="library-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
+      <section class="library-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" @keydown.esc="showDeleteDialog = false">
         <h2 id="delete-title">Delete unused assets?</h2>
         <p>{{ deletableSelection.length }} safe asset(s) will be removed from draft/library and metadata. Used or Published assets are never included.</p>
-        <div><button type="button" @click="showDeleteDialog = false">Cancel</button><button type="button" class="danger-action" :disabled="library.mutating" @click="void confirmDelete()">Delete permanently</button></div>
+        <div><button type="button" autofocus @click="showDeleteDialog = false">Cancel</button><button type="button" class="danger-action" :disabled="library.mutating" :aria-busy="library.mutating" @click="void confirmDelete()">Delete permanently</button></div>
       </section>
     </div>
   </main>

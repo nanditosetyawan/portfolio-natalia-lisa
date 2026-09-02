@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import PortfolioSection from '../../sections/portfolio/PortfolioSection.vue'
 import AboutSection from '../../sections/about/AboutSection.vue'
 import EducationGlobal from '../../components/EducationGlobal.vue'
@@ -13,11 +13,13 @@ import {
   subscribePublishedRuntimeInvalidation
 } from '../../runtime/publishedRuntime'
 import { applyPublishedSnapshotDom } from '../../runtime/publishedSnapshotDom'
+import { applyGuestSeo, updateHeroImagePreload } from '../../production/seo'
 
 const props = defineProps<{ editorPreview?: boolean }>()
 
 const site = useSiteStore()
 const runtimeRoot = ref<HTMLElement | null>(null)
+const heroImageSource = computed(() => site.mediaSourceForUsage(site.current.content.profile.mediaUsageId))
 let unsubscribeRuntimeInvalidation: (() => void) | null = null
 const guestRuntimeReady = props.editorPreview ? null : initializePublishedRuntime()
 
@@ -41,9 +43,32 @@ onMounted(async () => {
 })
 onUnmounted(() => unsubscribeRuntimeInvalidation?.())
 watch(activeGuestEditorSnapshot, applyPublishedStyles)
+watch(heroImageSource, (source) => {
+  if (!props.editorPreview) updateHeroImagePreload(source)
+}, { immediate: true })
+watch([
+  () => site.current,
+  () => site.guestRuntimeSource,
+  () => site.publishedRevisionNumber,
+  () => site.publishedAt
+], () => {
+  if (!props.editorPreview) applyGuestSeo({
+    site: site.current,
+    source: site.guestRuntimeSource,
+    revisionNumber: site.publishedRevisionNumber,
+    publishedAt: site.publishedAt
+  })
+}, { deep: true, immediate: true })
+
+function focusMainContent(): void {
+  const main = document.getElementById('main')
+  main?.focus({ preventScroll: true })
+  main?.scrollIntoView({ block: 'start' })
+}
 </script>
 
 <template>
+  <a v-if="!editorPreview" class="skip-link" href="#main" @click.prevent="focusMainContent">Skip to main content</a>
   <div v-if="editorPreview || site.publishedRuntimeStatus === 'ready'" ref="runtimeRoot" class="guest-home">
     <PortfolioSection />
     <AboutSection />
@@ -64,6 +89,9 @@ watch(activeGuestEditorSnapshot, applyPublishedStyles)
 .guest-home {
   min-height: 100vh;
 }
+
+.skip-link { position: fixed; z-index: 12000; top: .75rem; left: .75rem; transform: translateY(-180%); border-radius: 999px; padding: .65rem 1rem; background: #5a3e35; color: #fff; font-weight: 800; text-decoration: none; transition: transform .15s ease; }
+.skip-link:focus { transform: translateY(0); outline: 3px solid #fff; outline-offset: 2px; }
 
 .published-runtime-state {
   min-height: 100vh;
