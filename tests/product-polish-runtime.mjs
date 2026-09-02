@@ -65,8 +65,13 @@ try {
   let browserErrors = ''
   browser.stderr.on('data', (chunk) => { browserErrors += String(chunk) })
 
-  const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`)
-  const page = targets.find((target) => target.type === 'page' && target.url.includes('127.0.0.1:5188'))
+  let page
+  const targetStarted = Date.now()
+  while (!page && Date.now() - targetStarted < 15000) {
+    const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`)
+    page = targets.find((target) => target.type === 'page' && target.url.includes('127.0.0.1:5188'))
+    if (!page) await wait(100)
+  }
   if (!page) throw new Error('Phase 036A browser target not found.')
   socket = new WebSocket(page.webSocketDebuggerUrl)
   await new Promise((resolve, reject) => {
@@ -216,7 +221,7 @@ try {
     const successToast=Boolean(document.querySelector('.product-toast--success[role="status"]'));
     const deleteButton=document.querySelector('.message-delete-btn');deleteButton?.focus();deleteButton?.click();await sleep(30);
     const dialog=document.querySelector('.product-confirmation');const cancelFocused=document.activeElement?.classList.contains('confirm-cancel');
-    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await sleep(220);const escapeDismissed=!document.querySelector('.product-confirmation');const focusRestored=document.activeElement===deleteButton;
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));for(let attempt=0;attempt<50&&document.querySelector('.product-confirmation');attempt+=1)await sleep(20);const escapeDismissed=!document.querySelector('.product-confirmation');const focusRestored=document.activeElement===deleteButton;
     deleteButton?.click();await sleep(30);document.querySelector('.product-confirmation__confirm')?.click();await sleep(30);
     return {debouncedCalls,successToast,cancelFocused,escapeDismissed,focusRestored,remaining:globalThis.__phase036aMessages.length,empty:Boolean(document.querySelector('.product-empty-state'))};
   })()`)
@@ -237,6 +242,9 @@ try {
   const guestFeedbackIsolated = await evaluate("document.querySelectorAll('.product-toast').length===0")
   const guestFrames = await measureFrames()
   await capture('phase-036a-guest.png')
+  await evaluate("document.querySelector('#certificate')?.scrollIntoView({block:'start'})")
+  await wait(250)
+  await capture('release-candidate-certificate.png')
 
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] })
   await evaluate(`(()=>{const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;pinia._s.get('auth').$patch({isAdmin:false,isInitialized:true,isLoading:false});return true})()`)
@@ -271,10 +279,21 @@ try {
   const evidence = {
     status: failures.length ? 'FAIL' : 'PASS', scope: 'Phase 036A local product polish browser audit', desktop, mobile,
     dashboard, emptyStates, messageFeedback, networkFeedback, guestFeedbackIsolated, editor, reducedMotion, touchTargets,
-    performance: { editorFrames, guestFrames, scriptSeconds: metric('ScriptDuration'), layouts: metric('LayoutCount'), styleRecalcs: metric('RecalcStyleCount') },
+    performance: {
+      editorFrames,
+      guestFrames,
+      scriptSeconds: metric('ScriptDuration'),
+      taskSeconds: metric('TaskDuration'),
+      layouts: metric('LayoutCount'),
+      styleRecalcs: metric('RecalcStyleCount'),
+      jsHeapUsedMb: metric('JSHeapUsedSize') / 1024 / 1024,
+      jsHeapTotalMb: metric('JSHeapTotalSize') / 1024 / 1024,
+      domNodes: metric('Nodes'),
+      eventListeners: metric('JSEventListeners')
+    },
     runtimeErrors, consoleWarnings, unhandled, viteErrors,
     browserErrors: browserErrors.split('\n').filter((line) => /error|fail/i.test(line)).slice(0, 10),
-    screenshots: ['artifacts/phase-036a-dashboard.png','artifacts/phase-036a-drafts-empty.png','artifacts/phase-036a-media-empty.png','artifacts/phase-036a-messages-feedback.png','artifacts/phase-036a-maintenance.png','artifacts/phase-036a-editor.png','artifacts/phase-036a-guest.png','artifacts/phase-036a-login.png','artifacts/phase-036a-mobile-dashboard.png'],
+    screenshots: ['artifacts/phase-036a-dashboard.png','artifacts/phase-036a-drafts-empty.png','artifacts/phase-036a-media-empty.png','artifacts/phase-036a-messages-feedback.png','artifacts/phase-036a-maintenance.png','artifacts/phase-036a-editor.png','artifacts/phase-036a-guest.png','artifacts/release-candidate-certificate.png','artifacts/phase-036a-login.png','artifacts/phase-036a-mobile-dashboard.png'],
     failures
   }
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`)

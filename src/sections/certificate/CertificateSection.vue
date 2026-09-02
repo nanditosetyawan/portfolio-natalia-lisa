@@ -587,8 +587,8 @@ onBeforeUnmount(() => {
   margin: 0 0 1rem;
   line-height: 1;
   /* Strong deep drop shadow toward background */
-  text-shadow: 4px 6px 12px rgba(54, 45, 37, 0.45),
-               1px 2px 3px rgba(54, 45, 37, 0.3);
+  text-shadow: 4px 6px 12px #362D25,
+               1px 2px 3px rgba(54, 45, 37, 0.75);
 }
 .title-sparkles {
   position: absolute;

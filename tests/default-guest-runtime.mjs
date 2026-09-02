@@ -125,7 +125,18 @@ try {
   await send('Page.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
   if (cloudSmoke) await send('Page.reload', { ignoreCache: true })
-  await waitFor(`Boolean(document.querySelector('#app')?.__vue_app__) && Boolean(document.querySelector('.guest-home'))`)
+  try {
+    await waitFor(`Boolean(document.querySelector('#app')?.__vue_app__) && Boolean(document.querySelector('.guest-home'))`, cloudSmoke ? 30000 : 15000)
+  } catch (error) {
+    const diagnostics = await evaluate(`({
+      href:location.href,
+      body:document.body.innerText.slice(0,1800),
+      app:Boolean(document.querySelector('#app')?.__vue_app__),
+      runtimeState:document.querySelector('.published-runtime-state')?.innerText??'',
+      site:document.querySelector('#app')?.__vue_app__?.config.globalProperties.$pinia?._s?.get('site')?.$state??null
+    })`)
+    throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}; runtime=${runtimeErrors.join(' | ')}; requests=${networkRequests.filter((url)=>url.includes('supabase')).join(' | ')}; vite=${viteErrors}; browser=${browserErrors}`)
+  }
 
   const defaultEvidence = await evaluate(`(async()=>{
     const defaults=await import('/src/runtime/defaultRuntimeSnapshot.ts');

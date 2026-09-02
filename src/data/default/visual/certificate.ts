@@ -478,7 +478,7 @@ export const defaultCertificateConfig: CertificateVisualConfig = {
     letterSpacing: '0.04em',
     margin: '0 0 1rem',
     lineHeight: '1',
-    textShadow: '4px 6px 12px rgba(54, 45, 37, 0.45), 1px 2px 3px rgba(54, 45, 37, 0.3)',
+    textShadow: '4px 6px 12px #362D25, 1px 2px 3px rgba(54, 45, 37, 0.75)',
   },
   titleSparkles: {
     position: 'absolute',
