@@ -69,8 +69,20 @@ function contentSignature(snapshot: EditorSnapshot): string {
 
 const defaultObjectState = (): EditorObjectSessionState => ({ locked: false, hidden: false })
 
+const navigatorPreferenceKey = 'portfolio-editor-navigator-open'
+
+function readNavigatorPreference(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    return window.localStorage.getItem(navigatorPreferenceKey) !== 'false'
+  } catch {
+    return true
+  }
+}
+
 export const useEditorStore = defineStore('editor', {
   state: () => ({
+    navigatorOpen: readNavigatorPreference(),
     selectedObjectId: '',
     additionalSelectedObjectIds: [] as string[],
     selectedSection: '',
@@ -138,6 +150,18 @@ export const useEditorStore = defineStore('editor', {
     })
   },
   actions: {
+    setNavigatorOpen(open: boolean) {
+      this.navigatorOpen = open
+      if (typeof window === 'undefined') return
+      try {
+        window.localStorage.setItem(navigatorPreferenceKey, String(open))
+      } catch {
+        // The layout preference remains usable for this session when storage is unavailable.
+      }
+    },
+    toggleNavigator() {
+      this.setNavigatorOpen(!this.navigatorOpen)
+    },
     initialize(snapshot: EditorSnapshot, revision: Partial<EditorRevisionState> = {}) {
       this.draftSnapshot = clone(snapshot)
       this.draftSnapshot.session.objectStates ??= {}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ClipboardCopy, ClipboardPaste, Eye, EyeOff, Lock, Palette, Unlock } from 'lucide-vue-next'
+import { ClipboardCopy, ClipboardPaste, Eye, EyeOff, Layers, Lock, Palette, Unlock } from 'lucide-vue-next'
 import HomePage from '../guest/HomePage.vue'
 import type { RuntimeAdminProperty } from '../../composables/useAdminEntityRegistry'
 import { useEditorObjectRegistry, type EditorRuntimeObject } from '../../composables/useEditorObjectRegistry'
@@ -2721,23 +2721,41 @@ function cancelLibrarySwitch(): void {
 </script>
 
 <template>
-  <div class="edit-page">
-    <EditorObjectNavigator
-      :objects="editor.objects"
-      :selected-object-id="editor.selectedObjectId"
-      :selected-object-ids="editor.selectedObjectIds"
-      :search="editor.objectSearch"
-      :expanded-layers="editor.draftSnapshot.session.expandedLayers"
-      :object-states="editor.draftSnapshot.session.objectStates"
-      @select="selectNavigatorObject"
-      @search="setObjectSearch"
-      @expand="setLayerExpanded"
-      @lock="setObjectLocked"
-      @hide="setObjectHidden"
-      @reorder="reorderLayerObject"
-      @rename="renameLayerObject"
-    />
+  <div class="edit-page" :class="{ 'navigator-collapsed': !editor.navigatorOpen }">
+    <div
+      id="editor-object-navigator"
+      class="navigator-column"
+      :aria-hidden="!editor.navigatorOpen"
+      :inert="!editor.navigatorOpen"
+    >
+      <EditorObjectNavigator
+        :objects="editor.objects"
+        :selected-object-id="editor.selectedObjectId"
+        :selected-object-ids="editor.selectedObjectIds"
+        :search="editor.objectSearch"
+        :expanded-layers="editor.draftSnapshot.session.expandedLayers"
+        :object-states="editor.draftSnapshot.session.objectStates"
+        @select="selectNavigatorObject"
+        @search="setObjectSearch"
+        @expand="setLayerExpanded"
+        @lock="setObjectLocked"
+        @hide="setObjectHidden"
+        @reorder="reorderLayerObject"
+        @rename="renameLayerObject"
+      />
+    </div>
     <aside ref="controlPanel" class="control-panel" aria-label="Editor property panel">
+      <button
+        type="button"
+        class="navigator-toggle"
+        :aria-expanded="editor.navigatorOpen"
+        aria-controls="editor-object-navigator"
+        @click="editor.toggleNavigator()"
+      >
+        <Layers :size="17" aria-hidden="true" />
+        <span>{{ editor.navigatorOpen ? 'Close Navigator' : 'Open Navigator' }}</span>
+      </button>
+
       <div class="panel-heading">
         <div>
           <h1>Inspector</h1>
@@ -3032,8 +3050,15 @@ function cancelLibrarySwitch(): void {
 </template>
 
 <style scoped>
-.edit-page { display: grid; grid-template-columns: clamp(220px, 17vw, 270px) clamp(330px, 24vw, 390px) minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; background: #f6f4e8; color: #49362f; }
+.edit-page { --navigator-expanded-width: clamp(220px, 17vw, 270px); --inspector-expanded-width: clamp(330px, 24vw, 390px); --navigator-column-width: var(--navigator-expanded-width); --inspector-column-width: var(--inspector-expanded-width); display: grid; grid-template-columns: var(--navigator-column-width) var(--inspector-column-width) minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; background: #f6f4e8; color: #49362f; transition: grid-template-columns .2s ease; }
+.edit-page.navigator-collapsed { --navigator-column-width: 0px; }
+.navigator-column { width: 100%; min-width: 0; min-height: 0; overflow: hidden; opacity: 1; visibility: visible; transition: opacity .14s ease, visibility 0s linear; }
+.navigator-column :deep(.object-navigator) { width: var(--navigator-expanded-width); height: 100%; box-sizing: border-box; }
+.navigator-collapsed .navigator-column { pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .12s ease, visibility 0s linear .2s; }
 .control-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 1.5rem 1.25rem 6rem; border-right: 1px solid rgba(73,54,47,.16); scrollbar-gutter: stable; }
+.navigator-toggle { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; width: 11.5rem; height: 42px; margin: 0 0 1rem; border: 1px solid rgba(184,91,105,.24); border-radius: 999px; background: #fff1e8; color: #944853; font: 800 .72rem/1 system-ui; cursor: pointer; transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.navigator-toggle:hover { border-color: rgba(184,91,105,.48); background: #fff5eb; box-shadow: 0 .3rem .75rem rgba(73,54,47,.08); transform: translateY(-1px); }
+.navigator-toggle:active { transform: translateY(0); }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-bottom: .9rem; border-bottom: 1px solid rgba(73,54,47,.13); }
 .panel-heading h1 { margin: 0; font-size: 1.5rem; }
 .panel-hint, .selected-kind { color: #9a806f; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -3096,13 +3121,13 @@ function cancelLibrarySwitch(): void {
 .selection-box { position: absolute; z-index: 1100; pointer-events: none; border: 1.5px solid rgba(184,91,105,.92); border-radius: 4px; background: rgba(184,91,105,.035); box-shadow: 0 0 0 1px rgba(255,255,255,.75) inset; }
 .editor-context-menu { position: absolute; z-index: 1300; display: grid; width: 215px; margin: 0; padding: .42rem; border: 1px solid rgba(73,54,47,.16); border-radius: 12px; background: rgba(255,253,247,.98); box-shadow: 0 .85rem 2.2rem rgba(73,54,47,.2); list-style: none; }.editor-context-menu button { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; border: 0; border-radius: 8px; padding: .55rem .62rem; background: transparent; color: #5a3e35; text-align: left; font: 700 .7rem system-ui; cursor: pointer; }.editor-context-menu button:hover:not(:disabled),.editor-context-menu button:focus-visible { outline: 0; background: #fff1e8; color: #8d363a; }.editor-context-menu button:disabled { cursor: not-allowed; opacity: .4; }.editor-context-menu button.danger { color: #9b3f3f; }.editor-context-menu kbd { color: #a18b80; font: 600 .58rem system-ui; }
 .editor-status-bar { position: absolute; z-index: 1003; inset: auto 0 0; display: flex; align-items: stretch; gap: 0; height: 2.2rem; overflow-x: auto; border-top: 1px solid rgba(73,54,47,.14); background: rgba(246,244,232,.98); color: #765f55; scrollbar-width: thin; }.editor-status-bar span { display: flex; align-items: center; gap: .35rem; flex: 0 0 auto; min-width: 82px; padding: 0 .7rem; border-right: 1px solid rgba(73,54,47,.1); white-space: nowrap; font-size: .61rem; }.editor-status-bar strong { color: #9a806f; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; }.editor-status-bar .performance-status { margin-left: auto; color: #55725d; }
-.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible,.design-system-button:focus-visible,.design-reference-control button:focus-visible,.design-reference-control select:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
+.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.navigator-toggle:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible,.design-system-button:focus-visible,.design-reference-control button:focus-visible,.design-reference-control select:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
 .modal-backdrop { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(73,54,47,.35); }
 .source-modal { position: relative; width: min(100%,620px); padding: 2rem; border-radius: 24px; background: #f6f4e8; color: #49362f; box-shadow: 0 1.5rem 4rem rgba(73,54,47,.25); }
 .source-modal h2 { margin: 0; color: #5a3e35; }.source-modal p { color: #7b5f3b; }.modal-close { position: absolute; top: 1rem; right: 1rem; border: 0; background: transparent; font-size: 1.25rem; color: #7b5f3b; cursor: pointer; }
 .source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }.source-options button { display: grid; gap: .55rem; min-height: 140px; border: 1px solid #e8ded0; border-radius: 16px; padding: 1.2rem; background: #fff5eb; color: #5a3e35; text-align: left; cursor: pointer; }.source-options span { color: #7b5f3b; font-size: .85rem; font-weight: 400; }
 .unsaved-actions { display: grid; gap: .65rem; }.unsaved-actions button { border: 1px solid #e8ded0; border-radius: 11px; padding: .75rem 1rem; background: #fffaf4; color: #5a3e35; cursor: pointer; font-weight: 700; }.unsaved-actions .primary-action { background: #8d363a; color: #fff; }
 .panel-heading-actions { display: flex; align-items: center; gap: .35rem; }.design-system-button { display: inline-flex; align-items: center; gap: .25rem; border: 1px solid rgba(184,91,105,.22); border-radius: 999px; padding: .38rem .5rem; background: #fff1e8; color: #944853; font-size: .58rem; font-weight: 850; cursor: pointer; }.design-reference-control { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .3rem; align-items: center; margin-bottom: .25rem; padding: .45rem; border: 1px solid rgba(184,91,105,.14); border-radius: 8px; background: #fffaf4; }.design-reference-control > div { min-width: 0; display: grid; gap: .1rem; }.design-reference-control > div small { overflow: hidden; color: #9a786f; font-size: .47rem; text-overflow: ellipsis; white-space: nowrap; }.design-reference-state { width: max-content; max-width: 100%; overflow: hidden; border-radius: 999px; padding: .14rem .3rem; background: #eee6dd; color: #7f6a60; font-size: .48rem; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }.design-reference-state.is-override { background: #ffe6df; color: #9c4653; }.design-reference-control select { min-width: 0; max-width: 7rem; border: 1px solid rgba(73,54,47,.15); border-radius: 6px; padding: .3rem; background: #fff; color: #684e45; font-size: .5rem; }.design-reference-control select:nth-of-type(2) { grid-column: 1 / -1; max-width: none; }.design-reference-control button { grid-column: 1 / -1; justify-self: end; border: 0; background: transparent; color: #a44955; font-size: .5rem; font-weight: 800; text-decoration: underline; cursor: pointer; }
-@media (max-width: 1100px) { .edit-page { grid-template-columns: 210px 330px minmax(0,1fr); }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
-@media (max-width: 760px) { .edit-page { display: flex; flex-direction: column; height: 100%; }.edit-page :deep(.object-navigator) { flex: 0 0 28%; max-height: 28%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.control-panel { flex: 0 0 40%; max-height: 40%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.preview-toolbar { overflow-x: auto; scrollbar-width: thin; }.source-indicator { max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.breakpoint-toolbar button { min-width: 2.1rem; }.selection-toolbar { top: 3rem; }.editor-status-bar span { min-width: auto; }.editor-status-bar .performance-status { margin-left: 0; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1100px) { .edit-page { --navigator-expanded-width: 210px; --inspector-expanded-width: 330px; }.control-panel { padding-left: 1rem; padding-right: 1rem; } }
+@media (max-width: 760px) { .edit-page { --navigator-expanded-height: 28%; --inspector-expanded-height: 40%; display: flex; flex-direction: column; height: 100%; }.navigator-column { flex: 0 0 var(--navigator-expanded-height); width: 100%; max-height: var(--navigator-expanded-height); transition: flex-basis .2s ease, max-height .2s ease, opacity .14s ease, visibility 0s linear; }.navigator-column :deep(.object-navigator) { width: 100%; height: 100%; border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); }.navigator-collapsed .navigator-column { flex-basis: 0; max-height: 0; transition: flex-basis .2s ease, max-height .2s ease, opacity .12s ease, visibility 0s linear .2s; }.control-panel { flex: 0 0 var(--inspector-expanded-height); max-height: var(--inspector-expanded-height); border-right: 0; border-bottom: 1px solid rgba(73,54,47,.16); transition: flex-basis .2s ease, max-height .2s ease; }.canvas-container { flex: 1 1 32%; min-height: 0; }.canvas-label { display: none; }.preview-toolbar { overflow-x: auto; scrollbar-width: thin; }.source-indicator { max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.breakpoint-toolbar button { min-width: 2.1rem; }.selection-toolbar { top: 3rem; }.editor-status-bar span { min-width: auto; }.editor-status-bar .performance-status { margin-left: 0; }.source-options { grid-template-columns: 1fr; }.property-row--paired { grid-template-columns: 1fr 1fr; } }
 </style>

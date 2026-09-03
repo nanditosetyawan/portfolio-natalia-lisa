@@ -4536,3 +4536,40 @@ PASS
 - AI-limit completeness: no Phase 037 task was silently skipped and no work was omitted because of a usage-limit interruption. Unavailable external/operator checks are explicitly marked rather than fabricated.
 - Final status: `RELEASE BLOCKED / APPLICATION AND CLOUD DATA BOUNDARIES PASS, BUT AUTH LEAKED-PASSWORD PROTECTION, FRESH REAL ADMIN SESSION E2E, FINAL HOST CONFIGURATION, CLEAN IMMUTABLE GIT IDENTITY, AND NORMAL CI TOOLCHAIN REMAIN OPEN`.
 
+## Request #149 - EDITOR UX IMPROVEMENT: COLLAPSIBLE NAVIGATOR
+
+- Date: 2026-09-03 21:25:07 +07:00 (Asia/Jakarta).
+- Execution mode: focused Editor UI-layout change and regression verification only. No Phase 038 or architecture work was started.
+- User instruction: make the existing left Navigator collapsible through one Design-System-aligned pill button between the Admin Edit heading and Inspector/property content; remove its layout space when closed; preserve Preview size and every Navigator behavior; remember state across reload; validate runtime/typecheck/build/diff; produce `EDITOR-NAVIGATOR-COLLAPSE.md` with before/after screenshots.
+- Context consulted: latest 200 project-log lines, supplied/local `AGENTS.md`, current Git status/diff, `AdminEdit.vue`, `EditorObjectNavigator.vue`, editor Pinia store, relevant Editor browser harnesses, and current browser renders. `md/` and `design/` remain absent, so the explicit user mockup was the available visual source and formal repository design-reference comparison was unavailable.
+- Implementation: added `navigatorOpen`, `setNavigatorOpen`, and `toggleNavigator` as UI-only state in the existing editor Pinia store. The preference uses guarded browser `localStorage` (`portfolio-editor-navigator-open`) and never touches `EditorSnapshot`, persistence, dirty state, or Undo/Redo.
+- Layout: Navigator remains mounted inside a clipped column. The 200 ms grid/flex transition changes the Navigator track to zero and transfers its exact desktop/mobile space to Control Panel, preserving Canvas dimensions. Closed content is inert, aria-hidden, invisible, and non-interactive.
+- Control: added one 184 x 42 px full-pill Layers button using existing cream/rose colors, `Open Navigator`/`Close Navigator`, `aria-controls`, `aria-expanded`, hover/active transition, and visible focus. No new color or component behavior was invented.
+- Functional preservation: `EditorObjectNavigator.vue` and all Search/Layers/collapse/lock/hide/rename/drag/selection event wiring remain unchanged. Repository, Snapshot, Selection Engine, Property Binding, Undo/Redo, Publish, Draft, Favorite, Guest Runtime, database, RLS, metadata, Inspector, Typography, and Media controls were untouched.
+- Focused browser evidence: `tests/editor-navigator-collapse-runtime.mjs` PASS at 1600 x 1000 and 720 x 1000. Desktop Navigator changed 270 -> 0 px; Control Panel 384 -> 654 px; Canvas remained x=654, 946 x 928 px; Preview frame stayed 883 x 7091.75 px; Preview update count stayed 1; DOM identities stayed stable; dirty/history state was unchanged; reload restored closed state; mobile Canvas/Preview dimensions also remained stable.
+- Navigator runtime evidence: after reopening, focused search returned one matching object; central selection/section and preview outline synchronized; lock, hide, rename, and Alt+Arrow keyboard reorder passed.
+- Full regression evidence: `tests/editor-professional-ux-runtime.mjs` PASS, including layer drag/reorder/search/lock/hide/rename, selection/multi-selection, Inspector binding, Undo/Redo, accessibility checks, stable targeted Preview, and approximately 60 FPS.
+- Visual evidence created and reopened: `artifacts/editor-navigator-before.png` and `artifacts/editor-navigator-after.png`, both 1600 x 1000. Open and collapsed layouts match the user-supplied composition; no empty Navigator gap or Canvas shift was observed.
+- Files modified: `src/pages/admin/AdminEdit.vue`, `src/stores/editor.ts`, and this log.
+- Files created: `tests/editor-navigator-collapse-runtime.mjs`, `artifacts/editor-navigator-before.png`, `artifacts/editor-navigator-after.png`, and `EDITOR-NAVIGATOR-COLLAPSE.md`.
+- Validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with Vite 8.2.1 and 2,028 modules transformed; `git diff --check` PASS with line-ending notices only.
+- Out-of-scope findings: none implemented. Existing inherited release-candidate state/evidence was preserved.
+- Final status: `PASS / COLLAPSIBLE NAVIGATOR IMPLEMENTED, RELOAD-PERSISTENT, CANVAS-STABLE, ACCESSIBLE, VISUALLY VERIFIED, NAVIGATOR-REGRESSION-VERIFIED, AND STATICALLY VERIFIED`.
+
+## Request #150 - COLLAPSIBLE NAVIGATOR LAYOUT REFINEMENT
+
+- Date: 2026-09-03 21:41:03 +07:00 (Asia/Jakarta).
+- Execution mode: corrective UI sizing refinement only. No repository, persistence, Snapshot, selection, property, Navigator-function, or Editor behavior change was authorized or performed.
+- User correction: when Navigator closes, Inspector must retain its exact open-state width and all reclaimed Navigator width must enlarge Canvas/Preview. Preview must remain mounted, while selection, Undo/Redo, Zoom, and scroll state remain stable.
+- Change performed: removed the collapsed-state Inspector width/height expansion rules. Desktop now transitions from `[270 px Navigator][384 px Inspector][946 px Canvas]` to `[384 px Inspector][1216 px Canvas]`; mobile Inspector height remains `371.19 px` while Canvas grows from `296.98` to `556.81 px`.
+- Runtime proof: focused Navigator harness PASS. Navigator width reached zero; Inspector stayed exactly 384 px; Canvas gained exactly 270 px; Fit Preview frame grew from 883 to 1,153 px; Canvas, Preview Runtime, and Navigator retained identical DOM references; targeted Preview update count stayed 1.
+- State proof: selection remained `portfolio-hero`, Zoom choice remained `Fit` with unchanged user-Zoom state, a separate explicit 75% Zoom remained exactly 75%, canvas scroll remained exactly 160 px (and 80 px in the explicit-Zoom scenario), Control Panel scroll stayed unchanged, content dirty state/history did not change, and closed preference still survived reload.
+- Navigator regression: reopening retained search, selection sync, preview outline, lock, hide, rename, and keyboard reorder. No Layers implementation was modified.
+- Harness corrections: the first two refinement runs exposed incorrect expected-X formulas in new desktop/mobile assertions even though measured application geometry was correct. Only those test formulas were corrected; the final self-contained run passed.
+- Visual evidence refreshed and reopened: `artifacts/editor-navigator-before.png` and `artifacts/editor-navigator-after.png`. Direct inspection confirms constant Inspector width and visibly enlarged Preview with no blank Navigator track.
+- Files modified for this correction: `src/pages/admin/AdminEdit.vue`, `tests/editor-navigator-collapse-runtime.mjs`, `EDITOR-NAVIGATOR-COLLAPSE.md`, both Navigator screenshots, and this log. The existing editor-store preference implementation was unchanged.
+- Protected boundaries preserved: Repository, Snapshot, Property Binding, Selection, Typography, Media, Layers behavior, shortcuts, Undo/Redo, Publish, Draft, Favorite, Guest Runtime, database, RLS, metadata, and Inspector behavior.
+- Validation status at this entry: focused browser runtime PASS. Final typecheck, production build, and diff validation follow before closeout.
+- Final static validation: `npx vue-tsc --noEmit` PASS; `npm run build` PASS with Vite 8.2.1 and 2,028 modules transformed; `git diff --check` PASS with line-ending notices only.
+- Final status: `PASS / INSPECTOR WIDTH CONSTANT, NAVIGATOR SPACE TRANSFERRED TO CANVAS, PREVIEW ENLARGED WITHOUT REMOUNT, EDITOR STATE PRESERVED, VISUALLY VERIFIED, AND STATICALLY VERIFIED`.
+
