@@ -47,6 +47,7 @@ function update(event: Event): void {
 
 function handleWheel(event: WheelEvent): void {
   if (props.control !== 'number' || props.disabled) return
+  if (event.currentTarget !== document.activeElement) return
   event.preventDefault()
   nudge(event.deltaY < 0 ? 1 : -1, event)
 }

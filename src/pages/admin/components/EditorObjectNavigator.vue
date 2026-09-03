@@ -211,7 +211,7 @@ watch(() => props.selectedObjectId, async (objectId) => {
 </template>
 
 <style scoped>
-.object-navigator { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(73,54,47,.14); background: #f1ede1; color: #49362f; }
+.object-navigator { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; touch-action: pan-y; border-right: 1px solid rgba(73,54,47,.14); background: #f1ede1; color: #49362f; scrollbar-gutter: stable; }
 .navigator-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 1.25rem 1rem .85rem; }
 .navigator-heading span:first-child { color: #9a806f; font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .navigator-heading h2 { margin: .12rem 0 0; font-size: 1.05rem; }
@@ -219,7 +219,7 @@ watch(() => props.selectedObjectId, async (objectId) => {
 .object-search { display: flex; align-items: center; gap: .45rem; margin: 0 .75rem .8rem; padding: .55rem .65rem; border: 1px solid rgba(73,54,47,.16); border-radius: 10px; background: rgba(255,253,244,.9); }
 .object-search:focus-within { border-color: #b85b69; box-shadow: 0 0 0 2px rgba(184,91,105,.12); }
 .object-search input { min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; color: inherit; font: 500 .73rem/1.3 system-ui; }
-.layer-tree { min-height: 0; overflow: auto; padding: 0 .55rem 5rem; scrollbar-gutter: stable; }
+.layer-tree { flex: 0 0 auto; min-height: 0; overflow: visible; padding: 0 .55rem 5rem; }
 .layer-section + .layer-section { margin-top: .2rem; }
 .layer-heading { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .35rem; border: 0; padding: .55rem .45rem; background: transparent; color: #6c5148; text-align: left; cursor: pointer; font-size: .73rem; font-weight: 800; }
 .layer-heading svg { transition: transform .18s ease; }.layer-heading svg.rotated { transform: rotate(90deg); }.layer-heading small { color: #a28c80; font-size: .65rem; }

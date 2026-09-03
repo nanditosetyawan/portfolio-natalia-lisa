@@ -2725,6 +2725,7 @@ function cancelLibrarySwitch(): void {
     <div
       id="editor-object-navigator"
       class="navigator-column"
+      data-lenis-prevent
       :aria-hidden="!editor.navigatorOpen"
       :inert="!editor.navigatorOpen"
     >
@@ -2744,7 +2745,7 @@ function cancelLibrarySwitch(): void {
         @rename="renameLayerObject"
       />
     </div>
-    <aside ref="controlPanel" class="control-panel" aria-label="Editor property panel">
+    <aside ref="controlPanel" class="control-panel" data-lenis-prevent aria-label="Editor property panel">
       <button
         type="button"
         class="navigator-toggle"
@@ -2956,7 +2957,7 @@ function cancelLibrarySwitch(): void {
         <button type="button" @click="void initializeEditor()">Retry</button>
       </div>
       <div class="canvas-label">LIVE EDITOR PREVIEW</div>
-      <div ref="canvasScroll" class="canvas-scroll" :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan">
+      <div ref="canvasScroll" class="canvas-scroll" data-lenis-prevent :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan">
         <div class="preview-frame" :style="previewFrameStyle">
           <div ref="previewStage" class="preview-stage" :style="previewStageStyle" :data-canvas-width="activeCanvasWidth" :data-responsive-breakpoint="activeBreakpoint">
             <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" :data-responsive-breakpoint="activeBreakpoint" @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
@@ -3055,7 +3056,7 @@ function cancelLibrarySwitch(): void {
 .navigator-column { width: 100%; min-width: 0; min-height: 0; overflow: hidden; opacity: 1; visibility: visible; transition: opacity .14s ease, visibility 0s linear; }
 .navigator-column :deep(.object-navigator) { width: var(--navigator-expanded-width); height: 100%; box-sizing: border-box; }
 .navigator-collapsed .navigator-column { pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .12s ease, visibility 0s linear .2s; }
-.control-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: 1.5rem 1.25rem 6rem; border-right: 1px solid rgba(73,54,47,.16); scrollbar-gutter: stable; }
+.control-panel { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; touch-action: pan-y; padding: 1.5rem 1.25rem 6rem; border-right: 1px solid rgba(73,54,47,.16); scrollbar-gutter: stable; }
 .navigator-toggle { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; width: 11.5rem; height: 42px; margin: 0 0 1rem; border: 1px solid rgba(184,91,105,.24); border-radius: 999px; background: #fff1e8; color: #944853; font: 800 .72rem/1 system-ui; cursor: pointer; transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .navigator-toggle:hover { border-color: rgba(184,91,105,.48); background: #fff5eb; box-shadow: 0 .3rem .75rem rgba(73,54,47,.08); transform: translateY(-1px); }
 .navigator-toggle:active { transform: translateY(0); }
@@ -3103,7 +3104,7 @@ function cancelLibrarySwitch(): void {
 .editor-recovery { position: absolute; z-index: 1002; inset: 4rem auto auto 50%; transform: translateX(-50%); width: min(90%,440px); padding: 1rem; border: 1px solid #d99898; border-radius: 16px; background: #fffaf4; color: #8d363a; box-shadow: 0 1rem 2rem rgba(73,54,47,.15); }
 .editor-recovery p { margin: 0 0 .35rem; }.editor-recovery small { display: block; margin-bottom: .75rem; }.editor-recovery button { border: 1px solid #e8ded0; border-radius: 10px; padding: .6rem 1rem; background: #fff5eb; color: #5a3e35; cursor: pointer; }
 .canvas-label { position: absolute; z-index: 1000; top: .75rem; right: 1rem; padding: .35rem .55rem; border-radius: 999px; background: rgba(35,28,25,.78); color: #fff; font: 600 .68rem/1 system-ui; letter-spacing: .08em; }
-.canvas-scroll { width: 100%; height: calc(100% - 2.2rem); min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; background: #fff; scrollbar-gutter: stable; }.canvas-scroll.is-panning,.canvas-scroll.is-panning :deep(*) { cursor: grabbing !important; user-select: none !important; }
+.canvas-scroll { width: 100%; height: calc(100% - 2.2rem); min-width: 0; min-height: 0; overflow-x: auto; overflow-y: auto; touch-action: pan-x pan-y; background: #fff; scrollbar-gutter: stable; }.canvas-scroll.is-panning,.canvas-scroll.is-panning :deep(*) { cursor: grabbing !important; user-select: none !important; }
 .preview-frame { position: relative; margin: 1.5rem auto 7rem; background: #fff; box-shadow: 0 1rem 2rem rgba(73,54,47,.12); }
 .preview-stage { transform-origin: top left; }
 .editor-preview-runtime :deep([data-editor-object-id]) { cursor: pointer; outline-offset: 3px; border-radius: 4px; }
