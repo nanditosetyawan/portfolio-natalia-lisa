@@ -19,6 +19,8 @@ export type EditorControl =
   | 'segmented'
   | 'thumbnail'
   | 'timeline'
+  | 'shadow'
+  | 'border'
 export type EditorPropertyType = 'string' | 'number' | 'boolean' | 'color' | 'asset' | 'enum' | 'metadata'
 export type BuiltInEditorObjectType = 'Text' | 'Image' | 'Button' | 'Container' | 'Background' | 'Divider' | 'Icon'
 export type EditorObjectType = BuiltInEditorObjectType | (string & {})
@@ -172,6 +174,8 @@ export interface PropertyRegistryEntry {
   minimum?: number
   maximum?: number
   enabledValue?: EditorValue
+  /** Presentation-only options forwarded by the generic Inspector control renderer. */
+  controlOptions?: Record<string, EditorValue>
   visibilityRule?: (context: PropertyVisibilityContext) => boolean
   enabledRule?: (context: PropertyVisibilityContext) => boolean
   dependencyKeys?: string[]

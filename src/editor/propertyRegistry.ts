@@ -209,6 +209,7 @@ export interface PropertyDefinition extends Pick<PropertyRegistryEntry,
   minimum?: number
   maximum?: number
   enabledValue?: EditorValue
+  controlOptions?: Record<string, EditorValue>
   visibilityRule?: PropertyRegistryEntry['visibilityRule']
   enabledRule?: PropertyRegistryEntry['enabledRule']
   animationField?: AnimationPropertyField
@@ -374,7 +375,9 @@ const propertyTypeByControl: Record<EditorControl, EditorPropertyType> = {
   'toggle-color': 'color',
   segmented: 'enum',
   thumbnail: 'asset',
-  timeline: 'metadata'
+  timeline: 'metadata',
+  shadow: 'string',
+  border: 'string'
 }
 
 const defaultValueByType: Record<EditorPropertyType, EditorValue> = {

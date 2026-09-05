@@ -56,6 +56,15 @@ import {
 } from '../../editor/designSystemRegistry'
 import { applyRegisteredObjectProperties, applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
 import {
+  formatInspectorValue,
+  inspectorFontOptions,
+  inspectorValueIsComplex,
+  normalizeInspectorCategory,
+  parseInspectorValue,
+  resolveInspectorPresentation,
+  type ResolvedInspectorPresentation
+} from '../../editor/inspectorPresentation'
+import {
   applyAnimationPreset,
   hasAnimation,
   readAnimationInspectorValue,
@@ -89,7 +98,6 @@ import {
   responsiveSnapshotResetChange,
   responsiveSnapshotEntityId,
   responsiveSnapshotWritePath,
-  responsiveStateLabel,
   restoreResponsiveObjectProperties,
   restoreResponsiveSnapshotProperties,
   type ResponsiveBreakpoint,
@@ -126,9 +134,15 @@ interface PanelProperty {
   responsiveProperty?: ResponsiveLayoutProperty
 }
 
+interface InspectorPanelProperty extends PanelProperty {
+  inspectorKey: string
+  presentation: ResolvedInspectorPresentation
+  advancedRaw: boolean
+}
+
 interface PanelRow {
   key: string
-  properties: PanelProperty[]
+  properties: InspectorPanelProperty[]
 }
 
 interface PanelGroup {
@@ -272,6 +286,8 @@ const selectedRuntimeObjects = computed(() => editor.selectedObjectIds.flatMap((
 const activeCanvasPreset = computed(() => responsiveCanvasPresets.find((preset) => preset.id === activeCanvasPresetId.value) ?? responsiveCanvasPresets[0])
 const activeBreakpoint = computed<ResponsiveBreakpoint>(() => activeCanvasPreset.value.breakpoint)
 const activeCanvasWidth = computed(() => activeCanvasPreset.value.width)
+const userCanvasPresets = responsiveCanvasPresets.filter((preset) => preset.id === 'desktop-1440' || preset.id === 'laptop-1024')
+const activeViewportLabel = computed(() => activeCanvasPresetId.value === 'laptop-1024' ? 'Tablet Landscape' : 'Desktop')
 const previewScale = computed(() => userZoom.value ?? fitScale.value)
 const sourceLabel = computed(() => editor.draftRevisionId
   ? `Editing: ${route.query.source === 'favorite' ? 'Favorite - ' : ''}Draft #${editor.draftRevisionNumber ?? '-'}`
@@ -338,7 +354,15 @@ function resolveRuntimeMetadata(metadata: PropertyRegistryEntry): PropertyRegist
 const registryPanelProperties = computed<PanelProperty[]>(() => {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return []
-  return resolveProperties(descriptor, editor.draftSnapshot).filter((metadata) => metadata.category !== 'content').map((metadata) => {
+  const visible = resolveProperties(descriptor, editor.draftSnapshot).filter((metadata) => metadata.category !== 'content')
+  const visibleKeys = new Set(visible.map((metadata) => metadata.propertyKey))
+  const advancedRuntime = propertyRegistry.filter((metadata) => (
+    metadata.propertyKey.startsWith('runtime.')
+    && metadata.databaseMapping.kind === 'snapshot'
+    && descriptor.capabilities.includes(metadata.capability)
+    && !visibleKeys.has(metadata.propertyKey)
+  ))
+  return [...visible, ...advancedRuntime].map((metadata) => {
     const resolved = resolveRuntimeMetadata(metadata)
     const runtimeProperty = resolved.databaseMapping.kind === 'runtime'
       ? selectedEntity.value?.properties.find((property) => property.metadata.propertyKey === resolved.propertyKey)
@@ -384,9 +408,67 @@ const canPasteStyle = computed(() => {
   return editor.styleClipboard.entries.some((entry) => styleKeys.has(entry.styleKey))
 })
 const selectedPropertyValues = computed(() => Object.fromEntries(selectedPanelProperties.value.map((property) => [property.metadata.propertyKey, readPanelValue(property)])))
-const selectedPanelGroups = computed<PanelGroup[]>(() => {
-  const groups = new Map<string, { label: string; order: number; presentation: 'inline' | 'accordion'; properties: PanelProperty[] }>()
+function inspectorMetadata(property: PanelProperty, presentation: ResolvedInspectorPresentation, advancedRaw = false): PropertyRegistryEntry {
+  return {
+    ...property.metadata,
+    label: advancedRaw ? `${presentation.label} details` : presentation.label,
+    category: advancedRaw ? 'advanced' : presentation.category,
+    categoryLabel: advancedRaw ? 'ADVANCED' : presentation.categoryLabel,
+    categoryOrder: advancedRaw ? 90 : presentation.categoryOrder,
+    presentation: advancedRaw ? 'accordion' : property.metadata.presentation,
+    order: advancedRaw ? 1000 + presentation.categoryOrder + presentation.order : presentation.order,
+    rowKey: advancedRaw ? `advanced-${property.key}` : presentation.rowKey,
+    control: advancedRaw
+      ? (presentation.advancedEditable ? property.metadata.control : 'readonly')
+      : presentation.control,
+    unit: advancedRaw ? property.metadata.unit : presentation.unit,
+    minimum: advancedRaw ? property.metadata.minimum : presentation.minimum,
+    maximum: advancedRaw ? property.metadata.maximum : presentation.maximum,
+    step: advancedRaw ? property.metadata.step : presentation.step,
+    options: advancedRaw ? property.metadata.options : presentation.options,
+    controlOptions: advancedRaw ? property.metadata.controlOptions : presentation.controlOptions,
+    helperText: presentation.helperText
+  }
+}
+
+const inspectorPanelProperties = computed<InspectorPanelProperty[]>(() => {
+  const objectType = selectedEntity.value?.type
+  if (!objectType) return []
+  const result: InspectorPanelProperty[] = []
   for (const property of selectedPanelProperties.value) {
+    const resolvedPresentation = resolveInspectorPresentation(property.metadata, objectType)
+    const presentation = resolvedPresentation.adapter === 'font-family'
+      ? { ...resolvedPresentation, options: inspectorFontOptions(readPanelValue(property)) }
+      : resolvedPresentation
+    if (presentation.mode === 'hidden') continue
+    if (presentation.hideWhenUnavailable && !isPanelPropertyApplicable(property)) continue
+    const advancedOnly = presentation.mode === 'advanced'
+    result.push({
+      ...property,
+      inspectorKey: `${advancedOnly ? 'advanced' : 'simple'}:${property.key}`,
+      metadata: inspectorMetadata(property, presentation),
+      presentation,
+      advancedRaw: false
+    })
+    if (!advancedOnly && (presentation.advancedRaw || property.metadata.designToken)) {
+      result.push({
+        ...property,
+        inspectorKey: `details:${property.key}`,
+        metadata: inspectorMetadata(property, presentation, true),
+        presentation,
+        advancedRaw: true
+      })
+    }
+  }
+  return result.sort((left, right) => (
+    (left.metadata.categoryOrder ?? 100) - (right.metadata.categoryOrder ?? 100)
+    || left.metadata.order - right.metadata.order
+  ))
+})
+
+const selectedPanelGroups = computed<PanelGroup[]>(() => {
+  const groups = new Map<string, { label: string; order: number; presentation: 'inline' | 'accordion'; properties: InspectorPanelProperty[] }>()
+  for (const property of inspectorPanelProperties.value) {
     const category = property.metadata.category
     const current = groups.get(category) ?? {
       label: property.metadata.categoryLabel ?? category.toUpperCase(),
@@ -400,14 +482,17 @@ const selectedPanelGroups = computed<PanelGroup[]>(() => {
   return [...groups.entries()]
     .sort((left, right) => left[1].order - right[1].order)
     .map(([key, group]) => {
-      const rows = new Map<string, PanelProperty[]>()
+      const rows = new Map<string, InspectorPanelProperty[]>()
       for (const property of group.properties.sort((left, right) => left.metadata.order - right.metadata.order)) {
-        const rowKey = property.metadata.rowKey ?? property.key
+        const rowKey = property.metadata.rowKey ?? property.inspectorKey
         rows.set(rowKey, [...(rows.get(rowKey) ?? []), property])
       }
       return { key, label: group.label, presentation: group.presentation, rows: [...rows.entries()].map(([rowKey, properties]) => ({ key: rowKey, properties })) }
     })
 })
+const inspectorCategoryGroups = computed(() => selectedPanelGroups.value.filter((group) => (
+  group.presentation === 'accordion' && group.key !== 'advanced'
+)))
 
 function designReferenceContext(object: Pick<EditorObject, 'id' | 'section' | 'type'>): DesignReferenceContext {
   return { objectId: object.id, section: object.section, component: object.type }
@@ -462,6 +547,20 @@ function markDesignPropertyOverride(entity: EditorRuntimeObject, property: Panel
 function compatibleDesignTokens(property: PanelProperty) {
   const kinds = property.metadata.designToken?.kinds ?? []
   return designTokenRegistry.filter((token) => kinds.includes(token.kind))
+}
+
+function inspectorThemeColors(property: PanelProperty): string[] {
+  return compatibleDesignTokens(property)
+    .map((token) => tokenValue(token.id))
+    .filter((value): value is string => typeof value === 'string')
+}
+
+function friendlyDesignStyleLabel(property: PanelProperty): string {
+  if (!property.metadata.designToken || !property.metadata.styleKey) return ''
+  if (canResetDesignOverride(property)) return 'Custom style'
+  const entity = selectedEntity.value
+  const assignment = entity ? designSystem.workspace.typographyAssignments[entity.id] : undefined
+  return designReferenceFor(property) || assignment ? 'Global style' : ''
 }
 
 function stylePropertyForObject(object: EditorObject, styleKey: string): PropertyRegistryEntry | null {
@@ -1006,17 +1105,23 @@ function restoreSelectionFromSession(): void {
 
 function availableGroups(entity: EditorRuntimeObject): string[] {
   const descriptor = descriptorFor(entity)
-  const groups = resolveProperties(descriptor, editor.draftSnapshot).map((property) => property.category)
-  if (resolveResponsiveLayoutProperties(descriptor, activeBreakpoint.value).length) groups.push('responsive')
-  if (entity.properties.some((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')) groups.push('font')
+  const properties = [
+    ...resolveProperties(descriptor, editor.draftSnapshot),
+    ...resolveResponsiveLayoutProperties(descriptor, activeBreakpoint.value).map((property) => property.metadata)
+  ]
+  const groups = properties.flatMap((property) => {
+    const presentation = resolveInspectorPresentation(property, entity.type)
+    return presentation.mode === 'hidden' ? [] : [normalizeInspectorCategory(presentation.category)]
+  })
+  if (entity.properties.some((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')) groups.push('content')
   return [...new Set(groups)]
 }
 
 function defaultAccordion(entity: EditorRuntimeObject): string {
-  const properties = resolveProperties(descriptorFor(entity), editor.draftSnapshot)
-  const groups = [...new Set(properties.map((property) => property.category))]
-  return properties.find((property) => property.categoryDefaultOpen && groups.includes(property.category))?.category
-    ?? (entity.photoAreaId && groups.includes('media') ? 'media' : groups[0] ?? '')
+  const groups = availableGroups(entity).filter((category) => category !== 'content' && category !== 'advanced')
+  if (entity.type === 'Text' && groups.includes('font')) return 'font'
+  if (entity.type === 'Image' && groups.includes('media')) return 'media'
+  return groups[0] ?? (availableGroups(entity).includes('advanced') ? 'advanced' : '')
 }
 
 function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, markSession = true, mode: SelectionMode = 'replace'): void {
@@ -1028,7 +1133,8 @@ function setSelection(entity: EditorRuntimeObject, preferredAccordion?: string, 
   const objectQuery = editor.objectSearch.trim().toLocaleLowerCase()
   if (objectQuery && ![primary.label, primary.id, primary.type].some((value) => value.toLocaleLowerCase().includes(objectQuery))) editor.setObjectSearch('')
   const groups = availableGroups(primary)
-  const accordion = preferredAccordion && groups.includes(preferredAccordion) ? preferredAccordion : defaultAccordion(primary)
+  const normalizedPreferred = preferredAccordion ? normalizeInspectorCategory(preferredAccordion) : ''
+  const accordion = normalizedPreferred && groups.includes(normalizedPreferred) ? normalizedPreferred : defaultAccordion(primary)
   if (markSession) editor.setAccordion(accordion)
   else {
     editor.activeAccordion = accordion
@@ -1326,13 +1432,13 @@ async function writeRuntimeProperty(entity: EditorRuntimeObject, property: Runti
   markEditorChanged()
 }
 
-function isPanelPropertyEnabled(property: PanelProperty): boolean {
+function isPanelPropertyApplicable(property: PanelProperty): boolean {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return false
   if (property.responsiveProperty) {
     const responsiveProperties = responsivePanelProperties.value.flatMap((candidate) => candidate.responsiveProperty ? [candidate.responsiveProperty] : [])
     const values = responsiveLayoutValues(responsiveProperties, editor.draftSnapshot, descriptor.entityId, activeBreakpoint.value)
-    return !selectedObjectLocked.value && isResponsiveLayoutPropertyEnabled(
+    return isResponsiveLayoutPropertyEnabled(
       property.responsiveProperty,
       descriptor,
       editor.draftSnapshot,
@@ -1343,6 +1449,12 @@ function isPanelPropertyEnabled(property: PanelProperty): boolean {
   if (property.metadata.databaseMapping.kind === 'action'
     && ['remove-media', 'duplicate-media-reference', 'reveal-media-library'].includes(property.metadata.databaseMapping.action)
     && !selectedMediaAssignment.value) return false
+  if (property.metadata.databaseMapping.kind === 'action'
+    && ['upload-media', 'choose-media'].includes(property.metadata.databaseMapping.action)
+    && !selectedPhotoArea.value) return false
+  if (property.metadata.databaseMapping.kind === 'action'
+    && property.metadata.databaseMapping.action === 'replace-media'
+    && (!selectedPhotoArea.value || !selectedMediaAssignment.value)) return false
   if (property.metadata.databaseMapping.kind === 'action') {
     const actionName = property.metadata.databaseMapping.action
     const settings = effectiveAnimationSettings(descriptor.entityId)
@@ -1356,7 +1468,33 @@ function isPanelPropertyEnabled(property: PanelProperty): boolean {
     snapshot: editor.draftSnapshot,
     values: selectedPropertyValues.value
   }
-  return (property.metadata.readOnly || !selectedObjectLocked.value) && isPropertyEnabled(property.metadata, context)
+  return isPropertyEnabled(property.metadata, context)
+}
+
+function isPanelPropertyEnabled(property: PanelProperty): boolean {
+  return isPanelPropertyApplicable(property) && (property.metadata.readOnly || !selectedObjectLocked.value)
+}
+
+function resolvedInspectorStyle(property: InspectorPanelProperty): string | undefined {
+  if (!property.presentation.resolvedStyle || !selectedEntity.value || typeof window === 'undefined') return undefined
+  const element = preferredPreviewElement(selectedEntity.value.id)
+  return element ? window.getComputedStyle(element).getPropertyValue(property.presentation.resolvedStyle) : undefined
+}
+
+function readInspectorValue(property: InspectorPanelProperty): string | number | boolean | null {
+  const canonicalValue = readPanelValue(property)
+  if (property.advancedRaw) return canonicalValue
+  return formatInspectorValue(property.presentation, canonicalValue, resolvedInspectorStyle(property))
+}
+
+async function updateInspectorProperty(property: InspectorPanelProperty, value: string | number | boolean): Promise<void> {
+  const canonicalValue = property.advancedRaw ? value : parseInspectorValue(property.presentation, value)
+  await updatePanelProperty(property, canonicalValue)
+}
+
+function inspectorComplexValueNote(property: InspectorPanelProperty): string {
+  if (property.advancedRaw || !inspectorValueIsComplex(property.presentation, readPanelValue(property))) return ''
+  return 'Fluid sizing is preserved. This number shows the current visual size; editing it sets a fixed px value.'
 }
 
 function panelPropertyError(property: PanelProperty): string {
@@ -1396,7 +1534,13 @@ function panelResponsiveState(property: PanelProperty): ResponsiveLayoutProperty
 
 function panelResponsiveLabel(property: PanelProperty): string {
   const state = panelResponsiveState(property)
-  return state ? responsiveStateLabel(state) : ''
+  if (!state) return ''
+  if (activeBreakpoint.value === 'desktop') return 'Desktop value'
+  return state.overridden ? 'Tablet value' : 'Using Desktop value'
+}
+
+function resetPanelOverrideLabel(): string {
+  return activeBreakpoint.value === 'desktop' ? 'Reset' : 'Use Desktop value'
 }
 
 function canResetPanelOverride(property: PanelProperty): boolean {
@@ -1942,15 +2086,15 @@ function setPreviewZoom(event: Event): void {
 function handleCanvasPresetKeydown(event: KeyboardEvent, index: number): void {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
   event.preventDefault()
-  const last = responsiveCanvasPresets.length - 1
+  const last = userCanvasPresets.length - 1
   const nextIndex = event.key === 'Home'
     ? 0
     : event.key === 'End'
       ? last
       : event.key === 'ArrowLeft'
-        ? (index - 1 + responsiveCanvasPresets.length) % responsiveCanvasPresets.length
-        : (index + 1) % responsiveCanvasPresets.length
-  const preset = responsiveCanvasPresets[nextIndex]
+        ? (index - 1 + userCanvasPresets.length) % userCanvasPresets.length
+        : (index + 1) % userCanvasPresets.length
+  const preset = userCanvasPresets[nextIndex]
   if (!preset) return
   activeCanvasPresetId.value = preset.id
   void nextTick(() => canvasContainer.value?.querySelector<HTMLElement>(`[data-canvas-preset="${preset.id}"]`)?.focus())
@@ -2599,23 +2743,22 @@ function handleEditorKeydown(event: KeyboardEvent): void {
 function searchInspector(value: string): void {
   const query = value.trim().toLocaleLowerCase()
   if (!query) return
-  const ranked = selectedPanelProperties.value.map((property) => {
+  const ranked = inspectorPanelProperties.value.map((property) => {
     const exactSearchTerm = property.metadata.searchTerms?.some((term) => term.toLocaleLowerCase() === query)
     const label = property.metadata.label.toLocaleLowerCase()
-    const key = property.metadata.propertyKey.toLocaleLowerCase()
     const category = (property.metadata.categoryLabel ?? property.metadata.category).toLocaleLowerCase()
-    const score = exactSearchTerm ? 0 : label === query ? 1 : label.includes(query) ? 2 : key.includes(query) ? 3 : category.includes(query) ? 4 : 99
+    const score = exactSearchTerm ? 0 : label === query ? 1 : label.includes(query) ? 2 : category.includes(query) ? 3 : 99
     return { property, score }
   }).filter((item) => item.score < 99).sort((left, right) => left.score - right.score || left.property.metadata.order - right.property.metadata.order)
   const match = ranked[0]?.property
   if (!match) return
   if (match.metadata.presentation !== 'inline') editor.setAccordion(match.metadata.category)
-  void nextTick(() => scrollInspectorToActive(match.key))
+  void nextTick(() => scrollInspectorToActive(match.inspectorKey))
 }
 
 function scrollInspectorToActive(propertyKey?: string): void {
   const selector = propertyKey
-    ? `[data-property-key="${CSS.escape(propertyKey)}"]`
+    ? `[data-inspector-key="${CSS.escape(propertyKey)}"]`
     : `[data-property-category="${CSS.escape(editor.activeAccordion)}"]`
   controlPanel.value?.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
@@ -2680,6 +2823,12 @@ function endSelectionBox(): void {
 function toggleAccordion(category: string): void {
   editor.setAccordion(editor.activeAccordion === category ? '' : category)
   markSessionChanged()
+}
+
+function focusInspectorCategory(category: string): void {
+  editor.setAccordion(category)
+  markSessionChanged()
+  void nextTick(() => scrollInspectorToActive())
 }
 
 function requestOpenLibrary(name: LibraryRouteName): void {
@@ -2760,7 +2909,7 @@ function cancelLibrarySwitch(): void {
       <div class="panel-heading">
         <div>
           <h1>Inspector</h1>
-          <span class="panel-hint">Professional Object Editor</span>
+          <span class="panel-hint">Design controls</span>
         </div>
         <div class="panel-heading-actions">
           <span v-if="selectedEntity" class="selected-kind">{{ selectedEntity.type }}</span>
@@ -2768,34 +2917,45 @@ function cancelLibrarySwitch(): void {
         </div>
       </div>
 
-      <label class="field-label" for="section-select">Section</label>
+      <label class="field-label" for="section-select">Page area</label>
       <select id="section-select" v-model="selectedSection" class="input-field">
         <option v-for="section in sections" :key="section" :value="section">{{ section }}</option>
       </select>
 
-      <label class="field-label" for="entity-select">Entity / element</label>
+      <label class="field-label" for="entity-select">Element</label>
       <select id="entity-select" v-model="selectedEntityId" class="input-field" data-admin-entity-select>
-        <option v-for="entity in sectionEntities" :key="entity.id" :value="entity.id">{{ entity.label }} - {{ entity.id }}</option>
+        <option v-for="entity in sectionEntities" :key="entity.id" :value="entity.id">{{ entity.label }}</option>
       </select>
 
       <p v-if="selectedEntity" class="selection-summary" :data-selected-entity-id="selectedEntity.id">
         Editing <strong>{{ selectedEntity.label }}</strong>
         <em v-if="selectedObjectCount > 1">+ {{ selectedObjectCount - 1 }} selected</em>
-        <span>{{ editor.selectedLayer }}</span>
+        <span>{{ selectedEntity.section }}</span>
       </p>
 
       <div class="responsive-inspector-context" data-responsive-inspector>
-        <span>Current breakpoint</span>
-        <strong>{{ activeCanvasPreset.label }}</strong>
-        <small>{{ activeBreakpoint === 'desktop' ? 'Editing base values.' : 'Changes create sparse overrides; all other values inherit.' }}</small>
+        <span>Editing</span>
+        <strong>{{ activeViewportLabel }}</strong>
+        <small>{{ activeBreakpoint === 'desktop' ? 'Set the main design for larger screens.' : 'Using Desktop values until you make a Tablet change.' }}</small>
       </div>
 
       <label class="property-search" for="property-search-input">
-        <span>Search properties</span>
-        <input id="property-search-input" v-model="propertySearch" type="search" placeholder="Color, shadow, layout…" data-property-search />
+        <span>Search settings</span>
+        <input id="property-search-input" v-model="propertySearch" type="search" placeholder="Color, shadow, spacing…" data-property-search />
       </label>
 
-      <div v-if="selectedEntity" class="object-actions" aria-label="Selected object actions">
+      <nav v-if="inspectorCategoryGroups.length" class="inspector-category-nav" aria-label="Design setting categories">
+        <button
+          v-for="group in inspectorCategoryGroups"
+          :key="group.key"
+          type="button"
+          :class="{ active: editor.activeAccordion === group.key }"
+          :aria-pressed="editor.activeAccordion === group.key"
+          @click="focusInspectorCategory(group.key)"
+        >{{ group.label }}</button>
+      </nav>
+
+      <div v-if="selectedEntity" class="object-actions" aria-label="Selected element actions">
         <button type="button" :aria-pressed="selectedObjectLocked" @click="setObjectLocked(selectedEntity.id, !selectedObjectLocked)">
           <Unlock v-if="selectedObjectLocked" :size="15" />
           <Lock v-else :size="15" />
@@ -2810,8 +2970,8 @@ function cancelLibrarySwitch(): void {
         <button type="button" :disabled="!canPasteStyle" @click="pasteSelectedStyle"><ClipboardPaste :size="15" />Paste Style</button>
       </div>
 
-      <p v-if="selectedObjectLocked" class="object-state-notice">This object is locked. Inspector controls are read-only until it is unlocked.</p>
-      <p v-if="selectedObjectHidden" class="object-state-notice">Hidden only in the Admin preview. Guest Runtime remains unchanged.</p>
+      <p v-if="selectedObjectLocked" class="object-state-notice">This element is locked. Unlock it to change its design.</p>
+      <p v-if="selectedObjectHidden" class="object-state-notice">Hidden only in the editor preview. Your live site is unchanged.</p>
 
       <section v-if="selectedEntity" class="property-editor">
         <div v-for="group in selectedPanelGroups" :key="group.key" class="property-group" :class="{ 'property-group--inline': group.presentation === 'inline' }" :data-property-category="group.key">
@@ -2835,7 +2995,7 @@ function cancelLibrarySwitch(): void {
             >
               <div
                 v-for="property in row.properties"
-                :key="property.key"
+                :key="property.inspectorKey"
                 class="property-field"
                 :class="{ 'property-field--disabled': !isPanelPropertyEnabled(property), 'property-field--error': Boolean(panelPropertyError(property)) }"
                 :title="!isPanelPropertyEnabled(property) ? property.metadata.helperText : undefined"
@@ -2848,11 +3008,15 @@ function cancelLibrarySwitch(): void {
                     v-if="canResetPanelOverride(property)"
                     type="button"
                     class="reset-override-button"
-                    :aria-label="`Reset ${property.metadata.label} override`"
+                    :aria-label="`Use Desktop value for ${property.metadata.label}`"
                     @click="resetPanelOverride(property)"
-                  >Reset</button>
+                  >{{ resetPanelOverrideLabel() }}</button>
                 </div>
-                <div v-if="property.metadata.designToken && property.metadata.styleKey && !property.responsiveProperty" class="design-reference-control" :data-design-reference="designReferenceLabel(property)">
+                <div v-if="group.key !== 'advanced' && (friendlyDesignStyleLabel(property) || canResetDesignOverride(property))" class="friendly-style-state">
+                  <span v-if="friendlyDesignStyleLabel(property)">{{ friendlyDesignStyleLabel(property) }}</span>
+                  <button v-if="canResetDesignOverride(property)" type="button" @click="resetDesignOverride(property)">Use global style</button>
+                </div>
+                <div v-if="group.key === 'advanced' && property.metadata.designToken && property.metadata.styleKey && !property.responsiveProperty" class="design-reference-control" :data-design-reference="designReferenceLabel(property)">
                   <div>
                     <span class="design-reference-state" :class="{ 'is-override': designReferenceLabel(property) === 'Overridden' }">{{ designReferenceLabel(property) }}</span>
                     <small v-if="designReferenceTokenLabel(property)">Referenced Token · {{ designReferenceTokenLabel(property) }}</small>
@@ -2867,15 +3031,18 @@ function cancelLibrarySwitch(): void {
                   <button v-if="canResetDesignOverride(property)" type="button" @click="resetDesignOverride(property)">Reset</button>
                 </div>
                 <PropertyControl
-                  :key="`${selectedEntity.id}-${property.key}-${property.metadata.control === 'file' ? mediaInputVersion : 0}`"
+                  :key="`${selectedEntity.id}-${property.inspectorKey}-${property.metadata.control === 'file' ? mediaInputVersion : 0}`"
                   :property="property.metadata"
-                  :value="readPanelValue(property)"
+                  :value="readInspectorValue(property)"
                   :disabled="!isPanelPropertyEnabled(property)"
+                  :theme-colors="inspectorThemeColors(property)"
                   :data-property-key="property.key"
-                  @change="updatePanelProperty(property, $event)"
+                  :data-inspector-key="property.inspectorKey"
+                  @change="updateInspectorProperty(property, $event)"
                   @file="handlePropertyFile(property, $event)"
                   @action="handlePropertyAction(property)"
                 />
+                <small v-if="inspectorComplexValueNote(property)" class="friendly-value-note">{{ inspectorComplexValueNote(property) }}</small>
                 <small v-if="!isPanelPropertyEnabled(property) && property.metadata.helperText">{{ property.metadata.helperText }}</small>
                 <small v-if="panelPropertyError(property)" class="property-error" role="alert">{{ panelPropertyError(property) }}</small>
               </div>
@@ -2883,11 +3050,11 @@ function cancelLibrarySwitch(): void {
           </div>
           </Transition>
         </div>
-        <p v-if="!selectedPanelGroups.length" class="empty-properties">No registered properties are available for this entity.</p>
+        <p v-if="!selectedPanelGroups.length" class="empty-properties">No design settings are available for this element.</p>
       </section>
 
       <div v-if="editor.selectedPropertyErrors.length" class="validation-summary" role="status">
-        {{ editor.selectedPropertyErrors.length }} invalid {{ editor.selectedPropertyErrors.length === 1 ? 'property' : 'properties' }}. Publish is blocked until corrected.
+        {{ editor.selectedPropertyErrors.length }} invalid {{ editor.selectedPropertyErrors.length === 1 ? 'setting' : 'settings' }}. Fix them before publishing.
       </div>
 
       <button type="button" class="discard-draft-button" :disabled="editor.isSavingDraft" @click="discardDraft">Discard Draft</button>
@@ -2908,18 +3075,18 @@ function cancelLibrarySwitch(): void {
         <span class="source-indicator">{{ sourceLabel }}</span>
         <div class="breakpoint-toolbar" role="radiogroup" aria-label="Preview canvas size">
           <button
-            v-for="(preset, index) in responsiveCanvasPresets"
+            v-for="(preset, index) in userCanvasPresets"
             :key="preset.id"
             type="button"
             role="radio"
             :aria-checked="activeCanvasPresetId === preset.id"
-            :aria-label="preset.label"
-            :title="preset.label"
+            :aria-label="preset.id === 'laptop-1024' ? 'Tablet Landscape' : 'Desktop'"
+            :title="preset.id === 'laptop-1024' ? 'Tablet Landscape' : 'Desktop'"
             :data-canvas-preset="preset.id"
             :class="{ active: activeCanvasPresetId === preset.id }"
             @click="activeCanvasPresetId = preset.id"
             @keydown="handleCanvasPresetKeydown($event, index)"
-          >{{ preset.shortLabel }}</button>
+          >{{ preset.id === 'laptop-1024' ? 'Tablet' : 'Desktop' }}</button>
         </div>
         <label class="zoom-control">
           <span>Zoom</span>
@@ -2981,7 +3148,7 @@ function cancelLibrarySwitch(): void {
         <span><strong>Size</strong>{{ statusSize }}</span>
         <span><strong>Draft</strong>{{ statusDraft }}</span>
         <span><strong>Revision</strong>{{ editor.draftRevisionNumber ?? 'New' }}</span>
-        <span><strong>Breakpoint</strong>{{ activeCanvasPreset.label }}</span>
+        <span><strong>View</strong>{{ activeViewportLabel }}</span>
         <span><strong>Zoom</strong>{{ Math.round(previewScale * 100) }}%</span>
         <span class="performance-status" :data-preview-update-count="previewUpdateCount" :title="`${previewUpdateCount} targeted preview updates`"><strong>Preview</strong>{{ previewFps }} FPS</span>
       </footer>
@@ -3065,7 +3232,7 @@ function cancelLibrarySwitch(): void {
 .panel-hint, .selected-kind { color: #9a806f; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .selected-kind { padding: .3rem .55rem; border: 1px solid #e8ded0; border-radius: 999px; background: #fffaf4; }
 .field-label, .property-field { display: grid; gap: .35rem; margin-top: 1rem; font-size: .76rem; font-weight: 700; }
-.input-field, .property-field :deep(input:not([type='checkbox'])), .property-field :deep(textarea), .property-field :deep(select) { width: 100%; border: 1px solid rgba(73,54,47,.22); border-radius: 8px; padding: .62rem; background: #fffdf4; color: inherit; box-sizing: border-box; }
+.input-field, .property-field :deep(input:not([type='checkbox'])), .property-field :deep(textarea), .property-field :deep(select) { width: 100%; min-height: 40px; border: 1px solid rgba(73,54,47,.22); border-radius: 9px; padding: .58rem .62rem; background: #fffdf4; color: inherit; box-sizing: border-box; }
 .property-field :deep(textarea) { min-height: 72px; resize: vertical; }
 .property-field :deep(input[type='color']) { min-height: 42px; padding: .2rem; }
 .property-field :deep(input[type='checkbox']) { width: 1.1rem; height: 1.1rem; accent-color: #b85b69; }
@@ -3076,6 +3243,7 @@ function cancelLibrarySwitch(): void {
 .selection-summary { display: grid; gap: .18rem; margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }.selection-summary span { color: #a18b80; font-size: .58rem; overflow-wrap: anywhere; }.selection-summary em { color: #a44955; font-size: .66rem; font-style: normal; font-weight: 800; }
 .responsive-inspector-context { display: grid; grid-template-columns: 1fr auto; gap: .18rem .65rem; margin-top: .65rem; padding: .65rem .72rem; border: 1px solid rgba(184,91,105,.2); border-radius: 11px; background: linear-gradient(135deg,rgba(255,245,235,.92),rgba(255,253,247,.86)); color: #80675d; font-size: .62rem; }.responsive-inspector-context > span { font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.responsive-inspector-context strong { color: #9b4f5b; }.responsive-inspector-context small { grid-column: 1 / -1; color: #92796d; line-height: 1.4; }
 .property-search { display: grid; gap: .35rem; margin-top: .85rem; color: #765f55; font-size: .7rem; font-weight: 800; }.property-search input { width: 100%; box-sizing: border-box; border: 1px solid rgba(73,54,47,.19); border-radius: 10px; padding: .62rem .7rem; background: #fffdf7; color: inherit; font: 500 .74rem/1.2 system-ui; }.property-search input:focus { border-color: #b85b69; outline: 2px solid rgba(184,91,105,.18); outline-offset: 1px; }
+.inspector-category-nav { display: flex; gap: .35rem; margin-top: .7rem; padding-bottom: .15rem; overflow-x: auto; scrollbar-width: thin; }.inspector-category-nav button { flex: 0 0 auto; min-height: 30px; border: 1px solid rgba(73,54,47,.13); border-radius: 999px; padding: .36rem .55rem; background: #fffaf4; color: #80675d; font: 800 .55rem/1 system-ui; letter-spacing: .035em; cursor: pointer; transition: border-color .18s ease,background-color .18s ease,color .18s ease; }.inspector-category-nav button:hover,.inspector-category-nav button.active { border-color: rgba(184,91,105,.42); background: #fff0ea; color: #944853; }
 .object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
 .object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
 .property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); }
@@ -3087,6 +3255,7 @@ function cancelLibrarySwitch(): void {
 .property-row { display: grid; gap: .7rem; }
 .property-row--paired { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .property-field-meta { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; min-width: 0; margin-top: -.15rem; }.responsive-property-state { flex: 0 0 auto; padding: .16rem .32rem; border: 1px solid rgba(73,54,47,.12); border-radius: 999px; background: #f5eee5; color: #8a756b; font-size: .5rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }.responsive-property-state.is-override { border-color: rgba(184,91,105,.28); background: #fff0ed; color: #a44955; }.property-field .reset-override-button { width: auto; min-width: 0; border: 0; border-radius: 5px; padding: .16rem .3rem; background: transparent; color: #a44955; font-size: .5rem; line-height: 1; text-decoration: underline; cursor: pointer; }.property-field .reset-override-button:hover { background: #fff0ed; }
+.friendly-style-state { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; margin-top: -.12rem; }.friendly-style-state span { padding: .15rem .34rem; border-radius: 999px; background: #f3ece4; color: #826d63; font-size: .5rem; font-weight: 800; }.friendly-style-state button { width: auto !important; min-height: 24px; border: 0 !important; padding: .15rem .3rem !important; background: transparent !important; color: #a44955 !important; font-size: .5rem; text-decoration: underline; }.friendly-value-note { padding: .38rem .45rem; border-radius: 7px; background: #f7f0e7; color: #806b62 !important; }
 .property-field--disabled { opacity: .48; filter: grayscale(.2); }
 .property-field--error :deep(input),.property-field--error :deep(select),.property-field--error :deep(textarea) { border-color: #bd4c4c !important; box-shadow: 0 0 0 2px rgba(189,76,76,.1); }.property-field .property-error { color: #a53f32; }.validation-summary { margin-top: 1rem; padding: .7rem .75rem; border: 1px solid rgba(165,63,50,.22); border-radius: 10px; background: #fff0eb; color: #8d363a; font-size: .7rem; font-weight: 700; line-height: 1.45; }
 .empty-properties { color: #8c7568; font-size: .75rem; }
@@ -3122,7 +3291,7 @@ function cancelLibrarySwitch(): void {
 .selection-box { position: absolute; z-index: 1100; pointer-events: none; border: 1.5px solid rgba(184,91,105,.92); border-radius: 4px; background: rgba(184,91,105,.035); box-shadow: 0 0 0 1px rgba(255,255,255,.75) inset; }
 .editor-context-menu { position: absolute; z-index: 1300; display: grid; width: 215px; margin: 0; padding: .42rem; border: 1px solid rgba(73,54,47,.16); border-radius: 12px; background: rgba(255,253,247,.98); box-shadow: 0 .85rem 2.2rem rgba(73,54,47,.2); list-style: none; }.editor-context-menu button { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; border: 0; border-radius: 8px; padding: .55rem .62rem; background: transparent; color: #5a3e35; text-align: left; font: 700 .7rem system-ui; cursor: pointer; }.editor-context-menu button:hover:not(:disabled),.editor-context-menu button:focus-visible { outline: 0; background: #fff1e8; color: #8d363a; }.editor-context-menu button:disabled { cursor: not-allowed; opacity: .4; }.editor-context-menu button.danger { color: #9b3f3f; }.editor-context-menu kbd { color: #a18b80; font: 600 .58rem system-ui; }
 .editor-status-bar { position: absolute; z-index: 1003; inset: auto 0 0; display: flex; align-items: stretch; gap: 0; height: 2.2rem; overflow-x: auto; border-top: 1px solid rgba(73,54,47,.14); background: rgba(246,244,232,.98); color: #765f55; scrollbar-width: thin; }.editor-status-bar span { display: flex; align-items: center; gap: .35rem; flex: 0 0 auto; min-width: 82px; padding: 0 .7rem; border-right: 1px solid rgba(73,54,47,.1); white-space: nowrap; font-size: .61rem; }.editor-status-bar strong { color: #9a806f; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; }.editor-status-bar .performance-status { margin-left: auto; color: #55725d; }
-.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.navigator-toggle:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible,.design-system-button:focus-visible,.design-reference-control button:focus-visible,.design-reference-control select:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
+.canvas-container button:focus-visible,.canvas-container select:focus-visible,.canvas-container input:focus-visible,.navigator-toggle:focus-visible,.object-actions button:focus-visible,.accordion-toggle:focus-visible,.inspector-category-nav button:focus-visible,.discard-draft-button:focus-visible,.reset-override-button:focus-visible,.design-system-button:focus-visible,.design-reference-control button:focus-visible,.design-reference-control select:focus-visible { outline: 2px solid #b85b69; outline-offset: 2px; }
 .modal-backdrop { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(73,54,47,.35); }
 .source-modal { position: relative; width: min(100%,620px); padding: 2rem; border-radius: 24px; background: #f6f4e8; color: #49362f; box-shadow: 0 1.5rem 4rem rgba(73,54,47,.25); }
 .source-modal h2 { margin: 0; color: #5a3e35; }.source-modal p { color: #7b5f3b; }.modal-close { position: absolute; top: 1rem; right: 1rem; border: 0; background: transparent; font-size: 1.25rem; color: #7b5f3b; cursor: pointer; }
