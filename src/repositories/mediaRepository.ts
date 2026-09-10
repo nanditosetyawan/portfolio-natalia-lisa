@@ -47,10 +47,16 @@ function normalizedFolder(value: string): string {
 
 async function imageDimensions(file: File): Promise<{ width: number | null; height: number | null }> {
   if (typeof createImageBitmap === 'function') {
-    const bitmap = await createImageBitmap(file)
-    const dimensions = { width: bitmap.width || null, height: bitmap.height || null }
-    bitmap.close()
-    return dimensions
+    try {
+      const bitmap = await createImageBitmap(file)
+      const dimensions = { width: bitmap.width || null, height: bitmap.height || null }
+      bitmap.close()
+      return dimensions
+    } catch {
+      // Chromium does not consistently decode SVG files through createImageBitmap.
+      // The native Image path below supports the same valid asset without changing
+      // the repository or storage contract.
+    }
   }
   if (typeof Image === 'undefined' || typeof URL === 'undefined') return { width: null, height: null }
   const objectUrl = URL.createObjectURL(file)

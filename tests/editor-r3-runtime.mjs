@@ -269,22 +269,21 @@ try {
   const mediaUploadResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-entity-id="portfolio-profile-media"]');
-    const originalAsset=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media').assetId;
+    const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;const editor=pinia._s.get('editor');const library=pinia._s.get('media-library');await library.refresh();
+    const originalAsset=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media').assetId;const originalSrc=image.src;const originalHistory=editor.commandHistory.length;const previousIds=new Set(library.assets.map(item=>item.id));
     const blob=await fetch(image.src).then(response=>response.blob());
     const file=new File([blob],'profile-r3.webp',{type:blob.type||'image/webp'});
     const transfer=new DataTransfer(); transfer.items.add(file);
     const uploadControl=document.querySelector('[data-property-key="media.upload"]');const upload=uploadControl.matches('input')?uploadControl:uploadControl.querySelector('input');
     upload.files=transfer.files; upload.dispatchEvent(new Event('change',{bubbles:true}));
-    const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
-    for(let i=0;i<80&&editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media')?.assetId===originalAsset;i++)await new Promise(resolve=>setTimeout(resolve,25));
+    for(let i=0;i<120&&(library.mutating||!library.assets.some(item=>!previousIds.has(item.id)));i++)await new Promise(resolve=>setTimeout(resolve,25));
     await tick();
     const assignment=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media');
-    const reference=editor.draftSnapshot.media.references.find(item=>item.assetId===assignment?.assetId);
-    return {originalAsset,nextAsset:assignment?.assetId,reference:reference?{assetId:reference.assetId,storagePath:reference.storagePath,bucket:reference.bucket,uri:reference.uri}:null,src:image.src,selected:editor.selectedEntityId};
+    const uploaded=library.assets.find(item=>!previousIds.has(item.id));
+    return {originalAsset,nextAsset:assignment?.assetId,uploaded:uploaded?{id:uploaded.id,storagePath:uploaded.storagePath,bucket:uploaded.bucket,persisted:uploaded.metadataPersisted}:null,originalSrc,src:image.src,historyBefore:originalHistory,historyAfter:editor.commandHistory.length,selected:editor.selectedEntityId};
   })()`)
-  assert(mediaUploadResult.nextAsset && mediaUploadResult.nextAsset !== mediaUploadResult.originalAsset, 'MEDIA Upload did not create a new asset reference')
-  assert(mediaUploadResult.reference?.storagePath?.startsWith('draft/'), `MEDIA Upload did not stage under draft/: ${JSON.stringify(mediaUploadResult)}`)
-  assert(mediaUploadResult.src.startsWith('blob:') && mediaUploadResult.selected === 'portfolio-profile-media', 'MEDIA Upload did not refresh preview or preserve selection')
+  assert(mediaUploadResult.uploaded?.storagePath?.startsWith('draft/library/') && mediaUploadResult.uploaded?.persisted, `MEDIA Upload did not register a reusable staged asset: ${JSON.stringify(mediaUploadResult)}`)
+  assert(mediaUploadResult.nextAsset === mediaUploadResult.originalAsset && mediaUploadResult.src === mediaUploadResult.originalSrc && mediaUploadResult.historyAfter === mediaUploadResult.historyBefore && mediaUploadResult.selected === 'portfolio-profile-media', 'MEDIA Upload silently replaced the selected image or changed selection/history')
 
   const historyResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));

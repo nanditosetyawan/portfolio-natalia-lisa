@@ -9,3 +9,19 @@
 .snapshot-runtime-hover-color:hover {
   color: var(--snapshot-runtime-hover-color) !important;
 }
+
+/* Image Hover Style is deliberately separate from configurable Animation
+   hover motion. Canonical media opacity remains the base value. */
+.snapshot-runtime-media-hover {
+  transition: opacity var(--ds-transition, 200ms ease);
+}
+
+.snapshot-runtime-media-hover:hover {
+  opacity: calc(var(--snapshot-runtime-media-opacity, 1) * .86) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snapshot-runtime-media-hover {
+    transition: none;
+  }
+}

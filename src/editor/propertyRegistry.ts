@@ -12,6 +12,13 @@ import type {
   PropertyVisibilityContext
 } from '../types/editor'
 import type { EditorSnapshot } from '../types/editorSnapshot'
+import { parseBorderValue } from './borderValue'
+import {
+  imageEffectPreview,
+  semanticBlurPreview,
+  semanticImageOpacityPreview,
+  semanticShadowPreview
+} from './imageEffectRuntime'
 import { propertyTokenMetadata } from './designSystemRegistry'
 import {
   animationDirectionOptions,
@@ -44,6 +51,16 @@ const numberSerializer: PropertySerializer = {
 const booleanSerializer: PropertySerializer = {
   serialize: (value) => Boolean(value),
   deserialize: (value) => Boolean(value)
+}
+const imageOutlineColorSerializer: PropertySerializer = {
+  serialize: (value) => {
+    const normalized = value === null || value === undefined ? '' : String(value).trim()
+    return parseBorderValue(normalized)?.color ?? normalized
+  },
+  deserialize: (value) => {
+    const normalized = value === null || value === undefined ? '' : String(value).trim()
+    return parseBorderValue(normalized)?.color ?? normalized
+  }
 }
 
 const serializerByType: Record<EditorPropertyType, PropertySerializer> = {
@@ -159,13 +176,6 @@ const cssRotation = (value: EditorValue) => {
   if (!value) return ''
   return /[a-z%]/i.test(String(value)) ? String(value) : `${String(value)}deg`
 }
-const outlinePreview: PropertyPreviewUpdater = {
-  styles: ['outline'],
-  update: ({ entityId, snapshot, setStyle }) => {
-    const settings = snapshot.media.styles[entityId]
-    setStyle('outline', settings?.outlineEnabled ? `${settings.outlineWidth ?? 1}px solid currentColor` : '')
-  }
-}
 const translatePreview: PropertyPreviewUpdater = {
   styles: ['translate'],
   update: ({ entityId, snapshot, setStyle }) => {
@@ -175,7 +185,30 @@ const translatePreview: PropertyPreviewUpdater = {
     setStyle('translate', x || y ? `${x || '0px'} ${y || '0px'}` : '')
   }
 }
-const blurPreview = stylePreview('filter', (value) => typeof value === 'number' && value > 0 ? `blur(${value}px)` : '')
+const borderPreview: PropertyPreviewUpdater = {
+  styles: ['border', '-webkit-text-stroke-width', '-webkit-text-stroke-color', 'paint-order', 'filter', 'box-shadow', 'outline'],
+  classes: ['snapshot-runtime-media-hover'],
+  update: (context, value) => {
+    const { entityId, snapshot, setStyle } = context
+    const border = value === undefined || value === null ? '' : String(value).trim()
+    const kind = snapshot.entities.find((entity) => entity.entityId === entityId)?.kind.toLocaleLowerCase()
+    if (kind === 'media') return
+    const textObject = kind === 'text' || kind === 'content'
+    if (!textObject) {
+      setStyle('-webkit-text-stroke-width', '')
+      setStyle('-webkit-text-stroke-color', '')
+      setStyle('paint-order', '')
+      setStyle('border', border)
+      return
+    }
+
+    const parsed = parseBorderValue(border)
+    setStyle('border', border ? 'none' : '')
+    setStyle('-webkit-text-stroke-width', parsed && parsed.width > 0 ? `${parsed.width}px` : '')
+    setStyle('-webkit-text-stroke-color', parsed && parsed.width > 0 ? parsed.color : '')
+    setStyle('paint-order', parsed && parsed.width > 0 ? 'stroke fill' : '')
+  }
+}
 const backgroundImagePreview: PropertyPreviewUpdater = {
   styles: ['background-image'],
   update: ({ snapshot, setStyle }, value) => {
@@ -259,10 +292,10 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'font.rotate', category: 'font', categoryLabel: 'TYPOGRAPHY', categoryOrder: 10, categoryDefaultOpen: true, label: 'Rotation', control: 'number', type: 'number', order: 90, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'rotation', databaseMapping: snapshot('layout.{entityId}.rotation'), defaultValue: 0, validation: validRotation, visibilityRule: ({ entity }) => entity.capabilities.includes('rotate'), unit: 'deg', step: 1, previewUpdater: stylePreview('rotate', cssRotation), styleKey: 'layout.rotation' }),
 
   defineProperty({ propertyKey: 'media.preview', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Preview', control: 'thumbnail', type: 'asset', order: 5, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'reference', databaseMapping: action('preview-media'), defaultValue: '', readOnly: true, copyable: false }),
-  defineProperty({ propertyKey: 'media.upload', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Upload', control: 'file', type: 'asset', order: 10, commandType: 'UPLOAD_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('upload-media'), defaultValue: '', accept: 'image/*', copyable: false }),
-  defineProperty({ propertyKey: 'media.choose', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Choose Existing', control: 'button', type: 'asset', order: 20, commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference', databaseMapping: action('choose-media'), defaultValue: '', helperText: 'Choose from the repository-backed Asset Library.', copyable: false }),
-  defineProperty({ propertyKey: 'media.replace', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Replace', control: 'file', type: 'asset', order: 30, commandType: 'REPLACE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('replace-media'), defaultValue: '', accept: 'image/*', copyable: false }),
-  defineProperty({ propertyKey: 'media.remove', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Remove', control: 'button', type: 'asset', order: 31, commandType: 'DELETE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('remove-media'), defaultValue: '', helperText: 'Remove the reference from this object without deleting the Asset Library item.', copyable: false }),
+  defineProperty({ propertyKey: 'media.upload', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Upload New Image', control: 'file', type: 'asset', order: 10, commandType: 'UPLOAD_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('upload-media'), defaultValue: '', accept: 'image/*', helperText: 'Add a new reusable asset to the Media Library. This does not replace the selected image.', copyable: false }),
+  defineProperty({ propertyKey: 'media.choose', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Choose from Media', control: 'button', type: 'asset', order: 20, commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference', databaseMapping: action('choose-media'), defaultValue: '', helperText: 'Browse existing reusable assets. This fixed template cannot insert an additional image instance.', copyable: false }),
+  defineProperty({ propertyKey: 'media.replace', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Replace Selected Image', control: 'file', type: 'asset', order: 30, commandType: 'REPLACE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('replace-media'), defaultValue: '', accept: 'image/*', helperText: 'Upload a new asset and assign it only to the selected image. The old asset stays in the Media Library.', copyable: false }),
+  defineProperty({ propertyKey: 'media.remove', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Remove Selected Image', control: 'button', type: 'asset', order: 31, commandType: 'DELETE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('remove-media'), defaultValue: '', helperText: 'Unassign this image instance without deleting the underlying Media Library asset.', copyable: false }),
   defineProperty({ propertyKey: 'media.duplicateReference', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Duplicate Reference', control: 'button', type: 'asset', order: 32, commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference', databaseMapping: action('duplicate-media-reference'), defaultValue: '', helperText: 'Create a new stable reference to the same asset for this object.', copyable: false }),
   defineProperty({ propertyKey: 'media.reveal', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Reveal in Library', control: 'button', type: 'asset', order: 33, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'reference', databaseMapping: action('reveal-media-library'), defaultValue: '', helperText: 'Open this asset in the dedicated Asset Library.', copyable: false }),
   defineProperty({ propertyKey: 'media.crop', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Crop focus', control: 'select', type: 'enum', order: 35, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'objectPosition', databaseMapping: action('set-media-crop'), defaultValue: '50% 50%', options: [
@@ -273,14 +306,14 @@ const entries: PropertyRegistryEntry[] = [
   ], validation: validEnum(['scale-down', 'cover', 'contain']), dependency: supports('media-fit'), helperText: 'Not available for this element.', copyable: false }),
   defineProperty({ propertyKey: 'media.width', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Width', control: 'text', type: 'string', order: 40, rowKey: 'media-size', commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'width', databaseMapping: snapshot('layout.{entityId}.width'), defaultValue: '', placeholder: 'Auto', validation: validCssLength(true, true), dependency: supports('media-dimensions'), helperText: 'Not available for this element.', previewUpdater: stylePreview('width', cssLength), styleKey: 'layout.width' }),
   defineProperty({ propertyKey: 'media.height', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Height', control: 'text', type: 'string', order: 50, rowKey: 'media-size', commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'height', databaseMapping: snapshot('layout.{entityId}.height'), defaultValue: '', placeholder: 'Auto', validation: validCssLength(true, true), dependency: supports('media-dimensions'), helperText: 'Not available for this element.', previewUpdater: stylePreview('height', cssLength), styleKey: 'layout.height' }),
-  defineProperty({ propertyKey: 'media.hover', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Hover', control: 'checkbox', type: 'boolean', order: 60, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'hoverEnabled', databaseMapping: snapshot('media.styles.{entityId}.hoverEnabled'), defaultValue: false, validation: validBoolean, dependency: supports('media-hover'), helperText: 'Not available for this element.', styleKey: 'media.hoverEnabled' }),
-  defineProperty({ propertyKey: 'media.opacity', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Opacity', control: 'number', type: 'number', order: 62, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'opacity', databaseMapping: snapshot('backgrounds.{entityId}.opacity'), defaultValue: 1, validation: validNumber(0, 1), minimum: 0, maximum: 1, step: 0.1, previewUpdater: stylePreview('opacity'), styleKey: 'effects.opacity' }),
-  defineProperty({ propertyKey: 'media.border', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Border', control: 'text', type: 'string', order: 64, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'border', databaseMapping: snapshot('backgrounds.{entityId}.border'), defaultValue: '', placeholder: 'e.g. 1px solid #49362f', validation: validString(256), previewUpdater: stylePreview('border'), styleKey: 'effects.border' }),
+  defineProperty({ propertyKey: 'media.hover', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Hover Style', control: 'checkbox', type: 'boolean', order: 60, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'hoverEnabled', databaseMapping: snapshot('media.styles.{entityId}.hoverEnabled'), defaultValue: false, validation: validBoolean, dependency: supports('media-hover'), helperText: 'Not available for this element.', previewUpdater: imageEffectPreview, styleKey: 'media.hoverEnabled' }),
+  defineProperty({ propertyKey: 'media.opacity', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Opacity', control: 'number', type: 'number', order: 62, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'opacity', databaseMapping: snapshot('backgrounds.{entityId}.opacity'), defaultValue: 1, validation: validNumber(0, 1), minimum: 0, maximum: 1, step: 0.1, previewUpdater: semanticImageOpacityPreview, styleKey: 'effects.opacity' }),
+  defineProperty({ propertyKey: 'media.border', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Outline Color', control: 'color', type: 'color', order: 101, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'border', databaseMapping: snapshot('backgrounds.{entityId}.border'), defaultValue: '#49362f', validation: validColor, dependency: outlineDependency, serializer: imageOutlineColorSerializer, previewUpdater: imageEffectPreview, styleKey: 'effects.border' }),
   defineProperty({ propertyKey: 'media.radius', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Radius', control: 'text', type: 'string', order: 66, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'borderRadius', databaseMapping: snapshot('backgrounds.{entityId}.borderRadius'), defaultValue: '', placeholder: 'e.g. 12px', validation: validCssLength(false, true), previewUpdater: stylePreview('border-radius'), styleKey: 'effects.borderRadius' }),
   defineProperty({ propertyKey: 'media.positionX', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Position X', control: 'number', type: 'number', order: 70, rowKey: 'media-position', commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'x', databaseMapping: snapshot('layout.{entityId}.x'), defaultValue: 0, validation: validCssLength(), dependency: supports('position'), helperText: 'Not available for this element.', step: 1, previewUpdater: translatePreview, styleKey: 'layout.x' }),
   defineProperty({ propertyKey: 'media.positionY', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Position Y', control: 'number', type: 'number', order: 80, rowKey: 'media-position', commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'y', databaseMapping: snapshot('layout.{entityId}.y'), defaultValue: 0, validation: validCssLength(), dependency: supports('position'), helperText: 'Not available for this element.', step: 1, previewUpdater: translatePreview, styleKey: 'layout.y' }),
-  defineProperty({ propertyKey: 'media.outlineEnabled', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Outline', control: 'checkbox', type: 'boolean', order: 90, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'outlineEnabled', databaseMapping: snapshot('media.styles.{entityId}.outlineEnabled'), defaultValue: false, validation: validBoolean, dependency: supports('media-outline'), helperText: 'Not available for this element.', previewUpdater: outlinePreview, styleKey: 'media.outlineEnabled' }),
-  defineProperty({ propertyKey: 'media.outlineWidth', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Outline Thickness', control: 'number', type: 'number', order: 100, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'outlineWidth', databaseMapping: snapshot('media.styles.{entityId}.outlineWidth'), defaultValue: 1, validation: validNumber(0, 64), dependency: outlineDependency, helperText: 'Enable Outline to change thickness.', unit: 'px', previewUpdater: outlinePreview, styleKey: 'media.outlineWidth' }),
+  defineProperty({ propertyKey: 'media.outlineEnabled', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Outline', control: 'checkbox', type: 'boolean', order: 90, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'outlineEnabled', databaseMapping: snapshot('media.styles.{entityId}.outlineEnabled'), defaultValue: false, validation: validBoolean, dependency: supports('media-outline'), helperText: 'Not available for this element.', previewUpdater: imageEffectPreview, styleKey: 'media.outlineEnabled' }),
+  defineProperty({ propertyKey: 'media.outlineWidth', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Outline Thickness', control: 'number', type: 'number', order: 100, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'outlineWidth', databaseMapping: snapshot('media.styles.{entityId}.outlineWidth'), defaultValue: 1, validation: validNumber(0, 64), dependency: outlineDependency, helperText: 'Enable Outline to change thickness.', unit: 'px', previewUpdater: imageEffectPreview, styleKey: 'media.outlineWidth' }),
   defineProperty({ propertyKey: 'media.rotate', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Rotation', control: 'number', type: 'number', order: 110, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'rotation', databaseMapping: snapshot('layout.{entityId}.rotation'), defaultValue: 0, validation: validRotation, visibilityRule: ({ entity }) => entity.capabilities.includes('rotate'), unit: 'deg', step: 1, previewUpdater: stylePreview('rotate', cssRotation), styleKey: 'layout.rotation' }),
 
   defineProperty({ propertyKey: 'layout.margin', category: 'layout', categoryLabel: 'LAYOUT', categoryOrder: 30, label: 'Margin', control: 'text', type: 'string', order: 10, rowKey: 'layout-spacing', commandType: 'SET_PROPERTY', capability: 'layout', propertyPath: 'margin', databaseMapping: snapshot('layout.{entityId}.margin'), defaultValue: '', validation: validString(128), previewUpdater: stylePreview('margin'), styleKey: 'layout.margin' }),
@@ -296,9 +329,9 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'position.rotation', category: 'layout', categoryLabel: 'LAYOUT', categoryOrder: 30, label: 'Rotation', control: 'number', type: 'number', order: 100, commandType: 'SET_PROPERTY', capability: 'position', propertyPath: 'rotation', databaseMapping: snapshot('layout.{entityId}.rotation'), defaultValue: 0, validation: validRotation, visibilityRule: ({ entity }) => entity.capabilities.includes('rotate'), step: 1, previewUpdater: stylePreview('rotate', cssRotation), styleKey: 'layout.rotation' }),
 
   defineProperty({ propertyKey: 'effects.opacity', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Opacity', control: 'number', type: 'number', order: 10, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'opacity', databaseMapping: snapshot('backgrounds.{entityId}.opacity'), defaultValue: 1, validation: validNumber(0, 1), minimum: 0, maximum: 1, step: 0.1, previewUpdater: stylePreview('opacity'), styleKey: 'effects.opacity' }),
-  defineProperty({ propertyKey: 'effects.shadow', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Shadow', control: 'toggle-text', type: 'string', order: 20, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'boxShadow', databaseMapping: snapshot('backgrounds.{entityId}.boxShadow'), defaultValue: '', enabledValue: '0 12px 32px rgba(73,54,47,.2)', placeholder: 'CSS box shadow', validation: validString(256), previewUpdater: stylePreview('box-shadow'), styleKey: 'effects.boxShadow', searchTerms: ['shadow'] }),
-  defineProperty({ propertyKey: 'effects.blur', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Blur', control: 'number', type: 'number', order: 30, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'blur', databaseMapping: snapshot('backgrounds.{entityId}.blur'), defaultValue: 0, validation: validNumber(0, 100), unit: 'px', previewUpdater: blurPreview, styleKey: 'effects.blur' }),
-  defineProperty({ propertyKey: 'effects.border', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Border', control: 'text', type: 'string', order: 40, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'border', databaseMapping: snapshot('backgrounds.{entityId}.border'), defaultValue: '', placeholder: 'e.g. 1px solid #49362f', validation: validString(256), previewUpdater: stylePreview('border'), styleKey: 'effects.border' }),
+  defineProperty({ propertyKey: 'effects.shadow', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Shadow', control: 'toggle-text', type: 'string', order: 20, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'boxShadow', databaseMapping: snapshot('backgrounds.{entityId}.boxShadow'), defaultValue: '', enabledValue: '0 12px 32px rgba(73,54,47,.2)', placeholder: 'CSS box shadow', validation: validString(256), previewUpdater: semanticShadowPreview, styleKey: 'effects.boxShadow', searchTerms: ['shadow'] }),
+  defineProperty({ propertyKey: 'effects.blur', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Blur', control: 'number', type: 'number', order: 30, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'blur', databaseMapping: snapshot('backgrounds.{entityId}.blur'), defaultValue: 0, validation: validNumber(0, 100), unit: 'px', previewUpdater: semanticBlurPreview, styleKey: 'effects.blur' }),
+  defineProperty({ propertyKey: 'effects.border', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Border', control: 'text', type: 'string', order: 40, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'border', databaseMapping: snapshot('backgrounds.{entityId}.border'), defaultValue: '', placeholder: 'e.g. 1px solid #49362f', validation: validString(256), previewUpdater: borderPreview, styleKey: 'effects.border' }),
   defineProperty({ propertyKey: 'effects.radius', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Radius', control: 'text', type: 'string', order: 50, commandType: 'SET_PROPERTY', capability: 'effects', propertyPath: 'borderRadius', databaseMapping: snapshot('backgrounds.{entityId}.borderRadius'), defaultValue: '', validation: validCssLength(false, true), previewUpdater: stylePreview('border-radius'), styleKey: 'effects.borderRadius' }),
   defineProperty({ propertyKey: 'effects.background', category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 50, label: 'Background', control: 'color', type: 'color', order: 60, commandType: 'SET_PROPERTY', capability: 'button-background', propertyPath: 'backgroundColor', databaseMapping: snapshot('buttons.{entityId}.backgroundColor'), defaultValue: '#fffaf4', validation: validColor, previewUpdater: stylePreview('background-color'), styleKey: 'button.backgroundColor' }),
 

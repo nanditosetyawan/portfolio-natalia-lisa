@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import {
+  DEFAULT_SHADOW_VALUE,
+  parseShadowValue,
+  serializeShadowValue,
+  type ShadowValueParts
+} from '../../../../editor/shadowValue'
 import PropertyColorControl from './PropertyColorControl.vue'
 import PropertyInputControl from './PropertyInputControl.vue'
-
-interface ShadowParts {
-  x: number
-  y: number
-  blur: number
-  spread: number
-  color: string
-  opacity: number
-  custom: boolean
-}
 
 const props = withDefaults(defineProps<{
   modelValue: string | number | boolean | null
@@ -23,79 +19,20 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const fallback: ShadowParts = { x: 0, y: 8, blur: 24, spread: 0, color: '#49362f', opacity: 20, custom: false }
-
-function channel(value: number): string {
-  return Math.min(255, Math.max(0, Math.round(value))).toString(16).padStart(2, '0')
-}
-
-function parseColor(value: string): { color: string; opacity: number } | null {
-  const input = value.trim()
-  const hex = input.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)?.[1]
-  if (hex) {
-    const expanded = hex.length === 3 ? [...hex].map((part) => `${part}${part}`).join('') : hex
-    return {
-      color: `#${expanded.slice(0, 6)}`,
-      opacity: expanded.length === 8 ? Math.round(Number.parseInt(expanded.slice(6, 8), 16) / 2.55) : 100
-    }
-  }
-  const rgb = input.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i)
-  if (!rgb) return null
-  return {
-    color: `#${channel(Number(rgb[1]))}${channel(Number(rgb[2]))}${channel(Number(rgb[3]))}`,
-    opacity: Math.round(Math.min(1, Math.max(0, Number(rgb[4] ?? 1))) * 100)
-  }
-}
-
-function parseShadow(value: string): ShadowParts {
-  if (!value.trim()) return fallback
-  if (value.includes(',') && !/^rgba?\([^)]*\)$/i.test(value.trim())) {
-    const rgbaCommas = value.match(/rgba?\([^)]*\)/gi)?.join('') ?? ''
-    if (value.replace(/rgba?\([^)]*\)/gi, '').includes(',')) return { ...fallback, custom: true }
-    if (!rgbaCommas && value.includes(',')) return { ...fallback, custom: true }
-  }
-  const numeric = '(-?\\d+(?:\\.\\d+)?)(?:px)?'
-  const pattern = props.allowSpread
-    ? new RegExp(`^${numeric}\\s+${numeric}\\s+${numeric}(?:\\s+${numeric})?\\s+(.+)$`, 'i')
-    : new RegExp(`^${numeric}\\s+${numeric}\\s+${numeric}\\s+(.+)$`, 'i')
-  const match = value.trim().match(pattern)
-  if (!match) return { ...fallback, custom: true }
-  const colorIndex = props.allowSpread ? 5 : 4
-  const parsedColor = parseColor(match[colorIndex] ?? '')
-  if (!parsedColor) return { ...fallback, custom: true }
-  return {
-    x: Number(match[1]),
-    y: Number(match[2]),
-    blur: Math.max(0, Number(match[3])),
-    spread: props.allowSpread ? Number(match[4] ?? 0) : 0,
-    ...parsedColor,
-    custom: false
-  }
-}
-
 const rawValue = computed(() => typeof props.modelValue === 'string' ? props.modelValue : '')
 const enabled = computed(() => Boolean(rawValue.value.trim()))
-const parts = computed(() => parseShadow(rawValue.value))
+const parts = computed(() => parseShadowValue(rawValue.value, props.allowSpread))
 
-function rgba(color: string, opacity: number): string {
-  const hex = color.match(/^#([0-9a-f]{6})$/i)?.[1]
-  if (!hex) return color
-  const values = [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16))
-  const alpha = Math.min(100, Math.max(0, opacity)) / 100
-  return alpha >= .999 ? color : `rgba(${values[0]}, ${values[1]}, ${values[2]}, ${Number(alpha.toFixed(2))})`
+function serialize(next: ShadowValueParts): string {
+  return serializeShadowValue(next, props.allowSpread)
 }
 
-function serialize(next: ShadowParts): string {
-  const spread = props.allowSpread ? ` ${next.spread}px` : ''
-  return `${next.x}px ${next.y}px ${next.blur}px${spread} ${rgba(next.color, next.opacity)}`
-}
-
-function update(patch: Partial<ShadowParts>): void {
+function update(patch: Partial<ShadowValueParts>): void {
   emit('update:modelValue', serialize({ ...parts.value, custom: false, ...patch }))
 }
 
 function toggle(event: Event): void {
-  emit('update:modelValue', (event.target as HTMLInputElement).checked ? serialize(fallback) : '')
+  emit('update:modelValue', (event.target as HTMLInputElement).checked ? serialize(DEFAULT_SHADOW_VALUE) : '')
 }
 </script>
 
@@ -108,7 +45,7 @@ function toggle(event: Event): void {
 
     <template v-if="enabled">
       <p v-if="parts.custom" class="custom-note">This custom shadow is preserved. Use Advanced to edit its original value.</p>
-      <button v-if="parts.custom" type="button" class="make-editable" :disabled="disabled" @click="emit('update:modelValue', serialize(fallback))">Use editable shadow</button>
+      <button v-if="parts.custom" type="button" class="make-editable" :disabled="disabled" @click="emit('update:modelValue', serialize(DEFAULT_SHADOW_VALUE))">Use editable shadow</button>
       <template v-else>
         <div class="shadow-grid">
           <label><span>X</span><PropertyInputControl control="number" :model-value="parts.x" :disabled="disabled" label="Shadow X" @update:model-value="update({ x: Number($event) })" /></label>

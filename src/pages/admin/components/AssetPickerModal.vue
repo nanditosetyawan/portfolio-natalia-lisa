@@ -5,11 +5,12 @@ import { useMediaLibraryStore } from '../../../stores/mediaLibrary'
 import type { MediaLibraryAsset, MediaLibraryFilter } from '../../../types/mediaLibrary'
 import AssetVirtualGrid from './AssetVirtualGrid.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
   targetLabel?: string
   currentAssetId?: string | null
-}>()
+  mode?: 'apply' | 'browse'
+}>(), { mode: 'apply' })
 
 const emit = defineEmits<{
   close: []
@@ -30,6 +31,11 @@ const tabs: Array<{ value: MediaLibraryFilter; label: string }> = [
 
 const assets = computed(() => library.queryAssets({ search: search.value, filter: filter.value, sort: 'newest' }))
 const selectedAsset = computed(() => library.assets.find((asset) => asset.id === selectedId.value) ?? null)
+const title = computed(() => props.mode === 'browse' ? 'Choose from Media' : 'Choose Existing')
+const description = computed(() => props.mode === 'browse'
+  ? 'Browse reusable assets. This fixed template cannot add another image instance; use Replace Selected Image to change the current one.'
+  : `Apply an existing asset to ${props.targetLabel || 'the selected media object'}.`)
+const actionLabel = computed(() => props.mode === 'browse' ? 'Show in Media Library' : 'Apply')
 
 function selectAsset(asset: MediaLibraryAsset): void {
   selectedId.value = asset.id
@@ -69,8 +75,8 @@ watch(() => props.open, async (open) => {
       <header>
         <div>
           <span class="eyebrow">Asset Library</span>
-          <h2 id="asset-picker-title">Choose Existing</h2>
-          <p>Apply an existing asset to {{ targetLabel || 'the selected media object' }}.</p>
+          <h2 id="asset-picker-title">{{ title }}</h2>
+          <p>{{ description }}</p>
         </div>
         <button type="button" class="close-button" aria-label="Close asset picker" @click="emit('close')"><X :size="18" /></button>
       </header>
@@ -108,7 +114,7 @@ watch(() => props.open, async (open) => {
         <span v-else class="picker-selection-empty">Select an asset</span>
         <div class="picker-actions">
           <button type="button" @click="emit('close')">Cancel</button>
-          <button type="button" class="primary" :disabled="!selectedAsset" @click="applyAsset()">Apply</button>
+          <button type="button" class="primary" :disabled="!selectedAsset" @click="applyAsset()">{{ actionLabel }}</button>
         </div>
       </footer>
     </section>

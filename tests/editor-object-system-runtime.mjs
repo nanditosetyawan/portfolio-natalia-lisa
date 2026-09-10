@@ -289,6 +289,7 @@ try {
   const dependencyEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-object-id="portfolio-profile-media"]');image.click();await tick();
+    const imageTarget=document.querySelector('img[data-editor-object-id="portfolio-profile-media"]')??image.querySelector?.('img')??image;
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     const thicknessBefore=document.querySelector('[data-property-key="media.outlineWidth"]');
     const outlineControl=document.querySelector('[data-property-key="media.outlineEnabled"]');
@@ -296,11 +297,12 @@ try {
     const beforeHidden=!thicknessBefore;outline.checked=true;outline.dispatchEvent(new Event('change',{bubbles:true}));await tick();
     const currentThicknessControl=document.querySelector('[data-property-key="media.outlineWidth"]');
     const currentThickness=currentThicknessControl.matches('input')?currentThicknessControl:currentThicknessControl.querySelector('input');
-    return {selected:editor.selectedObjectId,type:editor.selectedObjectType,accordion:editor.activeAccordion,beforeHidden,after:currentThickness.disabled,outlineEnabled:editor.draftSnapshot.media.styles['portfolio-profile-media']?.outlineEnabled,inlineOutline:image.style.outline};
+    const filter=document.querySelector('svg[data-snapshot-image-filter="portfolio-profile-media"]');
+    return {selected:editor.selectedObjectId,type:editor.selectedObjectType,accordion:editor.activeAccordion,beforeHidden,after:currentThickness.disabled,outlineEnabled:editor.draftSnapshot.media.styles['portfolio-profile-media']?.outlineEnabled,computedFilter:getComputedStyle(imageTarget).filter,boxShadow:getComputedStyle(imageTarget).boxShadow,outlineRadius:filter?.querySelector('feMorphology')?.getAttribute('radius')??null};
   })()`)
   assert(dependencyEvidence.selected === 'portfolio-profile-media' && dependencyEvidence.type === 'Image' && dependencyEvidence.accordion === 'media', 'Image selection did not open MEDIA')
   assert(dependencyEvidence.beforeHidden && !dependencyEvidence.after && dependencyEvidence.outlineEnabled, `metadata dependency did not hide/reveal the dependent control: ${JSON.stringify(dependencyEvidence)}`)
-  assert(dependencyEvidence.inlineOutline.includes('solid'), 'MEDIA property did not update the live preview')
+  assert(/url\(/.test(dependencyEvidence.computedFilter) && dependencyEvidence.boxShadow === 'none' && Number(dependencyEvidence.outlineRadius) > 0, `MEDIA alpha outline did not update the live preview: ${JSON.stringify(dependencyEvidence)}`)
 
   const validationEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));

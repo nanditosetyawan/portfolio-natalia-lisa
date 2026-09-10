@@ -1245,7 +1245,7 @@ function primitiveValue(value: EditorValue): string | number | boolean | null {
 
 type PropertyAction = Extract<PropertyRegistryEntry['databaseMapping'], { kind: 'action' }>['action']
 const propertyActionHandlers: Partial<Record<PropertyAction, (value: string | number | boolean, property: PanelProperty) => Promise<void>>> = {
-  'choose-media': async (value, property) => chooseExistingMedia(String(value), property.metadata.commandType),
+  'choose-media': async (value, property) => assignMediaReferenceToSelected(String(value), property.metadata.commandType),
   'set-media-crop': async (value, property) => setMediaCrop(String(value), property.metadata.commandType),
   'set-media-fit': async (value, property) => setMediaFit(String(value), property.metadata.commandType),
   'set-animation-config': async (value, property) => updateSelectedAnimationConfig(property.metadata.animationField, value),
@@ -1573,8 +1573,8 @@ function resetPanelOverride(property: PanelProperty): void {
 
 async function handlePropertyFile(property: PanelProperty, file: File): Promise<void> {
   const action = property.metadata.databaseMapping.kind === 'action' ? property.metadata.databaseMapping.action : undefined
-  if (action !== 'upload-media' && action !== 'replace-media') return
-  await uploadSelectedMedia(file, property.metadata.commandType)
+  if (action === 'upload-media') await uploadNewMediaAsset(file)
+  else if (action === 'replace-media') await replaceSelectedMedia(file, property.metadata.commandType)
 }
 
 const propertyButtonActionHandlers: Partial<Record<PropertyAction, (property: PanelProperty) => void | Promise<void>>> = {
@@ -1633,7 +1633,11 @@ async function setMediaFit(objectFit: string, commandType: EditorCommandType): P
   markEditorChanged()
 }
 
-async function chooseExistingMedia(assetInput: string | MediaLibraryAsset, commandType: EditorCommandType): Promise<void> {
+async function assignMediaReferenceToSelected(
+  assetInput: string | MediaLibraryAsset,
+  commandType: EditorCommandType,
+  announce = true
+): Promise<void> {
   const entity = selectedEntity.value
   const target = selectedPhotoArea.value
   const assetId = typeof assetInput === 'string' ? assetInput : assetInput.id
@@ -1694,15 +1698,16 @@ async function chooseExistingMedia(assetInput: string | MediaLibraryAsset, comma
   managedMediaAreaIds.add(target.id)
   await photoRegistry.updateSource(target.id, source)
   markEditorChanged()
-  saveStatus.value = 'Existing media selected. Save Draft to persist its reference.'
-  productFeedback.success('Media updated', `${libraryAsset?.name || legacyAsset?.alt || 'The selected asset'} is now used by ${entity.label}.`)
+  saveStatus.value = 'Selected image reference updated. Save Draft to persist it.'
+  if (announce) productFeedback.success('Media updated', `${libraryAsset?.name || legacyAsset?.alt || 'The selected asset'} is now used by ${entity.label}.`)
   await nextTick()
   updateSelectedOutline()
 }
 
 async function applyPickerAsset(asset: MediaLibraryAsset): Promise<void> {
-  await chooseExistingMedia(asset, 'SET_IMAGE_REFERENCE')
+  revealMediaAsset(asset.id)
   showAssetPicker.value = false
+  productFeedback.success('Asset selected', `${asset.name} is open in the Media Library. This fixed template does not support inserting an additional image instance.`)
 }
 
 async function removeSelectedMedia(commandType: EditorCommandType): Promise<void> {
@@ -1772,6 +1777,10 @@ async function duplicateSelectedMediaReference(commandType: EditorCommandType): 
 function revealSelectedMedia(): void {
   const assetId = selectedMediaAssignment.value?.assetId
   if (!assetId) return
+  revealMediaAsset(assetId)
+}
+
+function revealMediaAsset(assetId: string): void {
   const href = router.resolve({ name: 'admin-asset-library', query: { asset: assetId } }).href
   window.open(href, '_blank', 'noopener,noreferrer')
 }
@@ -1818,61 +1827,39 @@ async function handleAssetDrop(event: DragEvent): Promise<void> {
   event.preventDefault()
   selectEntity(target.entity.id, target.element ?? undefined)
   await nextTick()
-  await chooseExistingMedia(asset, 'SET_IMAGE_REFERENCE')
+  await assignMediaReferenceToSelected(asset, 'SET_IMAGE_REFERENCE')
   saveStatus.value = `${asset.name} applied to ${target.entity.label}. Save Draft to persist it.`
 }
 
-async function uploadSelectedMedia(file: File, commandType: EditorCommandType): Promise<void> {
-  const entity = selectedEntity.value
-  const target = selectedPhotoArea.value
-  if (!entity?.photoAreaId || !target) return
-  saveStatus.value = 'Uploading image...'
+async function uploadMediaAssetToLibrary(file: File): Promise<MediaLibraryAsset | null> {
+  saveStatus.value = 'Uploading image to Media Library...'
   try {
-    const uploaded = await editorDraftRepository.uploadDraftMedia(file, draftScope.value)
-    const currentMedia = cloneEditorData(editor.draftSnapshot.media)
-    const nextMedia: SnapshotMediaModel = {
-      ...currentMedia,
-      references: [
-        ...currentMedia.references.filter((reference) => reference.assetId !== uploaded.assetId),
-        {
-          assetId: uploaded.assetId,
-          uri: uploaded.previewUrl,
-          bucket: uploaded.bucket,
-          storagePath: uploaded.storagePath,
-          mimeType: uploaded.mimeType,
-          width: uploaded.width,
-          height: uploaded.height
-        }
-      ],
-      assignments: [
-        ...currentMedia.assignments.filter((assignment) => assignment.entityId !== target.id),
-        { entityId: target.id, role: target.role, assetId: uploaded.assetId, objectPosition: target.objectPosition }
-      ]
-    }
-    editor.apply({
-      type: commandType,
-      entityId: entity.id,
-      propertyPath: 'media',
-      previousValue: currentMedia as unknown as EditorValue,
-      nextValue: nextMedia as unknown as EditorValue,
-      timestamp: Date.now(),
-      metadata: { assetId: uploaded.assetId, photoAreaId: target.id }
-    })
-    editor.draftMediaReferences = [
-      ...editor.draftMediaReferences.filter((reference) => reference.assetId !== uploaded.assetId),
-      uploaded
-    ]
-    mediaPreviewUrls.set(uploaded.assetId, uploaded.previewUrl)
-    managedMediaAreaIds.add(target.id)
-    await photoRegistry.updateSource(target.id, uploaded.previewUrl)
+    const asset = await mediaLibrary.upload(file)
     mediaInputVersion.value += 1
-    markEditorChanged()
-    saveStatus.value = 'Image staged. Save Draft to persist its reference.'
-    productFeedback.success('Upload complete', `${file.name} is staged for this Draft.`)
+    return asset
   } catch (error) {
     saveStatus.value = error instanceof Error ? error.message : 'Image upload failed.'
     productFeedback.error('Upload failed', saveStatus.value)
+    return null
   }
+}
+
+async function uploadNewMediaAsset(file: File): Promise<void> {
+  const asset = await uploadMediaAssetToLibrary(file)
+  if (!asset) return
+  saveStatus.value = 'Image added to Media Library. The selected page image was not replaced.'
+  productFeedback.success('Added to Media Library', `${asset.name} is reusable from Media. This fixed template cannot insert another image instance.`)
+}
+
+async function replaceSelectedMedia(file: File, commandType: EditorCommandType): Promise<void> {
+  const entity = selectedEntity.value
+  if (!entity?.photoAreaId || !selectedPhotoArea.value || !selectedMediaAssignment.value) return
+  const oldAssetId = selectedMediaAssignment.value.assetId
+  const asset = await uploadMediaAssetToLibrary(file)
+  if (!asset) return
+  await assignMediaReferenceToSelected(asset, commandType, false)
+  saveStatus.value = 'Selected image replaced. The previous Media Library asset remains available.'
+  productFeedback.success('Image replaced', `${entity.label} now uses ${asset.name}. Asset ${oldAssetId} was not deleted.`)
 }
 
 async function saveDraft(): Promise<void> {
@@ -3164,6 +3151,7 @@ function cancelLibrarySwitch(): void {
 
     <AssetPickerModal
       :open="showAssetPicker"
+      mode="browse"
       :target-label="selectedEntity?.label"
       :current-asset-id="selectedMediaAssignment?.assetId"
       @close="showAssetPicker = false"

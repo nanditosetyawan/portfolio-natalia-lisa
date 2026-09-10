@@ -41,6 +41,19 @@ export interface InspectorPresentationDefinition {
   hideWhenUnavailable?: boolean
   hiddenForTypes?: EditorObjectType[]
   advancedForTypes?: EditorObjectType[]
+  typeOverrides?: Array<{
+    objectTypes: EditorObjectType[]
+    label?: string
+    category?: string
+    categoryLabel?: string
+    categoryOrder?: number
+    order?: number
+    advancedRaw?: boolean
+    advancedEditable?: boolean
+    controlOptions?: Record<string, EditorValue>
+    problem?: string
+    friendlyUi?: string
+  }>
   helperText?: string
 }
 
@@ -135,28 +148,28 @@ registerMany([
   ['font.rotate', { label: 'Rotate', unit: '°' }],
 
   ['media.preview', { order: 5 }],
-  ['media.upload', { order: 10, helperText: 'Select an image element before uploading.' }],
-  ['media.choose', { label: 'Choose from Media', order: 20, helperText: 'Select an image element before choosing media.' }],
-  ['media.replace', { order: 30, helperText: 'Choose an image before replacing it.' }],
-  ['media.remove', { order: 40, helperText: 'Choose an image before removing it from this element.' }],
-  ['media.duplicateReference', { label: 'Reuse this image', order: 41, helperText: 'Choose an image before reusing its library reference.' }],
+  ['media.upload', { label: 'Upload New Image', order: 10, helperText: 'Add a reusable asset to the Media Library without replacing this image.' }],
+  ['media.choose', { label: 'Choose from Media', order: 20, helperText: 'Browse reusable assets. Additional image instances are not supported by this fixed template.' }],
+  ['media.replace', { label: 'Replace Selected Image', order: 30, helperText: 'Upload and assign a new asset to this image. The old library asset remains.' }],
+  ['media.remove', { label: 'Remove Selected Image', order: 40, helperText: 'Unassign this instance without deleting its Media Library asset.' }],
+  ['media.duplicateReference', { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'It creates another reference ID but does not create another persistent page instance.', friendlyUi: 'Hidden because it is not a visible image duplication operation.' }],
   ['media.reveal', { label: 'Show in Media Library', order: 42, helperText: 'Choose an image before opening it in the Media Library.' }],
   ['media.width', pxAdapter('W', { minimum: 0, maximum: 10000, order: 50, rowKey: 'media-size', resolvedStyle: 'width', hideWhenUnavailable: true })],
   ['media.height', pxAdapter('H', { minimum: 0, maximum: 10000, order: 51, rowKey: 'media-size', resolvedStyle: 'height', hideWhenUnavailable: true })],
   ['media.fit', { label: 'Fit', order: 60 }],
   ['media.crop', { label: 'Image focus', order: 61 }],
-  ['media.hover', { label: 'Hover effect', order: 70, hideWhenUnavailable: true }],
+  ['media.hover', { label: 'Hover Style', order: 70, hideWhenUnavailable: true, helperText: 'A subtle image emphasis on pointer hover. Motion remains in Animation.' }],
   ['media.positionX', { label: 'X', unit: 'px', order: 80, rowKey: 'media-position', hideWhenUnavailable: true }],
   ['media.positionY', { label: 'Y', unit: 'px', order: 81, rowKey: 'media-position', hideWhenUnavailable: true }],
   ['media.outlineEnabled', { order: 90, hideWhenUnavailable: true }],
   ['media.outlineWidth', { label: 'Thickness', order: 91, unit: 'px', hideWhenUnavailable: true }],
+  ['media.border', { label: 'Outline Color', control: 'color', order: 92, hideWhenUnavailable: true }],
   ['media.radius', pxAdapter('Radius', { minimum: 0, maximum: 5000, order: 100, resolvedStyle: 'border-radius' })],
   ['media.opacity', {
     adapter: 'opacity-percent', unit: '%', minimum: 0, maximum: 100, step: 1, order: 110,
     classification: 'NEEDS FRIENDLY ADAPTER', problem: 'Opacity is stored as a 0–1 implementation value.', friendlyUi: 'A 0–100 percent control.'
   }],
   ['media.rotate', { label: 'Rotate', order: 120, unit: '°' }],
-  ['media.border', advanced('Border value', { advancedEditable: true })],
 
   ['layout.margin', pxAdapter('Outer spacing', { minimum: -10000, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'margin-top' })],
   ['layout.padding', pxAdapter('Inner spacing', { minimum: 0, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'padding-top' })],
@@ -188,12 +201,25 @@ registerMany([
     control: 'shadow', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
     controlOptions: { allowSpread: true }, advancedForTypes: ['Text', 'Button'], label: 'Element shadow',
     problem: 'Text already owns its normal Shadow control; box shadow is an expert bounding-box effect.',
-    friendlyUi: 'On/off with X, Y, Blur, Spread, Color, and Opacity.'
+    friendlyUi: 'On/off with X, Y, Blur, Spread, Color, and Opacity.',
+    typeOverrides: [{
+      objectTypes: ['Image'], category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, order: 95,
+      label: 'Image Shadow', controlOptions: { allowSpread: false }, advancedRaw: false, advancedEditable: false,
+      problem: 'A rectangular box shadow does not follow transparent image pixels.',
+      friendlyUi: 'On/off with X, Y, Blur, Color, and Opacity; rendered against image alpha.'
+    }]
   }],
   ['effects.blur', { unit: 'px' }],
   ['effects.border', {
     control: 'border', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
-    hiddenForTypes: ['Image'], problem: 'A raw CSS border shorthand is exposed.', friendlyUi: 'On/off with Thickness, Style, and Color.'
+    hiddenForTypes: ['Image'], problem: 'A raw CSS border shorthand is exposed.', friendlyUi: 'On/off with Thickness, Style, and Color.',
+    typeOverrides: [{
+      objectTypes: ['Text'],
+      label: 'Text Outline',
+      controlOptions: { textOutline: true },
+      problem: 'Text needs a glyph stroke rather than a rectangular element border.',
+      friendlyUi: 'On/off with glyph-outline Thickness and Color.'
+    }]
   }],
   ['effects.radius', pxAdapter('Corner radius', { minimum: 0, maximum: 5000, hiddenForTypes: ['Image'], resolvedStyle: 'border-radius' })],
   ['effects.background', { label: 'Background color' }],
@@ -329,7 +355,17 @@ export function resolveInspectorPresentation(
   property: PropertyRegistryEntry,
   objectType?: EditorObjectType
 ): ResolvedInspectorPresentation {
-  const definition = { ...fallbackDefinition(property), ...(definitions.get(property.propertyKey) ?? {}) }
+  const baseDefinition = { ...fallbackDefinition(property), ...(definitions.get(property.propertyKey) ?? {}) }
+  const typeOverride = objectType
+    ? baseDefinition.typeOverrides?.find((candidate) => candidate.objectTypes.includes(objectType))
+    : undefined
+  const definition = {
+    ...baseDefinition,
+    ...typeOverride,
+    controlOptions: typeOverride?.controlOptions
+      ? { ...baseDefinition.controlOptions, ...typeOverride.controlOptions }
+      : baseDefinition.controlOptions
+  }
   const sourceCategory = definition.category ?? property.category
   const category = categoryPresentation[sourceCategory] ?? {
     category: sourceCategory,
