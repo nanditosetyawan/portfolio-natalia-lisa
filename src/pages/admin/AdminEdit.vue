@@ -55,6 +55,7 @@ import {
   reusableComponentRegistry
 } from '../../editor/designSystemRegistry'
 import { applyRegisteredObjectProperties, applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
+import { resolveObjectDomTarget } from '../../editor/objectDomTarget'
 import {
   formatInspectorValue,
   inspectorFontOptions,
@@ -354,7 +355,11 @@ function resolveRuntimeMetadata(metadata: PropertyRegistryEntry): PropertyRegist
 const registryPanelProperties = computed<PanelProperty[]>(() => {
   const descriptor = selectedDescriptor.value
   if (!descriptor) return []
-  const visible = resolveProperties(descriptor, editor.draftSnapshot).filter((metadata) => metadata.category !== 'content')
+  const runtimeKeys = new Set((selectedEntity.value?.properties ?? []).map((property) => property.metadata.propertyKey))
+  const visible = resolveProperties(descriptor, editor.draftSnapshot).filter((metadata) => (
+    metadata.category !== 'content'
+    && (metadata.databaseMapping.kind !== 'runtime' || runtimeKeys.has(metadata.propertyKey))
+  ))
   const visibleKeys = new Set(visible.map((metadata) => metadata.propertyKey))
   const advancedRuntime = propertyRegistry.filter((metadata) => (
     metadata.propertyKey.startsWith('runtime.')
@@ -2227,18 +2232,26 @@ function selectPreviewEntity(event: MouseEvent): void {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
   const entityId = target?.dataset.editorObjectId
   if (!entityId || !target) return
+  event.preventDefault()
   selectEntity(entityId, target, event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'additive' : 'replace')
 }
 
 function decoratePreviewEntities(): void {
-  const selector = '[data-media-usage-id], [data-photo-area-id], [data-certificate-id], [data-entity-id]'
-  previewStage.value?.querySelectorAll<HTMLElement>(selector).forEach((element) => {
-    const entityId = element.dataset.mediaUsageId
-      ?? element.dataset.photoAreaId
-      ?? element.dataset.certificateId
-      ?? element.dataset.entityId
-    const object = entityId ? editorEntities.value.find((candidate) => candidate.id === entityId) : undefined
-    if (!object) return
+  const root = previewStage.value
+  if (!root) return
+  root.querySelectorAll<HTMLElement>('[data-editor-object-id], [data-editor-entity-id]').forEach((element) => {
+    delete element.dataset.editorEntityId
+    delete element.dataset.editorObjectId
+    delete element.dataset.editorObjectType
+    delete element.dataset.editorCapabilities
+    element.classList.remove('editor-preview-locked', 'editor-preview-hidden')
+  })
+  const ownership = new Map<HTMLElement, EditorRuntimeObject>()
+  for (const object of editorEntities.value) {
+    const element = resolveObjectDomTarget(root, object.id, object.type)
+    if (element) ownership.set(element, object)
+  }
+  for (const [element, object] of ownership) {
     const state = editor.objectState(object.id)
     element.dataset.editorEntityId = object.id
     element.dataset.editorObjectId = object.id
@@ -2246,19 +2259,14 @@ function decoratePreviewEntities(): void {
     element.dataset.editorCapabilities = object.capabilities.join(' ')
     element.classList.toggle('editor-preview-locked', state.locked)
     element.classList.toggle('editor-preview-hidden', state.hidden)
-  })
+  }
   updateSelectedOutline()
 }
 
 function preferredPreviewElement(entityId: string): HTMLElement | null {
-  const matches = [...(previewStage.value?.querySelectorAll<HTMLElement>('[data-editor-object-id]') ?? [])]
-    .filter((element) => element.dataset.editorObjectId === entityId)
-  if (!matches.length) return null
-  return matches.sort((left, right) => {
-    const leftRect = left.getBoundingClientRect()
-    const rightRect = right.getBoundingClientRect()
-    return (leftRect.width * leftRect.height || Number.MAX_SAFE_INTEGER) - (rightRect.width * rightRect.height || Number.MAX_SAFE_INTEGER)
-  })[0] ?? null
+  const root = previewStage.value
+  const object = editorEntities.value.find((candidate) => candidate.id === entityId)
+  return root ? resolveObjectDomTarget(root, entityId, object?.type) : null
 }
 
 function updateSelectedOutline(): void {
@@ -3246,14 +3254,22 @@ function cancelLibrarySwitch(): void {
 .inspector-category-nav { display: flex; gap: .35rem; margin-top: .7rem; padding-bottom: .15rem; overflow-x: auto; scrollbar-width: thin; }.inspector-category-nav button { flex: 0 0 auto; min-height: 30px; border: 1px solid rgba(73,54,47,.13); border-radius: 999px; padding: .36rem .55rem; background: #fffaf4; color: #80675d; font: 800 .55rem/1 system-ui; letter-spacing: .035em; cursor: pointer; transition: border-color .18s ease,background-color .18s ease,color .18s ease; }.inspector-category-nav button:hover,.inspector-category-nav button.active { border-color: rgba(184,91,105,.42); background: #fff0ea; color: #944853; }
 .object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
 .object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
-.property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); }
+.property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); box-shadow: 0 4px 14px rgba(73,54,47,.025); }
 .property-group--inline { border: 0; border-radius: 0; overflow: visible; background: transparent; }
 .property-group--inline .accordion-content { padding: 0; }
-.accordion-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; padding: .85rem .9rem; background: #fff8ef; color: #5a3e35; font: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-align: left; cursor: pointer; }
-.accordion-content { display: grid; gap: .15rem; padding: 0 .85rem .85rem; transition: opacity .18s ease, transform .18s ease; }
+.accordion-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; border-left: 3px solid transparent; padding: .85rem .9rem .85rem .78rem; background: #fff8ef; color: #5a3e35; font: inherit; font-size: .78rem; font-weight: 850; letter-spacing: .1em; text-align: left; cursor: pointer; transition: background-color .18s ease,border-color .18s ease,color .18s ease; }
+.property-group[data-property-category='font'] .accordion-toggle,.property-group[data-property-category='media'] .accordion-toggle { background: #fff5eb; border-left-color: #c98a8f; }
+.property-group[data-property-category='layout'] .accordion-toggle,.property-group[data-property-category='visibility'] .accordion-toggle { background: #f7f0e7; border-left-color: #bba694; }
+.property-group[data-property-category='effects'] .accordion-toggle,.property-group[data-property-category='interaction'] .accordion-toggle { background: #fff8ef; border-left-color: #d9b6b6; }
+.property-group[data-property-category='animation'] .accordion-toggle { background: #fff0ed; border-left-color: #b85b69; }
+.property-group[data-property-category='advanced'] .accordion-toggle { background: #f6f4e8; border-left-color: #8a756b; color: #684e45; }
+.accordion-toggle[aria-expanded='true'] { color: #8d363a; box-shadow: inset 0 -1px rgba(73,54,47,.08); }
+.accordion-content { display: grid; gap: .2rem; padding: .15rem .85rem 1rem; transition: opacity .18s ease, transform .18s ease; }
 .accordion-panel-enter-active,.accordion-panel-leave-active { overflow: hidden; transition: opacity .18s ease, transform .18s ease; }.accordion-panel-enter-from,.accordion-panel-leave-to { opacity: 0; transform: translateY(-4px); }
-.property-row { display: grid; gap: .7rem; }
+.property-row { display: grid; gap: .72rem; align-items: start; }
 .property-row--paired { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.accordion-content .property-field { min-width: 0; margin-top: .78rem; gap: .42rem; }
+.accordion-content .property-field > span:first-child { line-height: 1.25; color: #684e45; }
 .property-field-meta { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; min-width: 0; margin-top: -.15rem; }.responsive-property-state { flex: 0 0 auto; padding: .16rem .32rem; border: 1px solid rgba(73,54,47,.12); border-radius: 999px; background: #f5eee5; color: #8a756b; font-size: .5rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }.responsive-property-state.is-override { border-color: rgba(184,91,105,.28); background: #fff0ed; color: #a44955; }.property-field .reset-override-button { width: auto; min-width: 0; border: 0; border-radius: 5px; padding: .16rem .3rem; background: transparent; color: #a44955; font-size: .5rem; line-height: 1; text-decoration: underline; cursor: pointer; }.property-field .reset-override-button:hover { background: #fff0ed; }
 .friendly-style-state { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; margin-top: -.12rem; }.friendly-style-state span { padding: .15rem .34rem; border-radius: 999px; background: #f3ece4; color: #826d63; font-size: .5rem; font-weight: 800; }.friendly-style-state button { width: auto !important; min-height: 24px; border: 0 !important; padding: .15rem .3rem !important; background: transparent !important; color: #a44955 !important; font-size: .5rem; text-decoration: underline; }.friendly-value-note { padding: .38rem .45rem; border-radius: 7px; background: #f7f0e7; color: #806b62 !important; }
 .property-field--disabled { opacity: .48; filter: grayscale(.2); }

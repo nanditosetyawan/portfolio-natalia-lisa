@@ -13,8 +13,7 @@ import {
 } from '../editor/animationRegistry'
 import { materializeResponsiveObjectSnapshot, type ResponsiveBreakpoint } from '../editor/responsiveLayout'
 import type { AnimationSettings, EditorSnapshot } from '../types/editorSnapshot'
-
-const objectDataAttributes = ['data-editor-object-id', 'data-editor-entity-id', 'data-entity-id', 'data-media-usage-id', 'data-photo-area-id', 'data-certificate-id'] as const
+import { resolveSnapshotObjectDomTarget } from '../editor/objectDomTarget'
 
 interface AnimationObjectScope {
   animations: Set<Animation>
@@ -56,11 +55,6 @@ function objectScopeFor(root: HTMLElement, objectId: string): AnimationObjectSco
   const created: AnimationObjectScope = { animations: new Set(), cleanups: [], timers: new Set(), elements: new Set() }
   rootScope.objects.set(objectId, created)
   return created
-}
-
-function elementsForObject(root: HTMLElement, objectId: string): HTMLElement[] {
-  const escaped = typeof CSS === 'undefined' ? objectId.replace(/["\\]/g, '\\$&') : CSS.escape(objectId)
-  return [...root.querySelectorAll<HTMLElement>(objectDataAttributes.map((attribute) => `[${attribute}="${escaped}"]`).join(','))]
 }
 
 function effectiveBreakpoint(width: number): ResponsiveBreakpoint {
@@ -379,8 +373,8 @@ export function applyAnimationObject(
   if (disabled || reduced || !hasAnimation(settings)) return
   const configuration = decodeAnimationConfiguration(settings?.name)
   const scope = objectScopeFor(root, objectId)
-  const elements = elementsForObject(root, objectId)
-  for (const element of elements) {
+  const element = resolveSnapshotObjectDomTarget(root, snapshot, objectId)
+  if (element) {
     scope.elements.add(element)
     element.dataset.animationEntrance = configuration.entrance
     element.dataset.animationHover = configuration.hover
@@ -429,11 +423,11 @@ export function previewAnimation(
   if (!hasAnimation(settings)) return { played: false, reason: 'not-configured', tracks: [] }
   applyAnimationObject(root, snapshot, objectId, { breakpoint: targetBreakpoint, autoplayEntrance: false })
   const scope = objectScopeFor(root, objectId)
-  const elements = elementsForObject(root, objectId)
-  if (!elements.length) return { played: false, reason: 'not-found', tracks: [] }
+  const element = resolveSnapshotObjectDomTarget(root, snapshot, objectId)
+  if (!element) return { played: false, reason: 'not-found', tracks: [] }
   const configuration = decodeAnimationConfiguration(settings?.name)
   const tracks = new Set<string>()
-  for (const element of elements) for (const track of previewTracks(scope, element, snapshot, objectId, settings ?? {}, configuration, mode === 'timeline')) tracks.add(track)
+  for (const track of previewTracks(scope, element, snapshot, objectId, settings ?? {}, configuration, mode === 'timeline')) tracks.add(track)
   root.dataset.animationPreviewCount = String(Number(root.dataset.animationPreviewCount ?? 0) + 1)
   return { played: true, reason: 'played', tracks: [...tracks] }
 }

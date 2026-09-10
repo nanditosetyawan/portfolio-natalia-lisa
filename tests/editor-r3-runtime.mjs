@@ -78,8 +78,13 @@ try {
   let browserErrors = ''
   browser.stderr.on('data', (chunk) => { browserErrors += String(chunk) })
 
-  const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`)
-  const page = targets.find((target) => target.type === 'page' && target.url.includes('127.0.0.1:5174'))
+  let page
+  const targetStarted = Date.now()
+  while (!page && Date.now() - targetStarted < 15000) {
+    const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`)
+    page = targets.find((target) => target.type === 'page' && target.url.includes('127.0.0.1:5174'))
+    if (!page) await wait(100)
+  }
   if (!page) throw new Error('Runtime test page target not found')
 
   socket = new WebSocket(page.webSocketDebuggerUrl)
@@ -161,8 +166,8 @@ try {
     };
   })()`)
   assert(fontMetadata.labels.indexOf('Font') < fontMetadata.labels.indexOf('Size'), 'FONT metadata order is wrong')
-  assert(fontMetadata.labels.indexOf('Size') < fontMetadata.labels.indexOf('Spacing'), 'Size/Spacing order is wrong')
-  assert(fontMetadata.labels.includes('Color') && fontMetadata.labels.includes('Text Shadow') && fontMetadata.labels.includes('Rotation'), 'FONT controls are incomplete')
+  assert(fontMetadata.labels.indexOf('Size') < fontMetadata.labels.indexOf('Letter spacing'), 'Size/Letter spacing order is wrong')
+  assert(fontMetadata.labels.includes('Color') && fontMetadata.labels.includes('Shadow') && fontMetadata.labels.includes('Rotate'), 'FONT controls are incomplete')
   assert(fontMetadata.pairCount >= 2, 'FONT paired rows are missing')
   assert(fontMetadata.hoverNative, 'FONT Hover does not use a native dependency-aware checkbox')
 
@@ -219,11 +224,12 @@ try {
     const outline=control('[data-property-key="media.outlineEnabled"]','input');
     const choose=control('[data-property-key="media.choose"]','button');
     const hover=control('[data-property-key="media.hover"]','input');
-    const before=outlineWidth.disabled;
+    const before=!outlineWidth;
     outline.checked=true; outline.dispatchEvent(new Event('change',{bubbles:true})); await tick();
-    const after=outlineWidth.disabled;
+    const activeOutlineWidth=control('[data-property-key="media.outlineWidth"]','input');
+    const after=Boolean(activeOutlineWidth&&!activeOutlineWidth.disabled);
     const width=control('[data-property-key="media.width"]','input');
-    width.value='280px'; width.dispatchEvent(new Event('input',{bubbles:true})); await tick();
+    width.value='280'; width.dispatchEvent(new Event('input',{bubbles:true})); await tick();
     choose.click(); await tick();
     for(let attempt=0;attempt<60&&!document.querySelector('.asset-picker');attempt+=1)await new Promise(resolve=>setTimeout(resolve,20));
     const assignment=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media');
@@ -250,7 +256,7 @@ try {
     };
   })()`)
   assert(mediaResult.selected === 'portfolio-profile-media' && mediaResult.section === 'Portfolio' && mediaResult.accordion === 'media', 'media preview selection failed')
-  assert(mediaResult.before && !mediaResult.after, 'Outline thickness dependency did not toggle native disabled')
+  assert(mediaResult.before && mediaResult.after, 'Outline thickness dependency did not hide while off and enable while on')
   assert(!mediaResult.chooseDisabled && mediaResult.chooseTag === 'BUTTON' && mediaResult.pickerOpen && mediaResult.pickerAssets >= 1, 'repository-backed professional media picker is unavailable')
   assert(mediaResult.chosenAsset === 'media-profile-primary' && mediaResult.selected === 'portfolio-profile-media', 'Opening Choose Existing changed the selected media entity')
   assert(mediaResult.hoverNative, 'MEDIA Hover does not use a native dependency-aware checkbox')

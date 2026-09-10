@@ -1,7 +1,6 @@
 import { propertyRegistry, readSnapshotPath, resolvePropertyPath } from './propertyRegistry'
 import type { EditorSnapshot } from '../types/editorSnapshot'
-
-const objectDatasetKeys = ['editorObjectId', 'editorEntityId', 'entityId', 'mediaUsageId', 'photoAreaId', 'certificateId'] as const
+import { resolveSnapshotObjectDomTarget } from './objectDomTarget'
 
 interface ElementBaseline {
   styles: Map<string, string>
@@ -40,11 +39,6 @@ function baselineFor(scope: RuntimeScope, objectId: string, element: HTMLElement
   const baseline: ElementBaseline = { styles: new Map(), classes: new Map() }
   objectScope.baselines.set(element, baseline)
   return baseline
-}
-
-function elementsForObject(root: HTMLElement, objectId: string): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>('[data-editor-object-id], [data-editor-entity-id], [data-entity-id], [data-media-usage-id], [data-photo-area-id], [data-certificate-id]')]
-    .filter((element) => objectDatasetKeys.some((key) => element.dataset[key] === objectId))
 }
 
 function restoreObjectScope(scope: RuntimeScope, objectId: string): void {
@@ -95,6 +89,8 @@ export function applyRegisteredObjectProperties(
 ): void {
   const scope = scopeFor(root)
   if (restore) restoreObjectScope(scope, objectId)
+  const element = resolveSnapshotObjectDomTarget(root, snapshot, objectId)
+  if (!element) return
 
   for (const property of propertyRegistry) {
     const mapping = property.databaseMapping
@@ -104,23 +100,21 @@ export function applyRegisteredObjectProperties(
     const rawValue = readSnapshotPath(snapshot, path)
     if (rawValue === undefined) continue
     const value = property.serializer.deserialize(rawValue)
-    for (const element of elementsForObject(root, objectId)) {
-      const baseline = baselineFor(scope, objectId, element)
-      objectScopeFor(scope, objectId).touched.add(element)
-      property.previewUpdater.update({
-        element,
-        entityId: objectId,
-        snapshot,
-        setStyle: (styleName, nextValue) => {
-          if (!baseline.styles.has(styleName)) baseline.styles.set(styleName, element.style.getPropertyValue(styleName))
-          if (nextValue) element.style.setProperty(styleName, nextValue)
-          else element.style.removeProperty(styleName)
-        },
-        toggleClass: (className, enabled) => {
-          if (!baseline.classes.has(className)) baseline.classes.set(className, element.classList.contains(className))
-          element.classList.toggle(className, enabled)
-        }
-      }, value)
-    }
+    const baseline = baselineFor(scope, objectId, element)
+    objectScopeFor(scope, objectId).touched.add(element)
+    property.previewUpdater.update({
+      element,
+      entityId: objectId,
+      snapshot,
+      setStyle: (styleName, nextValue) => {
+        if (!baseline.styles.has(styleName)) baseline.styles.set(styleName, element.style.getPropertyValue(styleName))
+        if (nextValue) element.style.setProperty(styleName, nextValue)
+        else element.style.removeProperty(styleName)
+      },
+      toggleClass: (className, enabled) => {
+        if (!baseline.classes.has(className)) baseline.classes.set(className, element.classList.contains(className))
+        element.classList.toggle(className, enabled)
+      }
+    }, value)
   }
 }

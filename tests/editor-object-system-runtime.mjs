@@ -218,7 +218,7 @@ try {
   assert(selectionEvidence.selector === 'portfolio-hero' && selectionEvidence.navigatorSelected, 'manual selector/Navigator did not follow Preview selection')
   assert(selectionEvidence.content === 'PORTFOLIO PHASE 030' && selectionEvidence.preview === 'PORTFOLIO PHASE 030', `live content binding failed: ${JSON.stringify(selectionEvidence)}`)
   assert(selectionEvidence.outline && !selectionEvidence.outlineBackground.includes('184, 91, 105'), 'selection outline is missing or uses a blocking fill')
-  for (const category of ['font', 'layout', 'effects', 'behavior']) assert(selectionEvidence.categories.includes(category), `${category.toUpperCase()} Inspector metadata group is missing`)
+  for (const category of ['font', 'layout', 'effects', 'advanced']) assert(selectionEvidence.categories.includes(category), `${category.toUpperCase()} Inspector metadata group is missing`)
 
   const navigatorEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -290,31 +290,29 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-object-id="portfolio-profile-media"]');image.click();await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
-    const thicknessControl=document.querySelector('[data-property-key="media.outlineWidth"]');
-    const thickness=thicknessControl.matches('input')?thicknessControl:thicknessControl.querySelector('input');
+    const thicknessBefore=document.querySelector('[data-property-key="media.outlineWidth"]');
     const outlineControl=document.querySelector('[data-property-key="media.outlineEnabled"]');
     const outline=outlineControl.matches('input')?outlineControl:outlineControl.querySelector('input');
-    const before=thickness.disabled;outline.checked=true;outline.dispatchEvent(new Event('change',{bubbles:true}));await tick();
+    const beforeHidden=!thicknessBefore;outline.checked=true;outline.dispatchEvent(new Event('change',{bubbles:true}));await tick();
     const currentThicknessControl=document.querySelector('[data-property-key="media.outlineWidth"]');
     const currentThickness=currentThicknessControl.matches('input')?currentThicknessControl:currentThicknessControl.querySelector('input');
-    return {selected:editor.selectedObjectId,type:editor.selectedObjectType,accordion:editor.activeAccordion,before,after:currentThickness.disabled,connected:thickness.isConnected,outlineEnabled:editor.draftSnapshot.media.styles['portfolio-profile-media']?.outlineEnabled,inlineOutline:image.style.outline};
+    return {selected:editor.selectedObjectId,type:editor.selectedObjectType,accordion:editor.activeAccordion,beforeHidden,after:currentThickness.disabled,outlineEnabled:editor.draftSnapshot.media.styles['portfolio-profile-media']?.outlineEnabled,inlineOutline:image.style.outline};
   })()`)
   assert(dependencyEvidence.selected === 'portfolio-profile-media' && dependencyEvidence.type === 'Image' && dependencyEvidence.accordion === 'media', 'Image selection did not open MEDIA')
-  assert(dependencyEvidence.before && !dependencyEvidence.after && dependencyEvidence.outlineEnabled, `metadata dependency did not toggle native disabled: ${JSON.stringify(dependencyEvidence)}`)
+  assert(dependencyEvidence.beforeHidden && !dependencyEvidence.after && dependencyEvidence.outlineEnabled, `metadata dependency did not hide/reveal the dependent control: ${JSON.stringify(dependencyEvidence)}`)
   assert(dependencyEvidence.inlineOutline.includes('solid'), 'MEDIA property did not update the live preview')
 
   const validationEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     document.querySelector('[data-editor-object-id="portfolio-hero"]').click();await tick();
     document.querySelector('[data-property-category="effects"] .accordion-toggle').click();await tick();
-    const opacity=document.querySelector('[data-property-key="effects.opacity"] input');opacity.value='2';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    const opacity=document.querySelector('[data-property-key="effects.opacity"] input');opacity.value='101';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
-    const invalid={errors:editor.registeredPropertyErrors.length,inline:Boolean(document.querySelector('[data-property-key="effects.opacity"]')?.closest('.property-field--error')),publishDisabled:document.querySelector('.tbar-publish').disabled,publishTitle:document.querySelector('.tbar-publish').title};
-    opacity.value='0.7';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();
-    return {...invalid,restoredErrors:editor.registeredPropertyErrors.length,remaining:editor.registeredPropertyErrors.map(error=>({entityId:error.entityId,propertyKey:error.propertyKey,propertyPath:error.propertyPath,message:error.message})),opacity:editor.draftSnapshot.backgrounds['portfolio-hero']?.opacity,previewOpacity:getComputedStyle(document.querySelector('[data-editor-object-id="portfolio-hero"]')).opacity};
+    const bounded={errors:editor.registeredPropertyErrors.length,inline:Boolean(document.querySelector('[data-property-key="effects.opacity"]')?.closest('.property-field--error')),publishDisabled:document.querySelector('.tbar-publish').disabled,publishTitle:document.querySelector('.tbar-publish').title,opacity:editor.draftSnapshot.backgrounds['portfolio-hero']?.opacity,previewOpacity:getComputedStyle(document.querySelector('[data-editor-object-id="portfolio-hero"]')).opacity};
+    opacity.value='70';opacity.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    return {bounded,restoredErrors:editor.registeredPropertyErrors.length,remaining:editor.registeredPropertyErrors.map(error=>({entityId:error.entityId,propertyKey:error.propertyKey,propertyPath:error.propertyPath,message:error.message})),opacity:editor.draftSnapshot.backgrounds['portfolio-hero']?.opacity,previewOpacity:getComputedStyle(document.querySelector('[data-editor-object-id="portfolio-hero"]')).opacity};
   })()`)
-  assert(validationEvidence.errors > 0 && validationEvidence.inline && validationEvidence.publishDisabled, 'invalid metadata property did not show inline/block Publish')
-  assert(validationEvidence.publishTitle.includes('invalid editor properties'), 'Publish disabled reason did not explain validation')
+  assert(validationEvidence.bounded.errors === 0 && !validationEvidence.bounded.inline && validationEvidence.bounded.opacity === 1 && validationEvidence.bounded.previewOpacity === '1', `friendly opacity adapter did not bound an out-of-range value: ${JSON.stringify(validationEvidence)}`)
   assert(validationEvidence.restoredErrors === 0 && validationEvidence.opacity === 0.7 && validationEvidence.previewOpacity === '0.7', `corrected property did not restore validation/live preview: ${JSON.stringify(validationEvidence)}`)
 
   const persistenceEvidence = await evaluate(`(async()=>{

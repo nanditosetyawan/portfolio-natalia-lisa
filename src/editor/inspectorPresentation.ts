@@ -40,6 +40,7 @@ export interface InspectorPresentationDefinition {
   advancedEditable?: boolean
   hideWhenUnavailable?: boolean
   hiddenForTypes?: EditorObjectType[]
+  advancedForTypes?: EditorObjectType[]
   helperText?: string
 }
 
@@ -128,7 +129,7 @@ registerMany([
     label: 'Shadow', control: 'shadow', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
     controlOptions: { allowSpread: false }, problem: 'A raw CSS text-shadow string is exposed.', friendlyUi: 'On/off with X, Y, Blur, Color, and Opacity.'
   }],
-  ['font.hover', { label: 'Hover effect', hideWhenUnavailable: true }],
+  ['font.hover', { label: 'Hover style', hideWhenUnavailable: true }],
   ['font.positionX', { label: 'X', unit: 'px', rowKey: 'font-position', hideWhenUnavailable: true }],
   ['font.positionY', { label: 'Y', unit: 'px', rowKey: 'font-position', hideWhenUnavailable: true }],
   ['font.rotate', { label: 'Rotate', unit: '°' }],
@@ -160,10 +161,10 @@ registerMany([
   ['layout.margin', pxAdapter('Outer spacing', { minimum: -10000, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'margin-top' })],
   ['layout.padding', pxAdapter('Inner spacing', { minimum: 0, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'padding-top' })],
   ['layout.alignment', {
-    label: 'Alignment', options: [
+    label: 'Legacy alignment', mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', options: [
       { label: 'Start', value: 'start' }, { label: 'Center', value: 'center' }, { label: 'End', value: 'end' },
       { label: 'Stretch', value: 'stretch' }, { label: 'Space between', value: 'space-between' }, { label: 'Even spacing', value: 'space-around' }
-    ]
+    ], problem: 'justify-content is inactive without a compatible container mode.', friendlyUi: 'Container Alignment is exposed through dependency-aware Layout controls.'
   }],
   ['layout.display', advanced('Display mode', { options: [
     { label: 'Normal', value: 'block' }, { label: 'Inline', value: 'inline' }, { label: 'Inline block', value: 'inline-block' },
@@ -185,7 +186,9 @@ registerMany([
   }],
   ['effects.shadow', {
     control: 'shadow', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
-    controlOptions: { allowSpread: true }, problem: 'A raw CSS box-shadow string is exposed.', friendlyUi: 'On/off with X, Y, Blur, Spread, Color, and Opacity.'
+    controlOptions: { allowSpread: true }, advancedForTypes: ['Text', 'Button'], label: 'Element shadow',
+    problem: 'Text already owns its normal Shadow control; box shadow is an expert bounding-box effect.',
+    friendlyUi: 'On/off with X, Y, Blur, Spread, Color, and Opacity.'
   }],
   ['effects.blur', { unit: 'px' }],
   ['effects.border', {
@@ -195,9 +198,8 @@ registerMany([
   ['effects.radius', pxAdapter('Corner radius', { minimum: 0, maximum: 5000, hiddenForTypes: ['Image'], resolvedStyle: 'border-radius' })],
   ['effects.background', { label: 'Background color' }],
 
-  ['animation.direction', { label: 'Playback direction' }],
   ['animation.fillMode', advanced('Fill behavior')],
-  ['animation.hover', { category: 'interaction', categoryLabel: 'INTERACTION', categoryOrder: 70, label: 'Hover animation' }],
+  ['animation.hover', { category: 'interaction', categoryLabel: 'INTERACTION', categoryOrder: 70, label: 'Hover motion' }],
   ['animation.click', { category: 'interaction', categoryLabel: 'INTERACTION', categoryOrder: 70, label: 'Click effect' }],
   ['animation.duration', { unit: 'ms', hideWhenUnavailable: true }],
   ['animation.delay', { unit: 'ms', hideWhenUnavailable: true }],
@@ -213,6 +215,7 @@ registerMany([
   ['animation.timelineDelay', { label: 'Time between animations', hideWhenUnavailable: true }],
   ['animation.timelinePreview', { hideWhenUnavailable: true }],
   ['animation.globalDisabled', { label: 'Turn off all animations' }],
+  ['animation.duplicate', { helperText: 'Select two or more elements to reuse this animation.' }],
 
   ['advanced.objectId', advanced('Element ID')],
   ['advanced.capabilities', advanced('Available controls')],
@@ -221,7 +224,13 @@ registerMany([
   ['advanced.layer', advanced('Layer path')],
   ['runtime.fontWeight', advanced('Font weight')],
   ['runtime.lineHeight', advanced('Line height', { advancedEditable: true })],
-  ['runtime.textAlign', advanced('Text alignment')],
+  ['runtime.textAlign', {
+    label: 'Text alignment', category: 'font', categoryLabel: 'TYPOGRAPHY', categoryOrder: 10, order: 65,
+    options: [
+      { label: 'Left', value: 'left' }, { label: 'Center', value: 'center' },
+      { label: 'Right', value: 'right' }, { label: 'Justify', value: 'justify' }
+    ], classification: 'USER-FRIENDLY', friendlyUi: 'Left, center, right, or justified text alignment.'
+  }],
   ['runtime.positionMode', advanced('Position behavior')],
   ['runtime.zIndex', advanced('Layer order')],
   ['runtime.backgroundColor', advanced('Background color')],
@@ -245,13 +254,10 @@ registerMany([
   ['responsive.grid.gap', { label: 'Grid spacing', order: 350, unit: 'px', hideWhenUnavailable: true }],
   ['responsive.grid.alignment', { label: 'Grid alignment', order: 360, hideWhenUnavailable: true }],
   ['responsive.grid.collapse', { label: 'One column on smaller screens', order: 370, hideWhenUnavailable: true }],
-  ['responsive.visibility', {
-    category: 'visibility', categoryLabel: 'VISIBILITY', categoryOrder: 60, label: 'Show on',
-    options: [{ label: 'All screens', value: 'all' }, { label: 'Desktop only', value: 'desktop' }, { label: 'Tablet only', value: 'tablet' }, { label: 'Mobile only', value: 'mobile' }]
-  }],
+  ['responsive.visibility', advanced('Screen-specific visibility')],
   ['responsive.container.padding', advanced('Container padding', { advancedEditable: true })],
   ['responsive.container.margin', advanced('Container margin', { advancedEditable: true })],
-  ['responsive.container.align', advanced('Container alignment')],
+  ['responsive.container.align', { label: 'Alignment', order: 331, hideWhenUnavailable: true }],
   ['responsive.grid.columnSpan', advanced('Column span')],
   ['responsive.grid.rowSpan', advanced('Row span')],
   ['responsive.flex.grow', advanced('Flexible growth')],
@@ -268,15 +274,15 @@ const dynamicPathDefinitions: Record<string, InspectorPresentationDefinition> = 
   targetSectionId: { label: 'Destination area' },
   href: { label: 'Link' },
   name: { label: 'Name or image description' },
-  left: pxAdapter('X', { rowKey: 'runtime-position', resolvedStyle: 'left' }),
-  top: pxAdapter('Y', { rowKey: 'runtime-position', resolvedStyle: 'top' }),
-  width: pxAdapter('Width', { minimum: 0, maximum: 10000, rowKey: 'runtime-size', resolvedStyle: 'width' }),
-  height: pxAdapter('Height', { minimum: 0, maximum: 10000, rowKey: 'runtime-size', resolvedStyle: 'height' }),
-  maxWidth: pxAdapter('Maximum width', { minimum: 0, maximum: 10000, resolvedStyle: 'max-width' }),
-  transformRotate: {
-    label: 'Rotate', control: 'number', adapter: 'rotation-degrees', unit: '°', advancedRaw: true, advancedEditable: true,
-    classification: 'NEEDS FRIENDLY ADAPTER', problem: 'Rotation is stored with a CSS unit.', friendlyUi: 'A numeric degree control.'
-  },
+  left: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy left is superseded by the selected-object X control.', friendlyUi: 'Use X in Typography, Media, or Layout.' },
+  top: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy top is superseded by the selected-object Y control.', friendlyUi: 'Use Y in Typography, Media, or Layout.' },
+  width: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy width is superseded by the selected-object dimension control.', friendlyUi: 'Use W in Media or Width in Layout.' },
+  height: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy height is superseded by the selected-object dimension control.', friendlyUi: 'Use H in Media or Height in Layout.' },
+  maxWidth: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy maximum width overlaps the selected-object dimension control.', friendlyUi: 'Use W in Media or Width in Layout.' },
+  transformRotate: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy transform rotation is superseded by Rotate.', friendlyUi: 'Use Rotate in Typography, Media, or Layout.' },
+  borderRadius: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy radius is superseded by the selected-object Radius control.', friendlyUi: 'Use Radius in Media or Effects.' },
+  boxShadow: { mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', problem: 'Legacy shadow is superseded by the selected-object Shadow control.', friendlyUi: 'Use Shadow in Typography or Effects.' },
+  backgroundColor: advanced('Original frame background', { control: 'color' }),
   autoplay: advanced('Play automatically'),
   slideshowIntervalMs: advanced('Time between slides', { unit: 'ms' })
 }
@@ -295,7 +301,12 @@ function firstFontName(value: string): string {
 export function inspectorFontOptions(currentValue: EditorValue): Array<{ label: string; value: string }> {
   const current = typeof currentValue === 'string' ? currentValue.trim() : ''
   const options = shippedFontOptions.map((option) => ({ ...option }))
-  if (current && !options.some((option) => option.value === current)) options.unshift({ label: firstFontName(current), value: current })
+  if (current && !options.some((option) => option.value === current)) {
+    const currentLabel = firstFontName(current)
+    const duplicateLabel = options.findIndex((option) => option.label.toLocaleLowerCase() === currentLabel.toLocaleLowerCase())
+    if (duplicateLabel >= 0) options.splice(duplicateLabel, 1)
+    options.unshift({ label: currentLabel, value: current })
+  }
   return options
 }
 
@@ -326,15 +337,20 @@ export function resolveInspectorPresentation(
     categoryOrder: property.categoryOrder ?? 80
   }
   const hiddenByType = Boolean(objectType && definition.hiddenForTypes?.includes(objectType))
-  const classification = hiddenByType ? 'DUPLICATE / REDUNDANT' : defaultClassification(property, definition)
+  const advancedByType = Boolean(objectType && definition.advancedForTypes?.includes(objectType))
+  const classification = hiddenByType
+    ? 'DUPLICATE / REDUNDANT'
+    : advancedByType
+      ? 'ADVANCED ONLY'
+      : defaultClassification(property, definition)
   return {
     label: definition.label ?? property.label,
-    category: category.category,
-    categoryLabel: definition.categoryLabel ?? category.categoryLabel,
-    categoryOrder: definition.categoryOrder ?? category.categoryOrder,
+    category: advancedByType ? 'advanced' : category.category,
+    categoryLabel: advancedByType ? 'ADVANCED' : definition.categoryLabel ?? category.categoryLabel,
+    categoryOrder: advancedByType ? 90 : definition.categoryOrder ?? category.categoryOrder,
     order: definition.order ?? property.order,
     rowKey: definition.rowKey ?? property.rowKey ?? property.propertyKey,
-    mode: hiddenByType ? 'hidden' : definition.mode ?? 'simple',
+    mode: hiddenByType ? 'hidden' : advancedByType ? 'advanced' : definition.mode ?? 'simple',
     control: definition.control ?? property.control,
     adapter: definition.adapter ?? 'identity',
     unit: definition.unit ?? property.unit,

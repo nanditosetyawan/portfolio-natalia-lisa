@@ -175,11 +175,23 @@ try {
   assert(initialEvidence.selected === 'portfolio-hero' && initialEvidence.active === 'font', `text selection/default Typography failed: ${JSON.stringify(initialEvidence)}`)
   assert(initialEvidence.forbidden.length === 0, `normal Inspector exposes developer language: ${JSON.stringify(initialEvidence.forbidden)}`)
   assert(initialEvidence.familyTag === 'SELECT' && initialEvidence.familyOptions.includes('Inter') && initialEvidence.familyOptions.includes('Georgia'), 'Font is not a friendly shipped-font dropdown')
+  assert(initialEvidence.familyOptions.filter((label) => label === 'Inter').length === 1, `Font dropdown contains duplicate human-facing names: ${JSON.stringify(initialEvidence.familyOptions)}`)
   assert(initialEvidence.sizeType === 'number' && Number.isFinite(Number(initialEvidence.sizeValue)) && initialEvidence.sizeUnit === 'px', `font-size adapter is not numeric px: ${JSON.stringify(initialEvidence)}`)
-  assert(initialEvidence.labels.indexOf('Font') < initialEvidence.labels.indexOf('Size') && initialEvidence.labels.indexOf('Size') < initialEvidence.labels.indexOf('Letter spacing') && initialEvidence.labels.indexOf('Letter spacing') < initialEvidence.labels.indexOf('Color') && initialEvidence.labels.indexOf('Color') < initialEvidence.labels.indexOf('Shadow') && initialEvidence.labels.indexOf('Shadow') < initialEvidence.labels.indexOf('Hover effect'), `Typography order is wrong: ${JSON.stringify(initialEvidence.labels)}`)
+  assert(initialEvidence.labels.indexOf('Font') < initialEvidence.labels.indexOf('Size') && initialEvidence.labels.indexOf('Size') < initialEvidence.labels.indexOf('Letter spacing') && initialEvidence.labels.indexOf('Letter spacing') < initialEvidence.labels.indexOf('Color') && initialEvidence.labels.indexOf('Color') < initialEvidence.labels.indexOf('Shadow') && initialEvidence.labels.indexOf('Shadow') < initialEvidence.labels.indexOf('Hover style') && initialEvidence.labels.indexOf('Hover style') < initialEvidence.labels.indexOf('Text alignment') && initialEvidence.labels.indexOf('Text alignment') < initialEvidence.labels.indexOf('X'), `Typography order is wrong: ${JSON.stringify(initialEvidence.labels)}`)
   assert(initialEvidence.categoryLabels.includes('TYPOGRAPHY') && initialEvidence.categoryLabels.includes('LAYOUT') && initialEvidence.categoryLabels.includes('EFFECTS') && initialEvidence.categoryLabels.includes('ANIMATION'), `visual category navigation is incomplete: ${JSON.stringify(initialEvidence.categoryLabels)}`)
   assert(initialEvidence.advancedCollapsed && initialEvidence.viewportButtons.length === 2 && initialEvidence.viewportButtons[0].label === 'Desktop' && initialEvidence.viewportButtons[1].label === 'Tablet Landscape', `Advanced/default viewport UX is wrong: ${JSON.stringify(initialEvidence)}`)
   assert(initialEvidence.selectorLabels.includes('Page area') && initialEvidence.selectorLabels.includes('Element'), `friendly selectors are missing: ${JSON.stringify(initialEvidence.selectorLabels)}`)
+
+  const inventoryEvidence = await evaluate(`(async()=>{
+    const properties=await import('/src/editor/propertyRegistry.ts');const responsive=await import('/src/editor/responsiveLayout.ts');const presentation=await import('/src/editor/inspectorPresentation.ts');const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
+    const sources=[...properties.propertyRegistry.map(property=>({property,source:'property'})),...responsive.responsiveLayoutRegistry.map(item=>({property:item.metadata,source:'responsive'}))];
+    const records=sources.map(({property,source})=>{const objectTypes=[...new Set(editor.objects.filter(object=>object.capabilities.includes(property.capability)).map(object=>object.type))];const variants=(objectTypes.length?objectTypes:[undefined]).map(objectType=>({objectType:objectType??'none',...presentation.resolveInspectorPresentation(property,objectType)}));return {propertyKey:property.propertyKey,originalLabel:property.label,control:property.control,canonicalType:property.valueType,defaultValue:property.defaultValue,capability:property.capability,objectTypes,source,mapping:property.databaseMapping,commandType:property.commandType,dependencyKeys:property.dependency.keys,previewStyles:property.previewUpdater.styles,designTokenKinds:property.designToken?.kinds??[],labels:[...new Set(variants.map(item=>item.label))],modes:[...new Set(variants.map(item=>item.mode))],classifications:[...new Set(variants.map(item=>item.classification))],adapters:[...new Set(variants.map(item=>item.adapter))],simpleText:variants.filter(item=>item.mode==='simple').map(item=>[item.label,...(item.options??[]).map(option=>option.label),item.helperText??''].join(' '))}});
+    const forbidden=[['Object',/\\bobject\\b/i],['Component',/\\bcomponent\\b/i],['Section',/\\bsection\\b/i],['Theme reference',/theme reference/i],['Direct',/\\bdirect\\b/i],['Inherited',/\\binherited\\b/i],['Token reference',/token reference/i],['CSS Variable',/css variable/i],['Metadata key',/metadata key/i],['Canonical value',/canonical value/i],['clamp()',/clamp\\(/i],['rem',/\\brem\\b/i],['vw',/\\bvw\\b/i],['CSS Display',/css display/i]];const developerIssues=records.flatMap(record=>record.simpleText.flatMap(text=>forbidden.filter(([,pattern])=>pattern.test(text)).map(([term])=>({propertyKey:record.propertyKey,term,text}))));
+    const classificationCounts={};const modeCounts={};for(const record of records){for(const value of record.classifications)classificationCounts[value]=(classificationCounts[value]??0)+1;for(const value of record.modes)modeCounts[value]=(modeCounts[value]??0)+1}
+    return {total:records.length,propertyCount:properties.propertyRegistry.length,responsiveCount:responsive.responsiveLayoutRegistry.length,classificationCounts,modeCounts,developerIssues,broken:records.filter(record=>record.classifications.includes('BROKEN')).map(record=>record.propertyKey),records};
+  })()`)
+  assert(inventoryEvidence.total >= 120 && inventoryEvidence.propertyCount > 80 && inventoryEvidence.responsiveCount === 23, `registered Inspector inventory is incomplete: ${JSON.stringify(inventoryEvidence)}`)
+  assert(inventoryEvidence.broken.length === 0 && inventoryEvidence.developerIssues.length === 0, `registered Inspector audit found broken/developer-facing controls: ${JSON.stringify({broken:inventoryEvidence.broken,developerIssues:inventoryEvidence.developerIssues})}`)
 
   const advancedEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -190,7 +202,7 @@ try {
     document.querySelector('.inspector-category-nav button')?.click();await tick();
     return {value,canonical:document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').draftSnapshot.typography['portfolio-hero']?.fontSize,source:Boolean(source),active:document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').activeAccordion};
   })()`)
-  assert(advancedEvidence.value === String(advancedEvidence.canonical ?? '') && advancedEvidence.source && advancedEvidence.active === 'font', `Advanced did not preserve/expose the same canonical value: ${JSON.stringify(advancedEvidence)}`)
+  assert(advancedEvidence.value.includes('clamp(') && advancedEvidence.source && advancedEvidence.active === 'font', `Advanced did not preserve/expose the original responsive value: ${JSON.stringify(advancedEvidence)}`)
 
   const typographyEvidence = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -208,9 +220,10 @@ try {
     const font=document.querySelector('[data-property-key="font.family"] select');font.value=[...font.options].find(option=>option.textContent.trim()==='Georgia').value;font.dispatchEvent(new Event('change',{bubbles:true}));await tick();
     await setInput('font.spacing',4);
     const colorSummary=document.querySelector('[data-property-key="font.color"] .color-summary');colorSummary.click();await tick();
-    const hex=document.querySelector('[data-property-key="font.color"] .picker-head input:not([type="color"])');hex.value='#8d363a';hex.dispatchEvent(new Event('change',{bubbles:true}));await tick();
+    const hex=document.querySelector('[data-property-key="font.color"] .picker-head input:not([type="color"])');hex.value='#8d363a';hex.dispatchEvent(new Event('change',{bubbles:true}));await tick();colorSummary.click();await tick();
     const shadow=document.querySelector('[data-property-key="font.shadow"] input[type="checkbox"]');if(shadow.checked)shadow.click();await tick();shadow.click();await tick();
     const shadowX=document.querySelector('[data-property-key="font.shadow"] .shadow-grid input');shadowX.value='3';shadowX.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    const textAlign=document.querySelector('[data-property-key="runtime.textAlign"] select');textAlign.value='center';textAlign.dispatchEvent(new Event('change',{bubbles:true}));await tick();
     await setInput('font.positionX',7);await setInput('font.positionY',9);await setInput('font.rotate',5);
     return {
       afterSize,undo,redo,
@@ -218,6 +231,7 @@ try {
       spacing:editor.draftSnapshot.typography['portfolio-hero']?.letterSpacing,
       color:editor.draftSnapshot.typography['portfolio-hero']?.color,
       shadow:editor.draftSnapshot.typography['portfolio-hero']?.textShadow,
+      textAlign:{canonical:editor.draftSnapshot.typography['portfolio-hero']?.textAlign,computed:getComputedStyle(target).textAlign},
       layout:{...editor.draftSnapshot.layout['portfolio-hero']},
       selected:editor.selectedObjectId,
       unrelatedBefore,
@@ -229,8 +243,10 @@ try {
   assert(typographyEvidence.afterSize.canonical === '52px' && typographyEvidence.afterSize.computed === '52px' && typographyEvidence.afterSize.selected === 'portfolio-hero', `font-size round trip/selection failed: ${JSON.stringify(typographyEvidence)}`)
   assert(typographyEvidence.undo !== '52px' && typographyEvidence.redo === '52px', `font-size Undo/Redo failed: ${JSON.stringify(typographyEvidence)}`)
   assert(typographyEvidence.afterSize.unrelatedComputed === typographyEvidence.unrelatedBefore.fontSize && typographyEvidence.afterSize.unrelatedCanonical === typographyEvidence.unrelatedBefore.canonical, `text edit leaked to an unrelated object: ${JSON.stringify(typographyEvidence)}`)
-  assert(typographyEvidence.font.includes('Georgia') && typographyEvidence.spacing === '4px' && typographyEvidence.color === '#8d363a' && typographyEvidence.shadow.includes('3px') && typographyEvidence.layout.x === 7 && typographyEvidence.layout.y === 9 && typographyEvidence.layout.rotation === 5, `friendly Typography controls did not write canonical properties: ${JSON.stringify(typographyEvidence)}`)
+  assert(typographyEvidence.font.includes('Georgia') && typographyEvidence.spacing === '4px' && typographyEvidence.color === '#8d363a' && typographyEvidence.shadow.includes('3px') && typographyEvidence.textAlign.canonical === 'center' && typographyEvidence.textAlign.computed === 'center' && typographyEvidence.layout.x === 7 && typographyEvidence.layout.y === 9 && typographyEvidence.layout.rotation === 5, `friendly Typography controls did not write canonical properties: ${JSON.stringify(typographyEvidence)}`)
   assert(typographyEvidence.selected === 'portfolio-hero' && typographyEvidence.sameRoot && typographyEvidence.targetedUpdates > 0 && typographyEvidence.history <= 10, `selection/performance/history contract failed: ${JSON.stringify(typographyEvidence)}`)
+  await evaluate(`document.querySelector('[data-property-category="font"]').scrollIntoView({block:'start'})`)
+  await wait(180)
   await screenshot('phase-037-human-inspector-typography.png')
 
   const responsiveEvidence = await evaluate(`(async()=>{
@@ -282,6 +298,8 @@ try {
   assert(mediaEvidence.labels.includes('Preview') && mediaEvidence.labels.includes('Upload') && mediaEvidence.labels.includes('Choose from Media') && mediaEvidence.labels.includes('Replace') && mediaEvidence.labels.includes('Remove') && mediaEvidence.labels.includes('W') && mediaEvidence.labels.includes('H') && mediaEvidence.labels.includes('Fit') && mediaEvidence.labels.includes('Outline') && mediaEvidence.labels.includes('Radius') && mediaEvidence.labels.includes('Opacity') && mediaEvidence.labels.includes('Rotate'), `Media controls/order are incomplete: ${JSON.stringify(mediaEvidence.labels)}`)
   assert(mediaEvidence.thumbnail && mediaEvidence.choose && !mediaEvidence.replaceDisabled && mediaEvidence.thicknessHiddenOff && mediaEvidence.thicknessEnabled, `Media preview/actions/dependency failed: ${JSON.stringify(mediaEvidence)}`)
   assert(mediaEvidence.layout.width === '420px' && mediaEvidence.layout.height === '600px' && mediaEvidence.layout.x === 11 && mediaEvidence.layout.y === 13 && mediaEvidence.layout.rotation === 6 && mediaEvidence.style.outlineEnabled === true && mediaEvidence.style.outlineWidth === 4 && mediaEvidence.background.borderRadius === '18px' && mediaEvidence.background.opacity === .8 && mediaEvidence.history <= 10, `Media adapters did not update canonical values: ${JSON.stringify(mediaEvidence)}`)
+  await evaluate(`document.querySelector('[data-property-category="media"]').scrollIntoView({block:'start'})`)
+  await wait(180)
   await screenshot('phase-037-human-inspector-media.png')
 
   const roundTripEvidence = await evaluate(`(async()=>{
@@ -289,7 +307,7 @@ try {
     const model=await import('/src/editor/editorSnapshot.ts');const presentation=await import('/src/editor/inspectorPresentation.ts');const registry=await import('/src/editor/propertyRegistry.ts');
     const restored=model.deserializeEditorSnapshot(model.serializeEditorSnapshot(editor.draftSnapshot));
     const size=registry.propertyRegistry.find(property=>property.propertyKey==='font.size');const view=presentation.resolveInspectorPresentation(size,'Text');
-    return {friendly:presentation.formatInspectorValue(view,restored.typography['portfolio-hero']?.fontSize),canonical:restored.typography['portfolio-hero']?.fontSize,mediaWidth:restored.layout['portfolio-profile-media']?.width,valid:model.validateEditorSnapshot(restored).success};
+    return {friendly:presentation.formatInspectorValue(view,restored.typography['portfolio-hero']?.fontSize),canonical:restored.typography['portfolio-hero']?.fontSize,mediaWidth:restored.layout['portfolio-profile-media']?.width,valid:model.validateEditorSnapshot(restored).valid};
   })()`)
   assert(roundTripEvidence.valid && roundTripEvidence.friendly === 52 && roundTripEvidence.canonical === '52px' && roundTripEvidence.mediaWidth === '420px', `Snapshot serialization adapter round trip failed: ${JSON.stringify(roundTripEvidence)}`)
 
@@ -308,7 +326,7 @@ try {
 
   const seriousErrors = runtimeErrors.filter((error) => !/favicon|ERR_NAME_NOT_RESOLVED|Supabase configuration is unavailable/i.test(error))
   assert(seriousErrors.length === 0, `unexpected browser errors: ${seriousErrors.join(' | ')}; vite=${viteErrors}; browser=${browserErrors}`)
-  process.stdout.write(`${JSON.stringify({ status: 'PASS', initialEvidence, advancedEvidence, typographyEvidence, responsiveEvidence, mediaEvidence, roundTripEvidence, draftEvidence, reloadEvidence, screenshots: ['artifacts/phase-037-human-inspector-typography.png','artifacts/phase-037-human-inspector-media.png'] }, null, 2)}\n`)
+  process.stdout.write(`${JSON.stringify({ status: 'PASS', initialEvidence, inventoryEvidence, advancedEvidence, typographyEvidence, responsiveEvidence, mediaEvidence, roundTripEvidence, draftEvidence, reloadEvidence, screenshots: ['artifacts/phase-037-human-inspector-typography.png','artifacts/phase-037-human-inspector-media.png'] }, null, 2)}\n`)
 } finally {
   socket?.close()
   stopChildren()

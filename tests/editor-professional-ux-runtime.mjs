@@ -259,18 +259,17 @@ try {
     smallest('portfolio-hero').click();await tick();
     const propertySearch=document.querySelector('[data-property-search]');propertySearch.value='color';propertySearch.dispatchEvent(new Event('input',{bubbles:true}));await tick();await new Promise(resolve=>setTimeout(resolve,220));
     const colorSearchAccordion=editor.activeAccordion;const colorMounted=Boolean(document.querySelector('[data-property-key="font.color"]'));
-    propertySearch.value='shadow';propertySearch.dispatchEvent(new Event('input',{bubbles:true}));await tick();await new Promise(resolve=>setTimeout(resolve,220));
-    const searchAccordion=editor.activeAccordion;const effectsMounted=Boolean(document.querySelector('[data-property-key="effects.shadow"]'));const fontUnmounted=!document.querySelector('[data-property-key="font.family"]');
+    propertySearch.value='blur';propertySearch.dispatchEvent(new Event('input',{bubbles:true}));await tick();await new Promise(resolve=>setTimeout(resolve,220));
+    const searchAccordion=editor.activeAccordion;const effectsMounted=Boolean(document.querySelector('[data-property-key="effects.blur"]'));const fontUnmounted=!document.querySelector('[data-property-key="font.family"]');
     const transitionDuration=getComputedStyle(document.querySelector('[data-property-category="effects"] .accordion-content')).transitionDuration;
     propertySearch.value='';propertySearch.dispatchEvent(new Event('input',{bubbles:true}));
-    document.querySelector('[data-property-category="font"] .accordion-toggle').click();await tick();
-    const shadowControl=document.querySelector('[data-property-key="font.shadow"]');const shadowToggle=shadowControl.querySelector('input[type="checkbox"]');const shadowValue=shadowControl.querySelector('input:not([type="checkbox"])');const shadowDisabledBefore=shadowValue.disabled;shadowToggle.click();await tick();const shadowDisabledAfter=shadowValue.disabled;
+    const fontToggle=document.querySelector('[data-property-category="font"] .accordion-toggle');if(fontToggle.getAttribute('aria-expanded')!=='true')fontToggle.click();await tick();
+    const shadowControl=document.querySelector('[data-property-key="font.shadow"]');const shadowToggle=shadowControl.querySelector('input[type="checkbox"]');if(shadowToggle.checked)shadowToggle.click();await tick();const shadowDisabledBefore=!shadowControl.querySelector('.shadow-grid');shadowToggle.click();await tick();const shadowDisabledAfter=!shadowControl.querySelector('.shadow-grid');
     const colorControl=document.querySelector('[data-property-key="font.color"]');colorControl.querySelector('.color-summary').click();await tick();
     const hex=colorControl.querySelector('.picker-head input:not([type="color"])');hex.value='#7f4055';hex.dispatchEvent(new Event('change',{bubbles:true}));await tick();
     const colorValue=editor.draftSnapshot.typography['portfolio-hero']?.color;const colorFeatures={rgb:colorControl.querySelectorAll('.rgb-grid input').length,alpha:Boolean(colorControl.querySelector('.alpha-control')),recent:Boolean(colorControl.querySelector('.recent-colors')),eyedropperSupported:'EyeDropper' in window,eyedropperShown:Boolean(colorControl.querySelector('.eyedropper'))};
     colorControl.querySelector('.color-summary').click();await tick();
-    document.querySelector('[data-property-category="layout"] .accordion-toggle').click();await tick();
-    const xControl=document.querySelector('[data-property-key="position.x"]');const xInput=xControl.querySelector('input');const scrub=xControl.querySelector('.numeric-scrub');
+    const xControl=document.querySelector('[data-property-key="font.positionX"]');const xInput=xControl.querySelector('input');const scrub=xControl.querySelector('.numeric-scrub');xInput.focus();
     const x0=Number(editor.draftSnapshot.layout['portfolio-hero']?.x??0);xInput.dispatchEvent(new WheelEvent('wheel',{deltaY:-1,shiftKey:true,bubbles:true,cancelable:true}));await tick();const xShift=Number(editor.draftSnapshot.layout['portfolio-hero']?.x??0);
     xInput.dispatchEvent(new WheelEvent('wheel',{deltaY:-1,altKey:true,bubbles:true,cancelable:true}));await tick();const xAlt=Number(editor.draftSnapshot.layout['portfolio-hero']?.x??0);
     scrub.dispatchEvent(new PointerEvent('pointerdown',{pointerId:31,button:0,clientX:100,bubbles:true}));window.dispatchEvent(new PointerEvent('pointermove',{pointerId:31,button:0,clientX:120,bubbles:true}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:31,button:0,clientX:120,bubbles:true}));await tick();const xDrag=Number(editor.draftSnapshot.layout['portfolio-hero']?.x??0);
@@ -280,7 +279,7 @@ try {
     const imageObject=editor.objects.find(object=>object.id==='portfolio-profile-media')??editor.objects.find(object=>object.type==='Image');const image=smallest(imageObject.id);image.click();image.scrollIntoView({block:'center',inline:'center'});await tick();
     const mediaLabels=[...document.querySelectorAll('[data-property-category="media"] .property-field>span')].map(node=>node.textContent.trim());
     const outlineControl=document.querySelector('[data-property-key="media.outlineEnabled"]');const outline=outlineControl.matches('input')?outlineControl:outlineControl.querySelector('input');
-    const thicknessControl=document.querySelector('[data-property-key="media.outlineWidth"]');const thickness=thicknessControl.matches('input')?thicknessControl:thicknessControl.querySelector('input');const thicknessBefore=thickness.disabled;outline.click();await tick();const thicknessAfter=thickness.disabled;
+    const thicknessBefore=!document.querySelector('[data-property-key="media.outlineWidth"]');outline.click();await tick();const thickness=document.querySelector('[data-property-key="media.outlineWidth"] input');const thicknessAfter=Boolean(thickness&&!thickness.disabled);
     const fitOptions=[...document.querySelectorAll('[data-property-key="media.fit"] button')].map(button=>button.textContent.trim());
     return {colorSearchAccordion,colorMounted,searchAccordion,effectsMounted,fontUnmounted,transitionDuration,shadowDisabledBefore,shadowDisabledAfter,colorValue,colorFeatures,x0,xShift,xAlt,xDrag,rotationHidden,mediaLabels,thicknessBefore,thicknessAfter,fitOptions,thumbnail:Boolean(document.querySelector('[data-property-key="media.preview"] img')),accordion:editor.activeAccordion};
   })()`)
@@ -291,8 +290,8 @@ try {
   assert(inspectorEvidence.colorValue === '#7f4055' && inspectorEvidence.colorFeatures.rgb === 3 && inspectorEvidence.colorFeatures.alpha && inspectorEvidence.colorFeatures.recent && inspectorEvidence.colorFeatures.eyedropperShown === inspectorEvidence.colorFeatures.eyedropperSupported, 'professional color picker is incomplete')
   assert(Math.abs(inspectorEvidence.xShift - inspectorEvidence.x0 - 10) < .001 && Math.abs(inspectorEvidence.xAlt - inspectorEvidence.xShift - .1) < .001 && inspectorEvidence.xDrag > inspectorEvidence.xAlt, 'numeric wheel/modifier/scrub controls failed')
   assert(inspectorEvidence.rotationHidden, 'unsupported rotation was not hidden')
-  for (const label of ['Preview','Upload','Choose Existing','Replace','Remove','Duplicate Reference','Reveal in Library','Crop focus','Fit','Width','Height','Opacity','Border','Radius','Outline','Outline Thickness','Rotation']) assert(inspectorEvidence.mediaLabels.includes(label), `MEDIA control missing: ${label}`)
-  assert(inspectorEvidence.thicknessBefore && !inspectorEvidence.thicknessAfter && inspectorEvidence.fitOptions.join('|') === 'Fit|Fill|Contain' && inspectorEvidence.thumbnail, `MEDIA dependency/Fit/thumbnail behavior failed: ${JSON.stringify(inspectorEvidence)}`)
+  for (const label of ['Preview','Upload','Choose from Media','Replace','Remove','Reuse this image','Show in Media Library','Image focus','Fit','W','H','Opacity','Radius','Outline','Rotate']) assert(inspectorEvidence.mediaLabels.includes(label), `MEDIA control missing: ${label}`)
+  assert(inspectorEvidence.thicknessBefore && inspectorEvidence.thicknessAfter && inspectorEvidence.fitOptions.join('|') === 'Fit|Fill|Contain' && inspectorEvidence.thumbnail, `MEDIA dependency/Fit/thumbnail behavior failed: ${JSON.stringify(inspectorEvidence)}`)
 
   const inspectorShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
   await writeFile(path.join(projectRoot, 'artifacts', 'phase-031-professional-editor-ux.png'), Buffer.from(inspectorShot.data, 'base64'))

@@ -6,6 +6,7 @@ import type {
   PropertyVisibilityContext
 } from '../types/editor'
 import type { EditorSnapshot, LayoutSettings } from '../types/editorSnapshot'
+import { resolveObjectDomTarget } from './objectDomTarget'
 
 export type ResponsiveBreakpoint = 'desktop' | 'laptop' | 'tablet' | 'mobile'
 export type ResponsiveCanvasPresetId = 'desktop-1440' | 'desktop-1280' | 'laptop-1024' | 'tablet-768' | 'mobile-390'
@@ -584,12 +585,6 @@ export function responsiveLayoutResetChanges(
   }))
 }
 
-function elementsForObject(root: HTMLElement, objectId: string): HTMLElement[] {
-  const keys = ['editorObjectId', 'editorEntityId', 'entityId', 'mediaUsageId', 'photoAreaId', 'certificateId'] as const
-  return [...root.querySelectorAll<HTMLElement>('[data-editor-object-id], [data-editor-entity-id], [data-entity-id], [data-media-usage-id], [data-photo-area-id], [data-certificate-id]')]
-    .filter((element) => keys.some((key) => element.dataset[key] === objectId))
-}
-
 interface ElementBaseline {
   styles: Map<string, string>
   classes: Map<string, boolean>
@@ -654,8 +649,8 @@ export function applyResponsiveObjectProperties(
   breakpoint: ResponsiveBreakpoint
 ): void {
   const objectId = entity.entityId
-  const elements = elementsForObject(root, objectId)
-  if (!elements.length) return
+  const element = resolveObjectDomTarget(root, objectId, entity.objectType ?? entity.kind)
+  if (!element) return
   const effectiveSnapshot = materializeResponsiveObjectSnapshot(snapshot, objectId, breakpoint)
   const scope = objectScope(root, objectId)
   const applyToElement = (element: HTMLElement, updater: (context: ResponsivePreviewContext) => void) => {
@@ -680,15 +675,13 @@ export function applyResponsiveObjectProperties(
       const state = resolveResponsiveSnapshotProperty(property, snapshot, objectId, breakpoint)
       if (state.source === 'base') continue
       const value = property.serializer.deserialize(state.value)
-      for (const element of elements) {
-        applyToElement(element, ({ setStyle, toggleClass }) => property.previewUpdater.update({
-          element,
-          entityId: objectId,
-          snapshot: effectiveSnapshot,
-          setStyle,
-          toggleClass
-        }, value))
-      }
+      applyToElement(element, ({ setStyle, toggleClass }) => property.previewUpdater.update({
+        element,
+        entityId: objectId,
+        snapshot: effectiveSnapshot,
+        setStyle,
+        toggleClass
+      }, value))
     }
   }
 
@@ -697,7 +690,7 @@ export function applyResponsiveObjectProperties(
   for (const property of properties) {
     const state = readResponsiveLayoutPropertyState(property, snapshot, objectId, breakpoint)
     if (state.source === 'default' || !isResponsiveLayoutPropertyEnabled(property, entity, snapshot, breakpoint, values)) continue
-    for (const element of elements) applyToElement(element, (context) => property.preview(context, state.value, values))
+    applyToElement(element, (context) => property.preview(context, state.value, values))
   }
 }
 
