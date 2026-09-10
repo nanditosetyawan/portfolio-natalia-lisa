@@ -501,6 +501,20 @@ try {
 
   const seriousErrors = runtimeErrors.filter((error) => !/favicon|ERR_NAME_NOT_RESOLVED|Supabase configuration is unavailable/i.test(error))
   assert(seriousErrors.length === 0, `unexpected browser errors: ${seriousErrors.join(' | ')}; vite=${viteErrors}; browser=${browserErrors}`)
+  process.stdout.write(`${JSON.stringify({
+    status: 'PASS',
+    scope: 'Phase 037A selected-object, section, semantic-control, and responsive isolation',
+    primaryObject: evidence.selectedObjectId,
+    oneToOneMarkers: evidence.duplicateMarkerIds.length === 0,
+    sections: sectionEvidence?.map((item) => item.section) ?? [],
+    objectTypes: typeResolverEvidence?.map((item) => item.type) ?? [],
+    responsiveIsolation: Boolean(responsiveIsolationEvidence?.rootStable),
+    dependencyAndAlignment: Boolean(dependencyAlignmentEvidence?.thicknessOn && dependencyAlignmentEvidence?.alignmentAvailable),
+    screenshots: [
+      'artifacts/phase-037a-text-object-isolation.png',
+      'artifacts/phase-037a-image-object-isolation.png'
+    ]
+  })}\n`)
 } finally {
   socket?.close()
   stopChildren()

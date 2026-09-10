@@ -7,9 +7,6 @@ const projectRoot = process.cwd()
 const baseUrl = 'http://127.0.0.1:5190'
 const cdpPort = 9350
 const chromePath = process.env.CHROME_PATH ?? 'C:\\Users\\VivoBook\\AppData\\Local\\ms-playwright\\chromium-1234\\chrome-win64\\chrome.exe'
-const browserDisplayArgs = process.env.PHASE_SCROLL_HEADFUL === '1'
-  ? ['--window-position=-32000,-32000']
-  : ['--headless=new']
 const profilePath = await mkdtemp(path.join(tmpdir(), 'portfolio-natural-scroll-'))
 const children = []
 const wait = (milliseconds = 50) => new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -66,7 +63,7 @@ try {
   await waitForHttp(baseUrl)
 
   const browser = launch(chromePath, [
-    ...browserDisplayArgs, '--disable-gpu', '--no-sandbox', '--disable-features=OverlayScrollbar,OverlayScrollbars',
+    '--headless=new', '--disable-gpu', '--no-sandbox',
     `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profilePath}`,
     '--window-size=1600,1000', baseUrl
   ])
@@ -207,34 +204,25 @@ try {
   assert(typeof zoomEvidence.after === 'number' && zoomEvidence.after !== zoomEvidence.before && zoomEvidence.events.some((event) => event.ctrl && event.prevented), `Ctrl+Wheel Zoom behavior regressed: ${JSON.stringify(zoomEvidence)}`)
 
   await evaluate(`document.querySelector('.control-panel').scrollTop=0`)
-  const scrollbar = await evaluate(`(()=>{const node=document.querySelector('.control-panel');const rect=node.getBoundingClientRect();const width=node.offsetWidth-node.clientWidth;const thumb=Math.max(24,node.clientHeight*node.clientHeight/node.scrollHeight);const offsets=[2,4,Math.max(3,width/2),Math.max(4,width-3)];return {xCandidates:[...new Set(offsets.map(offset=>Math.round(rect.right-offset)))],startY:Math.round(rect.top+thumb/2),endY:Math.round(rect.top+thumb/2+140),width}})()`)
-  let scrollbarX = null
+  const scrollbar = await evaluate(`(()=>{const node=document.querySelector('.control-panel');const rect=node.getBoundingClientRect();const width=node.offsetWidth-node.clientWidth;const thumb=Math.max(24,node.clientHeight*node.clientHeight/node.scrollHeight);return {x:Math.round(rect.right-Math.max(3,width/2)),startY:Math.round(rect.top+thumb/2),endY:Math.round(rect.top+thumb/2+140),width}})()`)
   if (scrollbar.width > 0) {
-    for (const x of scrollbar.xCandidates) {
-      await evaluate(`document.querySelector('.control-panel').scrollTop=0`)
-      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: scrollbar.startY, button: 'none', buttons: 0 })
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y: scrollbar.startY, button: 'left', buttons: 1, clickCount: 1 })
-      await wait(80)
-      for (let step = 1; step <= 8; step += 1) {
-        const y = Math.round(scrollbar.startY + (scrollbar.endY - scrollbar.startY) * step / 8)
-        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 1 })
-        await wait(25)
-      }
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y: scrollbar.endY, button: 'left', buttons: 0, clickCount: 1 })
-      await wait(100)
-      const currentTop = await evaluate(`document.querySelector('.control-panel').scrollTop`)
-      if (currentTop > 0) {
-        scrollbarX = x
-        break
-      }
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: scrollbar.x, y: scrollbar.startY, button: 'none', buttons: 0 })
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: scrollbar.x, y: scrollbar.startY, button: 'left', buttons: 1, clickCount: 1 })
+    await wait(80)
+    for (let step = 1; step <= 8; step += 1) {
+      const y = Math.round(scrollbar.startY + (scrollbar.endY - scrollbar.startY) * step / 8)
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: scrollbar.x, y, button: 'none', buttons: 1 })
+      await wait(25)
     }
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: scrollbar.x, y: scrollbar.endY, button: 'left', buttons: 0, clickCount: 1 })
+    await wait(150)
   }
   const scrollbarEvidence = await evaluate(`document.querySelector('.control-panel').scrollTop`)
-  assert(scrollbar.width > 0 && scrollbarX !== null && scrollbarEvidence > 0, `native Inspector scrollbar drag failed: ${JSON.stringify({ scrollbar, scrollbarX, scrollbarEvidence })}`)
+  assert(scrollbar.width > 0 && scrollbarEvidence > 0, `native Inspector scrollbar drag failed: ${JSON.stringify({ scrollbar, scrollbarEvidence })}`)
 
   const seriousErrors = runtimeErrors.filter((error) => !/favicon|ERR_NAME_NOT_RESOLVED|Supabase configuration is unavailable/i.test(error))
   assert(seriousErrors.length === 0, `unexpected browser errors: ${seriousErrors.join(' | ')}; vite=${viteErrors}; browser=${browserErrors}`)
-  process.stdout.write(`${JSON.stringify({ status: 'PASS', styles, navigatorEvidence, inspectorEvidence, numericEvidence, previewEvidence, precisionEvidence, zoomEvidence, scrollbar: { ...scrollbar, x: scrollbarX, scrollTop: scrollbarEvidence } }, null, 2)}\n`)
+  process.stdout.write(`${JSON.stringify({ status: 'PASS', styles, navigatorEvidence, inspectorEvidence, numericEvidence, previewEvidence, precisionEvidence, zoomEvidence, scrollbar: { ...scrollbar, scrollTop: scrollbarEvidence } }, null, 2)}\n`)
 } finally {
   socket?.close()
   stopChildren()
