@@ -17,6 +17,7 @@ const vConfig = computed(() => site.current.visual.shs)
     :id="item.order === 0 ? 'shs-section' : undefined"
     :key="item.id"
     :data-entity-id="item.id"
+    data-editor-section-id="shs"
     class="shs-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,

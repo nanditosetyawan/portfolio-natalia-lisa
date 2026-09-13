@@ -31,10 +31,10 @@ const tabs: Array<{ value: MediaLibraryFilter; label: string }> = [
 
 const assets = computed(() => library.queryAssets({ search: search.value, filter: filter.value, sort: 'newest' }))
 const selectedAsset = computed(() => library.assets.find((asset) => asset.id === selectedId.value) ?? null)
-const title = computed(() => props.mode === 'browse' ? 'Choose from Media' : 'Choose Existing')
+const title = computed(() => props.mode === 'browse' ? 'Browse Media' : 'Choose from Media')
 const description = computed(() => props.mode === 'browse'
-  ? 'Browse reusable assets. This fixed template cannot add another image instance; use Replace Selected Image to change the current one.'
-  : `Apply an existing asset to ${props.targetLabel || 'the selected media object'}.`)
+  ? 'Browse reusable assets in the existing Media Library.'
+  : `Add an existing asset as another image in ${props.targetLabel ? `${props.targetLabel}'s section` : 'the selected section'}.`)
 const actionLabel = computed(() => props.mode === 'browse' ? 'Show in Media Library' : 'Apply')
 
 function selectAsset(asset: MediaLibraryAsset): void {

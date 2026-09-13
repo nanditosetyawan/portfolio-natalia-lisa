@@ -17,6 +17,7 @@ const vConfig = computed(() => site.current.visual.college)
     :id="item.order === 0 ? 'college-section' : undefined"
     :key="item.id"
     :data-entity-id="item.id"
+    data-editor-section-id="college"
     class="college-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,

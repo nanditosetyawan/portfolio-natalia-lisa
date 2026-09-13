@@ -57,6 +57,15 @@ import {
 import { applyRegisteredObjectProperties, applyRegisteredSnapshotProperties, restoreRegisteredSnapshotProperties } from '../../editor/propertyRuntime'
 import { resolveObjectDomTarget } from '../../editor/objectDomTarget'
 import {
+  deleteEditorInstanceChanges,
+  deleteEditorInstancesChanges,
+  duplicateImageInstancesChanges,
+  insertImageInstanceChanges,
+  reorderEditorInstanceChanges,
+  type DuplicateImageInstanceInput
+} from '../../editor/editorInstanceCommands'
+import { findEditorInstance, isDynamicInstance, normalizeEditorSectionId } from '../../editor/editorInstances'
+import {
   formatInspectorValue,
   inspectorFontOptions,
   inspectorValueIsComplex,
@@ -79,6 +88,7 @@ import {
   previewAnimation,
   restoreAnimationRuntime
 } from '../../runtime/animationRuntime'
+import { renderDynamicInstances } from '../../runtime/dynamicInstanceRuntime'
 import {
   applyResponsiveObjectProperties,
   cloneResponsiveObjectChanges,
@@ -116,7 +126,7 @@ import type {
   PropertyRegistryEntry,
   PropertyVisibilityContext
 } from '../../types/editor'
-import type { AnimationSettings, EditorSnapshot, SnapshotMediaModel } from '../../types/editorSnapshot'
+import type { AnimationSettings, EditorSnapshot, LayoutSettings, SnapshotMediaModel, SnapshotMediaReference } from '../../types/editorSnapshot'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 import type {
   ButtonSizeId,
@@ -192,7 +202,7 @@ const route = useRoute()
 const router = useRouter()
 const editor = useEditorStore()
 const certificates = useCertificatesStore()
-const editorEntities = useEditorObjectRegistry()
+const editorEntities = useEditorObjectRegistry(computed(() => editor.draftSnapshot))
 const photoRegistry = usePhotoAreaRegistry()
 const mediaLibrary = useMediaLibraryStore()
 const designSystem = useDesignSystemStore()
@@ -273,7 +283,25 @@ const selectedEntityId = computed({
   set: (entityId: string) => { selectEntity(entityId) }
 })
 const selectedEntity = computed(() => editorEntities.value.find((entity) => entity.id === editor.selectedObjectId))
-const selectedPhotoArea = computed(() => selectedEntity.value?.photoAreaId ? photoRegistry.find(selectedEntity.value.photoAreaId) : undefined)
+const selectedDynamicInstance = computed(() => findEditorInstance(editor.draftSnapshot, editor.selectedObjectId))
+const selectedPhotoArea = computed(() => {
+  const entity = selectedEntity.value
+  if (!entity?.photoAreaId) return undefined
+  const fixed = photoRegistry.find(entity.photoAreaId)
+  if (fixed) return fixed
+  const instance = selectedDynamicInstance.value
+  if (!instance) return undefined
+  const assignment = editor.draftSnapshot.media.assignments.find((candidate) => candidate.entityId === instance.source.assignmentEntityId)
+  const reference = assignment ? editor.draftSnapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId) : undefined
+  return {
+    id: instance.instanceId,
+    role: assignment?.role ?? 'dynamic-image',
+    section: entity.section,
+    label: instance.label,
+    source: reference?.uri ?? '',
+    objectPosition: assignment?.objectPosition ?? '50% 50%'
+  }
+})
 const selectedMediaAssignment = computed(() => selectedPhotoArea.value
   ? editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === selectedPhotoArea.value?.id) ?? null
   : null)
@@ -295,7 +323,10 @@ const sourceLabel = computed(() => editor.draftRevisionId
   : 'Editing: New draft from Published')
 const canAlignSelection = computed(() => editor.selectedObjectIds.length > 1)
 const canDistributeSelection = computed(() => editor.selectedObjectIds.length > 2)
-const canDuplicateSelection = computed(() => selectedRuntimeObjects.value.some((object) => Boolean(object.ux?.collectionPath) && !editor.objectState(object.id).locked))
+const canDuplicateSelection = computed(() => selectedRuntimeObjects.value.some((object) => (
+  Boolean(object.ux?.collectionPath)
+  || (object.type === 'Image' && editor.draftSnapshot.media.assignments.some((assignment) => assignment.entityId === object.photoAreaId))
+) && !editor.objectState(object.id).locked))
 const propertySearch = computed({
   get: () => editor.draftSnapshot.session.propertySearch,
   set: (value: string) => {
@@ -880,6 +911,9 @@ watch(() => editor.previewMutation.version, async () => {
   }
   if (mutation.propertyPaths.some((path) => path === '*' || /^media(\.|$)/.test(path))) await syncSnapshotMediaToPreview()
   await nextTick()
+  if (mutation.propertyPaths.some((path) => path === '*' || path === 'media' || /^instances(?:\.|$)/.test(path) || /^media\.(?:references|assignments)(?:\.|$)/.test(path))) {
+    reconcileEditorInstances()
+  }
   schedulePreviewObjects(mutation.objectIds)
 })
 
@@ -959,7 +993,18 @@ function applyEditorPreviewObject(root: HTMLElement, objectId: string): void {
   applyAnimationObject(root, editor.draftSnapshot, objectId, { breakpoint: activeBreakpoint.value, autoplayEntrance: false, respectReducedMotion: true })
 }
 
+function editorMediaUrl(assetId: string, reference: SnapshotMediaReference): string {
+  return mediaPreviewUrls.get(assetId) ?? reference.uri
+}
+
+function reconcileEditorInstances(): void {
+  const root = previewStage.value
+  if (!root) return
+  renderDynamicInstances(root, editor.draftSnapshot, { resolveMediaUrl: editorMediaUrl })
+}
+
 function applyEditorPreviewSnapshot(root: HTMLElement): void {
+  renderDynamicInstances(root, editor.draftSnapshot, { resolveMediaUrl: editorMediaUrl })
   restoreResponsiveSnapshotProperties(root)
   applyRegisteredSnapshotProperties(root, editor.draftSnapshot)
   for (const object of editorEntities.value) {
@@ -1359,6 +1404,38 @@ function resetSelectedAnimation(): void {
   }
 }
 
+function numericCssLength(value: EditorValue): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(?:px)?$/i)
+  return match ? Number(match[1]) : null
+}
+
+function currentImageAspectRatio(entityId: string): number | null {
+  const effective = materializeResponsiveObjectSnapshot(editor.draftSnapshot, entityId, activeBreakpoint.value)
+  const configured = effective.media.styles[entityId]?.aspectRatio
+  if (configured && Number.isFinite(configured) && configured > 0) return configured
+  const layout = effective.layout[entityId]
+  const width = numericCssLength(layout?.width)
+  const height = numericCssLength(layout?.height)
+  if (width && height && width > 0 && height > 0) return width / height
+  const element = preferredPreviewElement(entityId)
+  const rect = element?.getBoundingClientRect()
+  return rect && rect.width > 0 && rect.height > 0 ? rect.width / rect.height : null
+}
+
+function responsiveMediaStylePath(entityId: string, field: 'aspectRatio' | 'aspectRatioLocked'): string {
+  const targetId = activeBreakpoint.value === 'desktop' ? entityId : responsiveSnapshotEntityId(activeBreakpoint.value, entityId)
+  return `media.styles.${targetId}.${field}`
+}
+
+function proportionalDimensionValue(value: EditorValue, ratio: number, changingWidth: boolean): EditorValue {
+  const numeric = numericCssLength(value)
+  if (numeric === null || ratio <= 0) return value
+  const next = changingWidth ? numeric / ratio : numeric * ratio
+  return `${Number(next.toFixed(3))}px`
+}
+
 async function updatePanelProperty(property: PanelProperty, value: string | number | boolean): Promise<void> {
   const entity = selectedEntity.value
   if (!entity || !isPanelPropertyEnabled(property)) return
@@ -1414,6 +1491,44 @@ async function updatePanelProperty(property: PanelProperty, value: string | numb
   if (property.metadata.databaseMapping.kind !== 'snapshot') return
   const path = bindingPath(property.metadata, entity.id)
   const serialized = property.metadata.serializer.serialize(value)
+  if (property.metadata.propertyKey === 'media.aspectRatioLocked') {
+    const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = [{ propertyPath: path, nextValue: serialized }]
+    if (Boolean(serialized)) {
+      const ratio = currentImageAspectRatio(entity.id)
+      if (ratio) changes.push({ propertyPath: responsiveMediaStylePath(entity.id, 'aspectRatio'), nextValue: ratio })
+    }
+    if (!editor.setProperties(entity.id, changes, {
+      objectIds: [entity.id],
+      breakpoint: activeBreakpoint.value,
+      interaction: 'aspect-ratio-lock'
+    }, property.metadata.commandType)) return
+    markEditorChanged()
+    return
+  }
+  if (property.metadata.propertyKey === 'media.width' || property.metadata.propertyKey === 'media.height') {
+    const effective = materializeResponsiveObjectSnapshot(editor.draftSnapshot, entity.id, activeBreakpoint.value)
+    const mediaStyle = effective.media.styles[entity.id]
+    const ratio = mediaStyle?.aspectRatio ?? currentImageAspectRatio(entity.id)
+    if (mediaStyle?.aspectRatioLocked && ratio) {
+      const pairedKey = property.metadata.propertyKey === 'media.width' ? 'media.height' : 'media.width'
+      const paired = propertyRegistry.find((candidate) => candidate.propertyKey === pairedKey)
+      const pairedPath = paired ? responsiveSnapshotWritePath(paired, entity.id, activeBreakpoint.value) : null
+      const changes = [
+        { propertyPath: path, nextValue: serialized },
+        ...(pairedPath ? [{ propertyPath: pairedPath, nextValue: proportionalDimensionValue(serialized, ratio, property.metadata.propertyKey === 'media.width') }] : [])
+      ]
+      if (!editor.setProperties(entity.id, changes, {
+        objectIds: [entity.id],
+        breakpoint: activeBreakpoint.value,
+        interaction: 'proportional-image-size'
+      }, property.metadata.commandType)) return
+      markDesignPropertyOverride(entity, property)
+      markEditorChanged()
+      await nextTick()
+      updateSelectedOutline()
+      return
+    }
+  }
   const applied = editor.setProperty(entity.id, path, serialized, property.metadata.commandType, { coalesceKey: `${entity.id}:${path}` })
   if (!applied) return
   markDesignPropertyOverride(entity, property)
@@ -1633,6 +1748,106 @@ async function setMediaFit(objectFit: string, commandType: EditorCommandType): P
   markEditorChanged()
 }
 
+function snapshotReferenceForAsset(asset: MediaLibraryAsset): SnapshotMediaReference {
+  return {
+    assetId: asset.id,
+    uri: asset.sourceUrl,
+    bucket: asset.bucket ?? undefined,
+    storagePath: asset.storagePath ?? undefined,
+    mimeType: asset.mimeType,
+    width: asset.width ?? undefined,
+    height: asset.height ?? undefined,
+    alt: asset.name
+  }
+}
+
+function rememberDraftMediaAsset(asset: MediaLibraryAsset): void {
+  if (!asset.bucket || !asset.storagePath?.startsWith('draft/')) return
+  editor.draftMediaReferences = [
+    ...editor.draftMediaReferences.filter((reference) => reference.assetId !== asset.id),
+    {
+      assetId: asset.id,
+      bucket: asset.bucket,
+      storagePath: asset.storagePath,
+      mimeType: asset.mimeType,
+      width: asset.width ?? 0,
+      height: asset.height ?? 0,
+      previewUrl: asset.sourceUrl
+    }
+  ]
+}
+
+function imageObjectLayout(entity: EditorRuntimeObject, addInstanceOffset: boolean): LayoutSettings | null {
+  if (!entity || entity.type !== 'Image') return null
+  const source = editor.draftSnapshot.layout[entity.id] ?? {}
+  const root = previewStage.value
+  const element = root ? resolveObjectDomTarget(root, entity.id, entity.type) : null
+  const style = element ? getComputedStyle(element) : null
+  const width = source.width ?? (style && Number.isFinite(Number.parseFloat(style.width)) ? Number.parseFloat(style.width) : 320)
+  const height = source.height ?? (style && Number.isFinite(Number.parseFloat(style.height)) ? Number.parseFloat(style.height) : 240)
+  const sectionObjects = editor.objects.filter((object) => object.section === entity.section)
+  const highestZ = Math.max(0, ...sectionObjects.map((object) => Number(effectiveResponsiveLayout(editor.draftSnapshot, object.id, 'desktop').zIndex ?? 0)))
+  const offset = addInstanceOffset
+    ? 24 * (editor.draftSnapshot.instances.filter((instance) => instance.sectionId === normalizeEditorSectionId(entity.section)).length + 1)
+    : 0
+  const nextX = offset ? offsetValue(source.x, offset) : source.x ?? 0
+  const nextY = offset ? offsetValue(source.y, offset) : source.y ?? 0
+  return {
+    ...cloneEditorData(source),
+    positionMode: 'absolute',
+    x: typeof nextX === 'number' || typeof nextX === 'string' ? nextX : 0,
+    y: typeof nextY === 'number' || typeof nextY === 'string' ? nextY : 0,
+    width,
+    height,
+    rotation: source.rotation ?? 0,
+    display: 'block',
+    visibility: 'visible',
+    zIndex: highestZ + 1
+  }
+}
+
+function insertionLayoutForSelectedImage(): LayoutSettings | null {
+  const entity = selectedEntity.value
+  return entity?.type === 'Image' ? imageObjectLayout(entity, true) : null
+}
+
+async function insertMediaAssetInstance(asset: MediaLibraryAsset): Promise<string | null> {
+  const entity = selectedEntity.value
+  const layout = insertionLayoutForSelectedImage()
+  if (!entity || entity.type !== 'Image' || !layout) {
+    saveStatus.value = 'Select an image in the destination section before adding another image.'
+    return null
+  }
+  try {
+    const result = insertImageInstanceChanges(editor.draftSnapshot, {
+      section: entity.section,
+      reference: snapshotReferenceForAsset(asset),
+      label: asset.name,
+      layout,
+      objectPosition: '50% 50%'
+    })
+    if (!editor.setProperties(entity.id, result.changes, {
+      interaction: 'insert-image-instance',
+      objectIds: [result.instance.instanceId],
+      assetId: asset.id,
+      instanceId: result.instance.instanceId
+    }, 'INSERT_INSTANCE')) return null
+    rememberDraftMediaAsset(asset)
+    if (isBrowserUrl(asset.sourceUrl)) mediaPreviewUrls.set(asset.id, asset.sourceUrl)
+    markEditorChanged()
+    await nextTick()
+    reconcileEditorInstances()
+    selectRegisteredObject(result.instance.instanceId)
+    saveStatus.value = `${asset.name} added as ${result.instance.label}. Save Draft to persist it.`
+    productFeedback.success('Image added', `${asset.name} is now an independent image in ${entity.section}.`)
+    return result.instance.instanceId
+  } catch (error) {
+    saveStatus.value = error instanceof Error ? error.message : 'The image instance could not be added.'
+    productFeedback.error('Image could not be added', saveStatus.value)
+    return null
+  }
+}
+
 async function assignMediaReferenceToSelected(
   assetInput: string | MediaLibraryAsset,
   commandType: EditorCommandType,
@@ -1680,20 +1895,7 @@ async function assignMediaReferenceToSelected(
     timestamp: Date.now(),
     metadata: { assetId, photoAreaId: target.id, source: 'media-library' }
   })
-  if (libraryAsset?.bucket && libraryAsset.storagePath?.startsWith('draft/')) {
-    editor.draftMediaReferences = [
-      ...editor.draftMediaReferences.filter((reference) => reference.assetId !== assetId),
-      {
-        assetId,
-        bucket: libraryAsset.bucket,
-        storagePath: libraryAsset.storagePath,
-        mimeType: libraryAsset.mimeType,
-        width: libraryAsset.width ?? 0,
-        height: libraryAsset.height ?? 0,
-        previewUrl: source
-      }
-    ]
-  }
+  if (libraryAsset) rememberDraftMediaAsset(libraryAsset)
   if (isBrowserUrl(source)) mediaPreviewUrls.set(assetId, source)
   managedMediaAreaIds.add(target.id)
   await photoRegistry.updateSource(target.id, source)
@@ -1705,9 +1907,8 @@ async function assignMediaReferenceToSelected(
 }
 
 async function applyPickerAsset(asset: MediaLibraryAsset): Promise<void> {
-  revealMediaAsset(asset.id)
   showAssetPicker.value = false
-  productFeedback.success('Asset selected', `${asset.name} is open in the Media Library. This fixed template does not support inserting an additional image instance.`)
+  await insertMediaAssetInstance(asset)
 }
 
 async function removeSelectedMedia(commandType: EditorCommandType): Promise<void> {
@@ -1715,6 +1916,29 @@ async function removeSelectedMedia(commandType: EditorCommandType): Promise<void
   const target = selectedPhotoArea.value
   const assignment = selectedMediaAssignment.value
   if (!entity || !target || !assignment) return
+  if (isDynamicInstance(editor.draftSnapshot, entity.id)) {
+    const accepted = await productFeedback.confirm({
+      title: 'Remove this image?',
+      message: 'The page image instance will be removed. Its Media Library asset will remain available.',
+      confirmLabel: 'Remove Image',
+      cancelLabel: 'Keep Image',
+      tone: 'danger'
+    })
+    if (!accepted) return
+    const changes = deleteEditorInstanceChanges(editor.draftSnapshot, entity.id)
+    if (!changes.length || !editor.setProperties(entity.id, changes, {
+      objectIds: [entity.id],
+      assetId: assignment.assetId,
+      interaction: 'delete-image-instance'
+    }, 'DELETE_INSTANCE')) return
+    markEditorChanged()
+    await nextTick()
+    reconcileEditorInstances()
+    selectAfterObjectRemoval([entity.id])
+    saveStatus.value = 'Image instance removed. The Media Library asset was not deleted.'
+    productFeedback.success('Image removed', 'Only the page instance was removed; the reusable asset remains available.')
+    return
+  }
   const currentMedia = cloneEditorData(editor.draftSnapshot.media)
   const remainingAssignments = currentMedia.assignments.filter((candidate) => candidate.entityId !== target.id)
   const assetStillAssigned = remainingAssignments.some((candidate) => candidate.assetId === assignment.assetId)
@@ -1744,34 +1968,8 @@ async function removeSelectedMedia(commandType: EditorCommandType): Promise<void
 }
 
 async function duplicateSelectedMediaReference(commandType: EditorCommandType): Promise<void> {
-  const entity = selectedEntity.value
-  const target = selectedPhotoArea.value
-  const assignment = selectedMediaAssignment.value
-  if (!entity || !target || !assignment) return
-  const currentMedia = cloneEditorData(editor.draftSnapshot.media)
-  const reference = currentMedia.references.find((candidate) => candidate.assetId === assignment.assetId)
-  if (!reference) return
-  const assetId = crypto.randomUUID()
-  const nextMedia: SnapshotMediaModel = {
-    ...currentMedia,
-    references: [...currentMedia.references, { ...reference, assetId }],
-    assignments: currentMedia.assignments.map((candidate) => candidate.entityId === target.id ? { ...candidate, assetId } : candidate)
-  }
-  editor.apply({
-    type: commandType,
-    entityId: entity.id,
-    propertyPath: 'media',
-    previousValue: currentMedia as unknown as EditorValue,
-    nextValue: nextMedia as unknown as EditorValue,
-    timestamp: Date.now(),
-    metadata: { assetId, duplicatedFrom: reference.assetId, photoAreaId: target.id, interaction: 'duplicate-reference' }
-  })
-  const draftReference = editor.draftMediaReferences.find((candidate) => candidate.assetId === reference.assetId)
-  if (draftReference) editor.draftMediaReferences = [...editor.draftMediaReferences, { ...draftReference, assetId }]
-  const previewUrl = mediaPreviewUrls.get(reference.assetId) ?? reference.uri
-  if (previewUrl) mediaPreviewUrls.set(assetId, previewUrl)
-  markEditorChanged()
-  saveStatus.value = 'A separate stable reference now points to the same asset.'
+  void commandType
+  await duplicateSelectedObjects()
 }
 
 function revealSelectedMedia(): void {
@@ -1847,8 +2045,7 @@ async function uploadMediaAssetToLibrary(file: File): Promise<MediaLibraryAsset 
 async function uploadNewMediaAsset(file: File): Promise<void> {
   const asset = await uploadMediaAssetToLibrary(file)
   if (!asset) return
-  saveStatus.value = 'Image added to Media Library. The selected page image was not replaced.'
-  productFeedback.success('Added to Media Library', `${asset.name} is reusable from Media. This fixed template cannot insert another image instance.`)
+  await insertMediaAssetInstance(asset)
 }
 
 async function replaceSelectedMedia(file: File, commandType: EditorCommandType): Promise<void> {
@@ -2013,6 +2210,7 @@ async function restoreDraftMedia(references: DraftMediaReference[]): Promise<voi
     }
   }
   await syncSnapshotMediaToPreview()
+  reconcileEditorInstances()
 }
 
 async function syncSnapshotMediaToPreview(): Promise<void> {
@@ -2302,9 +2500,13 @@ function reorderLayerObject(objectId: string, targetObjectId: string): void {
   const target = editor.objects.find((object) => object.id === targetObjectId)
   if (!source || !target || source.section !== target.section || !editor.reorderObject(objectId, targetObjectId)) return
   const layerObjects = editor.objects.filter((object) => object.section === source.section && object.capabilities.includes('position') && !editor.objectState(object.id).locked)
-  const changes = layerObjects.map((object, index) => ({ propertyPath: responsiveLayoutFieldPath(object.id, 'zIndex', activeBreakpoint.value), nextValue: index }))
+  const instanceChanges = reorderEditorInstanceChanges(editor.draftSnapshot, objectId, targetObjectId)
+  const changes = [
+    ...instanceChanges,
+    ...layerObjects.map((object, index) => ({ propertyPath: responsiveLayoutFieldPath(object.id, 'zIndex', activeBreakpoint.value), nextValue: index }))
+  ]
   if (changes.length) {
-    editor.setProperties(objectId, changes, { objectIds: layerObjects.map((object) => object.id), interaction: 'layer-reorder' }, 'REORDER')
+    editor.setProperties(objectId, changes, { objectIds: layerObjects.map((object) => object.id), interaction: 'layer-reorder' }, instanceChanges.length ? 'REORDER_INSTANCE' : 'REORDER')
     markEditorChanged()
   }
 }
@@ -2490,7 +2692,11 @@ function selectRegisteredObject(objectId: string, attempt = 0): void {
 }
 
 function selectAfterObjectRemoval(removedIds: string[], attempt = 0): void {
-  const next = editorEntities.value.find((object) => !removedIds.includes(object.id) && editor.draftSnapshot.entities.some((entity) => entity.entityId === object.id))
+  const validIds = new Set([
+    ...editor.draftSnapshot.entities.map((entity) => entity.entityId),
+    ...editor.draftSnapshot.instances.map((instance) => instance.instanceId)
+  ])
+  const next = editorEntities.value.find((object) => !removedIds.includes(object.id) && validIds.has(object.id))
   if (next) {
     setSelection(next)
     return
@@ -2500,16 +2706,40 @@ function selectAfterObjectRemoval(removedIds: string[], attempt = 0): void {
 
 async function duplicateSelectedObjects(): Promise<void> {
   saveStatus.value = 'Duplicating selected objects...'
-  const sources = selectedRuntimeObjects.value.filter((object) => object.ux?.collectionPath && !editor.objectState(object.id).locked)
+  const sources = selectedRuntimeObjects.value.filter((object) => {
+    if (editor.objectState(object.id).locked) return false
+    if (object.ux?.collectionPath) return true
+    return object.type === 'Image'
+      && Boolean(object.photoAreaId)
+      && editor.draftSnapshot.media.assignments.some((assignment) => assignment.entityId === object.photoAreaId)
+  })
   if (!sources.length || !editor.selectedObjectId) {
-    saveStatus.value = 'Duplicate is available for repeatable objects declared by object metadata.'
+    saveStatus.value = 'Duplicate is available for media instances and repeatable objects declared by object metadata.'
+    return
+  }
+  const imageInputs = sources.flatMap<DuplicateImageInstanceInput>((object) => {
+    if (object.type !== 'Image' || !object.photoAreaId) return []
+    const fallbackLayout = imageObjectLayout(object, false)
+    return fallbackLayout ? [{
+      sourceObjectId: object.id,
+      sourceAssignmentEntityId: object.photoAreaId,
+      sourceSection: object.section,
+      sourceLabel: object.label,
+      fallbackLayout
+    }] : []
+  })
+  let instanceDuplicates: ReturnType<typeof duplicateImageInstancesChanges>
+  try {
+    instanceDuplicates = duplicateImageInstancesChanges(editor.draftSnapshot, imageInputs)
+  } catch (error) {
+    saveStatus.value = error instanceof Error ? error.message : 'The selected image could not be duplicated.'
     return
   }
   const reserved = new Set(editor.objects.map((object) => object.id))
   const pairs: Array<{ sourceId: string; duplicateId: string }> = []
-  const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = []
+  const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = [...instanceDuplicates.changes]
   const byPath = new Map<string, EditorObject[]>()
-  for (const source of sources) {
+  for (const source of sources.filter((object) => object.type !== 'Image')) {
     const path = source.ux?.collectionPath
     if (path) byPath.set(path, [...(byPath.get(path) ?? []), source])
   }
@@ -2531,20 +2761,18 @@ async function duplicateSelectedObjects(): Promise<void> {
     changes.push({ propertyPath: path, nextValue: next as unknown as EditorValue })
   }
   for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
-    const record = cloneEditorData(editor.draftSnapshot[domain]) as Record<string, EditorValue>
-    let changed = false
     for (const pair of pairs) {
-      if (record[pair.sourceId] === undefined) continue
-      record[pair.duplicateId] = cloneEditorData(record[pair.sourceId])
-      changed = true
+      const value = editor.draftSnapshot[domain][pair.sourceId]
+      if (value !== undefined) changes.push({ propertyPath: `${domain}.${pair.duplicateId}`, nextValue: cloneEditorData(value) as unknown as EditorValue })
     }
-    if (changed) changes.push({ propertyPath: domain, nextValue: record })
   }
   for (const pair of pairs) changes.push(...cloneResponsiveObjectChanges(editor.draftSnapshot, pair.sourceId, pair.duplicateId))
-  if (!pairs.length || !editor.setProperties(editor.selectedObjectId, changes, {
-    objectIds: [...sources.map((object) => object.id), ...pairs.map((pair) => pair.duplicateId)],
-    duplicatedObjectIds: pairs.map((pair) => pair.duplicateId)
-  }, 'DUPLICATE_OBJECT')) {
+  const duplicateIds = [...instanceDuplicates.instances.map((instance) => instance.instanceId), ...pairs.map((pair) => pair.duplicateId)]
+  if (!duplicateIds.length || !editor.setProperties(editor.selectedObjectId, changes, {
+    objectIds: [...sources.map((object) => object.id), ...duplicateIds],
+    duplicatedObjectIds: duplicateIds,
+    interaction: instanceDuplicates.instances.length ? 'duplicate-instance' : 'duplicate-object'
+  }, instanceDuplicates.instances.length ? 'DUPLICATE_INSTANCE' : 'DUPLICATE_OBJECT')) {
     saveStatus.value = 'No metadata-declared object could be duplicated.'
     return
   }
@@ -2554,15 +2782,26 @@ async function duplicateSelectedObjects(): Promise<void> {
     visual: toRaw(editor.draftSnapshot.visual),
     behavior: toRaw(editor.draftSnapshot.behavior)
   }, [...byPath.keys()])
-  const duplicateId = pairs[0]?.duplicateId
+  const duplicateId = duplicateIds[0]
   if (duplicateId) selectRegisteredObject(duplicateId)
-  saveStatus.value = `Duplicated ${pairs.length} object${pairs.length === 1 ? '' : 's'}.`
+  saveStatus.value = `Duplicated ${duplicateIds.length} object${duplicateIds.length === 1 ? '' : 's'}.`
 }
 
 async function deleteSelectedObjects(): Promise<void> {
   const sources = selectedRuntimeObjects.value.filter((object) => !editor.objectState(object.id).locked)
   if (!sources.length || !editor.selectedObjectId) return
-  const hardDeleteIds = new Set(sources.filter((object) => object.ux?.collectionPath).map((object) => object.id))
+  const dynamicDeleteIds = sources.filter((object) => object.ux?.dynamicInstance).map((object) => object.id)
+  if (dynamicDeleteIds.length) {
+    const accepted = await productFeedback.confirm({
+      title: `Delete ${dynamicDeleteIds.length === 1 ? 'this image' : 'these images'}?`,
+      message: 'Only the page instance will be deleted. Media Library assets remain available.',
+      confirmLabel: dynamicDeleteIds.length === 1 ? 'Delete Image' : 'Delete Images',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    })
+    if (!accepted) return
+  }
+  const hardDeleteIds = new Set(sources.filter((object) => object.ux?.collectionPath || object.ux?.dynamicInstance).map((object) => object.id))
   const changes: Array<{ propertyPath: string; nextValue: EditorValue }> = []
   const paths = [...new Set(sources.map((object) => object.ux?.collectionPath).filter((path): path is string => Boolean(path)))]
   for (const path of paths) {
@@ -2576,16 +2815,20 @@ async function deleteSelectedObjects(): Promise<void> {
     changes.push({ propertyPath: `layout.${source.id}.display`, nextValue: 'none' })
   }
   if (hardDeleteIds.size) {
-    changes.push({ propertyPath: 'entities', nextValue: cloneEditorData(editor.draftSnapshot.entities).filter((entity) => !hardDeleteIds.has(entity.entityId)) as unknown as EditorValue })
-    for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
-      const record = cloneEditorData(editor.draftSnapshot[domain]) as Record<string, EditorValue>
-      for (const objectId of hardDeleteIds) delete record[objectId]
-      changes.push({ propertyPath: domain, nextValue: record })
+    const fixedHardDeleteIds = new Set([...hardDeleteIds].filter((objectId) => !isDynamicInstance(editor.draftSnapshot, objectId)))
+    if (fixedHardDeleteIds.size) {
+      changes.push({ propertyPath: 'entities', nextValue: cloneEditorData(editor.draftSnapshot.entities).filter((entity) => !fixedHardDeleteIds.has(entity.entityId)) as unknown as EditorValue })
+      for (const domain of ['typography', 'layout', 'backgrounds', 'buttons', 'animations'] as const) {
+        const record = cloneEditorData(editor.draftSnapshot[domain]) as Record<string, EditorValue>
+        for (const objectId of fixedHardDeleteIds) delete record[objectId]
+        changes.push({ propertyPath: domain, nextValue: record })
+      }
+      for (const objectId of fixedHardDeleteIds) changes.push(...removeResponsiveObjectChanges(editor.draftSnapshot, objectId))
     }
-    for (const objectId of hardDeleteIds) changes.push(...removeResponsiveObjectChanges(editor.draftSnapshot, objectId))
+    changes.push(...deleteEditorInstancesChanges(editor.draftSnapshot, dynamicDeleteIds))
   }
   const removedIds = sources.map((object) => object.id)
-  if (!editor.setProperties(editor.selectedObjectId, changes, { objectIds: removedIds }, 'DELETE_OBJECT')) return
+  if (!editor.setProperties(editor.selectedObjectId, changes, { objectIds: removedIds }, dynamicDeleteIds.length ? 'DELETE_INSTANCE' : 'DELETE_OBJECT')) return
   markEditorChanged()
   if (paths.length) site.hydrateEditorPreviewPaths({
     content: toRaw(editor.draftSnapshot.content),
@@ -3151,7 +3394,7 @@ function cancelLibrarySwitch(): void {
 
     <AssetPickerModal
       :open="showAssetPicker"
-      mode="browse"
+      mode="apply"
       :target-label="selectedEntity?.label"
       :current-asset-id="selectedMediaAssignment?.assetId"
       @close="showAssetPicker = false"

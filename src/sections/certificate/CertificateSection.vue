@@ -105,6 +105,7 @@ onBeforeUnmount(() => {
 <template>
   <section
     id="certificate"
+    data-editor-section-id="certificate"
     class="certificate-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,

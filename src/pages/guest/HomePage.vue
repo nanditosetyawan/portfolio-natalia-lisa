@@ -13,6 +13,7 @@ import {
   subscribePublishedRuntimeInvalidation
 } from '../../runtime/publishedRuntime'
 import { applyPublishedSnapshotDom } from '../../runtime/publishedSnapshotDom'
+import { responsiveBreakpointForWidth, type ResponsiveBreakpoint } from '../../editor/responsiveLayout'
 import { applyGuestSeo, updateHeroImagePreload } from '../../production/seo'
 
 const props = defineProps<{ editorPreview?: boolean }>()
@@ -21,13 +22,21 @@ const site = useSiteStore()
 const runtimeRoot = ref<HTMLElement | null>(null)
 const heroImageSource = computed(() => site.mediaSourceForUsage(site.current.content.profile.mediaUsageId))
 let unsubscribeRuntimeInvalidation: (() => void) | null = null
+let appliedRuntimeBreakpoint: ResponsiveBreakpoint | null = null
 const guestRuntimeReady = props.editorPreview ? null : initializePublishedRuntime()
 
 async function applyPublishedStyles(): Promise<void> {
   await nextTick()
   if (!props.editorPreview && runtimeRoot.value && activeGuestEditorSnapshot.value) {
     applyPublishedSnapshotDom(runtimeRoot.value, activeGuestEditorSnapshot.value)
+    appliedRuntimeBreakpoint = responsiveBreakpointForWidth(runtimeRoot.value.clientWidth || window.innerWidth)
   }
+}
+
+function handleRuntimeResize(): void {
+  if (props.editorPreview || !runtimeRoot.value || !activeGuestEditorSnapshot.value) return
+  const next = responsiveBreakpointForWidth(runtimeRoot.value.clientWidth || window.innerWidth)
+  if (next !== appliedRuntimeBreakpoint) void applyPublishedStyles()
 }
 
 async function retryPublishedRuntime(): Promise<void> {
@@ -40,8 +49,12 @@ onMounted(async () => {
   if (guestRuntimeReady) await guestRuntimeReady
   await applyPublishedStyles()
   if (!props.editorPreview) unsubscribeRuntimeInvalidation = subscribePublishedRuntimeInvalidation()
+  if (!props.editorPreview) window.addEventListener('resize', handleRuntimeResize, { passive: true })
 })
-onUnmounted(() => unsubscribeRuntimeInvalidation?.())
+onUnmounted(() => {
+  unsubscribeRuntimeInvalidation?.()
+  window.removeEventListener('resize', handleRuntimeResize)
+})
 watch(activeGuestEditorSnapshot, applyPublishedStyles)
 watch(heroImageSource, (source) => {
   if (!props.editorPreview) updateHeroImagePreload(source)

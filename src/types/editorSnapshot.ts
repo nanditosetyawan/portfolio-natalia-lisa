@@ -1,9 +1,10 @@
 import type { SiteSnapshot } from '../data/default/site'
 import type { CertificateCard } from '../data/default/certificates'
 
-export const EDITOR_SNAPSHOT_SCHEMA_VERSION = 1 as const
-export const EDITOR_SNAPSHOT_READER_VERSION = 1 as const
-export type EditorSnapshotSchemaVersion = typeof EDITOR_SNAPSHOT_SCHEMA_VERSION
+export const EDITOR_SNAPSHOT_SCHEMA_VERSION = 2 as const
+export const EDITOR_SNAPSHOT_READER_VERSION = 2 as const
+export const EDITOR_SNAPSHOT_MINIMUM_SUPPORTED_VERSION = 1 as const
+export type EditorSnapshotSchemaVersion = 1 | typeof EDITOR_SNAPSHOT_SCHEMA_VERSION
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
@@ -19,6 +20,26 @@ export interface SnapshotEntityReference {
   section: string
   kind: 'content' | 'text' | 'frame' | 'media' | 'navigation' | 'button' | 'container' | 'background' | 'divider' | 'icon'
   label: string
+}
+
+export type EditorInstanceType = 'image'
+
+/**
+ * Canonical identity/placement manifest for objects added after the fixed
+ * template was authored. Visual values remain in the existing sparse maps,
+ * keyed by instanceId, so this does not create a parallel property model.
+ */
+export interface EditorInstance {
+  instanceId: string
+  type: EditorInstanceType
+  sectionId: string
+  label: string
+  order: number
+  source: {
+    kind: 'media-assignment'
+    assignmentEntityId: string
+  }
+  createdAt: string
 }
 
 export interface TypographySettings {
@@ -76,6 +97,8 @@ export interface MediaStyleSettings {
   hoverEnabled?: boolean
   outlineEnabled?: boolean
   outlineWidth?: number
+  aspectRatioLocked?: boolean
+  aspectRatio?: number
 }
 
 export interface BackgroundSettings {
@@ -133,6 +156,8 @@ export interface EditorSnapshot {
     draftRevisionNumber: number | null
   }
   entities: SnapshotEntityReference[]
+  /** Additive canonical objects; fixed-template entities remain in entities. */
+  instances: EditorInstance[]
   content: SiteSnapshot['content']
   certificateCards: CertificateCard[]
   typography: Record<string, TypographySettings>

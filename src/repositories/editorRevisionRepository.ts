@@ -298,9 +298,9 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
   constructor(actorId = 'runtime-test-admin') { this.actorId = actorId }
 
   seedPublished(snapshot: EditorSnapshot, revisionNumber = 1): void {
-    assertSnapshot(snapshot)
+    const normalizedSnapshot = assertSnapshot(snapshot)
     const now = new Date().toISOString()
-    this.records.push({ id: `published-${revisionNumber}`, revision_number: revisionNumber, lock_version: 1, status: 'published', snapshot: clone(snapshot), base_revision_number: revisionNumber - 1 || null, created_by: this.actorId, created_at: now, updated_at: now, published_at: now, source_draft_revision_id: null, published_by: this.actorId, publish_note: null, publication_kind: 'publish', rollback_source_revision_id: null })
+    this.records.push({ id: `published-${revisionNumber}`, revision_number: revisionNumber, lock_version: 1, status: 'published', snapshot: clone(normalizedSnapshot), base_revision_number: revisionNumber - 1 || null, created_by: this.actorId, created_at: now, updated_at: now, published_at: now, source_draft_revision_id: null, published_by: this.actorId, publish_note: null, publication_kind: 'publish', rollback_source_revision_id: null })
   }
 
   async loadDraft(draftRevisionId?: string): Promise<SaveDraftResult | null> {
@@ -315,7 +315,7 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
   async countDrafts(): Promise<number> { return (await this.listDrafts()).length }
 
   async saveDraft(input: SaveDraftInput): Promise<SaveDraftResult> {
-    assertSnapshot(input.snapshot)
+    const normalizedSnapshot = assertSnapshot(input.snapshot)
     const published = this.records.filter((candidate) => candidate.status === 'published').sort((a, b) => b.revision_number - a.revision_number)[0]
     const currentBase = published?.revision_number ?? null
     if (currentBase !== input.expectedBaseRevision) throw new RevisionConflictError()
@@ -325,8 +325,8 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
     if (!existing && (await this.countDrafts()) >= 10) throw new DraftLimitError()
     const now = new Date().toISOString()
     const revision: RevisionRecord = existing
-      ? { ...existing, snapshot: withDraftMedia(input.snapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, lock_version: existing.lock_version + 1, updated_at: now }
-      : { id: `draft-${nextRevision(this.records)}`, revision_number: nextRevision(this.records), lock_version: 1, status: 'draft', snapshot: withDraftMedia(input.snapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, created_by: this.actorId, created_at: now, updated_at: now, published_at: null, source_draft_revision_id: null, published_by: null, publish_note: null, publication_kind: null, rollback_source_revision_id: null }
+      ? { ...existing, snapshot: withDraftMedia(normalizedSnapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, lock_version: existing.lock_version + 1, updated_at: now }
+      : { id: `draft-${nextRevision(this.records)}`, revision_number: nextRevision(this.records), lock_version: 1, status: 'draft', snapshot: withDraftMedia(normalizedSnapshot, input.mediaReferences), base_revision_number: input.expectedBaseRevision, created_by: this.actorId, created_at: now, updated_at: now, published_at: null, source_draft_revision_id: null, published_by: null, publish_note: null, publication_kind: null, rollback_source_revision_id: null }
     this.records = [...this.records.filter((candidate) => candidate.id !== revision.id), revision]
     this.media.set(revision.id, clone(input.mediaReferences))
     return { revision: clone(revision), mediaReferences: clone(input.mediaReferences) }

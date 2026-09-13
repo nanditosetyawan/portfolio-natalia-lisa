@@ -11,6 +11,7 @@ const vConfig = computed(() => site.current.visual.education)
 <template>
   <section
     id="education"
+    data-editor-section-id="education"
     :data-entity-id="education.id"
     class="education-section"
     :style="{

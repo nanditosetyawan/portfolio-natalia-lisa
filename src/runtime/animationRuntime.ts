@@ -11,9 +11,10 @@ import {
   type MotionEffectContext,
   type MotionEffectDefinition
 } from '../editor/animationRegistry'
-import { materializeResponsiveObjectSnapshot, type ResponsiveBreakpoint } from '../editor/responsiveLayout'
+import { materializeResponsiveObjectSnapshot, responsiveBreakpointForWidth, type ResponsiveBreakpoint } from '../editor/responsiveLayout'
 import type { AnimationSettings, EditorSnapshot } from '../types/editorSnapshot'
 import { resolveSnapshotObjectDomTarget } from '../editor/objectDomTarget'
+import { snapshotObjectReferences } from '../editor/editorInstances'
 
 interface AnimationObjectScope {
   animations: Set<Animation>
@@ -55,13 +56,6 @@ function objectScopeFor(root: HTMLElement, objectId: string): AnimationObjectSco
   const created: AnimationObjectScope = { animations: new Set(), cleanups: [], timers: new Set(), elements: new Set() }
   rootScope.objects.set(objectId, created)
   return created
-}
-
-function effectiveBreakpoint(width: number): ResponsiveBreakpoint {
-  if (width <= 480) return 'mobile'
-  if (width <= 820) return 'tablet'
-  if (width <= 1100) return 'laptop'
-  return 'desktop'
 }
 
 function effectiveSettings(
@@ -365,7 +359,7 @@ export function applyAnimationObject(
   options: AnimationRuntimeOptions = {}
 ): void {
   clearObjectScope(root, objectId)
-  const breakpoint = options.breakpoint ?? effectiveBreakpoint(root.clientWidth || window.innerWidth)
+  const breakpoint = options.breakpoint ?? responsiveBreakpointForWidth(root.clientWidth || window.innerWidth)
   const settings = effectiveSettings(snapshot, objectId, breakpoint)
   const disabled = animationsGloballyDisabled(snapshot)
   const reduced = options.respectReducedMotion !== false && prefersReducedMotion()
@@ -406,7 +400,7 @@ export function applyAnimationRuntime(
   const reduced = options.respectReducedMotion !== false && prefersReducedMotion()
   root.dataset.animationsDisabled = disabled ? 'global' : reduced ? 'reduced-motion' : 'false'
   if (disabled || reduced) return
-  for (const entity of snapshot.entities) applyAnimationObject(root, snapshot, entity.entityId, options)
+  for (const entity of snapshotObjectReferences(snapshot)) applyAnimationObject(root, snapshot, entity.entityId, options)
 }
 
 export function previewAnimation(
@@ -418,7 +412,7 @@ export function previewAnimation(
 ): AnimationPreviewResult {
   if (animationsGloballyDisabled(snapshot)) return { played: false, reason: 'disabled', tracks: [] }
   if (prefersReducedMotion()) return { played: false, reason: 'reduced-motion', tracks: [] }
-  const targetBreakpoint = breakpoint ?? effectiveBreakpoint(root.clientWidth || window.innerWidth)
+  const targetBreakpoint = breakpoint ?? responsiveBreakpointForWidth(root.clientWidth || window.innerWidth)
   const settings = effectiveSettings(snapshot, objectId, targetBreakpoint)
   if (!hasAnimation(settings)) return { played: false, reason: 'not-configured', tracks: [] }
   applyAnimationObject(root, snapshot, objectId, { breakpoint: targetBreakpoint, autoplayEntrance: false })

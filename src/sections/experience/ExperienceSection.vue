@@ -8,6 +8,7 @@
   <section
     id="experience"
     ref="sectionRef"
+    data-editor-section-id="experience"
     class="experience-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,

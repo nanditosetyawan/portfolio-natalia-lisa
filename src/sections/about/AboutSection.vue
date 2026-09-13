@@ -17,6 +17,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
 <template>
   <section
     id="about"
+    data-editor-section-id="about"
     :data-entity-id="about.id"
     class="about-section"
     :style="{

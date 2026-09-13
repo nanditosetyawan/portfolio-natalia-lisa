@@ -5,13 +5,15 @@ import { useAdminEntityRegistry, type RuntimeAdminEntity } from './useAdminEntit
 import { usePhotoAreaRegistry } from './usePhotoAreaRegistry'
 import { useCertificatesStore } from '../stores/certificates'
 import { useSiteStore } from '../stores/site'
+import { editorSectionLabel } from '../editor/editorInstances'
+import type { EditorSnapshot } from '../types/editorSnapshot'
 
 export interface EditorRuntimeObject extends EditorObject {
   properties: RuntimeAdminEntity['properties']
   photoAreaId?: string
 }
 
-export function useEditorObjectRegistry(): ComputedRef<EditorRuntimeObject[]> {
+export function useEditorObjectRegistry(snapshot?: ComputedRef<EditorSnapshot>): ComputedRef<EditorRuntimeObject[]> {
   const runtimeEntities = useAdminEntityRegistry()
   const photoRegistry = usePhotoAreaRegistry()
   const site = useSiteStore()
@@ -70,6 +72,21 @@ export function useEditorObjectRegistry(): ComputedRef<EditorRuntimeObject[]> {
         properties: existing?.properties ?? [],
         photoAreaId: area.id
       })
+    }
+
+    if (snapshot) {
+      for (const instance of [...snapshot.value.instances].sort((left, right) => left.sectionId.localeCompare(right.sectionId) || left.order - right.order)) {
+        const object = createEditorObject({
+          id: instance.instanceId,
+          section: editorSectionLabel(snapshot.value, instance.sectionId),
+          label: instance.label,
+          kind: 'media',
+          objectType: 'Image',
+          isMedia: true,
+          ux: { dynamicInstance: true }
+        }, order++)
+        objects.set(object.id, { ...object, properties: [], photoAreaId: instance.instanceId })
+      }
     }
 
     return [...objects.values()].sort((left, right) => left.order - right.order)

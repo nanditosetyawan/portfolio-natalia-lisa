@@ -45,6 +45,10 @@ export type EditorCommandType =
   | 'RENAME'
   | 'DELETE_OBJECT'
   | 'DUPLICATE_OBJECT'
+  | 'INSERT_INSTANCE'
+  | 'DELETE_INSTANCE'
+  | 'DUPLICATE_INSTANCE'
+  | 'REORDER_INSTANCE'
 
 export interface EditorCommandChange {
   propertyPath: string
@@ -81,6 +85,8 @@ export interface EditorObjectUxMetadata {
   collectionPath?: string
   /** Existing canonical visual path used by media fit controls when that object exposes one. */
   mediaFitPath?: string
+  /** Marks an object whose canonical identity lives in EditorSnapshot.instances. */
+  dynamicInstance?: boolean
 }
 
 export interface EditorObject extends EntityDescriptor {

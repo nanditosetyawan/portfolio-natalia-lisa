@@ -1,5 +1,6 @@
 import type { EditorObjectType } from '../types/editor'
 import type { EditorSnapshot, SnapshotEntityReference } from '../types/editorSnapshot'
+import { findSnapshotObjectReference } from './editorInstances'
 
 export type ObjectDomTargetKind = EditorObjectType | SnapshotEntityReference['kind'] | string | undefined
 
@@ -9,7 +10,8 @@ const candidateSelector = [
   '[data-entity-id]',
   '[data-media-usage-id]',
   '[data-photo-area-id]',
-  '[data-certificate-id]'
+  '[data-certificate-id]',
+  '[data-snapshot-instance-id]'
 ].join(', ')
 
 const leafTags = new Set(['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'LABEL', 'STRONG', 'EM'])
@@ -34,6 +36,7 @@ function matchesObjectId(element: HTMLElement, objectId: string): boolean {
     || element.dataset.mediaUsageId === objectId
     || element.dataset.photoAreaId === objectId
     || element.dataset.certificateId === objectId
+    || element.dataset.snapshotInstanceId === objectId
 }
 
 function candidatesFor(root: HTMLElement, objectId: string): HTMLElement[] {
@@ -44,6 +47,7 @@ function candidatesFor(root: HTMLElement, objectId: string): HTMLElement[] {
 
 function semanticScore(element: HTMLElement, objectId: string, type: EditorObjectType | undefined): number {
   let score = element.dataset.editorObjectId === objectId ? 1000 : 0
+  if (element.dataset.snapshotInstanceId === objectId) score += 900
   if (element.dataset.editorEntityId === objectId) score += 100
   if (element.dataset.entityId === objectId) score += 20
   if (element.dataset.mediaUsageId === objectId) score += type === 'Image' ? 420 : 40
@@ -127,6 +131,6 @@ export function resolveSnapshotObjectDomTarget(
   snapshot: EditorSnapshot,
   objectId: string
 ): HTMLElement | null {
-  const entity = snapshot.entities.find((candidate) => candidate.entityId === objectId)
+  const entity = findSnapshotObjectReference(snapshot, objectId)
   return resolveObjectDomTarget(root, objectId, entity?.kind)
 }

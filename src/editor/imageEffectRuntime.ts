@@ -2,6 +2,7 @@ import type { EditorSnapshot } from '../types/editorSnapshot'
 import type { EditorValue, PropertyPreviewUpdater } from '../types/editor'
 import { parseBorderValue } from './borderValue'
 import { parseShadowValue, shadowColor, splitShadowLayers } from './shadowValue'
+import { findSnapshotObjectReference } from './editorInstances'
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 const rootIdentifiers = new WeakMap<HTMLElement, string>()
@@ -16,7 +17,7 @@ interface ImageFilterDefinition {
 }
 
 function isImageObject(snapshot: EditorSnapshot, entityId: string): boolean {
-  return snapshot.entities.find((entity) => entity.entityId === entityId)?.kind === 'media'
+  return findSnapshotObjectReference(snapshot, entityId)?.kind === 'media'
 }
 
 function runtimeRoot(element: HTMLElement): HTMLElement {

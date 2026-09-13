@@ -4,12 +4,18 @@ import type { MediaUsage, PhotoAreaEntity } from '../types/site'
 import { validateRegisteredProperties } from './propertyRegistry'
 import { validateEncodedAnimationName } from './animationRegistry'
 import {
+  EDITOR_SNAPSHOT_MINIMUM_SUPPORTED_VERSION,
   EDITOR_SNAPSHOT_READER_VERSION,
   EDITOR_SNAPSHOT_SCHEMA_VERSION,
   type EditorSnapshot,
   type SnapshotEntityReference,
   type SnapshotValidationResult
 } from '../types/editorSnapshot'
+import {
+  MAX_DYNAMIC_INSTANCES_PER_SECTION,
+  MAX_DYNAMIC_INSTANCES_PER_SNAPSHOT,
+  normalizeEditorSectionId
+} from './editorInstances'
 
 const clone = <T>(value: T): T => {
   try { return structuredClone(value) }
@@ -53,9 +59,10 @@ function entityReferences(snapshot: SiteSnapshot): SnapshotEntityReference[] {
 
 export function createEditorSnapshot(snapshot: SiteSnapshot, revision: Partial<EditorSnapshot['revision']> = {}): EditorSnapshot {
   return {
-    compatibility: { schemaVersion: EDITOR_SNAPSHOT_SCHEMA_VERSION, minimumReaderVersion: EDITOR_SNAPSHOT_READER_VERSION, maximumWriterVersion: EDITOR_SNAPSHOT_READER_VERSION },
+    compatibility: { schemaVersion: EDITOR_SNAPSHOT_SCHEMA_VERSION, minimumReaderVersion: EDITOR_SNAPSHOT_MINIMUM_SUPPORTED_VERSION, maximumWriterVersion: EDITOR_SNAPSHOT_READER_VERSION },
     revision: { baseRevisionNumber: revision.baseRevisionNumber ?? null, draftRevisionNumber: revision.draftRevisionNumber ?? null },
     entities: entityReferences(snapshot),
+    instances: [],
     content: clone(snapshot.content),
     certificateCards: [],
     typography: {},
@@ -103,17 +110,59 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     if (!Array.isArray(normalized.session.expandedLayers)) normalized.session.expandedLayers = []
   }
   const compatibility = normalized.compatibility
+  let sourceSchemaVersion: number | null = null
   if (!isRecord(compatibility)) errors.push('compatibility is required.')
   else {
-    if (compatibility.schemaVersion !== EDITOR_SNAPSHOT_SCHEMA_VERSION) errors.push(`Unsupported schema version: ${String(compatibility.schemaVersion)}.`)
+    sourceSchemaVersion = Number(compatibility.schemaVersion)
+    if (!Number.isInteger(sourceSchemaVersion)
+      || sourceSchemaVersion < EDITOR_SNAPSHOT_MINIMUM_SUPPORTED_VERSION
+      || sourceSchemaVersion > EDITOR_SNAPSHOT_SCHEMA_VERSION) errors.push(`Unsupported schema version: ${String(compatibility.schemaVersion)}.`)
     if (Number(compatibility.minimumReaderVersion) > EDITOR_SNAPSHOT_READER_VERSION) errors.push('Snapshot requires a newer reader.')
-    if (Number(compatibility.maximumWriterVersion) < EDITOR_SNAPSHOT_READER_VERSION) errors.push('Snapshot was written by an incompatible writer.')
+    if (!Number.isInteger(Number(compatibility.minimumReaderVersion)) || Number(compatibility.minimumReaderVersion) < 1) errors.push('Snapshot minimumReaderVersion is invalid.')
+    if (!Number.isInteger(Number(compatibility.maximumWriterVersion)) || Number(compatibility.maximumWriterVersion) < 1) errors.push('Snapshot maximumWriterVersion is invalid.')
   }
   if (!isRecord(normalized.revision)) errors.push('revision is required.')
   if (!Array.isArray(normalized.entities)) errors.push('entities must be an array.')
   else normalized.entities.forEach((entity, index) => {
     if (!isRecord(entity) || typeof entity.entityId !== 'string' || !ENTITY_ID_PATTERN.test(entity.entityId) || typeof entity.section !== 'string' || typeof entity.kind !== 'string' || typeof entity.label !== 'string') errors.push(`entities[${index}] is invalid.`)
   })
+  if (sourceSchemaVersion === 1 && !Array.isArray(normalized.instances)) normalized.instances = []
+  if (!Array.isArray(normalized.instances)) errors.push('instances must be an array.')
+  else {
+    if (normalized.instances.length > MAX_DYNAMIC_INSTANCES_PER_SNAPSHOT) errors.push(`instances exceeds the maximum of ${MAX_DYNAMIC_INSTANCES_PER_SNAPSHOT}.`)
+    const fixedIds = new Set(Array.isArray(normalized.entities)
+      ? normalized.entities.flatMap((entity) => isRecord(entity) && typeof entity.entityId === 'string' ? [entity.entityId] : [])
+      : [])
+    const instanceIds = new Set<string>()
+    const sectionCounts = new Map<string, number>()
+    normalized.instances.forEach((instance, index) => {
+      if (!isRecord(instance)) {
+        errors.push(`instances[${index}] is invalid.`)
+        return
+      }
+      const instanceId = typeof instance.instanceId === 'string' ? instance.instanceId : ''
+      const sectionId = typeof instance.sectionId === 'string' ? normalizeEditorSectionId(instance.sectionId) : ''
+      if (!ENTITY_ID_PATTERN.test(instanceId)
+        || instance.type !== 'image'
+        || !ENTITY_ID_PATTERN.test(sectionId)
+        || !validString(instance.label, 128)
+        || typeof instance.order !== 'number'
+        || !Number.isInteger(instance.order)
+        || instance.order < 0
+        || instance.order > 100000
+        || !validString(instance.createdAt, 64)
+        || !Number.isFinite(Date.parse(String(instance.createdAt)))
+        || !isRecord(instance.source)
+        || instance.source.kind !== 'media-assignment'
+        || instance.source.assignmentEntityId !== instanceId) errors.push(`instances[${index}] is invalid.`)
+      if (fixedIds.has(instanceId) || instanceIds.has(instanceId)) errors.push(`instances[${index}].instanceId is not unique.`)
+      instanceIds.add(instanceId)
+      if (sectionId) sectionCounts.set(sectionId, (sectionCounts.get(sectionId) ?? 0) + 1)
+    })
+    for (const [sectionId, count] of sectionCounts) {
+      if (count > MAX_DYNAMIC_INSTANCES_PER_SECTION) errors.push(`instances for ${sectionId} exceed the maximum of ${MAX_DYNAMIC_INSTANCES_PER_SECTION}.`)
+    }
+  }
   if (!isRecord(normalized.content)) errors.push('content is required.')
   if (!Array.isArray(normalized.certificateCards)) normalized.certificateCards = []
   for (const key of ['typography', 'layout', 'backgrounds', 'buttons', 'animations']) if (!isRecord(normalized[key])) errors.push(`${key} must be an object.`)
@@ -164,11 +213,43 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
       if (reference.storagePath !== undefined && (typeof reference.storagePath !== 'string' || !validString(reference.storagePath, 1024) || reference.storagePath.startsWith('/') || reference.storagePath.includes('..'))) errors.push(`media.references[${index}].storagePath is invalid.`)
       for (const field of ['width', 'height']) if (reference[field] !== undefined && (typeof reference[field] !== 'number' || !Number.isFinite(reference[field]) || reference[field] < 0 || reference[field] > 100000)) errors.push(`media.references[${index}].${field} is invalid.`)
     }
-    for (const [index, assignment] of (normalized.media.assignments as unknown[]).entries()) if (!isRecord(assignment) || typeof assignment.entityId !== 'string' || !ENTITY_ID_PATTERN.test(assignment.entityId) || !validString(assignment.role, 128) || typeof assignment.assetId !== 'string' || !ENTITY_ID_PATTERN.test(assignment.assetId) || (assignment.objectPosition !== undefined && !validString(assignment.objectPosition, 128))) errors.push(`media.assignments[${index}] is invalid.`)
+    const assignmentEntityIds = new Set<string>()
+    for (const [index, assignment] of (normalized.media.assignments as unknown[]).entries()) {
+      if (!isRecord(assignment) || typeof assignment.entityId !== 'string' || !ENTITY_ID_PATTERN.test(assignment.entityId) || !validString(assignment.role, 128) || typeof assignment.assetId !== 'string' || !ENTITY_ID_PATTERN.test(assignment.assetId) || (assignment.objectPosition !== undefined && !validString(assignment.objectPosition, 128))) errors.push(`media.assignments[${index}] is invalid.`)
+      else if (assignmentEntityIds.has(assignment.entityId)) errors.push(`media.assignments[${index}].entityId is not unique.`)
+      else assignmentEntityIds.add(assignment.entityId)
+    }
     for (const [key, settings] of Object.entries(normalized.media.styles as Record<string, unknown>)) {
       if (!isRecord(settings)) { errors.push(`media.styles.${key} is invalid.`); continue }
       for (const field of ['hoverEnabled', 'outlineEnabled']) if (settings[field] !== undefined && typeof settings[field] !== 'boolean') errors.push(`media.styles.${key}.${field} is invalid.`)
       if (settings.outlineWidth !== undefined && (typeof settings.outlineWidth !== 'number' || !Number.isFinite(settings.outlineWidth) || settings.outlineWidth < 0 || settings.outlineWidth > 64)) errors.push(`media.styles.${key}.outlineWidth is invalid.`)
+      if (settings.aspectRatioLocked !== undefined && typeof settings.aspectRatioLocked !== 'boolean') errors.push(`media.styles.${key}.aspectRatioLocked is invalid.`)
+      if (settings.aspectRatio !== undefined && (typeof settings.aspectRatio !== 'number' || !Number.isFinite(settings.aspectRatio) || settings.aspectRatio <= 0 || settings.aspectRatio > 1000)) errors.push(`media.styles.${key}.aspectRatio is invalid.`)
+    }
+    if (Array.isArray(normalized.instances)) {
+      const assignments = new Map((normalized.media.assignments as unknown[]).flatMap((assignment) => isRecord(assignment) && typeof assignment.entityId === 'string' ? [[assignment.entityId, assignment]] : []))
+      const references = new Set((normalized.media.references as unknown[]).flatMap((reference) => isRecord(reference) && typeof reference.assetId === 'string' ? [reference.assetId] : []))
+      const knownSections = new Set(Array.isArray(normalized.entities)
+        ? normalized.entities.flatMap((entity) => isRecord(entity) && typeof entity.section === 'string' ? [normalizeEditorSectionId(entity.section)] : [])
+        : [])
+      const sectionOrders = new Map<string, Set<number>>()
+      normalized.instances.forEach((instance, index) => {
+        if (!isRecord(instance) || typeof instance.instanceId !== 'string' || instance.type !== 'image') return
+        const sectionId = typeof instance.sectionId === 'string' ? normalizeEditorSectionId(instance.sectionId) : ''
+        if (!knownSections.has(sectionId)) errors.push(`instances[${index}] references unknown section ${sectionId}.`)
+        const orders = sectionOrders.get(sectionId) ?? new Set<number>()
+        if (typeof instance.order === 'number' && orders.has(instance.order)) errors.push(`instances[${index}].order is not unique within ${sectionId}.`)
+        if (typeof instance.order === 'number') orders.add(instance.order)
+        sectionOrders.set(sectionId, orders)
+        const assignment = assignments.get(instance.instanceId)
+        if (!assignment) errors.push(`instances[${index}] has no media assignment.`)
+        else if (typeof assignment.assetId !== 'string' || !references.has(assignment.assetId)) errors.push(`instances[${index}] references a missing media asset.`)
+        const layout = isRecord(normalized.layout) ? normalized.layout[instance.instanceId] : undefined
+        if (!isRecord(layout)
+          || layout.positionMode !== 'absolute'
+          || !validCssLength(layout.width, true)
+          || !validCssLength(layout.height, true)) errors.push(`instances[${index}] requires absolute layout with valid width and height.`)
+      })
     }
   }
   for (const [key, settings] of Object.entries(normalized.backgrounds ?? {})) {
@@ -203,13 +284,20 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
       errors.push(`${propertyError.propertyPath}: ${propertyError.message}`)
     }
   }
+  if (!errors.length && isRecord(normalized.compatibility)) {
+    normalized.compatibility = {
+      schemaVersion: EDITOR_SNAPSHOT_SCHEMA_VERSION,
+      minimumReaderVersion: EDITOR_SNAPSHOT_MINIMUM_SUPPORTED_VERSION,
+      maximumWriterVersion: EDITOR_SNAPSHOT_READER_VERSION
+    }
+  }
   return errors.length ? { valid: false, errors } : { valid: true, errors: [], value: clone(normalized as unknown as EditorSnapshot) }
 }
 
 export function serializeEditorSnapshot(snapshot: EditorSnapshot): string {
   const result = validateEditorSnapshot(snapshot)
-  if (!result.valid) throw new Error(`Cannot serialize invalid EditorSnapshot: ${result.errors.join(' ')}`)
-  return JSON.stringify(snapshot)
+  if (!result.valid || !result.value) throw new Error(`Cannot serialize invalid EditorSnapshot: ${result.errors.join(' ')}`)
+  return JSON.stringify(result.value)
 }
 
 export function deserializeEditorSnapshot(serialized: string): EditorSnapshot {

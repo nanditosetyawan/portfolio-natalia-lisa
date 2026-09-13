@@ -14,6 +14,7 @@ import {
 } from '../repositories/mediaRepository'
 import { editorDraftRepository, editorPublishRepository, type RevisionRecord } from '../repositories/editorRevisionRepository'
 import type { EditorSnapshot, SnapshotMediaReference } from '../types/editorSnapshot'
+import { findSnapshotObjectReference } from '../editor/editorInstances'
 import type {
   AssetLibraryQuery,
   MediaAssetKind,
@@ -55,7 +56,7 @@ function classifyAsset(name: string, mimeType: string, usages: MediaAssetUsage[]
 }
 
 function usageLabel(snapshot: EditorSnapshot, entityId: string): { label: string; section: string } {
-  const entity = snapshot.entities.find((candidate) => candidate.entityId === entityId)
+  const entity = findSnapshotObjectReference(snapshot, entityId)
   if (entity) return { label: entity.label, section: entity.section }
   return { label: titleCase(entityId), section: titleCase(entityId.split(/[-.:]/)[0] ?? 'Media') }
 }

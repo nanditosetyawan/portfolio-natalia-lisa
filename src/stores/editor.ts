@@ -54,6 +54,7 @@ function applyCommandValue(snapshot: EditorSnapshot, command: EditorCommand, dir
 function contentSignature(snapshot: EditorSnapshot): string {
   return JSON.stringify({
     entities: snapshot.entities,
+    instances: snapshot.instances,
     content: snapshot.content,
     certificateCards: snapshot.certificateCards,
     typography: snapshot.typography,
@@ -164,6 +165,7 @@ export const useEditorStore = defineStore('editor', {
     },
     initialize(snapshot: EditorSnapshot, revision: Partial<EditorRevisionState> = {}) {
       this.draftSnapshot = clone(snapshot)
+      this.draftSnapshot.instances ??= []
       this.draftSnapshot.session.objectStates ??= {}
       this.draftSnapshot.session.expandedLayers ??= []
       this.draftRevisionId = revision.draftRevisionId ?? null
@@ -190,6 +192,7 @@ export const useEditorStore = defineStore('editor', {
     },
     registerObjects(objects: EditorObject[]) {
       const currentById = new Map(this.draftSnapshot.entities.map((entity) => [entity.entityId, entity]))
+      const instanceLabels = new Map(this.draftSnapshot.instances.map((instance) => [instance.instanceId, instance.label]))
       const previousById = new Map(this.objects.map((object) => [object.id, object]))
       const previousOrder = new Map(this.objects.map((object, index) => [object.id, index]))
       const normalizedObjects = objects.map((object) => {
@@ -197,8 +200,8 @@ export const useEditorStore = defineStore('editor', {
         return clone({
         id: object.id,
         entityId: object.entityId,
-        name: currentById.get(object.id)?.label ?? object.name,
-        label: currentById.get(object.id)?.label ?? object.label,
+        name: currentById.get(object.id)?.label ?? instanceLabels.get(object.id) ?? object.name,
+        label: currentById.get(object.id)?.label ?? instanceLabels.get(object.id) ?? object.label,
         type: object.type,
         objectType: object.objectType,
         kind: object.kind,
@@ -223,6 +226,7 @@ export const useEditorStore = defineStore('editor', {
       }).map((object, order) => ({ ...object, order }))
       if (JSON.stringify(this.objects) !== JSON.stringify(normalizedObjects)) this.objects = normalizedObjects
       for (const object of objects) {
+        if (object.ux?.dynamicInstance) continue
         const next = toSnapshotEntityReference(object)
         const existing = currentById.get(object.id)
         currentById.set(object.id, existing ? { ...next, label: existing.label } : next)
@@ -342,6 +346,7 @@ export const useEditorStore = defineStore('editor', {
     },
     syncObjectLabels() {
       const labels = new Map(this.draftSnapshot.entities.map((entity) => [entity.entityId, entity.label]))
+      for (const instance of this.draftSnapshot.instances) labels.set(instance.instanceId, instance.label)
       this.objects = this.objects.map((object) => {
         const label = labels.get(object.id)
         return label === undefined || (object.name === label && object.label === label)
@@ -352,8 +357,10 @@ export const useEditorStore = defineStore('editor', {
     renameObject(objectId: string, name: string): boolean {
       const normalized = name.trim()
       const index = this.draftSnapshot.entities.findIndex((entity) => entity.entityId === objectId)
-      if (!normalized || index < 0) return false
-      const applied = this.setProperty(objectId, `entities.${index}.label`, normalized, 'RENAME')
+      const instanceIndex = this.draftSnapshot.instances.findIndex((instance) => instance.instanceId === objectId)
+      if (!normalized || (index < 0 && instanceIndex < 0)) return false
+      const path = instanceIndex >= 0 ? `instances.${instanceIndex}.label` : `entities.${index}.label`
+      const applied = this.setProperty(objectId, path, normalized, 'RENAME')
       if (applied) this.syncObjectLabels()
       return applied
     },

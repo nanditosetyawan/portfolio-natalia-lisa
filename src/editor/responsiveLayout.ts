@@ -9,6 +9,13 @@ import type { EditorSnapshot, LayoutSettings } from '../types/editorSnapshot'
 import { resolveObjectDomTarget } from './objectDomTarget'
 
 export type ResponsiveBreakpoint = 'desktop' | 'laptop' | 'tablet' | 'mobile'
+
+export function responsiveBreakpointForWidth(width: number): ResponsiveBreakpoint {
+  if (width <= 480) return 'mobile'
+  if (width <= 820) return 'tablet'
+  if (width <= 1100) return 'laptop'
+  return 'desktop'
+}
 export type ResponsiveCanvasPresetId = 'desktop-1440' | 'desktop-1280' | 'laptop-1024' | 'tablet-768' | 'mobile-390'
 
 export interface ResponsiveCanvasPreset {
