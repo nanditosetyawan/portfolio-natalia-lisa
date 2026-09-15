@@ -61,7 +61,7 @@
                 type="file"
                 ref="fileInput"
                 multiple
-                accept=".webp,.pdf,.gif"
+                :accept="MEDIA_LIBRARY_FILE_ACCEPT"
                 class="hidden-file-input"
                 @click.stop
                 @change="onFileSelected"
@@ -171,6 +171,7 @@ import {
 } from 'lucide-vue-next'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import { productFeedback } from '../../composables/useProductFeedback'
+import { MEDIA_LIBRARY_FILE_ACCEPT, validateMediaUploadFile } from '../../lib/mediaUploadRules'
 
 interface MediaCategory {
   id: 'upload' | 'images' | 'videos' | 'documents'
@@ -313,14 +314,11 @@ function validateAndAddFiles(files: FileList): void {
   }
 
   for (const file of Array.from(files)) {
-    const extension = file.name.split('.').pop()?.toLowerCase() || ''
-    if (!['webp', 'pdf', 'gif'].includes(extension)) {
-      setUploadError(`Format file .${extension} tidak didukung. Hanya WEBP, PDF, dan GIF.`)
-      return
-    }
-    const maximum = extension === 'gif' ? 10 * 1024 * 1024 : 2 * 1024 * 1024
-    if (file.size > maximum) {
-      setUploadError(`File "${file.name}" melebihi batas ${extension === 'gif' ? '10MB' : '2MB'}.`)
+    let extension: string
+    try {
+      extension = validateMediaUploadFile(file, 'library').extension
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'File tidak dapat divalidasi.')
       return
     }
     if (uploadedFiles.value.some((candidate) => candidate.name === file.name)) continue

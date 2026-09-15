@@ -32,12 +32,44 @@ function writePath(target: Record<string, unknown>, path: string, value: EditorV
   const keys = path.split('.')
   const leaf = keys.pop()
   if (!leaf) return
+  if (value === undefined) {
+    let parent: Record<string, unknown> = target
+    for (const key of keys) {
+      const next = parent[key]
+      if (!next || typeof next !== 'object' || Array.isArray(next)) return
+      parent = next as Record<string, unknown>
+    }
+    delete parent[leaf]
+    return
+  }
   const parent = keys.reduce<Record<string, unknown>>((current, key) => {
     if (!current[key] || typeof current[key] !== 'object') current[key] = {}
     return current[key] as Record<string, unknown>
   }, target)
-  if (value === undefined) delete parent[leaf]
-  else parent[leaf] = clone(value)
+  parent[leaf] = clone(value)
+}
+
+function pruneEmptyEntityRecord(snapshot: EditorSnapshot, path: string): void {
+  const keys = path.split('.')
+  let collection: Record<string, unknown> | undefined
+  let recordId: string | undefined
+
+  if (['typography', 'layout', 'backgrounds', 'buttons', 'animations'].includes(keys[0] ?? '') && keys.length >= 3) {
+    collection = (snapshot as unknown as Record<string, Record<string, unknown>>)[keys[0]!]
+    recordId = keys[1]
+  } else if (keys[0] === 'media' && keys[1] === 'styles' && keys.length >= 4) {
+    collection = snapshot.media.styles as unknown as Record<string, unknown>
+    recordId = keys[2]
+  } else if (keys[0] === 'session' && keys[1] === 'objectStates' && keys.length >= 4) {
+    collection = snapshot.session.objectStates as unknown as Record<string, unknown>
+    recordId = keys[2]
+  }
+
+  if (!collection || !recordId) return
+  const record = collection[recordId]
+  if (record && typeof record === 'object' && !Array.isArray(record) && Object.keys(record as Record<string, unknown>).length === 0) {
+    delete collection[recordId]
+  }
 }
 
 function commandChanges(command: EditorCommand): EditorCommandChange[] {
@@ -48,7 +80,9 @@ function commandChanges(command: EditorCommand): EditorCommandChange[] {
 
 function applyCommandValue(snapshot: EditorSnapshot, command: EditorCommand, direction: 'previousValue' | 'nextValue'): void {
   const root = snapshot as unknown as Record<string, unknown>
-  for (const change of commandChanges(command)) writePath(root, change.propertyPath, change[direction])
+  const changes = commandChanges(command)
+  for (const change of changes) writePath(root, change.propertyPath, change[direction])
+  for (const change of changes) pruneEmptyEntityRecord(snapshot, change.propertyPath)
 }
 
 function contentSignature(snapshot: EditorSnapshot): string {

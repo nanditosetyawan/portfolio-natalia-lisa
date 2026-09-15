@@ -148,16 +148,16 @@ registerMany([
   ['font.rotate', { label: 'Rotate', unit: '°' }],
 
   ['media.preview', { order: 5 }],
-  ['media.upload', { label: 'Upload New Image', order: 10, helperText: 'Upload a reusable asset and add another image to this section.' }],
-  ['media.choose', { label: 'Choose from Media', order: 20, helperText: 'Add an existing reusable asset as another image in this section.' }],
-  ['media.replace', { label: 'Replace Selected Image', order: 30, helperText: 'Upload and assign a new asset to this image. The old library asset remains.' }],
+  ['media.upload', { label: 'Upload New Image', order: 10, helperText: 'Upload a reusable asset and add another image to this part of the page.' }],
+  ['media.choose', { label: 'Choose from Media', order: 20, helperText: 'Add an existing reusable asset as another image to this part of the page.' }],
+  ['media.replace', { label: 'Replace Selected Image', order: 30, helperText: 'Choose an existing Media Library asset. The selected image keeps its size and styling.' }],
   ['media.remove', { label: 'Remove Selected Image', order: 40, helperText: 'Unassign this instance without deleting its Media Library asset.' }],
   ['media.duplicateReference', { label: 'Duplicate Image', order: 41, helperText: 'Create an independently editable copy with the same asset and style.' }],
   ['media.reveal', { label: 'Show in Media Library', order: 42, helperText: 'Choose an image before opening it in the Media Library.' }],
   ['media.width', pxAdapter('W', { minimum: 0, maximum: 10000, order: 50, rowKey: 'media-size', resolvedStyle: 'width', hideWhenUnavailable: true })],
   ['media.height', pxAdapter('H', { minimum: 0, maximum: 10000, order: 51, rowKey: 'media-size', resolvedStyle: 'height', hideWhenUnavailable: true })],
   ['media.aspectRatioLocked', { label: 'Lock proportions', order: 52, hideWhenUnavailable: true }],
-  ['media.fit', { label: 'Fit', order: 60 }],
+  ['media.fit', { label: 'Fit', order: 60, hideWhenUnavailable: true }],
   ['media.crop', { label: 'Image focus', order: 61 }],
   ['media.hover', { label: 'Hover Style', order: 70, hideWhenUnavailable: true, helperText: 'A subtle image emphasis on pointer hover. Motion remains in Animation.' }],
   ['media.positionX', { label: 'X', unit: 'px', order: 80, rowKey: 'media-position', hideWhenUnavailable: true }],
@@ -172,8 +172,8 @@ registerMany([
   }],
   ['media.rotate', { label: 'Rotate', order: 120, unit: '°' }],
 
-  ['layout.margin', pxAdapter('Outer spacing', { minimum: -10000, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'margin-top' })],
-  ['layout.padding', pxAdapter('Inner spacing', { minimum: 0, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'padding-top' })],
+  ['layout.margin', pxAdapter('Outer spacing', { minimum: -10000, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'margin-top', advancedForTypes: ['Text', 'Image'] })],
+  ['layout.padding', pxAdapter('Inner spacing', { minimum: 0, maximum: 10000, rowKey: 'layout-spacing', resolvedStyle: 'padding-top', advancedForTypes: ['Text', 'Image'] })],
   ['layout.alignment', {
     label: 'Legacy alignment', mode: 'hidden', classification: 'DUPLICATE / REDUNDANT', options: [
       { label: 'Start', value: 'start' }, { label: 'Center', value: 'center' }, { label: 'End', value: 'end' },

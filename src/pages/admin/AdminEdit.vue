@@ -64,7 +64,14 @@ import {
   reorderEditorInstanceChanges,
   type DuplicateImageInstanceInput
 } from '../../editor/editorInstanceCommands'
-import { findEditorInstance, isDynamicInstance, normalizeEditorSectionId } from '../../editor/editorInstances'
+import {
+  assertCanInsertEditorInstance,
+  findEditorInstance,
+  findSnapshotObjectReference,
+  isDynamicInstance,
+  MAX_DYNAMIC_INSTANCES_PER_SECTION,
+  normalizeEditorSectionId
+} from '../../editor/editorInstances'
 import {
   formatInspectorValue,
   inspectorFontOptions,
@@ -128,6 +135,7 @@ import type {
 } from '../../types/editor'
 import type { AnimationSettings, EditorSnapshot, LayoutSettings, SnapshotMediaModel, SnapshotMediaReference } from '../../types/editorSnapshot'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
+import { validateMediaUploadFile } from '../../lib/mediaUploadRules'
 import type {
   ButtonSizeId,
   ButtonVariantId,
@@ -195,6 +203,15 @@ interface PreviewDragState {
   elements: Array<{ objectId: string; element: HTMLElement; originalTranslate: string }>
 }
 
+interface MediaInsertionContext {
+  section: string
+  sectionId: string
+  anchorObjectId: string | null
+  layout: LayoutSettings
+}
+
+type AssetPickerMode = 'insert' | 'replace'
+
 type LibraryRouteName = 'admin-drafts' | 'admin-favorites'
 
 const site = useSiteStore()
@@ -214,6 +231,9 @@ const editorReady = ref(false)
 const showOpenModal = ref(false)
 const showUnsavedModal = ref(false)
 const showAssetPicker = ref(false)
+const assetPickerMode = ref<AssetPickerMode>('insert')
+const assetPickerTargetObjectId = ref<string | null>(null)
+const assetPickerInsertionContext = ref<MediaInsertionContext | null>(null)
 const showDesignSystem = ref(false)
 const animationClipboard = ref<AnimationSettings | null>(null)
 const reducedMotionActive = ref(false)
@@ -283,13 +303,11 @@ const selectedEntityId = computed({
   set: (entityId: string) => { selectEntity(entityId) }
 })
 const selectedEntity = computed(() => editorEntities.value.find((entity) => entity.id === editor.selectedObjectId))
-const selectedDynamicInstance = computed(() => findEditorInstance(editor.draftSnapshot, editor.selectedObjectId))
-const selectedPhotoArea = computed(() => {
-  const entity = selectedEntity.value
+function photoAreaForEntity(entity: EditorRuntimeObject | undefined) {
   if (!entity?.photoAreaId) return undefined
   const fixed = photoRegistry.find(entity.photoAreaId)
   if (fixed) return fixed
-  const instance = selectedDynamicInstance.value
+  const instance = findEditorInstance(editor.draftSnapshot, entity.id)
   if (!instance) return undefined
   const assignment = editor.draftSnapshot.media.assignments.find((candidate) => candidate.entityId === instance.source.assignmentEntityId)
   const reference = assignment ? editor.draftSnapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId) : undefined
@@ -301,7 +319,8 @@ const selectedPhotoArea = computed(() => {
     source: reference?.uri ?? '',
     objectPosition: assignment?.objectPosition ?? '50% 50%'
   }
-})
+}
+const selectedPhotoArea = computed(() => photoAreaForEntity(selectedEntity.value))
 const selectedMediaAssignment = computed(() => selectedPhotoArea.value
   ? editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === selectedPhotoArea.value?.id) ?? null
   : null)
@@ -997,10 +1016,14 @@ function editorMediaUrl(assetId: string, reference: SnapshotMediaReference): str
   return mediaPreviewUrls.get(assetId) ?? reference.uri
 }
 
-function reconcileEditorInstances(): void {
+function reconcileEditorInstances(projectObjectIds: string[] = []): void {
   const root = previewStage.value
   if (!root) return
-  renderDynamicInstances(root, editor.draftSnapshot, { resolveMediaUrl: editorMediaUrl })
+  const result = renderDynamicInstances(root, editor.draftSnapshot, { resolveMediaUrl: editorMediaUrl })
+  // A newly inserted IMG can be rendered before the async media watcher has
+  // finished. Project its canonical geometry/effects immediately so intrinsic
+  // width/height attributes never become the visible insertion state.
+  for (const objectId of new Set([...result.created, ...projectObjectIds])) applyEditorPreviewObject(root, objectId)
 }
 
 function applyEditorPreviewSnapshot(root: HTMLElement): void {
@@ -1571,7 +1594,7 @@ function isPanelPropertyApplicable(property: PanelProperty): boolean {
     && !selectedMediaAssignment.value) return false
   if (property.metadata.databaseMapping.kind === 'action'
     && ['upload-media', 'choose-media'].includes(property.metadata.databaseMapping.action)
-    && !selectedPhotoArea.value) return false
+    && mediaInsertionAvailabilityError()) return false
   if (property.metadata.databaseMapping.kind === 'action'
     && property.metadata.databaseMapping.action === 'replace-media'
     && (!selectedPhotoArea.value || !selectedMediaAssignment.value)) return false
@@ -1593,6 +1616,14 @@ function isPanelPropertyApplicable(property: PanelProperty): boolean {
 
 function isPanelPropertyEnabled(property: PanelProperty): boolean {
   return isPanelPropertyApplicable(property) && (property.metadata.readOnly || !selectedObjectLocked.value)
+}
+
+function panelPropertyHelperText(property: PanelProperty): string {
+  if (property.metadata.databaseMapping.kind === 'action'
+    && ['upload-media', 'choose-media'].includes(property.metadata.databaseMapping.action)) {
+    return mediaInsertionAvailabilityError() || property.metadata.helperText || ''
+  }
+  return property.metadata.helperText || ''
 }
 
 function resolvedInspectorStyle(property: InspectorPanelProperty): string | undefined {
@@ -1689,16 +1720,11 @@ function resetPanelOverride(property: PanelProperty): void {
 async function handlePropertyFile(property: PanelProperty, file: File): Promise<void> {
   const action = property.metadata.databaseMapping.kind === 'action' ? property.metadata.databaseMapping.action : undefined
   if (action === 'upload-media') await uploadNewMediaAsset(file)
-  else if (action === 'replace-media') await replaceSelectedMedia(file, property.metadata.commandType)
 }
 
 const propertyButtonActionHandlers: Partial<Record<PropertyAction, (property: PanelProperty) => void | Promise<void>>> = {
-  'choose-media': () => {
-    showAssetPicker.value = true
-    if (!mediaLibrary.lastLoadedAt && !mediaLibrary.loading) void mediaLibrary.refresh().catch((error) => {
-      saveStatus.value = error instanceof Error ? error.message : 'Asset Library could not be loaded.'
-    })
-  },
+  'choose-media': () => openMediaAssetPicker('insert'),
+  'replace-media': () => openMediaAssetPicker('replace'),
   'remove-media': (property) => removeSelectedMedia(property.metadata.commandType),
   'duplicate-media-reference': (property) => duplicateSelectedMediaReference(property.metadata.commandType),
   'reveal-media-library': () => revealSelectedMedia(),
@@ -1806,27 +1832,83 @@ function imageObjectLayout(entity: EditorRuntimeObject, addInstanceOffset: boole
   }
 }
 
-function insertionLayoutForSelectedImage(): LayoutSettings | null {
-  const entity = selectedEntity.value
-  return entity?.type === 'Image' ? imageObjectLayout(entity, true) : null
+function renderedSectionExists(sectionId: string): boolean {
+  const root = previewStage.value
+  if (!root) return false
+  if (root.dataset.editorSectionId === sectionId) return true
+  return [...root.querySelectorAll<HTMLElement>('[data-editor-section-id]')]
+    .some((element) => element.dataset.editorSectionId === sectionId)
 }
 
-async function insertMediaAssetInstance(asset: MediaLibraryAsset): Promise<string | null> {
-  const entity = selectedEntity.value
-  const layout = insertionLayoutForSelectedImage()
-  if (!entity || entity.type !== 'Image' || !layout) {
-    saveStatus.value = 'Select an image in the destination section before adding another image.'
+function resolveMediaInsertionSection(entity = selectedEntity.value): { section: string; sectionId: string } | null {
+  if (!entity) return null
+  const reference = findSnapshotObjectReference(editor.draftSnapshot, entity.id)
+  const section = (reference?.section || entity.section).trim()
+  const sectionId = normalizeEditorSectionId(section)
+  const knownSection = editor.draftSnapshot.entities.some((candidate) => normalizeEditorSectionId(candidate.section) === sectionId)
+    || editor.draftSnapshot.instances.some((instance) => instance.sectionId === sectionId)
+  if (!section || !knownSection || !renderedSectionExists(sectionId)) return null
+  return { section, sectionId }
+}
+
+function mediaInsertionAvailabilityError(): string {
+  const target = resolveMediaInsertionSection()
+  if (!target) return 'Select a page section first.'
+  try {
+    assertCanInsertEditorInstance(editor.draftSnapshot, target.section)
+    return ''
+  } catch (error) {
+    return error instanceof Error ? error.message : `Maximum ${MAX_DYNAMIC_INSTANCES_PER_SECTION} images reached in this part of the page.`
+  }
+}
+
+function imageInsertionFallbackLayout(sectionId: string): LayoutSettings {
+  const sectionObjects = editor.objects.filter((object) => normalizeEditorSectionId(object.section) === sectionId)
+  const highestZ = Math.max(0, ...sectionObjects.map((object) => Number(effectiveResponsiveLayout(editor.draftSnapshot, object.id, 'desktop').zIndex ?? 0)))
+  const offset = 24 * (editor.draftSnapshot.instances.filter((instance) => instance.type === 'image' && instance.sectionId === sectionId).length + 1)
+  return {
+    positionMode: 'absolute',
+    x: offset,
+    y: offset,
+    width: 320,
+    height: 240,
+    rotation: 0,
+    display: 'block',
+    visibility: 'visible',
+    zIndex: highestZ + 1
+  }
+}
+
+function createMediaInsertionContext(entity = selectedEntity.value): MediaInsertionContext | null {
+  const target = resolveMediaInsertionSection(entity)
+  if (!target) return null
+  const anchor = entity?.type === 'Image'
+    ? entity
+    : editorEntities.value.find((candidate) => candidate.type === 'Image'
+      && normalizeEditorSectionId(candidate.section) === target.sectionId)
+  const layout = anchor ? imageObjectLayout(anchor, true) : imageInsertionFallbackLayout(target.sectionId)
+  return layout ? {
+    ...target,
+    anchorObjectId: anchor?.id ?? null,
+    layout
+  } : null
+}
+
+async function insertMediaAssetInstance(asset: MediaLibraryAsset, context = createMediaInsertionContext()): Promise<string | null> {
+  if (!context) {
+    saveStatus.value = 'Select a page section first.'
     return null
   }
   try {
+    assertCanInsertEditorInstance(editor.draftSnapshot, context.section)
     const result = insertImageInstanceChanges(editor.draftSnapshot, {
-      section: entity.section,
+      section: context.section,
       reference: snapshotReferenceForAsset(asset),
       label: asset.name,
-      layout,
+      layout: context.layout,
       objectPosition: '50% 50%'
     })
-    if (!editor.setProperties(entity.id, result.changes, {
+    if (!editor.setProperties(result.instance.instanceId, result.changes, {
       interaction: 'insert-image-instance',
       objectIds: [result.instance.instanceId],
       assetId: asset.id,
@@ -1836,10 +1918,11 @@ async function insertMediaAssetInstance(asset: MediaLibraryAsset): Promise<strin
     if (isBrowserUrl(asset.sourceUrl)) mediaPreviewUrls.set(asset.id, asset.sourceUrl)
     markEditorChanged()
     await nextTick()
-    reconcileEditorInstances()
+    editor.registerObjects(editorEntities.value)
+    reconcileEditorInstances([result.instance.instanceId])
     selectRegisteredObject(result.instance.instanceId)
     saveStatus.value = `${asset.name} added as ${result.instance.label}. Save Draft to persist it.`
-    productFeedback.success('Image added', `${asset.name} is now an independent image in ${entity.section}.`)
+    productFeedback.success('Image added', `${asset.name} is now an independent image in ${context.section}.`)
     return result.instance.instanceId
   } catch (error) {
     saveStatus.value = error instanceof Error ? error.message : 'The image instance could not be added.'
@@ -1848,13 +1931,14 @@ async function insertMediaAssetInstance(asset: MediaLibraryAsset): Promise<strin
   }
 }
 
-async function assignMediaReferenceToSelected(
+async function assignMediaReferenceToObject(
+  objectId: string,
   assetInput: string | MediaLibraryAsset,
   commandType: EditorCommandType,
   announce = true
 ): Promise<void> {
-  const entity = selectedEntity.value
-  const target = selectedPhotoArea.value
+  const entity = editorEntities.value.find((candidate) => candidate.id === objectId)
+  const target = photoAreaForEntity(entity)
   const assetId = typeof assetInput === 'string' ? assetInput : assetInput.id
   const libraryAsset = typeof assetInput === 'string' ? mediaLibrary.assets.find((candidate) => candidate.id === assetInput) : assetInput
   const legacyAsset = site.current.mediaAssets.find((candidate) => candidate.id === assetId)
@@ -1866,10 +1950,23 @@ async function assignMediaReferenceToSelected(
   const currentReference = currentMedia.references.find((reference) => reference.assetId === assetId)
   if (currentAssignment?.assetId === assetId && currentReference?.uri === source) return
 
+  const nextAssignments = [
+    ...currentMedia.assignments.filter((assignment) => assignment.entityId !== target.id),
+    { entityId: target.id, role: target.role, assetId, objectPosition: target.objectPosition }
+  ]
+  const oldAssetStillUsed = currentAssignment?.assetId
+    ? nextAssignments.some((assignment) => assignment.assetId === currentAssignment.assetId)
+      || Object.values(editor.draftSnapshot.backgrounds).some((background) => background.imageAssetId === currentAssignment.assetId)
+    : true
+  const retainedReferences = currentMedia.references.filter((reference) => (
+    reference.assetId !== assetId
+    && (reference.assetId !== currentAssignment?.assetId || oldAssetStillUsed)
+  ))
+
   const nextMedia: SnapshotMediaModel = {
     ...currentMedia,
     references: [
-      ...currentMedia.references.filter((reference) => reference.assetId !== assetId),
+      ...retainedReferences,
       {
         assetId,
         uri: source,
@@ -1881,10 +1978,7 @@ async function assignMediaReferenceToSelected(
         alt: libraryAsset?.name || legacyAsset?.alt
       }
     ],
-    assignments: [
-      ...currentMedia.assignments.filter((assignment) => assignment.entityId !== target.id),
-      { entityId: target.id, role: target.role, assetId, objectPosition: target.objectPosition }
-    ]
+    assignments: nextAssignments
   }
   editor.apply({
     type: commandType,
@@ -1903,12 +1997,70 @@ async function assignMediaReferenceToSelected(
   saveStatus.value = 'Selected image reference updated. Save Draft to persist it.'
   if (announce) productFeedback.success('Media updated', `${libraryAsset?.name || legacyAsset?.alt || 'The selected asset'} is now used by ${entity.label}.`)
   await nextTick()
+  reconcileEditorInstances([entity.id])
+  schedulePreviewObjects([entity.id])
   updateSelectedOutline()
 }
 
-async function applyPickerAsset(asset: MediaLibraryAsset): Promise<void> {
+async function assignMediaReferenceToSelected(
+  assetInput: string | MediaLibraryAsset,
+  commandType: EditorCommandType,
+  announce = true
+): Promise<void> {
+  const entity = selectedEntity.value
+  if (entity) await assignMediaReferenceToObject(entity.id, assetInput, commandType, announce)
+}
+
+function closeMediaAssetPicker(): void {
   showAssetPicker.value = false
-  await insertMediaAssetInstance(asset)
+  assetPickerTargetObjectId.value = null
+  assetPickerInsertionContext.value = null
+}
+
+function refreshMediaLibraryForPicker(): void {
+  if (!mediaLibrary.lastLoadedAt && !mediaLibrary.loading) void mediaLibrary.refresh().catch((error) => {
+    saveStatus.value = error instanceof Error ? error.message : 'Asset Library could not be loaded.'
+  })
+}
+
+function openMediaAssetPicker(mode: AssetPickerMode): void {
+  if (mode === 'insert') {
+    const error = mediaInsertionAvailabilityError()
+    const context = createMediaInsertionContext()
+    if (error || !context) {
+      saveStatus.value = error || 'Select a page section first.'
+      productFeedback.error('Image cannot be added', saveStatus.value)
+      return
+    }
+    assetPickerInsertionContext.value = context
+    assetPickerTargetObjectId.value = null
+  } else {
+    const entity = selectedEntity.value
+    if (!entity || entity.type !== 'Image' || !selectedMediaAssignment.value) {
+      saveStatus.value = 'Select an image with an assigned asset first.'
+      return
+    }
+    assetPickerTargetObjectId.value = entity.id
+    assetPickerInsertionContext.value = null
+  }
+  assetPickerMode.value = mode
+  showAssetPicker.value = true
+  refreshMediaLibraryForPicker()
+}
+
+async function applyPickerAsset(asset: MediaLibraryAsset): Promise<void> {
+  const mode = assetPickerMode.value
+  const targetObjectId = assetPickerTargetObjectId.value
+  const insertionContext = assetPickerInsertionContext.value
+  closeMediaAssetPicker()
+  if (mode === 'replace' && targetObjectId) {
+    const oldAssetId = editor.draftSnapshot.media.assignments.find((assignment) => assignment.entityId === targetObjectId)?.assetId
+    await assignMediaReferenceToObject(targetObjectId, asset, 'REPLACE_MEDIA', false)
+    saveStatus.value = 'Selected image replaced. The previous Media Library asset remains available.'
+    productFeedback.success('Image replaced', `${asset.name} is now used by the selected image.${oldAssetId ? ` Asset ${oldAssetId} was not deleted.` : ''}`)
+    return
+  }
+  await insertMediaAssetInstance(asset, insertionContext)
 }
 
 async function removeSelectedMedia(commandType: EditorCommandType): Promise<void> {
@@ -2032,6 +2184,7 @@ async function handleAssetDrop(event: DragEvent): Promise<void> {
 async function uploadMediaAssetToLibrary(file: File): Promise<MediaLibraryAsset | null> {
   saveStatus.value = 'Uploading image to Media Library...'
   try {
+    validateMediaUploadFile(file, 'image')
     const asset = await mediaLibrary.upload(file)
     mediaInputVersion.value += 1
     return asset
@@ -2043,20 +2196,16 @@ async function uploadMediaAssetToLibrary(file: File): Promise<MediaLibraryAsset 
 }
 
 async function uploadNewMediaAsset(file: File): Promise<void> {
+  const availabilityError = mediaInsertionAvailabilityError()
+  const context = createMediaInsertionContext()
+  if (availabilityError || !context) {
+    saveStatus.value = availabilityError || 'Select a page section first.'
+    productFeedback.error('Image cannot be added', saveStatus.value)
+    return
+  }
   const asset = await uploadMediaAssetToLibrary(file)
   if (!asset) return
-  await insertMediaAssetInstance(asset)
-}
-
-async function replaceSelectedMedia(file: File, commandType: EditorCommandType): Promise<void> {
-  const entity = selectedEntity.value
-  if (!entity?.photoAreaId || !selectedPhotoArea.value || !selectedMediaAssignment.value) return
-  const oldAssetId = selectedMediaAssignment.value.assetId
-  const asset = await uploadMediaAssetToLibrary(file)
-  if (!asset) return
-  await assignMediaReferenceToSelected(asset, commandType, false)
-  saveStatus.value = 'Selected image replaced. The previous Media Library asset remains available.'
-  productFeedback.success('Image replaced', `${entity.label} now uses ${asset.name}. Asset ${oldAssetId} was not deleted.`)
+  await insertMediaAssetInstance(asset, context)
 }
 
 async function saveDraft(): Promise<void> {
@@ -2782,6 +2931,9 @@ async function duplicateSelectedObjects(): Promise<void> {
     visual: toRaw(editor.draftSnapshot.visual),
     behavior: toRaw(editor.draftSnapshot.behavior)
   }, [...byPath.keys()])
+  await nextTick()
+  editor.registerObjects(editorEntities.value)
+  reconcileEditorInstances(duplicateIds)
   const duplicateId = duplicateIds[0]
   if (duplicateId) selectRegisteredObject(duplicateId)
   saveStatus.value = `Duplicated ${duplicateIds.length} object${duplicateIds.length === 1 ? '' : 's'}.`
@@ -3236,7 +3388,7 @@ function cancelLibrarySwitch(): void {
                 :key="property.inspectorKey"
                 class="property-field"
                 :class="{ 'property-field--disabled': !isPanelPropertyEnabled(property), 'property-field--error': Boolean(panelPropertyError(property)) }"
-                :title="!isPanelPropertyEnabled(property) ? property.metadata.helperText : undefined"
+                :title="!isPanelPropertyEnabled(property) ? panelPropertyHelperText(property) : undefined"
                 :data-responsive-source="panelResponsiveLabel(property) || undefined"
               >
                 <span>{{ property.metadata.label }}</span>
@@ -3281,7 +3433,7 @@ function cancelLibrarySwitch(): void {
                   @action="handlePropertyAction(property)"
                 />
                 <small v-if="inspectorComplexValueNote(property)" class="friendly-value-note">{{ inspectorComplexValueNote(property) }}</small>
-                <small v-if="!isPanelPropertyEnabled(property) && property.metadata.helperText">{{ property.metadata.helperText }}</small>
+                <small v-if="!isPanelPropertyEnabled(property) && panelPropertyHelperText(property)">{{ panelPropertyHelperText(property) }}</small>
                 <small v-if="panelPropertyError(property)" class="property-error" role="alert">{{ panelPropertyError(property) }}</small>
               </div>
             </div>
@@ -3394,10 +3546,10 @@ function cancelLibrarySwitch(): void {
 
     <AssetPickerModal
       :open="showAssetPicker"
-      mode="apply"
-      :target-label="selectedEntity?.label"
-      :current-asset-id="selectedMediaAssignment?.assetId"
-      @close="showAssetPicker = false"
+      :mode="assetPickerMode"
+      :target-label="assetPickerMode === 'replace' ? selectedEntity?.label : assetPickerInsertionContext?.section"
+      :current-asset-id="assetPickerMode === 'replace' ? selectedMediaAssignment?.assetId : null"
+      @close="closeMediaAssetPicker"
       @apply="void applyPickerAsset($event)"
     />
 

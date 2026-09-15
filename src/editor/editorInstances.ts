@@ -4,7 +4,7 @@ import type {
   SnapshotEntityReference
 } from '../types/editorSnapshot'
 
-export const MAX_DYNAMIC_INSTANCES_PER_SECTION = 100
+export const MAX_DYNAMIC_INSTANCES_PER_SECTION = 50
 export const MAX_DYNAMIC_INSTANCES_PER_SNAPSHOT = 500
 
 const nonIdentifierCharacters = /[^a-z0-9]+/gi
@@ -78,7 +78,7 @@ export function isDynamicInstance(snapshot: EditorSnapshot, objectId: string): b
 
 export function sectionInstanceCount(snapshot: EditorSnapshot, section: string): number {
   const sectionId = normalizeEditorSectionId(section)
-  return snapshot.instances.filter((instance) => instance.sectionId === sectionId).length
+  return snapshot.instances.filter((instance) => instance.type === 'image' && instance.sectionId === sectionId).length
 }
 
 export function assertCanInsertEditorInstance(snapshot: EditorSnapshot, section: string): void {
@@ -86,6 +86,6 @@ export function assertCanInsertEditorInstance(snapshot: EditorSnapshot, section:
     throw new Error(`Maximum ${MAX_DYNAMIC_INSTANCES_PER_SNAPSHOT} additional objects reached for this portfolio.`)
   }
   if (sectionInstanceCount(snapshot, section) >= MAX_DYNAMIC_INSTANCES_PER_SECTION) {
-    throw new Error(`Maximum ${MAX_DYNAMIC_INSTANCES_PER_SECTION} additional objects reached in this section.`)
+    throw new Error(`Maximum ${MAX_DYNAMIC_INSTANCES_PER_SECTION} images reached in this part of the page.`)
   }
 }

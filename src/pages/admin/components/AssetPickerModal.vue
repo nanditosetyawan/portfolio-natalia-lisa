@@ -9,8 +9,8 @@ const props = withDefaults(defineProps<{
   open: boolean
   targetLabel?: string
   currentAssetId?: string | null
-  mode?: 'apply' | 'browse'
-}>(), { mode: 'apply' })
+  mode?: 'insert' | 'replace' | 'browse'
+}>(), { mode: 'insert' })
 
 const emit = defineEmits<{
   close: []
@@ -29,13 +29,25 @@ const tabs: Array<{ value: MediaLibraryFilter; label: string }> = [
   { value: 'recent', label: 'Recent' }
 ]
 
-const assets = computed(() => library.queryAssets({ search: search.value, filter: filter.value, sort: 'newest' }))
+const assets = computed(() => library
+  .queryAssets({ search: search.value, filter: filter.value, sort: 'newest' })
+  .filter((asset) => props.mode === 'browse' || asset.mimeType.startsWith('image/')))
 const selectedAsset = computed(() => library.assets.find((asset) => asset.id === selectedId.value) ?? null)
-const title = computed(() => props.mode === 'browse' ? 'Browse Media' : 'Choose from Media')
+const title = computed(() => props.mode === 'browse'
+  ? 'Browse Media'
+  : props.mode === 'replace'
+    ? 'Replace Selected Image'
+    : 'Choose from Media')
 const description = computed(() => props.mode === 'browse'
   ? 'Browse reusable assets in the existing Media Library.'
-  : `Add an existing asset as another image in ${props.targetLabel ? `${props.targetLabel}'s section` : 'the selected section'}.`)
-const actionLabel = computed(() => props.mode === 'browse' ? 'Show in Media Library' : 'Apply')
+  : props.mode === 'replace'
+    ? `Choose an existing asset for ${props.targetLabel || 'the selected image'}. Its layout and styling will be preserved.`
+    : `Add an existing asset as another image in ${props.targetLabel ? `${props.targetLabel}'s section` : 'the selected section'}.`)
+const actionLabel = computed(() => props.mode === 'browse'
+  ? 'Show in Media Library'
+  : props.mode === 'replace'
+    ? 'Replace Image'
+    : 'Add Image')
 
 function selectAsset(asset: MediaLibraryAsset): void {
   selectedId.value = asset.id

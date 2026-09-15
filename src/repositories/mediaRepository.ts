@@ -1,14 +1,13 @@
 import { supabaseClient } from '../lib/supabaseClient'
 import { isSupabaseConfigured, supabaseRestRequest, supabaseTableRows } from '../lib/supabaseRest'
+import { validateMediaUploadFile } from '../lib/mediaUploadRules'
 import type { LibraryMediaUpload, MediaAssetRow } from '../types/mediaLibrary'
 
 export const PORTFOLIO_MEDIA_BUCKET = 'portfolio-media'
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
 const localLibraryRows = new Map<string, MediaAssetRow>()
 const localPreviewUrls = new Map<string, string>()
 
-function extensionFor(file: File): string {
+function legacyImageExtension(file: File): string {
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (extension && /^[a-z0-9]+$/.test(extension)) return extension
   if (file.type === 'image/png') return 'png'
@@ -18,13 +17,7 @@ function extensionFor(file: File): string {
 
 function assertImage(file: File): void {
   if (!file.type.startsWith('image/')) throw new Error('Only image files are allowed')
-  if (file.size > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 10 MB limit')
-}
-
-function assertLibraryFile(file: File): void {
-  if (file.type.startsWith('image/')) return assertImage(file)
-  if (file.type !== 'application/pdf') throw new Error('Only image and PDF files are allowed')
-  if (file.size > MAX_DOCUMENT_BYTES) throw new Error('PDF exceeds the 2 MB limit')
+  if (file.size > 10 * 1024 * 1024) throw new Error('Image exceeds the 10 MB limit')
 }
 
 function browserUrl(value: string | null | undefined): value is string {
@@ -74,7 +67,7 @@ async function imageDimensions(file: File): Promise<{ width: number | null; heig
 
 export async function uploadPortfolioMedia(input: { file: File; entityType: string; entityId: string; mediaId: string }) {
   assertImage(input.file)
-  const path = `portfolio/${input.entityType}/${input.entityId}/${input.mediaId}.${extensionFor(input.file)}`
+  const path = `portfolio/${input.entityType}/${input.entityId}/${input.mediaId}.${legacyImageExtension(input.file)}`
   const { error } = await supabaseClient.storage.from(PORTFOLIO_MEDIA_BUCKET).upload(path, input.file, { upsert: true, contentType: input.file.type })
   if (error) throw new Error(`Storage upload failed: ${error.message}`)
   const { data } = supabaseClient.storage.from(PORTFOLIO_MEDIA_BUCKET).getPublicUrl(path)
@@ -107,11 +100,10 @@ export async function resolveMediaAssetPreview(row: MediaAssetRow): Promise<stri
 }
 
 export async function uploadLibraryMedia(file: File): Promise<LibraryMediaUpload> {
-  assertLibraryFile(file)
+  const validation = validateMediaUploadFile(file, 'library')
   const assetId = crypto.randomUUID()
-  const extension = extensionFor(file)
-  const storagePath = `draft/library/${assetId}.${extension}`
-  const dimensions = file.type.startsWith('image/')
+  const storagePath = `draft/library/${assetId}.${validation.extension}`
+  const dimensions = validation.kind === 'image'
     ? await imageDimensions(file)
     : { width: null, height: null }
   const now = new Date().toISOString()
@@ -119,7 +111,7 @@ export async function uploadLibraryMedia(file: File): Promise<LibraryMediaUpload
     id: assetId,
     storage_bucket: PORTFOLIO_MEDIA_BUCKET,
     storage_path: storagePath,
-    mime_type: file.type,
+    mime_type: validation.mimeType,
     file_size: file.size,
     width: dimensions.width,
     height: dimensions.height,
@@ -138,7 +130,7 @@ export async function uploadLibraryMedia(file: File): Promise<LibraryMediaUpload
 
   const { error } = await supabaseClient.storage.from(PORTFOLIO_MEDIA_BUCKET).upload(storagePath, file, {
     upsert: false,
-    contentType: file.type,
+    contentType: validation.mimeType,
     cacheControl: '3600'
   })
   if (error) throw new Error(`Asset upload failed: ${error.message}`)

@@ -12,6 +12,7 @@ import type {
   PropertyVisibilityContext
 } from '../types/editor'
 import type { EditorSnapshot } from '../types/editorSnapshot'
+import { EDITOR_IMAGE_FILE_ACCEPT } from '../lib/mediaUploadRules'
 import { parseBorderValue } from './borderValue'
 import {
   imageEffectPreview,
@@ -171,7 +172,15 @@ const classStylePreview = (
     toggleClass(className, Boolean(formatted))
   }
 })
-const cssLength = (value: EditorValue) => typeof value === 'number' ? `${value}px` : value === undefined || value === null ? '' : String(value)
+const cssLength = (value: EditorValue) => {
+  if (value === undefined || value === null || value === '') return ''
+  if (typeof value === 'number') return `${value}px`
+  const normalized = String(value).trim()
+  // Snapshot layout values support both numbers and CSS-length strings. String
+  // controls deserialize legacy numeric values to a unitless string, so restore
+  // the established pixel meaning before assigning them to the DOM.
+  return /^-?\d+(?:\.\d+)?$/.test(normalized) ? `${normalized}px` : normalized
+}
 const cssRotation = (value: EditorValue) => {
   if (typeof value === 'number') return `${value}deg`
   if (!value) return ''
@@ -293,9 +302,9 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'font.rotate', category: 'font', categoryLabel: 'TYPOGRAPHY', categoryOrder: 10, categoryDefaultOpen: true, label: 'Rotation', control: 'number', type: 'number', order: 90, commandType: 'SET_PROPERTY', capability: 'typography', propertyPath: 'rotation', databaseMapping: snapshot('layout.{entityId}.rotation'), defaultValue: 0, validation: validRotation, visibilityRule: ({ entity }) => entity.capabilities.includes('rotate'), unit: 'deg', step: 1, previewUpdater: stylePreview('rotate', cssRotation), styleKey: 'layout.rotation' }),
 
   defineProperty({ propertyKey: 'media.preview', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Preview', control: 'thumbnail', type: 'asset', order: 5, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'reference', databaseMapping: action('preview-media'), defaultValue: '', readOnly: true, copyable: false }),
-  defineProperty({ propertyKey: 'media.upload', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Upload New Image', control: 'file', type: 'asset', order: 10, commandType: 'UPLOAD_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('upload-media'), defaultValue: '', accept: 'image/*', helperText: 'Upload a reusable asset and add it as another image in this section.', copyable: false }),
-  defineProperty({ propertyKey: 'media.choose', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Choose from Media', control: 'button', type: 'asset', order: 20, commandType: 'SET_IMAGE_REFERENCE', capability: 'media', propertyPath: 'reference', databaseMapping: action('choose-media'), defaultValue: '', helperText: 'Add an existing reusable asset as another image in this section.', copyable: false }),
-  defineProperty({ propertyKey: 'media.replace', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Replace Selected Image', control: 'file', type: 'asset', order: 30, commandType: 'REPLACE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('replace-media'), defaultValue: '', accept: 'image/*', helperText: 'Upload a new asset and assign it only to the selected image. The old asset stays in the Media Library.', copyable: false }),
+  defineProperty({ propertyKey: 'media.upload', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Upload New Image', control: 'file', type: 'asset', order: 10, commandType: 'UPLOAD_MEDIA', capability: 'media-insert', propertyPath: 'reference', databaseMapping: action('upload-media'), defaultValue: '', accept: EDITOR_IMAGE_FILE_ACCEPT, helperText: 'Upload a WEBP or GIF through Manage Media rules, then add it as a new image in this part of the page.', copyable: false }),
+  defineProperty({ propertyKey: 'media.choose', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Choose from Media', control: 'button', type: 'asset', order: 20, commandType: 'SET_IMAGE_REFERENCE', capability: 'media-insert', propertyPath: 'reference', databaseMapping: action('choose-media'), defaultValue: '', helperText: 'Add an existing reusable asset as a new image in this part of the page.', copyable: false }),
+  defineProperty({ propertyKey: 'media.replace', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Replace Selected Image', control: 'button', type: 'asset', order: 30, commandType: 'REPLACE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('replace-media'), defaultValue: '', helperText: 'Choose an existing Media Library asset for this image. Its size and styling stay unchanged.', copyable: false }),
   defineProperty({ propertyKey: 'media.remove', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Remove Selected Image', control: 'button', type: 'asset', order: 31, commandType: 'DELETE_MEDIA', capability: 'media', propertyPath: 'reference', databaseMapping: action('remove-media'), defaultValue: '', helperText: 'Unassign this image instance without deleting the underlying Media Library asset.', copyable: false }),
   defineProperty({ propertyKey: 'media.duplicateReference', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Duplicate Image', control: 'button', type: 'asset', order: 32, commandType: 'DUPLICATE_INSTANCE', capability: 'media', propertyPath: 'reference', databaseMapping: action('duplicate-media-reference'), defaultValue: '', helperText: 'Add another independently editable copy that uses the same library asset.', copyable: false }),
   defineProperty({ propertyKey: 'media.reveal', category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20, label: 'Reveal in Library', control: 'button', type: 'asset', order: 33, commandType: 'SET_PROPERTY', capability: 'media', propertyPath: 'reference', databaseMapping: action('reveal-media-library'), defaultValue: '', helperText: 'Open this asset in the dedicated Asset Library.', copyable: false }),

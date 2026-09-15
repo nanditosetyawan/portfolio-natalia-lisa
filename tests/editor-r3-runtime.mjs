@@ -270,7 +270,7 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=document.querySelector('[data-editor-entity-id="portfolio-profile-media"]');
     const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;const editor=pinia._s.get('editor');const library=pinia._s.get('media-library');await library.refresh();
-    const originalAsset=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media').assetId;const originalSrc=image.src;const originalHistory=editor.commandHistory.length;const previousIds=new Set(library.assets.map(item=>item.id));
+    const originalAsset=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media').assetId;const originalSrc=image.src;const originalHistory=editor.commandHistory.length;const previousIds=new Set(library.assets.map(item=>item.id));const previousInstances=new Set(editor.draftSnapshot.instances.map(item=>item.instanceId));
     const blob=await fetch(image.src).then(response=>response.blob());
     const file=new File([blob],'profile-r3.webp',{type:blob.type||'image/webp'});
     const transfer=new DataTransfer(); transfer.items.add(file);
@@ -280,10 +280,11 @@ try {
     await tick();
     const assignment=editor.draftSnapshot.media.assignments.find(item=>item.entityId==='portfolio-profile-media');
     const uploaded=library.assets.find(item=>!previousIds.has(item.id));
-    return {originalAsset,nextAsset:assignment?.assetId,uploaded:uploaded?{id:uploaded.id,storagePath:uploaded.storagePath,bucket:uploaded.bucket,persisted:uploaded.metadataPersisted}:null,originalSrc,src:image.src,historyBefore:originalHistory,historyAfter:editor.commandHistory.length,selected:editor.selectedEntityId};
+    const instance=editor.draftSnapshot.instances.find(item=>!previousInstances.has(item.instanceId));const instanceAsset=editor.draftSnapshot.media.assignments.find(item=>item.entityId===instance?.instanceId)?.assetId;const selectedAfterInsert=editor.selectedEntityId;const command=editor.commandHistory.at(-1)?.type;const instanceDom=Boolean(instance&&document.querySelector('[data-snapshot-instance-id="'+CSS.escape(instance.instanceId)+'"]'));image.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));await tick();
+    return {originalAsset,nextAsset:assignment?.assetId,uploaded:uploaded?{id:uploaded.id,storagePath:uploaded.storagePath,bucket:uploaded.bucket,persisted:uploaded.metadataPersisted}:null,originalSrc,src:image.src,historyBefore:originalHistory,historyAfter:editor.commandHistory.length,instance:{id:instance?.instanceId,assetId:instanceAsset,dom:instanceDom},command,selectedAfterInsert,selectedAfterReselect:editor.selectedEntityId};
   })()`)
   assert(mediaUploadResult.uploaded?.storagePath?.startsWith('draft/library/') && mediaUploadResult.uploaded?.persisted, `MEDIA Upload did not register a reusable staged asset: ${JSON.stringify(mediaUploadResult)}`)
-  assert(mediaUploadResult.nextAsset === mediaUploadResult.originalAsset && mediaUploadResult.src === mediaUploadResult.originalSrc && mediaUploadResult.historyAfter === mediaUploadResult.historyBefore && mediaUploadResult.selected === 'portfolio-profile-media', 'MEDIA Upload silently replaced the selected image or changed selection/history')
+  assert(mediaUploadResult.nextAsset === mediaUploadResult.originalAsset && mediaUploadResult.src === mediaUploadResult.originalSrc && mediaUploadResult.instance.id?.startsWith('portfolio-image-') && mediaUploadResult.instance.assetId === mediaUploadResult.uploaded.id && mediaUploadResult.instance.dom && mediaUploadResult.command === 'INSERT_INSTANCE' && mediaUploadResult.selectedAfterInsert === mediaUploadResult.instance.id && mediaUploadResult.selectedAfterReselect === 'portfolio-profile-media', `MEDIA Upload did not preserve the fixed image while inserting a canonical instance: ${JSON.stringify(mediaUploadResult)}`)
 
   const historyResult = await evaluate(`(async()=>{
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
