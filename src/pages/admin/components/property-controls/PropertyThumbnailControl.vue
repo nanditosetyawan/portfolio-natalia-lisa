@@ -1,11 +1,22 @@
 <script setup lang="ts">
-defineProps<{ modelValue: string | number | boolean | null; disabled?: boolean; label?: string }>()
+import { ref, watch } from 'vue'
+
+const props = defineProps<{ modelValue: string | number | boolean | null; disabled?: boolean; label?: string }>()
+const loadFailed = ref(false)
+
+watch(() => props.modelValue, () => { loadFailed.value = false })
 </script>
 
 <template>
-  <figure class="media-thumbnail" :class="{ empty: !modelValue }" aria-live="polite">
-    <img v-if="typeof modelValue === 'string' && modelValue" :src="modelValue" :alt="`${label ?? 'Selected media'} preview`" />
-    <span v-else>No media assigned</span>
+  <figure class="media-thumbnail" :class="{ empty: !modelValue || loadFailed }" aria-live="polite">
+    <img
+      v-if="typeof modelValue === 'string' && modelValue && !loadFailed"
+      :src="modelValue"
+      :alt="`${label ?? 'Selected media'} preview`"
+      @load="loadFailed = false"
+      @error="loadFailed = true"
+    />
+    <span v-else>{{ modelValue ? 'Media unavailable' : 'No media assigned' }}</span>
   </figure>
 </template>
 

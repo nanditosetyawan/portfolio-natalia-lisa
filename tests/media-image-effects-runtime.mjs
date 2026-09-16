@@ -232,10 +232,15 @@ try {
   assert(outlineDependencies.thickness && outlineDependencies.color, `Outline dependencies did not become available: ${JSON.stringify(outlineDependencies)}`)
   await setInput('media.outlineWidth', 2)
   const outlineThin = await inspect('outline-thin')
+  await setInput('media.outlineWidth', 8)
+  const outlineMedium = await inspect('outline-medium')
+  await setInput('media.outlineWidth', 18)
+  const outlineThick = await inspect('outline-thick')
   await setInput('media.outlineWidth', 6)
   await setColor('media.border', '#b85b69')
   const outline = await inspect('outline')
-  assert(outlineThin.alphaFilter?.radius === '2' && outline.alphaFilter?.radius === '6' && outline.alphaFilter?.color === '#b85b69', `alpha outline Thickness/Color did not update SVG SourceAlpha filter: ${JSON.stringify({thin:outlineThin.alphaFilter,outline:outline.alphaFilter})}`)
+  const selectionOutlineStable = [outlineThin, outlineMedium, outlineThick, outline].every((state) => state.image.computed.outline === outlineThin.image.computed.outline)
+  assert(outlineThin.alphaFilter?.radius === '2' && outlineMedium.alphaFilter?.radius === '8' && outlineThick.alphaFilter?.radius === '18' && outline.alphaFilter?.radius === '6' && outline.alphaFilter?.color === '#b85b69' && selectionOutlineStable, `alpha outline Thickness/Color changed the Editor selection outline or missed the SVG SourceAlpha filter: ${JSON.stringify({thin:outlineThin.alphaFilter,medium:outlineMedium.alphaFilter,thick:outlineThick.alphaFilter,outline:outline.alphaFilter,selection:[outlineThin.image.computed.outline,outlineMedium.image.computed.outline,outlineThick.image.computed.outline,outline.image.computed.outline]})}`)
   assert(/url\(/.test(outline.image.computed.filter) && outline.image.computed.boxShadow === 'none' && !/solid 6px/.test(outline.image.computed.outline), `Image Outline fell back to a rectangular element effect: ${JSON.stringify(outline.image.computed)}`)
 
   const historyBeforeShadow = await evaluate(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').commandHistory.length`)
@@ -314,7 +319,7 @@ try {
 
   const seriousErrors = runtimeErrors.filter((error) => !/favicon|ERR_NAME_NOT_RESOLVED|Supabase configuration is unavailable/i.test(error))
   assert(seriousErrors.length === 0, `unexpected browser errors: ${seriousErrors.join(' | ')}; vite=${viteErrors}; browser=${browserErrors}`)
-  process.stdout.write(`${JSON.stringify({status:'PASS',scope:'Phase 037C Media semantics, computed geometry, alpha-aware effects',architecture,panelSemantics,geometry:{before:before.image.rect,width:afterWidth.image.rect,height:afterHeight.image.rect,final:geometry.image.computed},hover:{before:hoverBefore.image.computed.opacity,inside:hoverInside.image.computed.opacity,after:hoverAfter.image.computed.opacity},outline:{thin:outlineThin.alphaFilter,final:outline.alphaFilter,filter:outline.image.computed.filter},shadow:{canonical:shadow.canonical.background.boxShadow,filter:shadow.image.computed.filter},responsive,actions:{upload,browse,replace,replaceUndoRedo,remove},draftRoundTrip:{saved:draftSaved,reloaded:{canonical:draftReloaded.canonical,filter:draftReloaded.image.computed.filter}},publishedContract,performance,screenshot:'artifacts/phase-037c-alpha-image-effects.png'},null,2)}\n`)
+  process.stdout.write(`${JSON.stringify({status:'PASS',scope:'Phase 037C Media semantics, computed geometry, alpha-aware effects',architecture,panelSemantics,geometry:{before:before.image.rect,width:afterWidth.image.rect,height:afterHeight.image.rect,final:geometry.image.computed},hover:{before:hoverBefore.image.computed.opacity,inside:hoverInside.image.computed.opacity,after:hoverAfter.image.computed.opacity},outline:{thin:outlineThin.alphaFilter,medium:outlineMedium.alphaFilter,thick:outlineThick.alphaFilter,final:outline.alphaFilter,filter:outline.image.computed.filter,selectionOutlineStable},shadow:{canonical:shadow.canonical.background.boxShadow,filter:shadow.image.computed.filter},responsive,actions:{upload,browse,replace,replaceUndoRedo,remove},draftRoundTrip:{saved:draftSaved,reloaded:{canonical:draftReloaded.canonical,filter:draftReloaded.image.computed.filter}},publishedContract,performance,screenshot:'artifacts/phase-037c-alpha-image-effects.png'},null,2)}\n`)
   if (viteErrors.trim()) process.stderr.write(viteErrors)
   if (browserErrors.includes('ERROR:')) process.stderr.write(browserErrors)
 } finally {

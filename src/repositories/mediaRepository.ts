@@ -1,5 +1,5 @@
 import { supabaseClient } from '../lib/supabaseClient'
-import { isSupabaseConfigured, supabaseRestRequest, supabaseTableRows } from '../lib/supabaseRest'
+import { isSupabaseConfigured, supabasePublicStorageUrl, supabaseRestRequest, supabaseTableRows } from '../lib/supabaseRest'
 import { validateMediaUploadFile } from '../lib/mediaUploadRules'
 import type { LibraryMediaUpload, MediaAssetRow } from '../types/mediaLibrary'
 
@@ -21,7 +21,23 @@ function assertImage(file: File): void {
 }
 
 function browserUrl(value: string | null | undefined): value is string {
-  return Boolean(value && (/^(?:https?:|blob:|data:)/i.test(value) || value.startsWith('/')))
+  return Boolean(value
+    && !/^\/?(?:draft|published)\//i.test(value)
+    && (/^(?:https?:|blob:|data:)/i.test(value) || value.startsWith('/')))
+}
+
+export function resolveMediaSource(input: {
+  uri?: string | null
+  sourceUrl?: string | null
+  bucket?: string | null
+  storagePath?: string | null
+}, transientUrl?: string | null): string {
+  if (browserUrl(transientUrl)) return transientUrl
+  if (input.bucket === PORTFOLIO_MEDIA_BUCKET && input.storagePath && isSupabaseConfigured()) {
+    return supabasePublicStorageUrl(input.bucket, input.storagePath)
+  }
+  if (browserUrl(input.sourceUrl)) return input.sourceUrl
+  return browserUrl(input.uri) ? input.uri : ''
 }
 
 function safeFileStem(value: string): string {
@@ -86,17 +102,11 @@ export async function listMediaAssetMetadata(): Promise<MediaAssetRow[]> {
 }
 
 export async function resolveMediaAssetPreview(row: MediaAssetRow): Promise<string> {
-  const local = localPreviewUrls.get(row.id)
-  if (local) return local
-  if (browserUrl(row.source_url)) return row.source_url
-  if (!row.storage_bucket || !row.storage_path) return ''
-  if (row.storage_path.startsWith('draft/')) {
-    const { data, error } = await supabaseClient.storage.from(row.storage_bucket).createSignedUrl(row.storage_path, 3600)
-    if (error) throw new Error(`Draft media preview failed: ${error.message}`)
-    return data.signedUrl
-  }
-  const { data } = supabaseClient.storage.from(row.storage_bucket).getPublicUrl(row.storage_path)
-  return data.publicUrl
+  return resolveMediaSource({
+    sourceUrl: row.source_url,
+    bucket: row.storage_bucket,
+    storagePath: row.storage_path
+  }, localPreviewUrls.get(row.id))
 }
 
 export async function uploadLibraryMedia(file: File): Promise<LibraryMediaUpload> {

@@ -6,6 +6,7 @@ import type { CollegeItem } from '../data/default/college'
 import type { SHSItem } from '../data/default/shs'
 import type { ExperienceItem } from '../data/default/experience'
 import type { SiteRepository } from './siteRepository'
+import { resolveMediaSource } from './mediaRepository'
 
 type TableRow<Name extends keyof Database['public']['Tables']> = Tables<Name>
 type JsonRecord = Record<string, unknown>
@@ -42,11 +43,11 @@ function mergeById<T extends { id: string }>(fallback: T[], persisted: T[]): T[]
 }
 
 function sourceForAsset(asset: TableRow<'media_assets'>): string {
-  if (asset.source_url) return asset.source_url
-  if (asset.storage_bucket && asset.storage_path) {
-    return `${import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '')}/storage/v1/object/public/${asset.storage_bucket}/${asset.storage_path}`
-  }
-  return ''
+  return resolveMediaSource({
+    sourceUrl: asset.source_url,
+    bucket: asset.storage_bucket,
+    storagePath: asset.storage_path
+  })
 }
 
 function toMediaAsset(asset: TableRow<'media_assets'>): MediaAsset {
@@ -260,8 +261,8 @@ export class SupabaseSiteRepository implements SiteRepository {
       if (Array.isArray(navigationConfig.sections)) snapshot.content.navigation.sections = navigationConfig.sections as unknown as typeof snapshot.content.navigation.sections
     }
     if (navigation.length) snapshot.content.navigation.navItems = navigation.filter((row) => row.visible).sort((left, right) => left.order_index - right.order_index).map((row) => ({ id: row.id, key: row.item_key, label: row.label, targetSectionId: row.target_section_id, offsetMode: row.offset_mode === 'align-bottom' ? 'align-bottom' as const : 'fixed' as const, offset: row.offset_value }))
-    if (mediaAssets.length) snapshot.mediaAssets = mediaAssets.map(toMediaAsset)
-    if (mediaUsages.length) snapshot.mediaUsages = mediaUsages.map(toMediaUsage)
+    if (mediaAssets.length) snapshot.mediaAssets = mergeById(snapshot.mediaAssets, mediaAssets.map(toMediaAsset))
+    if (mediaUsages.length) snapshot.mediaUsages = mergeById(snapshot.mediaUsages, mediaUsages.map(toMediaUsage))
     if (photoFrames.length) snapshot.photoAreas = mergeById(snapshot.photoAreas, persistedAreas)
     if (visualConfigs.length) applyVisualConfigs(snapshot, visualConfigs)
     return snapshot

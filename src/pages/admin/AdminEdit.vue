@@ -136,6 +136,7 @@ import type {
 import type { AnimationSettings, EditorSnapshot, LayoutSettings, SnapshotMediaModel, SnapshotMediaReference } from '../../types/editorSnapshot'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 import { validateMediaUploadFile } from '../../lib/mediaUploadRules'
+import { resolveMediaSource } from '../../repositories/mediaRepository'
 import type {
   ButtonSizeId,
   ButtonVariantId,
@@ -1013,7 +1014,7 @@ function applyEditorPreviewObject(root: HTMLElement, objectId: string): void {
 }
 
 function editorMediaUrl(assetId: string, reference: SnapshotMediaReference): string {
-  return mediaPreviewUrls.get(assetId) ?? reference.uri
+  return resolveMediaSource(reference, mediaPreviewUrls.get(assetId))
 }
 
 function reconcileEditorInstances(projectObjectIds: string[] = []): void {
@@ -1292,7 +1293,7 @@ function readPanelValue(property: PanelProperty): string | number | boolean | nu
     }
     if (metadata.databaseMapping.action === 'preview-media') {
       const reference = assignment ? editor.draftSnapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId) : undefined
-      return reference ? mediaPreviewUrls.get(reference.assetId) ?? reference.uri : ''
+      return reference ? editorMediaUrl(reference.assetId, reference) : ''
     }
     return primitiveValue(metadata.defaultValue)
   }
@@ -1774,10 +1775,18 @@ async function setMediaFit(objectFit: string, commandType: EditorCommandType): P
   markEditorChanged()
 }
 
+function mediaAssetSource(asset: MediaLibraryAsset): string {
+  return resolveMediaSource({
+    uri: asset.sourceUrl,
+    bucket: asset.bucket,
+    storagePath: asset.storagePath
+  })
+}
+
 function snapshotReferenceForAsset(asset: MediaLibraryAsset): SnapshotMediaReference {
   return {
     assetId: asset.id,
-    uri: asset.sourceUrl,
+    uri: mediaAssetSource(asset) || asset.storagePath || asset.sourceUrl,
     bucket: asset.bucket ?? undefined,
     storagePath: asset.storagePath ?? undefined,
     mimeType: asset.mimeType,
@@ -1798,7 +1807,7 @@ function rememberDraftMediaAsset(asset: MediaLibraryAsset): void {
       mimeType: asset.mimeType,
       width: asset.width ?? 0,
       height: asset.height ?? 0,
-      previewUrl: asset.sourceUrl
+      previewUrl: mediaAssetSource(asset) || undefined
     }
   ]
 }
@@ -1915,7 +1924,8 @@ async function insertMediaAssetInstance(asset: MediaLibraryAsset, context = crea
       instanceId: result.instance.instanceId
     }, 'INSERT_INSTANCE')) return null
     rememberDraftMediaAsset(asset)
-    if (isBrowserUrl(asset.sourceUrl)) mediaPreviewUrls.set(asset.id, asset.sourceUrl)
+    const source = mediaAssetSource(asset)
+    if (source) mediaPreviewUrls.set(asset.id, source)
     markEditorChanged()
     await nextTick()
     editor.registerObjects(editorEntities.value)
@@ -1942,7 +1952,7 @@ async function assignMediaReferenceToObject(
   const assetId = typeof assetInput === 'string' ? assetInput : assetInput.id
   const libraryAsset = typeof assetInput === 'string' ? mediaLibrary.assets.find((candidate) => candidate.id === assetInput) : assetInput
   const legacyAsset = site.current.mediaAssets.find((candidate) => candidate.id === assetId)
-  const source = libraryAsset?.sourceUrl || legacyAsset?.source || ''
+  const source = libraryAsset ? mediaAssetSource(libraryAsset) : legacyAsset?.source || ''
   if (!entity?.photoAreaId || !target || !source) return
 
   const currentMedia = cloneEditorData(editor.draftSnapshot.media)
@@ -1990,7 +2000,7 @@ async function assignMediaReferenceToObject(
     metadata: { assetId, photoAreaId: target.id, source: 'media-library' }
   })
   if (libraryAsset) rememberDraftMediaAsset(libraryAsset)
-  if (isBrowserUrl(source)) mediaPreviewUrls.set(assetId, source)
+  if (source) mediaPreviewUrls.set(assetId, source)
   managedMediaAreaIds.add(target.id)
   await photoRegistry.updateSource(target.id, source)
   markEditorChanged()
@@ -2345,10 +2355,6 @@ async function discardDraft(): Promise<void> {
   }
 }
 
-function isBrowserUrl(value: string): boolean {
-  return /^(blob:|data:|https?:|\/)/i.test(value) && !value.startsWith('/draft/')
-}
-
 async function restoreDraftMedia(references: DraftMediaReference[]): Promise<void> {
   for (const reference of references) {
     try {
@@ -2371,8 +2377,7 @@ async function syncSnapshotMediaToPreview(): Promise<void> {
     const reference = editor.draftSnapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId)
     if (!reference || !photoRegistry.find(assignment.entityId)) continue
     managedMediaAreaIds.add(assignment.entityId)
-    let previewUrl = mediaPreviewUrls.get(reference.assetId)
-    if (!previewUrl && isBrowserUrl(reference.uri)) previewUrl = reference.uri
+    let previewUrl = editorMediaUrl(reference.assetId, reference)
     if (!previewUrl && reference.bucket && reference.storagePath) {
       try {
         previewUrl = await editorDraftRepository.getDraftMediaUrl({

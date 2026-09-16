@@ -264,7 +264,7 @@ try {
     }]))
     process.stdout.write(`${JSON.stringify({ status: 'PANEL_MATRIX', panelSummary })}\n`)
     assert(panelEvidence.text.selected === 'portfolio-hero' && panelEvidence.text.type === 'Text', 'Text capability matrix lost selection')
-    assert(!panelEvidence.text.groups.media, 'Text exposes a Media accordion')
+    assert(JSON.stringify(keys(panelEvidence.text, 'media')) === JSON.stringify(['media.upload', 'media.choose']), `Text exposes Image-instance controls beyond the two section-scoped insertion actions: ${JSON.stringify(panelEvidence.text.groups.media)}`)
     assert(['font.positionX', 'font.positionY', 'font.rotate', 'runtime.textAlign'].every((key) => keys(panelEvidence.text, 'font').includes(key)), `Text Typography ownership is incomplete: ${JSON.stringify(panelEvidence.text.groups)}`)
     assert(['position.x', 'position.y', 'position.rotation', 'layout.alignment'].every((key) => !keys(panelEvidence.text, 'layout').includes(key)), `Text exposes duplicate/no-op Layout transforms: ${JSON.stringify(panelEvidence.text.groups.layout)}`)
     assert(!keys(panelEvidence.text, 'effects').includes('effects.shadow'), 'Text exposes generic box Shadow beside Typography Shadow')
@@ -275,7 +275,7 @@ try {
     assert(['media.width', 'media.height', 'media.positionX', 'media.positionY', 'media.outlineEnabled', 'media.rotate'].every((key) => keys(panelEvidence.image, 'media').includes(key)), `Image Media ownership is incomplete: ${JSON.stringify(panelEvidence.image.groups)}`)
     assert(['position.x', 'position.y', 'position.width', 'position.height', 'position.rotation', 'layout.alignment', 'effects.opacity', 'effects.border', 'effects.radius'].every((key) => ![...keys(panelEvidence.image, 'layout'), ...keys(panelEvidence.image, 'effects')].includes(key)), `Image exposes duplicated geometry/effects: ${JSON.stringify(panelEvidence.image.groups)}`)
 
-    assert(panelEvidence.button.selected === 'about-cta-learn-more' && panelEvidence.button.type === 'Button' && !panelEvidence.button.groups.media, 'Button capability ownership is incorrect')
+    assert(panelEvidence.button.selected === 'about-cta-learn-more' && panelEvidence.button.type === 'Button' && JSON.stringify(keys(panelEvidence.button, 'media')) === JSON.stringify(['media.upload', 'media.choose']), 'Button capability ownership is incorrect')
     assert(['font.positionX', 'font.positionY', 'font.rotate', 'runtime.textAlign'].every((key) => keys(panelEvidence.button, 'font').includes(key)), `Button Typography ownership is incomplete: ${JSON.stringify(panelEvidence.button.groups)}`)
     assert(!keys(panelEvidence.button, 'effects').includes('effects.shadow'), 'Button exposes duplicate normal Shadow')
 

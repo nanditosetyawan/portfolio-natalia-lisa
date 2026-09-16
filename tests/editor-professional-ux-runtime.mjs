@@ -290,9 +290,9 @@ try {
   assert(inspectorEvidence.colorValue === '#7f4055' && inspectorEvidence.colorFeatures.rgb === 3 && inspectorEvidence.colorFeatures.alpha && inspectorEvidence.colorFeatures.recent && inspectorEvidence.colorFeatures.eyedropperShown === inspectorEvidence.colorFeatures.eyedropperSupported, 'professional color picker is incomplete')
   assert(Math.abs(inspectorEvidence.xShift - inspectorEvidence.x0 - 10) < .001 && Math.abs(inspectorEvidence.xAlt - inspectorEvidence.xShift - .1) < .001 && inspectorEvidence.xDrag > inspectorEvidence.xAlt, 'numeric wheel/modifier/scrub controls failed')
   assert(inspectorEvidence.rotationHidden, 'unsupported rotation was not hidden')
-  for (const label of ['Preview','Upload New Image','Choose from Media','Replace Selected Image','Remove Selected Image','Show in Media Library','Image focus','Fit','W','H','Hover Style','Image Shadow','Opacity','Radius','Outline','Rotate']) assert(inspectorEvidence.mediaLabels.includes(label), `MEDIA control missing: ${label}`)
+  for (const label of ['Preview','Upload New Image','Choose from Media','Replace Selected Image','Remove Selected Image','Duplicate Image','Show in Media Library','Image focus','W','H','Hover Style','Image Shadow','Opacity','Radius','Outline','Rotate']) assert(inspectorEvidence.mediaLabels.includes(label), `MEDIA control missing: ${label}`)
   assert(!inspectorEvidence.mediaLabels.includes('Reuse this image'), 'redundant media-reference action remained visible')
-  assert(inspectorEvidence.thicknessBefore && inspectorEvidence.thicknessAfter && inspectorEvidence.fitOptions.join('|') === 'Fit|Fill|Contain' && inspectorEvidence.thumbnail, `MEDIA dependency/Fit/thumbnail behavior failed: ${JSON.stringify(inspectorEvidence)}`)
+  assert(inspectorEvidence.thicknessBefore && inspectorEvidence.thicknessAfter && inspectorEvidence.fitOptions.length === 0 && inspectorEvidence.thumbnail, `MEDIA dependency/unavailable-Fit/thumbnail behavior failed: ${JSON.stringify(inspectorEvidence)}`)
 
   const inspectorShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
   await writeFile(path.join(projectRoot, 'artifacts', 'phase-031-professional-editor-ux.png'), Buffer.from(inspectorShot.data, 'base64'))

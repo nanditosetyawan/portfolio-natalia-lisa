@@ -4,6 +4,7 @@ import type {
   EditorSnapshot,
   SnapshotMediaReference
 } from '../types/editorSnapshot'
+import { resolveMediaSource } from '../repositories/mediaRepository'
 
 export interface DynamicInstanceRuntimeOptions {
   resolveMediaUrl?: (assetId: string, reference: SnapshotMediaReference) => string
@@ -32,6 +33,7 @@ export interface DynamicInstanceRenderResult {
 }
 
 const renderers = new Map<EditorInstanceType, DynamicInstanceRenderer>()
+const dynamicLayerAttribute = 'snapshotInstanceLayer'
 
 export function registerDynamicInstanceRenderer(renderer: DynamicInstanceRenderer): void {
   if (renderers.has(renderer.type)) throw new Error(`Dynamic instance renderer already registered: ${renderer.type}`)
@@ -48,6 +50,27 @@ function sectionRoot(root: HTMLElement, sectionId: string): HTMLElement | null {
     .find((element) => element.dataset.editorSectionId === sectionId) ?? null
 }
 
+function dynamicLayer(section: HTMLElement, sectionId: string): HTMLElement {
+  const existing = [...section.children].find((element): element is HTMLElement =>
+    element instanceof HTMLElement && element.dataset[dynamicLayerAttribute] === sectionId
+  )
+  if (existing) return existing
+
+  const fixedZIndex = [...section.querySelectorAll<HTMLElement>('*')].reduce((highest, element) => {
+    const value = Number.parseInt(getComputedStyle(element).zIndex, 10)
+    return Number.isFinite(value) ? Math.max(highest, value) : highest
+  }, 0)
+  const layer = document.createElement('div')
+  layer.className = 'snapshot-dynamic-instance-layer'
+  layer.dataset[dynamicLayerAttribute] = sectionId
+  layer.style.position = 'absolute'
+  layer.style.inset = '0'
+  layer.style.zIndex = String(fixedZIndex + 1)
+  layer.style.pointerEvents = 'none'
+  section.append(layer)
+  return layer
+}
+
 function imageRenderer(): DynamicInstanceRenderer {
   return {
     type: 'image',
@@ -60,7 +83,7 @@ function imageRenderer(): DynamicInstanceRenderer {
       image.loading = 'lazy'
       image.draggable = false
       image.style.position = 'absolute'
-      image.style.inset = 'auto'
+      image.style.inset = '0 auto auto 0'
       image.style.maxWidth = 'none'
       image.style.maxHeight = 'none'
       image.style.pointerEvents = 'auto'
@@ -74,13 +97,20 @@ function imageRenderer(): DynamicInstanceRenderer {
         ? snapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId)
         : undefined
       const source = assignment && reference
-        ? options.resolveMediaUrl?.(assignment.assetId, reference) ?? reference.uri
+        ? options.resolveMediaUrl?.(assignment.assetId, reference) ?? resolveMediaSource(reference)
         : ''
-      if (source && element.getAttribute('src') !== source) element.src = source
+      if (source && element.getAttribute('src') !== source) {
+        element.dataset.mediaLoadState = 'loading'
+        element.src = source
+      }
       if (!source) element.removeAttribute('src')
       element.alt = reference?.alt?.trim() || instance.label
       element.dataset.mediaUsageId = instance.instanceId
       element.dataset.entityId = instance.instanceId
+      if (assignment) element.dataset.mediaAssetId = assignment.assetId
+      else delete element.dataset.mediaAssetId
+      if (reference?.storagePath) element.dataset.mediaCanonicalPath = reference.storagePath
+      else delete element.dataset.mediaCanonicalPath
       element.style.objectPosition = assignment?.objectPosition ?? '50% 50%'
       if (reference?.width) element.width = reference.width
       else element.removeAttribute('width')
@@ -107,6 +137,7 @@ export function renderDynamicInstances(
       .flatMap((element) => element.dataset.snapshotInstanceId ? [[element.dataset.snapshotInstanceId, element] as const] : [])
   )
   const retained = new Set<string>()
+  const layers = new Map<string, HTMLElement>()
   const ordered = [...(snapshot.instances ?? [])].sort((left, right) => left.sectionId.localeCompare(right.sectionId) || left.order - right.order)
 
   for (const instance of ordered) {
@@ -117,6 +148,8 @@ export function renderDynamicInstances(
       result.missingSections.push(instance.sectionId)
       continue
     }
+    const targetLayer = layers.get(instance.sectionId) ?? dynamicLayer(targetSection, instance.sectionId)
+    layers.set(instance.sectionId, targetLayer)
     let element = existing.get(instance.instanceId)
     if (element?.tagName !== renderer.tagName) {
       element?.remove()
@@ -131,7 +164,7 @@ export function renderDynamicInstances(
     element.dataset.snapshotInstanceSection = instance.sectionId
     element.style.zIndex = String(snapshot.layout[instance.instanceId]?.zIndex ?? instance.order + 1)
     renderer.update({ root, element, instance, snapshot, options })
-    targetSection.append(element)
+    targetLayer.append(element)
     retained.add(instance.instanceId)
   }
 
@@ -139,6 +172,9 @@ export function renderDynamicInstances(
     if (retained.has(instanceId)) continue
     element.remove()
     result.removed.push(instanceId)
+  }
+  for (const layer of root.querySelectorAll<HTMLElement>('[data-snapshot-instance-layer]')) {
+    if (!layer.querySelector('[data-snapshot-instance-id]')) layer.remove()
   }
   return result
 }

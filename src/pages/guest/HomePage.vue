@@ -78,11 +78,64 @@ function focusMainContent(): void {
   main?.focus({ preventScroll: true })
   main?.scrollIntoView({ block: 'start' })
 }
+
+function mediaSourceType(source: string): string {
+  if (!source) return 'empty'
+  if (source.startsWith('blob:')) return 'temporary-object-url'
+  if (source.startsWith('data:')) return 'embedded-data'
+  if (source.includes('/storage/v1/object/public/')) return 'public-storage'
+  if (source.includes('/storage/v1/object/sign/')) return 'signed-storage'
+  if (/^https?:/i.test(source)) return 'external-url'
+  if (/^\/?(?:draft|published)\//i.test(source)) return 'storage-path'
+  return 'application-asset'
+}
+
+function mediaCanonicalPath(image: HTMLImageElement): string | null {
+  if (image.dataset.mediaCanonicalPath) return image.dataset.mediaCanonicalPath
+  try {
+    const match = new URL(image.currentSrc || image.src, location.href).pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/[^/]+\/(.+)$/)
+    return match?.[1] ? decodeURIComponent(match[1]) : null
+  } catch {
+    return null
+  }
+}
+
+function mediaDiagnostic(image: HTMLImageElement) {
+  const usage = site.current.mediaUsages.find((candidate) => candidate.id === image.dataset.mediaUsageId)
+  return {
+    entityId: image.dataset.entityId ?? image.dataset.mediaUsageId ?? image.dataset.photoAreaId ?? null,
+    instanceId: image.dataset.snapshotInstanceId ?? null,
+    assetId: image.dataset.mediaAssetId ?? usage?.mediaAssetId ?? null,
+    canonicalPath: mediaCanonicalPath(image),
+    sourceType: mediaSourceType(image.currentSrc || image.src)
+  }
+}
+
+function handleMediaLoad(event: Event): void {
+  if (!(event.target instanceof HTMLImageElement)) return
+  event.target.dataset.mediaLoadState = 'loaded'
+  event.target.removeAttribute('aria-invalid')
+}
+
+function handleMediaLoadError(event: Event): void {
+  if (!(event.target instanceof HTMLImageElement)) return
+  event.target.dataset.mediaLoadState = 'error'
+  event.target.setAttribute('aria-invalid', 'true')
+  const detail = mediaDiagnostic(event.target)
+  window.dispatchEvent(new CustomEvent('portfolio:media-load-error', { detail }))
+  if (import.meta.env.DEV) console.warn('[media-load-error]', detail)
+}
 </script>
 
 <template>
   <a v-if="!editorPreview" class="skip-link" href="#main" @click.prevent="focusMainContent">Skip to main content</a>
-  <div v-if="editorPreview || site.publishedRuntimeStatus === 'ready'" ref="runtimeRoot" class="guest-home">
+  <div
+    v-if="editorPreview || site.publishedRuntimeStatus === 'ready'"
+    ref="runtimeRoot"
+    class="guest-home"
+    @load.capture="handleMediaLoad"
+    @error.capture="handleMediaLoadError"
+  >
     <PortfolioSection />
     <AboutSection />
     <EducationGlobal />

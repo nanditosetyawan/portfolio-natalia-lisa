@@ -52,6 +52,17 @@ async function waitForJson(url, timeout = 20000) {
   throw new Error(`Timed out waiting for ${url}`)
 }
 
+async function waitForPageTarget(urlPart, timeout = 20000) {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`, timeout)
+    const page = targets.find((target) => target.type === 'page' && target.url.includes(urlPart))
+    if (page) return page
+    await wait(100)
+  }
+  throw new Error('PWA browser target not found.')
+}
+
 process.on('exit', stopChildren)
 let socket
 try {
@@ -62,9 +73,7 @@ try {
   const browser = launch(chromePath, ['--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars', `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profilePath}`, '--window-size=1440,1000', baseUrl])
   let browserErrors = ''
   browser.stderr.on('data', (chunk) => { browserErrors += String(chunk) })
-  const targets = await waitForJson(`http://127.0.0.1:${cdpPort}/json`)
-  const page = targets.find((target) => target.type === 'page' && target.url.includes('127.0.0.1:5188'))
-  if (!page) throw new Error('PWA browser target not found.')
+  const page = await waitForPageTarget('127.0.0.1:5188')
   socket = new WebSocket(page.webSocketDebuggerUrl)
   await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }) })
 

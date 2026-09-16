@@ -10,6 +10,7 @@ import {
   moveLibraryMedia,
   renameMediaAssetMetadata,
   resolveMediaAssetPreview,
+  resolveMediaSource,
   uploadLibraryMedia
 } from '../repositories/mediaRepository'
 import { editorDraftRepository, editorPublishRepository, type RevisionRecord } from '../repositories/editorRevisionRepository'
@@ -175,7 +176,12 @@ export const useMediaLibraryStore = defineStore('media-library', () => {
         const bucket = accumulator.row?.storage_bucket ?? accumulator.reference?.bucket ?? null
         const mimeType = accumulator.row?.mime_type || accumulator.reference?.mimeType || ''
         const name = accumulator.row?.alt_text || accumulator.reference?.alt || fileName(storagePath) || titleCase(id)
-        let sourceUrl = accumulator.reference?.uri ?? accumulator.row?.source_url ?? ''
+        let sourceUrl = resolveMediaSource({
+          uri: accumulator.reference?.uri,
+          sourceUrl: accumulator.row?.source_url,
+          bucket,
+          storagePath
+        })
         if (accumulator.row) {
           try { sourceUrl = await resolveMediaAssetPreview(accumulator.row) || sourceUrl } catch { /* Keep canonical reference URL. */ }
         }

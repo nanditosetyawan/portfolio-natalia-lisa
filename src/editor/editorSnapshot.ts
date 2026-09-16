@@ -207,8 +207,11 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     if (settings.zIndex !== undefined && (typeof settings.zIndex !== 'number' || !Number.isInteger(settings.zIndex) || settings.zIndex < -10000 || settings.zIndex > 10000)) errors.push(`layout.${key}.zIndex is invalid.`)
   }
   if (isRecord(normalized.media)) {
+    const referenceAssetIds = new Set<string>()
     for (const [index, reference] of (normalized.media.references as unknown[]).entries()) {
       if (!isRecord(reference) || typeof reference.assetId !== 'string' || !ENTITY_ID_PATTERN.test(reference.assetId) || !validString(reference.uri, 2048)) { errors.push(`media.references[${index}] is invalid.`); continue }
+      if (referenceAssetIds.has(reference.assetId)) errors.push(`media.references[${index}].assetId is not unique.`)
+      else referenceAssetIds.add(reference.assetId)
       if (reference.bucket !== undefined && !validString(reference.bucket, 128)) errors.push(`media.references[${index}].bucket is invalid.`)
       if (reference.storagePath !== undefined && (typeof reference.storagePath !== 'string' || !validString(reference.storagePath, 1024) || reference.storagePath.startsWith('/') || reference.storagePath.includes('..'))) errors.push(`media.references[${index}].storagePath is invalid.`)
       for (const field of ['width', 'height']) if (reference[field] !== undefined && (typeof reference[field] !== 'number' || !Number.isFinite(reference[field]) || reference[field] < 0 || reference[field] > 100000)) errors.push(`media.references[${index}].${field} is invalid.`)
@@ -217,7 +220,10 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     for (const [index, assignment] of (normalized.media.assignments as unknown[]).entries()) {
       if (!isRecord(assignment) || typeof assignment.entityId !== 'string' || !ENTITY_ID_PATTERN.test(assignment.entityId) || !validString(assignment.role, 128) || typeof assignment.assetId !== 'string' || !ENTITY_ID_PATTERN.test(assignment.assetId) || (assignment.objectPosition !== undefined && !validString(assignment.objectPosition, 128))) errors.push(`media.assignments[${index}] is invalid.`)
       else if (assignmentEntityIds.has(assignment.entityId)) errors.push(`media.assignments[${index}].entityId is not unique.`)
-      else assignmentEntityIds.add(assignment.entityId)
+      else {
+        assignmentEntityIds.add(assignment.entityId)
+        if (!referenceAssetIds.has(assignment.assetId)) errors.push(`media.assignments[${index}] references a missing media asset.`)
+      }
     }
     for (const [key, settings] of Object.entries(normalized.media.styles as Record<string, unknown>)) {
       if (!isRecord(settings)) { errors.push(`media.styles.${key} is invalid.`); continue }
@@ -228,7 +234,7 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     }
     if (Array.isArray(normalized.instances)) {
       const assignments = new Map((normalized.media.assignments as unknown[]).flatMap((assignment) => isRecord(assignment) && typeof assignment.entityId === 'string' ? [[assignment.entityId, assignment]] : []))
-      const references = new Set((normalized.media.references as unknown[]).flatMap((reference) => isRecord(reference) && typeof reference.assetId === 'string' ? [reference.assetId] : []))
+      const references = referenceAssetIds
       const knownSections = new Set(Array.isArray(normalized.entities)
         ? normalized.entities.flatMap((entity) => isRecord(entity) && typeof entity.section === 'string' ? [normalizeEditorSectionId(entity.section)] : [])
         : [])

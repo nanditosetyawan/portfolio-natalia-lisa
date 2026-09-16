@@ -1,4 +1,5 @@
-import { supabaseTableRows, supabaseRpc, isSupabaseConfigured, supabasePublicStorageUrl } from '../lib/supabaseRest'
+import { supabaseTableRows, supabaseRpc, isSupabaseConfigured } from '../lib/supabaseRest'
+import { resolveMediaSource } from './mediaRepository'
 import type { EditorSnapshot } from '../types/editorSnapshot'
 import { deserializeEditorSnapshot, serializeEditorSnapshot, validateEditorSnapshot } from '../editor/editorSnapshot'
 import type { DraftMediaReference } from '../types/editor'
@@ -541,16 +542,15 @@ export class SupabaseEditorDraftRepository implements EditorDraftRepository {
     const supabaseClient = await loadSupabaseClient()
     const { error } = await supabaseClient.storage.from('portfolio-media').upload(storagePath, file, { upsert: false, contentType: file.type })
     if (error) throw new Error(`Draft media upload failed: ${error.message}`)
-    const { data, error: signedError } = await supabaseClient.storage.from('portfolio-media').createSignedUrl(storagePath, 3600)
-    if (signedError) throw new Error(`Draft media preview failed: ${signedError.message}`)
-    return { assetId, bucket: 'portfolio-media', storagePath, mimeType: file.type, width: 0, height: 0, previewUrl: data.signedUrl }
+    const previewUrl = resolveMediaSource({ bucket: 'portfolio-media', storagePath })
+    if (!previewUrl) throw new Error('Draft media preview could not be resolved.')
+    return { assetId, bucket: 'portfolio-media', storagePath, mimeType: file.type, width: 0, height: 0, previewUrl }
   }
 
   async getDraftMediaUrl(reference: DraftMediaReference): Promise<string> {
-    const supabaseClient = await loadSupabaseClient()
-    const { data, error } = await supabaseClient.storage.from(reference.bucket).createSignedUrl(reference.storagePath, 3600)
-    if (error) throw new Error(`Draft media preview failed: ${error.message}`)
-    return data.signedUrl
+    const previewUrl = resolveMediaSource({ bucket: reference.bucket, storagePath: reference.storagePath })
+    if (!previewUrl) throw new Error('Draft media preview could not be resolved.')
+    return previewUrl
   }
 
   async discardDraft(draftRevisionId?: string): Promise<void> {
@@ -577,7 +577,8 @@ export class SupabaseGuestPublishedRepository implements GuestPublishedRepositor
     const resolved = clone(snapshot)
     resolved.media.references = resolved.media.references.map((reference) => {
       if (reference.bucket !== 'portfolio-media' || !reference.storagePath?.startsWith('published/')) throw new Error(`Guest Runtime rejected non-Published media ${reference.assetId}.`)
-      const publicUrl = supabasePublicStorageUrl('portfolio-media', reference.storagePath)
+      const publicUrl = resolveMediaSource(reference)
+      if (!publicUrl) throw new Error(`Guest Runtime could not resolve Published media ${reference.assetId}.`)
       return { ...reference, uri: publicUrl }
     })
     return resolved
