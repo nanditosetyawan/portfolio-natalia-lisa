@@ -141,17 +141,25 @@ export const imageEffectPreview: PropertyPreviewUpdater = {
     const mediaStyle = context.snapshot.media.styles[context.entityId]
     const filters: string[] = []
     const outlineWidth = mediaStyle?.outlineWidth ?? 1
+    
+    const targetElement = context.element.tagName === 'IMG' ? context.element : context.element.querySelector('img') || context.element
 
     if (mediaStyle?.outlineEnabled && outlineWidth > 0) {
-      const definition = ensureFilterDefinition(runtimeRoot(context.element), context.entityId)
+      const definition = ensureFilterDefinition(runtimeRoot(targetElement), context.entityId)
       definition.morphology.setAttribute('radius', String(outlineWidth))
-      definition.flood.setAttribute('flood-color', outlineColor(context.snapshot, context.entityId, context.element))
+      definition.flood.setAttribute('flood-color', outlineColor(context.snapshot, context.entityId, targetElement))
       filters.push(`url("#${definition.id}")`)
     }
     filters.push(...alphaShadowFilters(background?.boxShadow ?? ''))
     if ((background?.blur ?? 0) > 0) filters.push(`blur(${background?.blur}px)`)
 
-    context.setStyle('filter', filters.join(' '))
+    if (targetElement !== context.element) {
+      targetElement.style.filter = filters.join(' ')
+      context.setStyle('filter', '')
+    } else {
+      context.setStyle('filter', filters.join(' '))
+    }
+    
     context.setStyle('box-shadow', '')
     context.setStyle('border', '')
     context.setStyle('outline', '')

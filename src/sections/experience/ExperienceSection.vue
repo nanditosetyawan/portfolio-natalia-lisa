@@ -172,11 +172,18 @@
 
           <!-- Photo(s): moves with card as one unit -->
           <div class="exp-image-wrapper">
-            <div class="exp-image-frame" :style="frameStyle(item.frameId)">
+            <div
+              class="exp-image-frame"
+              :class="{ 'is-selected': editorStore.selectedObjectId === item.frameId }"
+              :data-photo-area-id="item.frameId"
+              :style="frameStyle(item.frameId)"
+            >
               <PhotoArea
                 class="exp-frame-photo"
+                style="pointer-events: none;"
+                :omit-editor-id="true"
                 :frame-id="item.frameId"
-                :source="imageSource(item.frameId)"
+                :source="frameImages.frames[item.frameId]?.source || ''"
                 :alt="`${item.title} photo`"
                 :object-position="imageObjectPosition(item.frameId)"
                 :style="{ borderRadius: frameConfig(item.frameId).image.borderRadius }"
@@ -204,18 +211,19 @@ import type { ExperienceFrameId } from '../../data/default/experience'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 import { useSiteStore } from '../../stores/site'
+import { useEditorStore } from '../../stores/editor'
 
 // ──────────────────────────────────────────────
 // DATA
 // ──────────────────────────────────────────────
 const site = useSiteStore()
+const editorStore = useEditorStore()
 const items = computed(() => site.experienceEntries)
 const sectionTitle = computed(() => site.current.content.experience.title)
 const vConfig = computed(() => site.current.visual.experience)
 const frameImages = usePhotoAreaImagesStore()
 
 const frameConfig = (frameId: ExperienceFrameId) => vConfig.value.imageFrames[frameId]
-const imageSource = (frameId: ExperienceFrameId) => frameImages.frames[frameId]?.source ?? ''
 const imageObjectPosition = (frameId: ExperienceFrameId) => site.current.photoAreas.find((area) => area.id === frameId)?.objectPosition ?? frameConfig(frameId).image.objectPosition
 const frameStyle = (frameId: ExperienceFrameId): CSSProperties => ({
   position: frameConfig(frameId).position as CSSProperties['position'],
@@ -558,15 +566,19 @@ const dotTopVh = computed(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 
 .exp-image-frame {
   box-sizing: border-box;
-  transform: rotate(var(--frame-rotation, 0deg));
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(var(--frame-rotation, 0deg));
 }
 
 .exp-image-frame:hover {
-  transform: rotate(var(--frame-rotation, 0deg)) scale(1.02);
+  transform: translate(-50%, -50%) rotate(var(--frame-rotation, 0deg)) scale(1.02);
   box-shadow:
     0 24px 48px rgba(61, 40, 34, 0.16),
     0 10px 20px rgba(61, 40, 34, 0.1);
@@ -689,5 +701,10 @@ const dotTopVh = computed(() => {
 @media (max-width: 480px) {
   .exp-item-title  { font-size: clamp(1.4rem, 6vw, 2rem); }
   .exp-description { font-size: 0.95rem; }
+}
+
+/* Active selection */
+.is-selected {
+  z-index: 999 !important;
 }
 </style>

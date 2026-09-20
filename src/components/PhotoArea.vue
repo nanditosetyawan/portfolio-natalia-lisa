@@ -1,86 +1,43 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, nextTick, watch } from 'vue'
 const props = defineProps<{
   frameId: string
   source: string
   alt: string
   objectPosition?: string
+  omitEditorId?: boolean
 }>()
 
-const boundaryRef = ref<HTMLElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const naturalWidth = ref(0)
 const naturalHeight = ref(0)
-const renderedWidth = ref(0)
-const renderedHeight = ref(0)
-let resizeObserver: ResizeObserver | undefined
-let resizeFrameRequest = 0
 
 const imageStyle = computed(() => ({
-  width: `${renderedWidth.value}px`,
-  height: `${renderedHeight.value}px`,
   objectPosition: props.objectPosition ?? 'center center'
 }))
-
-function measure() {
-  const boundary = boundaryRef.value
-  if (!boundary || !naturalWidth.value || !naturalHeight.value) return
-
-  const scale = Math.min(
-    Math.max(boundary.clientWidth / naturalWidth.value, boundary.clientHeight / naturalHeight.value),
-    1
-  )
-  const nextWidth = naturalWidth.value * scale
-  const nextHeight = naturalHeight.value * scale
-  if (renderedWidth.value !== nextWidth) renderedWidth.value = nextWidth
-  if (renderedHeight.value !== nextHeight) renderedHeight.value = nextHeight
-}
-
-function scheduleMeasure() {
-  if (resizeFrameRequest) return
-  resizeFrameRequest = requestAnimationFrame(() => {
-    resizeFrameRequest = 0
-    measure()
-  })
-}
 
 function onImageLoad(event: Event) {
   const image = event.currentTarget as HTMLImageElement
   naturalWidth.value = image.naturalWidth
   naturalHeight.value = image.naturalHeight
-  scheduleMeasure()
 }
 
 watch(() => props.source, async () => {
   naturalWidth.value = 0
   naturalHeight.value = 0
-  renderedWidth.value = 0
-  renderedHeight.value = 0
   await nextTick()
   if (imageRef.value?.complete && imageRef.value.naturalWidth) {
     naturalWidth.value = imageRef.value.naturalWidth
     naturalHeight.value = imageRef.value.naturalHeight
-    scheduleMeasure()
   }
-})
-
-onMounted(() => {
-  resizeObserver = new ResizeObserver(scheduleMeasure)
-  if (boundaryRef.value) resizeObserver.observe(boundaryRef.value)
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  if (resizeFrameRequest) cancelAnimationFrame(resizeFrameRequest)
 })
 </script>
 
 <template>
   <div
-    ref="boundaryRef"
     class="photo-area-boundary"
     :data-frame-id="frameId"
-    :data-photo-area-id="frameId"
+    :data-photo-area-id="omitEditorId ? undefined : frameId"
   >
     <img
       v-if="source"
@@ -106,7 +63,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  /* overflow: hidden removed to allow alpha-aware shadows to bleed outside bounds */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -115,12 +72,11 @@ onBeforeUnmount(() => {
 
 .photo-area-image {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  max-width: none;
-  max-height: none;
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
-  flex: none;
 }
 </style>

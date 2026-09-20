@@ -4,8 +4,10 @@ import { ArrowDown, ArrowRight, Sparkle } from 'lucide-vue-next'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../stores/photoAreaImages'
 import { useSiteStore } from '../../stores/site'
+import { useEditorStore } from '../../stores/editor'
 
 const site = useSiteStore()
+const editorStore = useEditorStore()
 const photoAreaImages = usePhotoAreaImagesStore()
 const about = computed(() => site.current.content.about)
 const vConfig = computed(() => site.current.visual.about)
@@ -114,7 +116,9 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
       >
         <div
             class="polaroid frame-back-2"
+            :class="{ 'is-selected': editorStore.selectedObjectId === 'about-frame-back-2' }"
             aria-hidden="true"
+            data-photo-area-id="about-frame-back-2"
             :style="{
               backgroundColor: vConfig.frameBack2.backgroundColor,
               border: vConfig.frameBack2.border,
@@ -124,7 +128,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
               zIndex: vConfig.frameBack2.zIndex
             }"
           >
-          <PhotoArea class="polaroid-photo" frame-id="about-frame-back-2" :source="photoAreaImages.frames['about-frame-back-2'].source" alt="About back 2 photo" :object-position="photoAreaObjectPosition('about-frame-back-2', vConfig.frameBack2Image.objectPosition)">
+          <PhotoArea class="polaroid-photo" style="pointer-events: none;" :omit-editor-id="true" frame-id="about-frame-back-2" :source="photoAreaImages.frames['about-frame-back-2'].source" alt="About back 2 photo" :object-position="photoAreaObjectPosition('about-frame-back-2', vConfig.frameBack2Image.objectPosition)">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameBack2Placeholder.color,
               opacity: vConfig.frameBack2Placeholder.opacity,
@@ -143,6 +147,8 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
         </div>
         <div
           class="polaroid frame-main"
+          :class="{ 'is-selected': editorStore.selectedObjectId === 'about-frame-main' }"
+          data-photo-area-id="about-frame-main"
           :style="{
             backgroundColor: vConfig.frameMain.backgroundColor,
             border: vConfig.frameMain.border,
@@ -152,7 +158,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
             zIndex: vConfig.frameMain.zIndex
           }"
         >
-          <PhotoArea class="polaroid-photo" frame-id="about-frame-main" :source="photoAreaImages.frames['about-frame-main'].source" alt="About main photo" :object-position="photoAreaObjectPosition('about-frame-main', vConfig.frameMainImage.objectPosition)">
+          <PhotoArea class="polaroid-photo" style="pointer-events: none;" :omit-editor-id="true" frame-id="about-frame-main" :source="photoAreaImages.frames['about-frame-main'].source" alt="About main photo" :object-position="photoAreaObjectPosition('about-frame-main', vConfig.frameMainImage.objectPosition)">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameMainPlaceholder.color,
               opacity: vConfig.frameMainPlaceholder.opacity,
@@ -737,5 +743,10 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
     right: v-bind('vConfig.responsive.mobile.portraitRight');
     bottom: v-bind('vConfig.responsive.mobile.portraitBottom');
   }
+}
+
+/* Active selection */
+.is-selected {
+  z-index: 999 !important;
 }
 </style>

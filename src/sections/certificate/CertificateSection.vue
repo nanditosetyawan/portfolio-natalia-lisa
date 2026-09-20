@@ -5,12 +5,14 @@ import type { CertificateCard } from '../../data/default/certificates'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { useCertificatesStore } from '../../stores/certificates'
 import { useSiteStore } from '../../stores/site'
+import { useEditorStore } from '../../stores/editor'
 
 // ===== Card Data =====
 // Add image URLs to the `detailImages` array to replace placeholders.
 // Empty string '' = show placeholder. Replace with actual URL to show real photo.
 // Use default certificates data
 const site = useSiteStore()
+const editorStore = useEditorStore()
 const certificatesTitle = computed(() => site.current.content.certificate.title)
 const vConfig = computed(() => site.current.visual.certificate)
 const certificatesStore = useCertificatesStore()
@@ -300,9 +302,9 @@ onBeforeUnmount(() => {
           v-for="card in cards"
           :key="card.id"
           class="certificate-card"
+          :class="{ 'is-selected': editorStore.selectedObjectId === card.id, 'is-expanded': isExpanded(card.id) }"
           :data-certificate-id="card.id"
           :data-certificate-origin="certificateOrigin(card.id)"
-          :class="{ 'is-expanded': isExpanded(card.id) }"
           :style="{ backgroundColor: vConfig.certificateCard.backgroundColor }"
         >
           <!-- Card Header — always visible, clickable to expand/collapse -->
@@ -312,6 +314,8 @@ onBeforeUnmount(() => {
                <div class="card-thumbnail">
                  <PhotoArea
                    class="thumbnail-image"
+                   style="pointer-events: none;"
+                   :omit-editor-id="true"
                    :frame-id="card.thumbnail.id"
                    :source="photoSource(card.thumbnail)"
                    :alt="`${card.title} - thumbnail`"
@@ -396,6 +400,8 @@ onBeforeUnmount(() => {
                    >
                      <PhotoArea
                        class="cert-photo-area"
+                       style="pointer-events: none;"
+                       :omit-editor-id="true"
                        :frame-id="image.id"
                        :source="photoSource(image)"
                        :alt="`${card.title} - foto ${idx + 1}`"
@@ -644,12 +650,67 @@ onBeforeUnmount(() => {
 .cards-stack {
   display: flex;
   flex-direction: column;
+}
+.title-sparkles {
+  position: absolute;
+  top: -15px;
+  right: -25px;
+  width: 35px;
+  height: 35px;
+  pointer-events: none;
+}
+.sparkle {
+  position: absolute;
+}
+.sparkle-1 {
+  top: 0;
+  left: 0;
+  animation: shine 3s ease-in-out infinite;
+}
+.sparkle-2 {
+  bottom: 2px;
+  right: -5px;
+  animation: shine 3s ease-in-out infinite 1.5s;
+}
+@keyframes shine {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+/* Broken thin line below title */
+.title-line-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 240px;
+  margin: 0 auto;
+}
+.line-segment {
+  flex-grow: 1;
+  height: 1.5px;
+  background-color: #F28C38; /* Accent orange/brown */
+  opacity: 0.85;
+}
+.line-gap {
+  width: 36px;
+  flex-shrink: 0;
+}
+/* ===== Certificate Cards Stack (Layer 7) ===== */
+.cards-stack {
+  display: flex;
+  flex-direction: column;
   gap: 2.2rem; /* Relatively large visually balanced gap */
   width: 100%;
   max-width: 820px; /* Approx 60-70% of viewport width */
   z-index: 5;
 }
 .certificate-card {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -695,6 +756,9 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 .placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   padding: 0.5rem;
@@ -703,6 +767,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 .placeholder-icon {
   margin-bottom: 4px;
@@ -940,10 +1005,11 @@ onBeforeUnmount(() => {
   height: 100%;
   border-radius: 14px;
 }
-
-/* Actual certificate photo: fits fully inside container maintaining its original aspect ratio */
 /* Placeholder when no image URL provided */
 .cert-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #EEE2D6 0%, #E4D4C4 100%);
@@ -958,6 +1024,7 @@ onBeforeUnmount(() => {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
+  pointer-events: none;
 }
 .cert-placeholder-hint {
   font-size: 0.78rem;
@@ -1047,5 +1114,10 @@ onBeforeUnmount(() => {
     right: 2%;
     top: 16%;
   }
+}
+
+/* Active selection */
+.is-selected {
+  z-index: 999 !important;
 }
 </style>

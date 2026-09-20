@@ -4,8 +4,10 @@ import { Calendar, Sparkles } from 'lucide-vue-next'
 import PhotoArea from '../../../components/PhotoArea.vue'
 import { usePhotoAreaImagesStore } from '../../../stores/photoAreaImages'
 import { useSiteStore } from '../../../stores/site'
+import { useEditorStore } from '../../../stores/editor'
 
 const site = useSiteStore()
+const editorStore = useEditorStore()
 const photoAreaImages = usePhotoAreaImagesStore()
 const entries = computed(() => site.collegeEntries)
 const vConfig = computed(() => site.current.visual.college)
@@ -103,7 +105,7 @@ const vConfig = computed(() => site.current.visual.college)
         height: vConfig.visual.height
       }">
         <!-- Back frame (larger, rotated left) -->
-        <div class="polaroid frame-back" aria-hidden="true" :style="{
+        <div class="polaroid frame-back" :class="{ 'is-selected': editorStore.selectedObjectId === item.frameIds.back }" aria-hidden="true" :data-photo-area-id="item.frameIds.back" :style="{
           backgroundColor: vConfig.frameBack.backgroundColor,
           border: vConfig.frameBack.border,
           borderRadius: vConfig.frameBack.borderRadius,
@@ -115,7 +117,7 @@ const vConfig = computed(() => site.current.visual.college)
           transform: `rotate(${vConfig.frameBack.transformRotate})`,
           zIndex: vConfig.frameBack.zIndex
         }">
-          <PhotoArea class="polaroid-photo" :frame-id="item.frameIds.back" :source="photoAreaImages.frames[item.frameIds.back]?.source || ''" :alt="`${item.school} frame back photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.back)?.objectPosition || vConfig.frameBackImage.objectPosition">
+          <PhotoArea class="polaroid-photo" style="pointer-events: none;" :omit-editor-id="true" :frame-id="item.frameIds.back" :source="photoAreaImages.frames[item.frameIds.back]?.source || ''" :alt="`${item.school} frame back photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.back)?.objectPosition || vConfig.frameBackImage.objectPosition">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameBackPlaceholder.color,
               opacity: vConfig.frameBackPlaceholder.opacity,
@@ -141,7 +143,7 @@ const vConfig = computed(() => site.current.visual.college)
         </div>
 
         <!-- Front frame (smaller, rotated right) -->
-        <div class="polaroid frame-front" :style="{
+        <div class="polaroid frame-front" :class="{ 'is-selected': editorStore.selectedObjectId === item.frameIds.front }" :data-photo-area-id="item.frameIds.front" :style="{
           backgroundColor: vConfig.frameFront.backgroundColor,
           border: vConfig.frameFront.border,
           borderRadius: vConfig.frameFront.borderRadius,
@@ -153,7 +155,7 @@ const vConfig = computed(() => site.current.visual.college)
           transform: `rotate(${vConfig.frameFront.transformRotate})`,
           zIndex: vConfig.frameFront.zIndex
         }">
-          <PhotoArea class="polaroid-photo" :frame-id="item.frameIds.front" :source="photoAreaImages.frames[item.frameIds.front]?.source || ''" :alt="`${item.school} frame front photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.front)?.objectPosition || vConfig.frameFrontImage.objectPosition">
+          <PhotoArea class="polaroid-photo" style="pointer-events: none;" :omit-editor-id="true" :frame-id="item.frameIds.front" :source="photoAreaImages.frames[item.frameIds.front]?.source || ''" :alt="`${item.school} frame front photo`" :object-position="site.current.photoAreas.find(area => area.id === item.frameIds.front)?.objectPosition || vConfig.frameFrontImage.objectPosition">
             <div class="image-boundary-placeholder" :style="{
               color: vConfig.frameFrontPlaceholder.color,
               opacity: vConfig.frameFrontPlaceholder.opacity,
@@ -295,6 +297,9 @@ const vConfig = computed(() => site.current.visual.college)
 }
 
 .image-boundary-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   border: var(--placeholder-border-width, 2px) dashed var(--placeholder-color, #8D363A);
@@ -302,9 +307,9 @@ const vConfig = computed(() => site.current.visual.college)
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
   pointer-events: none;
   opacity: var(--placeholder-opacity, 0.5);
+  overflow: hidden;
 }
 
 .image-boundary-placeholder .boundary-label {
@@ -406,5 +411,10 @@ const vConfig = computed(() => site.current.visual.college)
 
 .frame-front .polaroid-photo {
   flex: 1;
+}
+
+/* Active selection */
+.is-selected {
+  z-index: 999 !important;
 }
 </style>

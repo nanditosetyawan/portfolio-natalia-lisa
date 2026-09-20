@@ -4820,3 +4820,103 @@ PASS
 - AI-limit recovery: remaining image-decode assertions, fixed-reference validation, configured public-URL browser proof, WEBP/GIF MIME proof, broad regressions, PWA harness race fix, screenshot inspection, report, log, and final static validation were completed. No implementation step was skipped because of the AI usage-limit interruption.
 - Final status: `PASS / FIXED AND DYNAMIC MEDIA ASSIGNMENTS RESOLVE THROUGH ONE CANONICAL SOURCE BOUNDARY; REQUIRED LOCAL CANVAS/INSPECTOR/DRAFT/PUBLISHED/ROLLBACK IMAGES DECODE WITH POSITIVE NATURAL DIMENSIONS; CONFIGURED PUBLIC CLOUD OBJECT DELIVERY PASSES READ-ONLY; FRESH CLOUD GOTRUE MUTATION REMAINS NOT RUN AS EXPLICITLY PERMITTED`.
 
+## Request #160 - PHASE 038B POST-LIMIT FINAL AUDIT AND HANDOFF
+
+- Date: 2026-09-16 20:04:02 +07:00 (Asia/Jakarta).
+- Execution mode: continuation-only final audit; no implementation restart, no Release Candidate work, and no new feature work.
+- User instruction: continue the interrupted process from its exact stopping point.
+- Context rechecked: latest 200 project-log lines, supplied `AGENTS.md`, Phase 038B report tail, current Git status/commit, shared media resolver callers, remaining Storage URL generation sites, and report/screenshot presence.
+- Final source audit: fixed/dynamic Editor Canvas, Inspector, Media Library, Draft preview, dynamic renderer, and Published Guest route through `resolveMediaSource()`. Raw `draft/*` and `published/*` values are not accepted as browser URLs. The remaining `getPublicUrl()` call is the established upload repository boundary; the separate Certificate CRUD repository already emits a valid public URL and was intentionally not refactored outside this phase.
+- Repository state: `git status --porcelain` was clean at audit time. Commit `b96bd56` already contains the Phase 038A/038B work and unrelated historical report deletions; no reset, restoration, or history rewrite was performed.
+- Evidence integrity: `PHASE-038B-MEDIA-SOURCE-INTEGRITY.md` and `artifacts/phase-038b-media-source-integrity.png` exist. Prior executed focused/browser/regression/static evidence remains unchanged; no test was re-labelled or fabricated.
+- Specification/design boundary: `md/` and `design/` remain absent, therefore additional specification is `Tidak ditemukan dalam specification` and formal design-reference comparison is `Belum dilakukan`.
+- Final result: Phase 038B remains `PASS`; fresh mutating Cloud GoTrue Publish/reload remains `NOT RUN` as explicitly permitted, and Release Candidate certification remains intentionally paused.
+
+## Request #161 - PHASE 038B REPORT HANDOFF
+
+- Date: 2026-09-16 (Asia/Jakarta).
+- User requested the completed Phase 038B report.
+- Rechecked the report file, final evidence references, and latest implementation log. No source or test changes were made.
+- Delivered the report link and summarized the verified PASS results, including the explicitly unrun fresh Cloud mutation boundary.
+
+
+## Request: Fix Image Render, Alpha Filters, and Inspector Semantic Spacing
+- **Date**: 2026-09-20 20:32:00
+- **Mode**: Execution
+- **Scope**: PhotoArea refactor, Alpha filter isolation, Spacing semantic fixes in property registry.
+- **Specs Consulted**: md/03-editor-builder-components.md
+- **Work Performed**: Removed ResizeObserver from PhotoArea.vue and used native object-fit: cover. Updated imageEffectRuntime.ts to target the img element directly for SVG filters to respect alpha outline. Updated propertyRegistry.ts to hide margin/padding for Image, Text, Icon, Divider where they lack layout semantic value. Updated mediaUploadRules.ts to officially include PNG support. Validated drag-and-drop semantics for insertion vs replacement. Validated instance isolation.
+- **Files Modified**: src/components/PhotoArea.vue, src/editor/imageEffectRuntime.ts, src/editor/propertyRegistry.ts, src/lib/mediaUploadRules.ts
+- **Status**: Completed, Compiled without errors.
+
+## Request #162 - IMAGE W/H ACTUAL RENDER, ALPHA-AWARE SVG MORPHOLOGY OUTLINE, AND FULL TEST SUITE VERIFICATION
+
+- **Date**: 2026-09-20 21:19:40 +07:00 (Asia/Jakarta).
+- **Mode**: Execution & Verification.
+- **User Instruction**: Lanjutkan pengerjaan dan perbaiki Bug 1 (W/H actual rendered size) dan Bug 2 (Alpha-aware outline/shadow filters).
+- **Specs Consulted**: `AGENTS.md`, `src/types/editorSnapshot.ts`, `src/editor/propertyRegistry.ts`, `src/editor/imageEffectRuntime.ts`, `src/runtime/dynamicInstanceRuntime.ts`.
+- **Work Performed**:
+  1. **Task 1 (W/H Actual Rendered Size)**: Fixed image rendering across fixed photo areas (`PhotoArea.vue`) and dynamic instances (`dynamicInstanceRuntime.ts`). Ensured `img` tags stretch cleanly with `width: 100%; height: 100%; object-fit: cover; max-width: none; max-height: none;` while container boundaries receive proportional W and H values without static constraint caps.
+  2. **Task 2 (Alpha-Aware Outline/Shadow SVG Filters)**: Updated `imageEffectRuntime.ts` and `editorInstances.ts` so `findSnapshotObjectReference` resolves media assignments (e.g. `portfolio-profile-media`, photo areas, and dynamic instances). Ensured SVG morphology filters (`feMorphology`, `feFlood`, `feComposite`, `feMerge`) are created in the DOM and attached directly to the target `<img>` node via `style.filter = url("#...")`, while wrapper box-shadow and border are cleared.
+  3. **Task 3 (Upload Rules Parity)**: Restored canonical shared validation rules across Editor upload and Media Library for supported formats (WEBP, GIF, and PDF for document library).
+  4. **Validation Executed**:
+     - `tests/media-image-effects-runtime.mjs`: PASS
+     - `tests/dynamic-editor-instances-runtime.mjs`: PASS
+     - `tests/numeric-scrub-text-outline-runtime.mjs`: PASS
+     - `tests/inspector-object-isolation-runtime.mjs`: PASS
+     - `tests/editor-object-system-runtime.mjs`: PASS
+     - `tests/editor-professional-ux-runtime.mjs`: PASS
+     - `tests/human-friendly-inspector-runtime.mjs`: PASS
+     - `tests/media-library-runtime.mjs`: PASS
+     - `tests/responsive-layout-runtime.mjs`: PASS
+     - `tests/animation-system-runtime.mjs`: PASS
+     - `tests/design-system-runtime.mjs`: PASS
+     - `tests/default-guest-runtime.mjs`: PASS
+     - `tests/production-pwa-runtime.mjs`: PASS
+     - `tests/stabilization-runtime.mjs`: PASS
+     - `npx vue-tsc && vite build`: PASS (2,044 modules built with 0 errors).
+- **Files Modified**: `src/components/PhotoArea.vue`, `src/editor/imageEffectRuntime.ts`, `src/editor/propertyRegistry.ts`, `src/lib/mediaUploadRules.ts`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Status**: PASS / ALL TESTS PASSING.
+
+
+## Request: Urgent Revision - Finalizing About Layout & Actions
+- **Date**: 2026-09-20 21:40:05
+- **Mode**: Execution
+- **Scope**: AboutSection CSS refactoring for side-by-side layout, PhotoArea rendering constraints, SVG outline isolation, and Github Actions.
+- **Work Performed**: Fixed the PhotoArea.vue rendering logic by fully replacing ResizeObserver with native aspect stretching (object-fit: cover). Refactored AboutSection.vue to adopt a Flexbox layout, placing the two photo cards structurally side-by-side to resolve overlap collision (bertumpuk) while retaining relative legacy transforms. Ensured Alpha-Aware outline in imageEffectRuntime.ts correctly targets <img> while freeing overflow bounds. Wrote Supabase keep-alive cron action in .github/workflows/supabase-keep-alive.yml. Created PROGRESS_STATUS_AND_NEXT_STEPS.md artifact.
+- **Files Modified**: src/components/PhotoArea.vue, src/sections/about/AboutSection.vue, .github/workflows/supabase-keep-alive.yml, PROGRESS_STATUS_AND_NEXT_STEPS.md
+- **Status**: Completed, DOM Verified visually by browser subagent PASS.
+
+## Request: Fix Card Internal CSS (Single Unit Rule)
+- **Date**: 2026-09-20 21:54:38
+- **Mode**: Execution
+- **Scope**: Re-bind white frame, image, and placeholder so they move as a single unit during drag.
+- **Work Performed**: Modified PhotoArea.vue by introducing omitEditorId prop to prevent editor from targeting the internal image boundary. In AboutSection.vue, passed data-photo-area-id to the parent .polaroid wrappers and applied omit-editor-id=\	rue\` with pointer-events: none; to <PhotoArea> so the entire white frame becomes the drag target. Fixed .image-boundary-placeholder with absolute binding to its relative parent. Verified via browser agent drag test.
+- **Files Modified**: src/components/PhotoArea.vue, src/sections/about/AboutSection.vue
+- **Status**: Completed, DOM Verified visually by browser subagent PASS.
+
+## Request: Global Fix for Single Unit Rule
+- **Date**: 2026-09-20 22:04:02
+- **Mode**: Execution
+- **Scope**: Apply Single Unit Rule (elevating data-photo-area-id, omitEditorId, pointer-events: none, position absolute) to ALL sections using PhotoArea.
+- **Work Performed**: Audited all Vue files using \<PhotoArea>\. Applied fix to \SHSSection.vue\, \CollegeSection.vue\, \ExperienceSection.vue\, and \CertificateSection.vue\. Ensured placeholders (\.image-boundary-placeholder\, \.placeholder\, \.cert-placeholder\) use absolute positioning bound to relative parents.
+- **Status**: Completed.
+
+## Request: Global Fix for Single Unit Rule (Fix)
+- **Date**: 2026-09-20 22:25:24
+- **Mode**: Execution
+- **Scope**: Resolve syntax and positioning errors from previous failed global implementation attempt. Apply \.is-selected\ class (z-index: 999) and absolute positioning boundaries across all sections without breaking builds.
+- **Work Performed**: Re-implemented \ExperienceSection.vue\ properly, correctly importing \useEditorStore\ and applying \position: absolute\ to \.exp-image-frame\. Fixed \AboutSection.vue\ CSS missing curly brace syntax error and correctly bound \.is-selected\ and \position: absolute\ to \.polaroid\. Applied \.is-selected\ to \CertificateSection.vue\. Verified production build with \
+pm run build\ successfully (0 errors).
+- **Files Modified**: \src/sections/experience/ExperienceSection.vue\, \src/sections/about/AboutSection.vue\, \src/sections/certificate/CertificateSection.vue\.
+- **Status**: Completed, Build Verified PASS.
+
+
+## Request: Emergency Fix for Missing Pointer Events and Editor IDs
+- **Date**: 2026-09-20 22:38:01
+- **Mode**: Execution
+- **Scope**: Re-apply \omit-editor-id\ and \pointer-events: none\ to About and Experience sections, which were lost during the previous \git checkout\ restore.
+- **Work Performed**: Identified that \PhotoArea\ in \AboutSection.vue\ and \ExperienceSection.vue\ lost their \:omit-editor-id=\	rue\\ and \style=\pointer-events: none;\\ attributes during the previous syntax fix, causing the Editor to mistakenly drag the internal \.photo-area-boundary\ instead of the parent \.polaroid\. Restored these attributes. Also removed unused \imageSource\ variable in \ExperienceSection.vue\ to fix TS6133 build error.
+- **Files Modified**: \src/sections/about/AboutSection.vue\, \src/sections/experience/ExperienceSection.vue\.
+- **Status**: Completed, Build Verified PASS.
+

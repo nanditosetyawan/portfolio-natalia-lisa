@@ -2150,24 +2150,34 @@ function clearMediaDropTarget(): void {
   mediaDropTargetId.value = null
 }
 
-function mediaDropTarget(event: DragEvent): { entity: EditorRuntimeObject; element: HTMLElement | null } | null {
+type MediaDropAction = 
+  | { action: 'replace'; entity: EditorRuntimeObject; element: HTMLElement | null }
+  | { action: 'insert'; sectionId: string; element: HTMLElement | null }
+
+function mediaDropTarget(event: DragEvent): MediaDropAction | null {
   const element = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-editor-object-id]') ?? null
   const objectId = element?.dataset.editorObjectId
   const direct = objectId ? editorEntities.value.find((candidate) => candidate.id === objectId && candidate.photoAreaId) : undefined
-  if (direct) return { entity: direct, element }
-  const selected = selectedEntity.value?.photoAreaId ? selectedEntity.value : undefined
-  return selected ? { entity: selected, element: preferredPreviewElement(selected.id) } : null
+  if (direct) return { action: 'replace', entity: direct, element }
+  
+  const sectionElement = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-editor-section-id]')
+  const sectionId = sectionElement?.dataset.editorSectionId
+  if (sectionId) return { action: 'insert', sectionId, element: sectionElement }
+  
+  return null
 }
 
 function handleAssetDragOver(event: DragEvent): void {
   if (![...(event.dataTransfer?.types ?? [])].includes('application/x-portfolio-asset')) return
   const target = mediaDropTarget(event)
-  if (!target || editor.objectState(target.entity.id).locked) return
+  if (!target) return
+  if (target.action === 'replace' && editor.objectState(target.entity.id).locked) return
   event.preventDefault()
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
-  if (mediaDropTargetId.value !== target.entity.id) {
+  const targetId = target.action === 'replace' ? target.entity.id : target.sectionId
+  if (mediaDropTargetId.value !== targetId) {
     clearMediaDropTarget()
-    mediaDropTargetId.value = target.entity.id
+    mediaDropTargetId.value = targetId
     target.element?.classList.add('editor-media-drop-target')
   }
 }
@@ -2181,14 +2191,28 @@ async function handleAssetDrop(event: DragEvent): Promise<void> {
   const assetId = event.dataTransfer?.getData('application/x-portfolio-asset') || event.dataTransfer?.getData('text/plain')
   const target = mediaDropTarget(event)
   clearMediaDropTarget()
-  if (!assetId || !target || editor.objectState(target.entity.id).locked) return
+  if (!assetId || !target) return
+  if (target.action === 'replace' && editor.objectState(target.entity.id).locked) return
   const asset = mediaLibrary.assets.find((candidate) => candidate.id === assetId)
   if (!asset) return
   event.preventDefault()
-  selectEntity(target.entity.id, target.element ?? undefined)
-  await nextTick()
-  await assignMediaReferenceToSelected(asset, 'SET_IMAGE_REFERENCE')
-  saveStatus.value = `${asset.name} applied to ${target.entity.label}. Save Draft to persist it.`
+  if (target.action === 'replace') {
+    selectEntity(target.entity.id, target.element ?? undefined)
+    await nextTick()
+    await assignMediaReferenceToSelected(asset, 'SET_IMAGE_REFERENCE')
+    saveStatus.value = `${asset.name} applied to ${target.entity.label}. Save Draft to persist it.`
+  } else {
+    let sectionLabel = target.sectionId
+    const fixedSection = editor.draftSnapshot.entities.find((candidate) => normalizeEditorSectionId(candidate.section) === target.sectionId)
+    if (fixedSection) sectionLabel = fixedSection.section
+    const context: MediaInsertionContext = {
+      section: sectionLabel,
+      sectionId: target.sectionId,
+      anchorObjectId: null,
+      layout: imageInsertionFallbackLayout(target.sectionId)
+    }
+    await insertMediaAssetInstance(asset, context)
+  }
 }
 
 async function uploadMediaAssetToLibrary(file: File): Promise<MediaLibraryAsset | null> {
