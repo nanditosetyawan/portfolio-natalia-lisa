@@ -311,7 +311,7 @@ onBeforeUnmount(() => {
           <div class="card-header" @click="toggleCard(card.id)">
 <!-- Thumbnail -->
              <div class="card-thumbnail-wrapper">
-               <div class="card-thumbnail">
+               <div class="card-thumbnail" :data-photo-area-id="card.thumbnail.id">
                  <PhotoArea
                    class="thumbnail-image"
                    style="pointer-events: none;"
@@ -397,6 +397,7 @@ onBeforeUnmount(() => {
                      v-for="(image, idx) in card.detailImages"
                      :key="image.id"
                      :data-slide-id="image.id"
+                     :data-photo-area-id="image.id"
                    >
                      <PhotoArea
                        class="cert-photo-area"

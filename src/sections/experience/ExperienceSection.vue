@@ -267,6 +267,7 @@ const isDesktop = ref(false)
 let sectionObserver: IntersectionObserver | null = null
 let sectionVisible = false
 
+// Force HMR 1
 const isEditorRuntime = ref(false)
 const rawProgress = ref(0)
 

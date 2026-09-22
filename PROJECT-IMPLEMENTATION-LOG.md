@@ -5043,3 +5043,13 @@ px vue-tsc --noEmit PASS (0 errors).
 - **Note on Admin Bug Report**: Keluhan user tentang "Admin Edit mode mentok di 2" adalah deskripsi bug *sebelum* fix perbaikan Admin Edit Mode sebelumnya diaplikasikan (akibat script editorStickyTransform yang saat itu dimatikan total). Karena script tersebut sudah direstorasi dengan perbaikan logika dan CSS yang tepat pada iterasi sebelumnya, laporan bug tersebut otomatis sudah teratasi.
 - **Files Modified**: src/sections/experience/ExperienceSection.vue.
 - **Status**: COMPLETED.
+
+## Request: Audit PhotoArea Replacement (Admin Edit Mode)
+- **Date**: 2026-09-22 23:36:00 +07:00
+- **Mode**: Audit & Fix
+- **Scope**: Memeriksa apakah semua komponen PhotoArea (placeholder foto "PHOTO AREA") dari atas sampai bawah bisa diganti gambar sungguhan oleh admin.
+- **Audit Findings**: 
+  1. **About, College, SHS, Experience**: Secara logika dan struktur DOM sudah sempurna terhubung. *Wrapper* div utama dari foto-foto ini memiliki atribut data-photo-area-id yang dikenali oleh engine Admin. Ketika di-klik, tombol "Replace Media" akan muncul di sidebar admin panel.
+  2. **Certificate**: Ditemukan *bug* minor di mana atribut data-photo-area-id terlewat/tidak tertulis pada parent wrapper-nya (thumbnail dan detail slide). Akibatnya, khusus di section Certificate, admin sebelumnya tidak bisa mengklik gambar untuk menggantinya.
+- **Work Performed**: Menambahkan atribut data-photo-area-id ke wrapper thumbnail dan slide di CertificateSection.vue.
+- **Status**: COMPLETED.
