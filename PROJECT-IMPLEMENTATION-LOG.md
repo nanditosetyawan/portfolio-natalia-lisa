@@ -4947,3 +4947,87 @@ pm run build\ successfully (0 errors).
   4. Ran full project validation: `npx vue-tsc --noEmit` and `npx vite build` (2044 modules built with 0 errors).
 - **Files Modified**: `src/lib/supabaseClient.ts`, `src/lib/supabaseRest.ts`, `tests/supabase-persistence-runtime.mjs`, `PROJECT-IMPLEMENTATION-LOG.md`.
 - **Status**: Completed, ALL TESTS PASSING.
+
+## Request: Smooth Scroll Experience-to-Certificate di Admin Editor
+- **Date**: 2026-09-22 21:45:24 +07:00
+- **Mode**: Execution
+- **Scope**: Admin-only smooth canvas scroll saat navigasi dari section Experience ke Certificate.
+- **Specs Consulted**: AGENTS.md, src/pages/admin/AdminEdit.vue.
+- **Design Refs**: Tidak ada (behavior/UX only).
+- **Work Performed**:
+  1. Investigasi AdminEdit.vue: canvasScroll (overflow container), previewStage (scaled), selectedSection computed setter (line 294-299).
+  2. Ditemukan bahwa setter hanya memanggil selectEntity tanpa scroll canvas.
+  3. Implementasi fungsi scrollCanvasToSection(sectionId):
+     - Mencari elemen section via [data-editor-section-id] di dalam previewStage.
+     - Menghitung offsetTop relatif ke previewStage (pre-scale coordinates).
+     - Mengalikan dengan previewScale.value untuk koordinat canvasScroll.
+     - Memanggil scrollEl.scrollTo({ top, behavior: 'smooth' }) dengan padding 24px.
+  4. Modifikasi selectedSection setter untuk memanggil scrollCanvasToSection via 
+extTick setelah selectEntity.
+  5. Verifikasi: 
+px vue-tsc --noEmit PASS (0 errors).
+  6. Verifikasi browser: canvas smooth-scroll ke Certificate section saat dipilih dari Navigator. Experience section terlihat di canvas sebelum navigasi, Certificate section terlihat setelah navigasi.
+- **Files Modified**: src/pages/admin/AdminEdit.vue.
+- **Status**: COMPLETED, Verified PASS.
+- **Guest Impact**: NOL - semua perubahan hanya di AdminEdit.vue (admin route).
+
+## Request: Fix Experience Section Card 4 Scroll Behavior (Admin Only)
+- **Date**: 2026-09-22 22:25:00 +07:00
+- **Mode**: Execution
+- **Scope**: Memperbaiki animasi scroll Experience Section di mode Admin Editor tanpa menyentuh Guest.
+- **Specs Consulted**: AGENTS.md, src/sections/experience/ExperienceSection.vue, src/stores/site.ts
+- **Work Performed**:
+  1. Menganalisa keluhan user tentang efek geser keluar (slide-out) pada card ke-3 saat scroll ke card ke-4.
+  2. Merestrukturisasi scroll budget khusus untuk Admin Runtime: --experience-scroll-height disesuaikan menjadi (items.length - 1) * 100vh jika isEditorRuntime aktif.
+  3. Hal ini membuat efek *sticky* selesai tepat saat card ke-3 (index 2) muncul.
+  4. Dampaknya, card ke-4 tidak lagi melakukan "gerakan out" relatif terhadap viewport yang *sticky*, melainkan muncul secara natural dari bawah seiring user melakukan scroll *page* ke atas.
+  5. Mengkoreksi dotTopVh agar dot berhenti di tengah tepat pada transisi menuju posisi *capped* tersebut.
+  6. Mengembalikan cardTransform dan scroll budget Guest (site.experienceScrollBudgetVh) seperti semula untuk memastikan Guest mode tidak tersentuh sesuai instruksi (dimode edit admin jangan sentuh guest).
+- **Files Modified**: src/sections/experience/ExperienceSection.vue.
+- **Status**: COMPLETED.
+- **Guest Impact**: NOL - diproteksi ketat menggunakan isEditorRuntime.
+
+## Request: Revisi Scroll Experience & Titik Henti Dot (Guest & Admin)
+- **Date**: 2026-09-22 22:33:00 +07:00
+- **Mode**: Execution
+- **Scope**: 
+  1. Mengembalikan efek scroll normal (Admin Editor) agar seluruh section Experience naik ke atas secara wajar saat berpindah ke Certificate (membatalkan perubahan scroll budget yang memotong Card 4).
+  2. Memperbaiki pergerakan dot pada transisi Card terakhir agar tidak turun (dip) terlalu jauh menempel frame bawah.
+- **Specs Consulted**: AGENTS.md, src/sections/experience/ExperienceSection.vue
+- **Work Performed**:
+  1. Mengembalikan --experience-scroll-height, cardTransform, editorStickyTransform, dan loop ke logika matematis aslinya.
+  2. Ini menjamin Card 4 masuk dengan wajar dan seluruh section Experience (termasuk judul dan dot) scroll naik (unstick) secara normal tanpa menumpuk dengan Certificate.
+  3. Memperbaiki dotTopVh: Untuk transisi menuju card terakhir (p >= n - 2), animasi *dip* (turun ke 72vh) dinonaktifkan. Dot langsung tertahan di tengah (50vh) sehingga tidak terlalu ke bawah menempel pada ujung frame/garis (mengatasi keluhan screenshot Guest mode).
+  4. Berlaku baik untuk Guest Mode maupun Admin Mode.
+- **Files Modified**: src/sections/experience/ExperienceSection.vue.
+- **Status**: COMPLETED.
+- **Guest Impact**: Positif - Dot pada card ke-4 kini diam di tengah dan tidak turun terlalu jauh.
+
+## Request: Fix Parallax Editor Terbalik & Jarak Dip Dot Guest
+- **Date**: 2026-09-22 22:56:00 +07:00
+- **Mode**: Execution
+- **Scope**: 
+  1. Memperbaiki efek parallax di Admin Editor yang terbalik (judul bergerak, konten diam).
+  2. Mengurangi jarak turun (dip) dari animasi dot pada mode Guest agar tidak "nabrak" frame bawah.
+- **Specs Consulted**: AGENTS.md, src/sections/experience/ExperienceSection.vue
+- **Work Performed**:
+  1. Ditemukan bug: editorStickyTransform memberikan efek ganda (double-transform) karena CSS position: sticky ternyata sudah berjalan native dengan sempurna di dalam editor (Chrome/Edge modern mendukung sticky di dalam 	ransform: scale). Efek ganda inilah yang menyebabkan ilusi parallax terbalik.
+  2. Solusi Admin: Menonaktifkan editorStickyTransform (eturn 'none'). Kini Editor sepenuhnya mengandalkan position: sticky persis seperti Guest mode, menghasilkan scroll presisi di mana konten gambar/teks yang bergerak, sementara judul/ornamen terdiam (sticky).
+  3. Solusi Guest (dan Editor): Merespon keluhan "titik mentok... nabrak kurang naik", amplitudo animasi turun pada dotTopVh dikurangi dari 22 (mencapai 72vh) menjadi 14 (hanya mencapai 64vh). Dot kini tidak akan turun terlalu jauh menyentuh batas bawah garis vertikal.
+- **Files Modified**: src/sections/experience/ExperienceSection.vue.
+- **Status**: COMPLETED.
+
+## Request: Perbaikan Total Jeda Scroll Guest (Kurang Naik) & Parallax Admin Editor
+- **Date**: 2026-09-22 23:07:00 +07:00
+- **Mode**: Execution
+- **Scope**: 
+  1. Memberikan ekstra budget scroll di akhir sesi Experience (Guest Mode) agar konten terakhir tidak langsung hilang tergeser Certificate.
+  2. Memperbaiki bug kritis di Admin Editor yang menyebabkan scroll hanya mentok di Card 2 (karena position: sticky gagal akibat 	ransform: scale).
+- **Specs Consulted**: AGENTS.md, src/sections/experience/ExperienceSection.vue
+- **Work Performed**:
+  1. Ditemukan penyebab mengapa Guest mode dirasa "kurang naik posisi stop": Secara default, tepat setelah Card 4 selesai muncul, ruang scroll (budget) Experience langsung habis, menyebabkan scroll sedikit saja akan segera memanggil section Certificate naik menutupi.
+  2. Solusi Jeda (Pause) Guest Mode: Menambahkan 50vh ekstra pada --experience-scroll-height. Ini memberikan ruang bernapas bagi pengguna: setelah Card 4 muncul penuh, user bisa scroll terus sejauh 50% layar tanpa Card 4 bergeser kemana-mana. Baru setelah budget ekstra ini habis, section Certificate akan muncul mulus.
+  3. Ditemukan penyebab fatal Admin Edit Mode: Browser modern membatalkan sifat position: sticky bila ada elemen parent yang menggunakan 	ransform: scale (yang mana digunakan oleh Live Preview Stage). Karena position: sticky di-cancel browser, seluruh elemen meluncur hilang ke atas.
+  4. Solusi Admin Edit: Menghidupkan kembali Polyfill khusus editor (editorStickyTransform), yang menerjemahkan persentase scroll menjadi koordinat pixel agar viewport dipaksa menetap di tempat secara manual. Sekaligus memaksa position: relative pada mode Editor agar CSS bawaan tidak saling konflik dengan Polyfill. 
+- **Files Modified**: src/sections/experience/ExperienceSection.vue.
+- **Status**: COMPLETED.

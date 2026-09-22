@@ -12,7 +12,7 @@
     class="experience-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
-      '--experience-scroll-height': `${site.experienceScrollBudgetVh}vh`
+      '--experience-scroll-height': `${site.experienceScrollBudgetVh + 50}vh`
     }"
   >
 
@@ -23,7 +23,10 @@
       ── In Editor Mode, CSS sticky fails due to transform: scale(),     ──
       ── so we polyfill it using editorStickyTransform                   ──
     -->
-    <div class="exp-sticky-viewport" :style="{ transform: editorStickyTransform }">
+    <div class="exp-sticky-viewport" :style="{
+      transform: editorStickyTransform,
+      position: (isEditorRuntime && isDesktop) ? 'relative' : undefined
+    }">
 
       <!-- ── Background decorations — FROZEN, inside sticky ── -->
       <div class="exp-decor" aria-hidden="true">
@@ -265,10 +268,14 @@ let sectionObserver: IntersectionObserver | null = null
 let sectionVisible = false
 
 const isEditorRuntime = ref(false)
+const rawProgress = ref(0)
 
 const editorStickyTransform = computed(() => {
   if (!isEditorRuntime.value || !isDesktop.value) return 'none'
-  return `translateY(${rafProgress.value * 100}vh)`
+  // Max sticky offset in vh: container height (n*100 + 50) minus viewport height (100)
+  const maxOffset = items.value.length * 100 - 50
+  const offsetVh = Math.max(0, Math.min(maxOffset, rawProgress.value * 100))
+  return `translateY(${offsetVh}vh)`
 })
 
 function loop() {
@@ -287,8 +294,10 @@ function loop() {
     }
     
     // We calculate cardHeight from getBoundingClientRect() to cancel out any Editor scaling factors
-    const cardHeight = rect.height / items.value.length
+    // Note: rect.height is now (n * 100 + 50)vh. So we divide by (n + 0.5) to get 100vh.
+    const cardHeight = rect.height / (items.value.length + 0.5)
     const raw = cardHeight > 0 ? scrolled / cardHeight : 0
+    rawProgress.value = raw
     rafProgress.value = Math.max(0, Math.min(items.value.length - 1, raw))
   }
   if (isDesktop.value && sectionVisible) rafId = requestAnimationFrame(loop)
@@ -340,8 +349,10 @@ const dotTopVh = computed(() => {
   const t = p - Math.floor(p)           // 0..1 within each interval
   const lastCard = items.value.length === 0 || p >= items.value.length - 1 // clamped at last card
   if (lastCard) return 50
-  // 50 = center, 22 = max dip (peaks at t=0.5 → 72vh from top)
-  return 50 + 22 * Math.sin(Math.PI * t)
+  
+  // 50 = center, 14 = max dip (peaks at t=0.5 → 64vh from top)
+  // Dikurangi dari 22 agar saat dip (turun) tidak terlalu jauh/menabrak frame garis bawah (fix: titik mentok kurang naik)
+  return 50 + 14 * Math.sin(Math.PI * t)
 })
 </script>
 
