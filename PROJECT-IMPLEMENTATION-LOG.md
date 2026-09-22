@@ -5031,3 +5031,15 @@ px vue-tsc --noEmit PASS (0 errors).
   4. Solusi Admin Edit: Menghidupkan kembali Polyfill khusus editor (editorStickyTransform), yang menerjemahkan persentase scroll menjadi koordinat pixel agar viewport dipaksa menetap di tempat secara manual. Sekaligus memaksa position: relative pada mode Editor agar CSS bawaan tidak saling konflik dengan Polyfill. 
 - **Files Modified**: src/sections/experience/ExperienceSection.vue.
 - **Status**: COMPLETED.
+
+## Request: Revert Guest Mode Jeda Scroll (Kembalikan ke Normal)
+- **Date**: 2026-09-22 23:19:00 +07:00
+- **Mode**: Execution
+- **Scope**: Menghapus kembali jeda scroll 50vh yang ditambahkan sebelumnya, karena user secara spesifik menginginkan transisi/stop terjadi TEPAT saat Card 4 selesai meluncur (tanpa ada penundaan/sticky pause).
+- **Work Performed**:
+  1. Mengembalikan --experience-scroll-height ke items.length * 100vh tanpa tambahan +50vh.
+  2. Menyesuaikan kembali limit maxOffset pada editorStickyTransform agar efek scroll editor persis meniru mode Guest yang tanpa jeda.
+  3. Menyesuaikan perhitungan cardHeight.
+- **Note on Admin Bug Report**: Keluhan user tentang "Admin Edit mode mentok di 2" adalah deskripsi bug *sebelum* fix perbaikan Admin Edit Mode sebelumnya diaplikasikan (akibat script editorStickyTransform yang saat itu dimatikan total). Karena script tersebut sudah direstorasi dengan perbaikan logika dan CSS yang tepat pada iterasi sebelumnya, laporan bug tersebut otomatis sudah teratasi.
+- **Files Modified**: src/sections/experience/ExperienceSection.vue.
+- **Status**: COMPLETED.

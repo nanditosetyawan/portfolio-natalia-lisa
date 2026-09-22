@@ -12,7 +12,7 @@
     class="experience-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,
-      '--experience-scroll-height': `${site.experienceScrollBudgetVh + 50}vh`
+      '--experience-scroll-height': `${site.experienceScrollBudgetVh}vh`
     }"
   >
 
@@ -272,8 +272,8 @@ const rawProgress = ref(0)
 
 const editorStickyTransform = computed(() => {
   if (!isEditorRuntime.value || !isDesktop.value) return 'none'
-  // Max sticky offset in vh: container height (n*100 + 50) minus viewport height (100)
-  const maxOffset = items.value.length * 100 - 50
+  // Max sticky offset in vh: container height (n*100) minus viewport height (100)
+  const maxOffset = items.value.length * 100 - 100
   const offsetVh = Math.max(0, Math.min(maxOffset, rawProgress.value * 100))
   return `translateY(${offsetVh}vh)`
 })
@@ -294,8 +294,8 @@ function loop() {
     }
     
     // We calculate cardHeight from getBoundingClientRect() to cancel out any Editor scaling factors
-    // Note: rect.height is now (n * 100 + 50)vh. So we divide by (n + 0.5) to get 100vh.
-    const cardHeight = rect.height / (items.value.length + 0.5)
+    // Note: rect.height is exactly (n * 100)vh.
+    const cardHeight = rect.height / items.value.length
     const raw = cardHeight > 0 ? scrolled / cardHeight : 0
     rawProgress.value = raw
     rafProgress.value = Math.max(0, Math.min(items.value.length - 1, raw))
