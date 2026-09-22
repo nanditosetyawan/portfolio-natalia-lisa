@@ -4916,7 +4916,34 @@ pm run build\ successfully (0 errors).
 - **Date**: 2026-09-20 22:38:01
 - **Mode**: Execution
 - **Scope**: Re-apply \omit-editor-id\ and \pointer-events: none\ to About and Experience sections, which were lost during the previous \git checkout\ restore.
-- **Work Performed**: Identified that \PhotoArea\ in \AboutSection.vue\ and \ExperienceSection.vue\ lost their \:omit-editor-id=\	rue\\ and \style=\pointer-events: none;\\ attributes during the previous syntax fix, causing the Editor to mistakenly drag the internal \.photo-area-boundary\ instead of the parent \.polaroid\. Restored these attributes. Also removed unused \imageSource\ variable in \ExperienceSection.vue\ to fix TS6133 build error.
+- **Work Performed**: Identified that \PhotoArea\ in \AboutSection.vue\ and \ExperienceSection.vue\ lost their \:omit-editor-id=\true\\ and \style=\pointer-events: none;\\ attributes during the previous syntax fix, causing the Editor to mistakenly drag the internal \.photo-area-boundary\ instead of the parent \.polaroid\. Restored these attributes. Also removed unused \imageSource\ variable in \ExperienceSection.vue\ to fix TS6133 build error.
 - **Files Modified**: \src/sections/about/AboutSection.vue\, \src/sections/experience/ExperienceSection.vue\.
 - **Status**: Completed, Build Verified PASS.
 
+
+## Request: Polyfill position:sticky for Experience section in Editor mode
+- **Date**: 2026-09-20 22:44:41
+- **Mode**: Execution
+- **Scope**: Re-enable the sticky scroll animation of ExperienceSection inside the Editor.
+- **Work Performed**: Evaluated the limitation of CSS \position: sticky\ when nested inside a \transform: scale()\ container (the \.preview-stage\ zoom). Implemented a JS-based fallback in \ExperienceSection.vue\: when in Editor mode (\isEditorRuntime.value\), \.exp-sticky-viewport\ uses \translateY\ computed via \afProgress\ instead of CSS sticky. Upgraded the scroll progress calculation to rely on \oundingClientRect\ relative to the Editor's \.canvas-scroll\ container to perfectly negate scaling artifacts.
+- **Files Modified**: \src/sections/experience/ExperienceSection.vue\.
+- **Status**: Completed, Build Verified PASS.
+
+
+## Request: Final Supabase Persistence Integration & Verification
+- **Date**: 2026-09-22 21:35:00 +07:00
+- **Mode**: Execution & Verification
+- **Scope**: Verify local connection to Supabase, test Save Draft persistence (dynamic instance image, position X/Y, size W/H, outline & shadow effects), test Publish snapshot delivery, and ensure clean Guest Runtime reading without Editor UI leakage.
+- **Specs Consulted**: `AGENTS.md`, `src/lib/supabaseClient.ts`, `src/lib/supabaseRest.ts`, `src/repositories/editorRevisionRepository.ts`, `src/editor/editorSnapshot.ts`.
+- **Work Performed**:
+  1. Updated `src/lib/supabaseClient.ts` and `src/lib/supabaseRest.ts` to support both `VITE_SUPABASE_PUBLISHABLE_KEY` and `VITE_SUPABASE_ANON_KEY` environment variable names transparently.
+  2. Executed Supabase RPC & connection check to `https://anyhuqqnjliepllrkebo.supabase.co`: confirmed RPC `get_active_published_snapshot` is active and responsive (HTTP 200).
+  3. Created and executed automated CDP runtime test `tests/supabase-persistence-runtime.mjs`:
+     - Verified Save Draft persistence contract for dynamic image instance, position X/Y (`180`, `240`), size W/H (`350px`, `450px`), rotation (`3`), outline effect (`outlineEnabled: true`, `outlineWidth: 6`, `outlineColor: '#FF0055'`), and shadow effect (`shadowEnabled: true`, `shadowColor: 'rgba(0,0,0,0.6)'`).
+     - Verified that reloading the saved draft returns all parameters intact without resetting.
+     - Verified Supabase RLS security (unauthenticated writes to `save_editor_draft` return 401 permission denied).
+     - Verified Publish & Guest Runtime snapshot loading (`publishedRuntime.ts`).
+     - Verified Guest DOM rendering: 0 Editor Toolbars, 0 Property Inspectors, 0 Resize/Drag handles leaked into Guest view.
+  4. Ran full project validation: `npx vue-tsc --noEmit` and `npx vite build` (2044 modules built with 0 errors).
+- **Files Modified**: `src/lib/supabaseClient.ts`, `src/lib/supabaseRest.ts`, `tests/supabase-persistence-runtime.mjs`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Status**: Completed, ALL TESTS PASSING.

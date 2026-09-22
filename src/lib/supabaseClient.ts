@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const url = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim()
-const key = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim()
+const key = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim()
 
 // Repositories use their in-memory/static boundaries when configuration is absent.
 // Supabase JS still requires syntactically valid constructor values at module load.

@@ -17,10 +17,13 @@
   >
 
     <!-- ┌─────────────────────────────────────────────────────────────────┐ -->
-    <!-- │ STICKY VIEWPORT — freezes in place while scroll budget runs     │ -->
-    <!-- │ overflow:hidden clips cards as they enter/exit the screen       │ -->
-    <!-- └─────────────────────────────────────────────────────────────────┘ -->
-    <div class="exp-sticky-viewport">
+    <!-- 
+      ── STICKY VIEWPORT — freezes in place while scroll budget runs     ──
+      ── overflow:hidden clips cards as they enter/exit the screen       ──
+      ── In Editor Mode, CSS sticky fails due to transform: scale(),     ──
+      ── so we polyfill it using editorStickyTransform                   ──
+    -->
+    <div class="exp-sticky-viewport" :style="{ transform: editorStickyTransform }">
 
       <!-- ── Background decorations — FROZEN, inside sticky ── -->
       <div class="exp-decor" aria-hidden="true">
@@ -261,17 +264,32 @@ const isDesktop = ref(false)
 let sectionObserver: IntersectionObserver | null = null
 let sectionVisible = false
 
+const isEditorRuntime = ref(false)
+
+const editorStickyTransform = computed(() => {
+  if (!isEditorRuntime.value || !isDesktop.value) return 'none'
+  return `translateY(${rafProgress.value * 100}vh)`
+})
+
 function loop() {
   rafId = 0
   if (sectionRef.value && isDesktop.value && sectionVisible) {
     const rect = sectionRef.value.getBoundingClientRect()
-    // scrolled = how many px we've scrolled past the section top
-    // When section top == viewport top: scrolled = 0
-    const scrolled = -rect.top
-    const vh = window.innerHeight
-    // Clamp 0..3 (one unit per card)
-    const raw = scrolled / vh
-    rafProgress.value = Math.max(0, Math.min(Math.max(0, items.value.length - 1), raw))
+    const canvas = sectionRef.value.closest('.canvas-scroll')
+    let scrolled = 0
+    if (canvas) {
+      // Editor mode: canvas-scroll is the scroll container
+      const canvasRect = canvas.getBoundingClientRect()
+      scrolled = canvasRect.top - rect.top
+    } else {
+      // Guest mode: window is the scroll container
+      scrolled = -rect.top
+    }
+    
+    // We calculate cardHeight from getBoundingClientRect() to cancel out any Editor scaling factors
+    const cardHeight = rect.height / items.value.length
+    const raw = cardHeight > 0 ? scrolled / cardHeight : 0
+    rafProgress.value = Math.max(0, Math.min(items.value.length - 1, raw))
   }
   if (isDesktop.value && sectionVisible) rafId = requestAnimationFrame(loop)
 }
@@ -289,16 +307,19 @@ function onResize() {
 }
 
 onMounted(() => {
+  isEditorRuntime.value = !!sectionRef.value?.closest('.editor-preview-runtime')
   onResize()
   window.addEventListener('resize', onResize)
-  sectionObserver = new IntersectionObserver(([entry]) => {
-    sectionVisible = Boolean(entry?.isIntersecting)
-    if (!sectionVisible && rafId) {
-      cancelAnimationFrame(rafId)
-      rafId = 0
-    } else scheduleLoop()
-  }, { rootMargin: '100% 0px' })
-  if (sectionRef.value) sectionObserver.observe(sectionRef.value)
+  if (typeof IntersectionObserver !== 'undefined') {
+    sectionObserver = new IntersectionObserver(([entry]) => {
+      sectionVisible = Boolean(entry?.isIntersecting)
+      if (!sectionVisible && rafId) {
+        cancelAnimationFrame(rafId)
+        rafId = 0
+      } else scheduleLoop()
+    }, { rootMargin: '100% 0px' })
+    if (sectionRef.value) sectionObserver.observe(sectionRef.value)
+  }
 })
 
 onUnmounted(() => {
