@@ -927,8 +927,7 @@ watch(() => editor.previewMutation.version, async () => {
       visual: toRaw(editor.draftSnapshot.visual),
       behavior: toRaw(editor.draftSnapshot.behavior)
     }, sitePaths)
-    // certificates.hydrateEditorCards no longer needed as we use the real database
-    // if (mutation.propertyPaths.some((path) => /^certificateCards(\.|$)/.test(path))) certificates.hydrateEditorCards(editor.draftSnapshot.certificateCards)
+    if (mutation.propertyPaths.some((path) => /^certificateCards(\.|$)/.test(path))) certificates.hydrateEditorCards(editor.draftSnapshot.certificateCards)
   }
   if (mutation.propertyPaths.some((path) => path === '*' || /^media(\.|$)/.test(path))) await syncSnapshotMediaToPreview()
   await nextTick()
@@ -983,7 +982,7 @@ function hydrateEditorPreviewSnapshot(): void {
     visual: toRaw(snapshot.visual),
     behavior: toRaw(snapshot.behavior)
   })
-  // if (snapshot.certificateCards.length) certificates.hydrateEditorCards(snapshot.certificateCards)
+  if (snapshot.certificateCards.length) certificates.hydrateEditorCards(snapshot.certificateCards)
 }
 
 function schedulePreviewObjects(objectIds: string[]): void {

@@ -9,10 +9,26 @@
     </header>
 
     <div class="certificates-toolbar">
-      <button class="pill-btn add-btn" @click="openAddModal">
-        + Tambah Sertifikat Baru
-      </button>
-      <span class="cert-count">{{ certificates.length }} / 20 Sertifikat</span>
+      <div class="toolbar-left">
+        <button class="pill-btn add-btn" @click="openAddModal">
+          + Tambah Sertifikat Baru
+        </button>
+        <span class="cert-count">{{ certificates.length }} / 20 Sertifikat</span>
+      </div>
+      <div class="toolbar-right">
+        <div class="draft-selector">
+          <label for="draft-select" class="draft-label">Draf terpilih:</label>
+          <select id="draft-select" v-model="selectedDraftId" class="draft-dropdown" :disabled="loadingDrafts">
+            <option disabled value="">-- Pilih Draf --</option>
+            <option v-for="draft in draftsList" :key="draft.revision.id" :value="draft.revision.id">
+              Draf {{ draft.revision.revision_number }} ({{ new Date(draft.revision.updated_at).toLocaleString('id-ID') }})
+            </option>
+          </select>
+        </div>
+        <button class="pill-btn update-btn" @click="syncToDraft" :disabled="!selectedDraftId || isSyncing">
+          {{ isSyncing ? 'Menyinkronkan...' : 'Update' }}
+        </button>
+      </div>
     </div>
 
     <!-- ADD / EDIT MODAL -->
@@ -162,14 +178,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, reactive, onBeforeUnmount, watch } from 'vue'
 import { Image as ImageIcon, ChevronDown } from 'lucide-vue-next'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { supabasePublicStorageUrl } from '../../lib/supabaseRest'
 import { useCertificatesStore } from '../../stores/certificates'
+import { editorDraftRepository, type SaveDraftResult } from '../../repositories/editorRevisionRepository'
+import { productFeedback } from '../../composables/useProductFeedback'
+import { cloneCertificateCard } from '../../data/default/certificates'
 
 const PORTFOLIO_MEDIA_BUCKET = 'portfolio-media'
-const certStore = useCertificatesStore()
+const certificatesStore = useCertificatesStore()
+
+// Draft Sync State
+const draftsList = ref<SaveDraftResult[]>([])
+const selectedDraftId = ref<string>('')
+const loadingDrafts = ref(false)
+const isSyncing = ref(false)
 
 interface CertImage {
   id: string
@@ -218,9 +243,53 @@ const expandedCards = ref<Set<string>>(new Set())
 const currentSlides = reactive<Record<string, number>>({})
 const slideTimers: Record<string, ReturnType<typeof setInterval>> = {}
 
-onMounted(() => {
+onMounted(async () => {
+  await loadAvailableDrafts()
   loadCertificates()
 })
+
+async function loadAvailableDrafts() {
+  loadingDrafts.value = true
+  try {
+    draftsList.value = await editorDraftRepository.listDrafts()
+    if (draftsList.value.length > 0) {
+      selectedDraftId.value = draftsList.value[0].revision.id
+    }
+  } catch (error) {
+    console.error('Failed to load drafts:', error)
+  } finally {
+    loadingDrafts.value = false
+  }
+}
+
+async function syncToDraft() {
+  if (!selectedDraftId.value) return
+  isSyncing.value = true
+  try {
+    // Refresh global certificates store to get the latest CertificateCards with images
+    await certificatesStore.fetchCertificates(true)
+
+    const draft = await editorDraftRepository.loadDraft(selectedDraftId.value)
+    if (!draft) throw new Error('Draf tidak ditemukan.')
+
+    // Update the snapshot's certificateCards with the current global database certificates
+    draft.revision.snapshot.certificateCards = certificatesStore.databaseCertificates.map(card => cloneCertificateCard(card))
+
+    await editorDraftRepository.saveDraft({
+      snapshot: draft.revision.snapshot,
+      mediaReferences: draft.mediaReferences,
+      draftRevisionId: draft.revision.id,
+      expectedBaseRevision: draft.revision.base_revision_number
+    })
+    
+    productFeedback.success('Sukses', 'Sertifikat berhasil disinkronkan ke draf.')
+  } catch (error) {
+    console.error('Failed to sync certificates to draft:', error)
+    productFeedback.error('Gagal Menyinkronkan', error instanceof Error ? error.message : 'Terjadi kesalahan.')
+  } finally {
+    isSyncing.value = false
+  }
+}
 
 onBeforeUnmount(() => {
   Object.keys(slideTimers).forEach(id => clearSlideTimer(id))
@@ -493,7 +562,7 @@ async function submitCertificate() {
     }
 
     await loadCertificates()
-    await certStore.fetchCertificates(true) // update guest
+    await certificatesStore.fetchCertificates(true) // update guest
 
     if (!isEditing.value) {
       const currentOrder = certificates.value.filter(c => c.id !== certId)
@@ -531,7 +600,7 @@ async function deleteCertificate(id: string) {
     }
 
     await loadCertificates()
-    await certStore.fetchCertificates(true) // update guest
+    await certificatesStore.fetchCertificates(true) // update guest
   } catch (error: any) {
     alert('Gagal menghapus sertifikat: ' + error.message)
   } finally {
@@ -581,7 +650,7 @@ async function saveNewOrder(list: Certificate[]) {
     }
     
     certificates.value = list.map((c, i) => ({ ...c, order_index: i }))
-    await certStore.fetchCertificates(true) // update guest store order
+    await certificatesStore.fetchCertificates(true) // update guest store order
   } catch (e) {
     console.error('Failed to save order', e)
     alert('Gagal menyimpan urutan baru.')
@@ -663,6 +732,44 @@ watch(certificates, (nextCards) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.toolbar-left, .toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.draft-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.draft-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.draft-dropdown {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background-color: white;
+  font-size: 0.875rem;
+  color: #333;
+  outline: none;
+}
+
+.update-btn {
+  background-color: #10b981; /* green */
+}
+.update-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .pill-btn {

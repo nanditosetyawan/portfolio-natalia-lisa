@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
     <p v-if="downloadMessage" class="certificate-status" role="status" aria-live="polite">{{ downloadMessage }}</p>
 
     <!-- Bottom refresh button -->
-    <div class="bottom-action" v-if="certificatesStore.databaseCertificates.length > 2">
+    <div class="bottom-action">
       <button
         class="refresh-btn"
         :disabled="certificatesStore.isLoading"
