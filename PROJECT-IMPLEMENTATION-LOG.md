@@ -5143,3 +5143,33 @@ px vue-tsc --noEmit PASS (0 errors).
 - **Files Created**: supabase/migrations/0026_reset_site_to_default.sql
 - **Files Modified**: src/pages/admin/AdminMaintenance.vue
 - **Status**: COMPLETED. 
+
+## Request: Fix Persistence of Live Editor Drags
+- **Date**: 2026-09-23 11:55:00 +07:00  
+- **Mode**: Execution  
+- **Scope**: Memperbaiki bug di mana posisi gambar yang digeser tidak tersimpan saat draft dimuat ulang atau saat dipublish. 
+- **Work Performed**:  
+  1. Memperbarui pplyPublishedSnapshotDom di src/runtime/publishedSnapshotDom.ts untuk melooping seluruh static entities (bukan hanya dynamic instances) agar offset layout diterapkan di sisi Guest.
+  2. Mengganti pplyEditorPreviewSnapshot(previewStage.value) menjadi schedulePreviewSnapshot() di src/pages/admin/AdminEdit.vue untuk memastikan Vue selesai patching DOM sebelum injeksi style layout.
+- **Files Modified**: src/runtime/publishedSnapshotDom.ts, src/pages/admin/AdminEdit.vue
+- **Status**: COMPLETED. 
+
+
+## Request: Fix Drag Offset Value Evaluation
+- **Date**: 2026-09-23 12:02:00 +07:00  
+- **Mode**: Execution  
+- **Scope**: Memperbaiki bug di mana posisi gambar yang digeser tetap gagal tersimpan (lost) karena fungsi kalkulasi offset me-return 'undefined'.
+- **Work Performed**:  
+  1. Mengubah fungsi offsetValue di src/pages/admin/AdminEdit.vue agar me-return delta langsung jika nilai origin-nya undefined. Sebelumnya, karena layout default elemen statis adalah undefined, hasil drag menjadi undefined sehingga Supabase tidak pernah menyimpannya.
+- **Files Modified**: src/pages/admin/AdminEdit.vue
+- **Status**: COMPLETED. 
+
+# #   R e q u e s t :   F i x   D r a g   T a r g e t   i n   P o r t f o l i o S e c t i o n 
+ -   * * D a t e * * :   2 0 2 6 - 0 9 - 2 3 T 1 2 : 5 1 : 1 1 
+ -   * * M o d e * * :   E x e c u t i o n 
+ -   * * S c o p e * * :   F i x   p r o f i l e   i m a g e   d r a g   t a r g e t   m a p p i n g . 
+ -   * * W o r k   P e r f o r m e d * * :   
+     1 .   M o v e d   \ d a t a - e n t i t y - i d \   f r o m   t h e   i m g   t a g   t o   t h e   \ . p r o f i l e - i m a g e - w r a p p e r \   c o n t a i n e r   i n   \ P o r t f o l i o S e c t i o n . v u e \ .   T h i s   a l l o w s   t h e   U n i v e r s a l   D r a g   S y s t e m   t o   n a t i v e l y   s h i f t   t h e   w r a p p e r   w i t h o u t   b e i n g   w i p e d   b y   V u e ' s   r e a c t i v e   s t y l e   b i n d i n g   p a t c h e s   o n   t h e   i m a g e   t a g ,   e n s u r i n g   t h e   \ l a y o u t \   p e r s i s t e n c e   c o r r e c t l y   l a y e r s   o n   t o p   o f   t h e   o r i g i n a l   C S S   t r a n s f o r m . 
+ -   * * F i l e s   M o d i f i e d * * :   s r c / s e c t i o n s / p o r t f o l i o / P o r t f o l i o S e c t i o n . v u e 
+ -   * * S t a t u s * * :   C O M P L E T E D .  
+ 

@@ -80,21 +80,21 @@ const wrapperTransform = computed(() => {
           {{ site.current.content.portfolio.title }}
         </h1>
 
-        <div class="profile-image-wrapper" :style="{
-          bottom: vConfig.profileImageWrapper.bottom,
-          left: wrapperLeft,
-          transform: wrapperTransform,
-          zIndex: vConfig.profileImageWrapper.zIndex
-        }">
-          <img :src="profileImageSrc" :alt="site.current.content.profile.name" class="profile-image" width="740" height="1343" loading="eager" decoding="async" fetchpriority="high" :data-entity-id="site.current.content.profile.id" :data-media-usage-id="site.current.content.profile.mediaUsageId" :style="{
-            width: imgWidth,
-            height: vConfig.profileImage.height,
-            maxWidth: vConfig.profileImage.maxWidth,
-            maxHeight: imgMaxHeight,
-            borderRadius: vConfig.profileImage.borderRadius,
-            objectPosition: site.mediaObjectPositionForUsage(profile.mediaUsageId)
-          }" />
-        </div>
+          <div class="profile-image-wrapper" :data-entity-id="site.current.content.profile.id" :style="{
+            bottom: vConfig.profileImageWrapper.bottom,
+            left: wrapperLeft,
+            transform: wrapperTransform,
+            zIndex: vConfig.profileImageWrapper.zIndex
+          }">
+            <img :src="profileImageSrc" :alt="site.current.content.profile.name" class="profile-image" width="740" height="1343" loading="eager" decoding="async" fetchpriority="high" :data-media-usage-id="site.current.content.profile.mediaUsageId" :style="{
+              width: imgWidth,
+              height: vConfig.profileImage.height,
+              maxWidth: vConfig.profileImage.maxWidth,
+              maxHeight: imgMaxHeight,
+              borderRadius: vConfig.profileImage.borderRadius,
+              objectPosition: site.mediaObjectPositionForUsage(profile.mediaUsageId)
+            }" />
+          </div>
       </div>
 
       <!-- Decorative Elements -->

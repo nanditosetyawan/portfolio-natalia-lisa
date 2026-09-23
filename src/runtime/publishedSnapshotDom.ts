@@ -16,6 +16,16 @@ export function applyPublishedSnapshotDom(root: HTMLElement, snapshot: EditorSna
   restoreResponsiveSnapshotProperties(root)
   applyRegisteredSnapshotProperties(root, snapshot)
   const breakpoint = responsiveBreakpointForWidth(root.clientWidth || window.innerWidth)
+  for (const [order, entity] of (snapshot.entities ?? []).entries()) {
+    const object = createEditorObject({
+      id: entity.entityId,
+      section: entity.section,
+      label: entity.label,
+      kind: entity.kind,
+      isMedia: entity.kind === 'media'
+    }, order)
+    applyResponsiveObjectProperties(root, snapshot, object, breakpoint)
+  }
   for (const [order, instance] of (snapshot.instances ?? []).entries()) {
     const object = createEditorObject({
       id: instance.instanceId,
