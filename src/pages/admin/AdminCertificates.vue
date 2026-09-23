@@ -18,12 +18,15 @@
       <div class="toolbar-right">
         <div class="draft-selector">
           <label for="draft-select" class="draft-label">Draf terpilih:</label>
-          <select id="draft-select" v-model="selectedDraftId" class="draft-dropdown" :disabled="loadingDrafts">
-            <option disabled value="">-- Pilih Draf --</option>
-            <option v-for="draft in draftsList" :key="draft.revision.id" :value="draft.revision.id">
-              Draf {{ draft.revision.revision_number }} ({{ new Date(draft.revision.updated_at).toLocaleString('id-ID') }})
-            </option>
-          </select>
+          <div class="draft-dropdown-wrapper">
+            <select id="draft-select" v-model="selectedDraftId" class="draft-dropdown" :disabled="loadingDrafts">
+              <option disabled value="">-- Pilih Draf --</option>
+              <option v-for="draft in draftsList" :key="draft.revision.id" :value="draft.revision.id">
+                Draf {{ draft.revision.revision_number }} ({{ new Date(draft.revision.updated_at).toLocaleString('id-ID') }})
+              </option>
+            </select>
+            <ChevronDown class="draft-dropdown-icon" :size="16" />
+          </div>
         </div>
         <button class="pill-btn update-btn" @click="syncToDraft" :disabled="!selectedDraftId || isSyncing">
           {{ isSyncing ? 'Menyinkronkan...' : 'Update' }}
@@ -396,7 +399,16 @@ function removeExistingDetail(index: number) {
   deletedDetails.value.push(removed[0])
 }
 
+function requireSelectedDraft(): boolean {
+  if (!selectedDraftId.value) {
+    productFeedback.error('Pilih Draf Terlebih Dahulu', 'Anda harus memilih draf dari menu dropdown sebelum dapat mengelola sertifikat.')
+    return false
+  }
+  return true
+}
+
 function openAddModal() {
+  if (!requireSelectedDraft()) return
   isEditing.value = false
   editingCertId.value = null
   formTitle.value = ''
@@ -412,6 +424,7 @@ function openAddModal() {
 }
 
 function openEditModal(cert: Certificate) {
+  if (!requireSelectedDraft()) return
   isEditing.value = true
   editingCertId.value = cert.id
   formTitle.value = cert.title
@@ -582,6 +595,7 @@ async function submitCertificate() {
 }
 
 async function deleteCertificate(id: string) {
+  if (!requireSelectedDraft()) return
   if (!confirm('Hapus sertifikat ini beserta fotonya?')) return
   isDeleting.value = id
   try {
@@ -622,6 +636,7 @@ function onDragOver(event: DragEvent, _index: number) {
 }
 
 async function onDrop(_event: DragEvent, index: number) {
+  if (!requireSelectedDraft()) return
   if (draggedIndex.value === null || draggedIndex.value === index) return
   
   const newList = [...certificates.value]
@@ -745,23 +760,57 @@ watch(certificates, (nextCards) => {
 .draft-selector {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .draft-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #333;
+  color: #4b5563; /* slightly muted */
+}
+
+.draft-dropdown-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .draft-dropdown {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #ddd;
-  background-color: white;
+  appearance: none;
+  padding: 0.625rem 2.5rem 0.625rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
   font-size: 0.875rem;
-  color: #333;
+  font-weight: 500;
+  color: #111827;
   outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.draft-dropdown:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.draft-dropdown:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  background-color: #ffffff;
+}
+
+.draft-dropdown:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.draft-dropdown-icon {
+  position: absolute;
+  right: 0.75rem;
+  pointer-events: none;
+  color: #6b7280;
 }
 
 .update-btn {
