@@ -81,7 +81,6 @@ function hydrateRuntime(resolution: GuestRuntimeResolution): void {
   } else {
     site.hydrateDefaultRuntime(editorSnapshotToSiteSnapshot(snapshot), resolution.templateVersion)
   }
-  certificates.hydrateEditorCards(editorSnapshotToCertificateCards(snapshot))
 }
 
 export async function initializePublishedRuntime(

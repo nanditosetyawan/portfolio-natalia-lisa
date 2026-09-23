@@ -5098,3 +5098,13 @@ px vue-tsc --noEmit PASS (0 errors).
   4. Membersihkan data testing orphan dari database (1 certificate tanpa images, 2 media_assets tanpa relasi).
 - **Files Modified**: src/pages/admin/AdminCertificates.vue
 - **Status**: COMPLETED.
+
+## Request: Fix Guest Card UI Alignment
+- **Date**: 2026-09-23 08:30:00 +07:00
+- **Mode**: Debugging & Execution
+- **Work Performed**:
+  1. Mengubah lex-direction dari .certificate-card menjadi column agar body expanded muncul di bawah header.
+  2. Menambahkan class .card-header dengan lex-direction: row dan width: 100% agar elemen-elemen di dalamnya selalu mengambil lebar penuh kartu dan card-info yang memiliki lex-grow: 1 bisa membentang menekan tombol _action/expand_ ke ujung kanan terlepas dari panjang atau pendeknya teks konten sertifikat.
+  3. Menyesuaikan media queries responsif .certificate-card menjadi .card-header agar versi mobile tetap _stack_ vertikal.
+- **Files Modified**: src/sections/certificate/CertificateSection.vue
+- **Status**: COMPLETED.

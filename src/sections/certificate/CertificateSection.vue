@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, reactive, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Calendar, ChevronDown, Download, Image as ImageIcon } from 'lucide-vue-next'
 import type { CertificateCard } from '../../data/default/certificates'
 import PhotoArea from '../../components/PhotoArea.vue'
@@ -98,6 +98,12 @@ watch(cards, (nextCards) => {
   Object.keys(slideTimers).forEach((id) => {
     if (!visibleIds.has(id)) clearSlideTimer(id)
   })
+})
+
+onMounted(() => {
+  if (!certificatesStore.isInitialized) {
+    certificatesStore.loadInitial()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -454,8 +460,8 @@ onBeforeUnmount(() => {
     </p>
     <p v-if="downloadMessage" class="certificate-status" role="status" aria-live="polite">{{ downloadMessage }}</p>
 
-    <!-- Bottom refresh button (kept as-is) -->
-    <div class="bottom-action">
+    <!-- Bottom refresh button -->
+    <div class="bottom-action" v-if="certificatesStore.databaseCertificates.length > 2">
       <button
         class="refresh-btn"
         :disabled="certificatesStore.isLoading"
@@ -713,11 +719,10 @@ onBeforeUnmount(() => {
 .certificate-card {
   position: relative;
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
   border-radius: 20px; /* Large rounded corners */
   padding: 1.5rem 1.8rem;
-  gap: 2rem;
+  gap: 0;
   /* Soft outer shadow + subtle inner highlight */
   box-shadow: 
     0 15px 30px rgba(54, 45, 37, 0.08),
@@ -731,6 +736,14 @@ onBeforeUnmount(() => {
     0 20px 35px rgba(54, 45, 37, 0.12),
     0 8px 18px rgba(54, 45, 37, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.card-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  gap: 2rem;
+  cursor: pointer;
 }
 /* --- Region 1: Thumbnail Image Placeholder --- */
 .card-thumbnail-wrapper {
@@ -1090,11 +1103,14 @@ onBeforeUnmount(() => {
   .title-wrapper {
     margin-bottom: 2.5rem;
   }
-  .certificate-card {
+  .card-header {
     flex-direction: column;
     align-items: flex-start;
-    padding: 1.5rem;
     gap: 1.2rem;
+  }
+  .certificate-card {
+    padding: 1.5rem;
+    gap: 0;
   }
   .card-thumbnail {
     width: 80px;

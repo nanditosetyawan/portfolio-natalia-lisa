@@ -29,8 +29,8 @@
             <input v-model="formDate" type="month" required />
           </div>
           <div class="form-group">
-            <label>Description</label>
-            <textarea v-model="formDescription" required rows="3" placeholder="Deskripsi singkat..."></textarea>
+            <label>Description (Maksimal 355 karakter)</label>
+            <textarea v-model="formDescription" required rows="3" maxlength="355" placeholder="Deskripsi singkat..."></textarea>
           </div>
 
           <!-- Thumbnail -->
