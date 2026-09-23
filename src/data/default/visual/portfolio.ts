@@ -33,6 +33,9 @@ export interface PortfolioVisualConfig {
     mobileWidth: string;
     tabletMaxHeight: string;
     mobileMaxHeight: string;
+    imageShadow?: string;
+    outlineEnabled?: boolean;
+    hoverEnabled?: boolean;
   };
   profileImageWrapper: {
     bottom: string;
@@ -164,6 +167,9 @@ export const defaultPortfolioConfig: PortfolioVisualConfig = {
     mobileWidth: 'min(320px, 88vw)',
     tabletMaxHeight: '60vh',
     mobileMaxHeight: '50vh',
+    imageShadow: 'none',
+    outlineEnabled: false,
+    hoverEnabled: false
   },
   profileImageWrapper: {
     bottom: '0',

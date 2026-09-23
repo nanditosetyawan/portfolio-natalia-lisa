@@ -5108,3 +5108,25 @@ px vue-tsc --noEmit PASS (0 errors).
   3. Menyesuaikan media queries responsif .certificate-card menjadi .card-header agar versi mobile tetap _stack_ vertikal.
 - **Files Modified**: src/sections/certificate/CertificateSection.vue
 - **Status**: COMPLETED.
+  
+## Request: Fitur Factory Reset (Reset to Default) Editor  
+- **Date**: 2026-09-23 09:40:00 +07:00  
+- **Mode**: Execution  
+- **Scope**: Implementasi fitur Reset to Default untuk Admin Editor dengan keamanan ketat (melindungi portfolio-media dan certificates).  
+- **Work Performed**:  
+  1. Memasukkan properties eksplisit (boxShadow, outline, hover, animasi) ke createEditorSnapshot agar ter-reset sempurna.  
+  2. Menambahkan tombol Reset to Default dan modal konfirmasi di AdminEdit.vue.  
+  3. Membangun logika penghapusan snapshot Supabase lama dan penimpaan draft aktif via saveEditor() (menjawab Addendum).  
+- **Files Modified**: src/editor/editorSnapshot.ts, src/data/default/visual/portfolio.ts, src/pages/admin/AdminEdit.vue  
+- **Status**: COMPLETED. 
+  
+## Request: Koreksi Fitur Reset System (Pindah ke Maintenance)  
+- **Date**: 2026-09-23 09:50:00 +07:00  
+- **Mode**: Execution  
+- **Scope**: Memindahkan logika reset dari AdminEdit (draft) ke AdminMaintenance (published). Reset kini hanya mengarsipkan versi PUBLISHED sehingga UI guest kembali ke default, tanpa menyentuh/menghapus draft yang ada.  
+- **Work Performed**:  
+  1. Revert/Hapus tombol Reset to Default dari AdminEdit.vue (termasuk modal konfirmasi).  
+  2. Mengaktifkan tombol Reset System di AdminMaintenance.vue dan merancang modal UI baru.  
+  3. Membangun logika \executeResetSystem\ yang melakukan update status published menjadi rchived di tabel site_revisions, sehingga memicu sifat fallback default runtime bawaan tanpa merusak constraint/draft.  
+- **Files Modified**: src/pages/admin/AdminEdit.vue, src/pages/admin/AdminMaintenance.vue  
+- **Status**: COMPLETED. 

@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, reactive, onBeforeUnmount, watch } from 'vue'
 import { Image as ImageIcon, ChevronDown } from 'lucide-vue-next'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { supabasePublicStorageUrl } from '../../lib/supabaseRest'

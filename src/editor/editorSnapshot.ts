@@ -65,16 +65,16 @@ export function createEditorSnapshot(snapshot: SiteSnapshot, revision: Partial<E
     instances: [],
     content: clone(snapshot.content),
     certificateCards: [],
-    typography: {},
-    layout: {},
+    typography: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
+    layout: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
     media: {
       references: snapshot.mediaAssets.map((asset) => ({ assetId: asset.id, uri: asset.source, mimeType: asset.mimeType, alt: asset.alt })),
       assignments: snapshot.mediaUsages.map((usage) => ({ entityId: usage.id, role: usage.role, assetId: usage.mediaAssetId, objectPosition: usage.objectPosition })),
-      styles: {}
+      styles: Object.fromEntries(snapshot.mediaUsages.map(usage => [usage.id, { hoverEnabled: false, outlineEnabled: false, outlineWidth: 0, aspectRatioLocked: false }]))
     },
-    backgrounds: {},
-    buttons: {},
-    animations: {},
+    backgrounds: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, { boxShadow: 'none' }])),
+    buttons: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
+    animations: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, { name: 'none' }])),
     session: defaultEditorSession(),
     visual: clone(snapshot.visual),
     behavior: clone(snapshot.behavior)

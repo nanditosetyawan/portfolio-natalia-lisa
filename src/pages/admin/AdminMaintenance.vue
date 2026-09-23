@@ -19,7 +19,7 @@
         <span class="maintenance-chevron"><ChevronRight class="chevron-icon" /></span>
       </button>
 
-      <button type="button" class="maintenance-card maintenance-card--reset" aria-label="Reset system — unavailable" title="Not available in this build" disabled>
+      <button type="button" class="maintenance-card maintenance-card--reset" aria-label="Reset system to default" @click="showResetModal = true">
         <span class="maintenance-illustration"><RefreshCw class="illustration-icon" /></span>
         <span class="maintenance-content">
           <span class="maintenance-title">Reset System</span>
@@ -76,6 +76,37 @@
         <p v-else class="maintenance-error" role="alert">{{ pageError || 'Backup could not be prepared.' }}</p>
       </section>
     </div>
+
+    <!-- Factory Reset Modal -->
+    <div v-if="showResetModal" class="maintenance-modal-backdrop" role="presentation" @click.self="showResetModal = false">
+      <section class="maintenance-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title" tabindex="-1">
+        <header>
+          <div><span style="color: #c93d4d;">Danger Zone</span><h2 id="reset-title">Reset Published Site</h2></div>
+          <button type="button" class="modal-close" aria-label="Close reset dialog" @click="showResetModal = false"><X :size="18" /></button>
+        </header>
+
+        <div class="reset-modal-content">
+          <p class="reset-warning-text">
+            <strong>Are you sure?</strong> This action will immediately revert the live website to the default factory layout.
+          </p>
+          
+          <ul class="reset-features-list">
+            <li><ShieldCheck :size="16" /> <span><strong>Drafts and Favorites</strong> will not be deleted. You can still access and publish them later.</span></li>
+            <li><ShieldCheck :size="16" /> <span><strong>Media & Certificates</strong> will be preserved safely.</span></li>
+          </ul>
+
+          <p v-if="resetStatus" class="maintenance-error" role="alert" style="margin-bottom: 1rem;">{{ resetStatus }}</p>
+        </div>
+
+        <div class="reset-modal-actions">
+          <button type="button" class="btn-cancel" :disabled="resetLoading" @click="showResetModal = false">Cancel</button>
+          <button type="button" class="btn-danger" :disabled="resetLoading" @click="executeResetSystem">
+            <RefreshCw v-if="resetLoading" :size="16" class="spin" />
+            Yes, Reset Published Site
+          </button>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -101,6 +132,9 @@ const exportLoading = ref(false)
 const backup = ref<ProductionBackup | null>(null)
 const importResult = ref<BackupValidationResult | null>(null)
 const pageError = ref('')
+const showResetModal = ref(false)
+const resetLoading = ref(false)
+const resetStatus = ref('')
 const exportParts = [
   { id: 'published' as const, label: 'Published Snapshot' },
   { id: 'drafts' as const, label: 'Drafts' },
@@ -147,18 +181,47 @@ async function validateImport(event: Event): Promise<void> {
   if (!file) return
   pageError.value = ''
   try {
-    importResult.value = await validateBackupFile(file)
-    if (importResult.value.valid) productFeedback.success('Backup validation passed', 'Validation was read-only. No repository or Storage data changed.')
-    else productFeedback.error('Backup validation failed', importResult.value.errors[0] ?? 'The package is not valid.')
+    const result = await validateBackupFile(file)
+    importResult.value = result
+    if (result.valid) {
+      pageError.value = ''
+      productFeedback.success('Backup is valid', `Contains ${result.summary.drafts} Drafts and ${result.summary.mediaReferences} media references.`)
+    } else {
+      pageError.value = result.errors[0] || 'Backup validation failed'
+      productFeedback.error('Backup validation failed', pageError.value)
+    }
   } catch (error) {
-    pageError.value = error instanceof Error ? error.message : 'Backup could not be validated.'
-    productFeedback.error('Backup validation failed', pageError.value)
+    pageError.value = error instanceof Error ? error.message : 'File validation failed.'
+    productFeedback.error('File validation failed', pageError.value)
   } finally {
-    input.value = ''
+    if (fileInput.value) fileInput.value.value = ''
+  }
+}
+
+async function executeResetSystem(): Promise<void> {
+  try {
+    resetLoading.value = true
+    resetStatus.value = 'Archiving published revisions...'
+    const { supabaseClient } = await import('../../lib/supabaseClient')
+    if (supabaseClient) {
+      const { error } = await supabaseClient.from('site_revisions').update({ status: 'archived' }).eq('status', 'published')
+      if (error) throw error
+      
+      productFeedback.success('System Reset Complete', 'The published site has been reverted to factory defaults.')
+      // Force reload to apply the default runtime snapshot natively
+      window.location.reload()
+    } else {
+      throw new Error('Supabase client not available.')
+    }
+  } catch (err) {
+    resetStatus.value = err instanceof Error ? `Reset failed: ${err.message}` : 'Reset failed.'
+    console.error('Factory Reset Error:', err)
+  } finally {
+    resetLoading.value = false
   }
 }
 </script>
 
 <style scoped>
-.maintenance-page{background:#F6F4E8;min-height:100vh;display:flex;justify-content:center;padding:0 2rem 2rem;font-family:'Inter',system-ui,sans-serif}.maintenance-container{width:100%;max-width:880px;display:flex;flex-direction:column;gap:18px;margin-top:24px}.maintenance-card{background:#FAF9F5;border-radius:24px;padding:20px;box-shadow:0 8px 25px -12px rgba(90,62,53,.1),0 0 0 1px rgba(90,62,53,.05);display:flex;align-items:center;gap:20px;width:100%;text-align:left;cursor:pointer;border:none;transition:all .2s ease;color:inherit}.maintenance-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px -8px rgba(90,62,53,.12),0 0 0 1px rgba(90,62,53,.06)}.maintenance-card:disabled{cursor:not-allowed;opacity:.72}.maintenance-card:disabled:hover{transform:none;box-shadow:0 8px 25px -12px rgba(90,62,53,.1),0 0 0 1px rgba(90,62,53,.05)}.maintenance-card:focus-visible{outline:3px solid #b85b69;outline-offset:3px}.maintenance-illustration{flex:0 0 38%;max-width:180px;display:flex;align-items:center;justify-content:center;height:96px;border-radius:16px;background:linear-gradient(150deg,#FFF5EB 0%,#FFE4B5 100%);box-shadow:inset 0 2px 6px rgba(90,62,53,.06)}.illustration-icon{width:40px;height:40px;color:#7B5F3B;opacity:.85}.maintenance-content{flex:1;display:flex;flex-direction:column;min-width:0}.maintenance-title{margin:0 0 4px;font-size:1rem;font-weight:600;color:#5A3E35}.maintenance-description{margin:0;font-size:.8rem;color:#7B5F3B;line-height:1.35}.maintenance-chevron{flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#5A3E35;opacity:.6}.chevron-icon{width:16px;height:16px}.maintenance-info-banner{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#EBE9E0;border:1px solid #DEDAD0;border-radius:18px;font-size:.8rem;color:#7B5F3B;line-height:1.4}.info-icon{width:16px;height:16px;flex-shrink:0;color:#B45F04}.maintenance-file-input{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.validation-result{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.75rem;border:1px solid #bfd5c6;border-radius:18px;padding:1rem;background:#eef7f1;color:#3f6d50}.validation-result--error{border-color:#e2b9b9;background:#fff0ef;color:#963f47}.validation-result strong,.validation-result p,.validation-result small{display:block;margin:0}.validation-result p{margin-top:.25rem;color:#765f55;font-size:.72rem}.validation-result ul{margin:.5rem 0;padding-left:1.2rem;font-size:.68rem;line-height:1.45}.validation-result small{margin-top:.45rem;color:#806d63;font-size:.62rem}.maintenance-error{margin:0;border-radius:12px;padding:.75rem;background:#fff0ef;color:#963f47;font-size:.75rem}.maintenance-modal-backdrop{position:fixed;z-index:5000;inset:0;display:grid;place-items:center;padding:1rem;background:rgba(47,36,31,.42);backdrop-filter:blur(3px)}.maintenance-modal{width:min(650px,96vw);max-height:min(760px,92vh);overflow:auto;border:1px solid rgba(91,67,57,.14);border-radius:24px;padding:1.25rem;background:#fbf7ef;color:#4e3932;box-shadow:0 2rem 5rem rgba(49,37,32,.25);outline:0}.maintenance-modal header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.maintenance-modal header span{color:#a44955;font-size:.63rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.maintenance-modal h2{margin:.2rem 0 0;font:700 1.45rem/1.2 Georgia,serif}.modal-close{display:grid;place-items:center;width:2.35rem;height:2.35rem;border:1px solid #e1d4ca;border-radius:50%;background:#fffdf8;color:inherit;cursor:pointer}.export-loading{display:flex;align-items:center;justify-content:center;gap:.55rem;min-height:210px;color:#806b62;font-weight:700}.spin{animation:maintenance-spin .8s linear infinite}.backup-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;margin-top:1rem}.backup-summary span{display:grid;gap:.15rem;border:1px solid #e5d8ce;border-radius:12px;padding:.65rem;background:#fffdf8;color:#8b756a;font-size:.6rem;text-align:center}.backup-summary strong{color:#5a3e35;font-size:1.05rem}.export-primary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-top:.85rem}.export-primary-actions button{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.1rem .55rem;border:1px solid #decfc5;border-radius:14px;padding:.85rem;background:#fffaf4;color:#684e45;font-weight:850;text-align:left;cursor:pointer}.export-primary-actions button svg{grid-row:1/3}.export-primary-actions small{color:#9a8278;font-size:.58rem;font-weight:600}.export-parts{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.75rem}.export-parts button{border:1px solid #decfc5;border-radius:999px;padding:.5rem .68rem;background:#fff;color:#765249;font-size:.62rem;font-weight:800;cursor:pointer}.export-parts button:disabled{cursor:not-allowed;opacity:.45}.export-boundary{display:flex;align-items:flex-start;gap:.45rem;margin:.85rem 0 0;border-radius:12px;padding:.7rem;background:#efe9df;color:#806d63;font-size:.62rem;line-height:1.45}.export-boundary svg{flex:0 0 auto}.maintenance-modal button:focus-visible{outline:3px solid #b85b69;outline-offset:3px}@keyframes maintenance-spin{to{transform:rotate(360deg)}}@media(max-width:768px){.maintenance-card{position:relative;flex-direction:column;text-align:center}.maintenance-content{text-align:center;align-items:center}.maintenance-illustration{flex:0 0 auto;max-width:140px;margin:0 auto}.maintenance-chevron{position:absolute;top:20px;right:20px}.backup-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.export-primary-actions{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.maintenance-card,.spin{transition:none;animation:none}}
+.maintenance-page{background:#F6F4E8;min-height:100vh;display:flex;justify-content:center;padding:0 2rem 2rem;font-family:'Inter',system-ui,sans-serif}.maintenance-container{width:100%;max-width:880px;display:flex;flex-direction:column;gap:18px;margin-top:24px}.maintenance-card{background:#FAF9F5;border-radius:24px;padding:20px;box-shadow:0 8px 25px -12px rgba(90,62,53,.1),0 0 0 1px rgba(90,62,53,.05);display:flex;align-items:center;gap:20px;width:100%;text-align:left;cursor:pointer;border:none;transition:all .2s ease;color:inherit}.maintenance-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px -8px rgba(90,62,53,.12),0 0 0 1px rgba(90,62,53,.06)}.maintenance-card:disabled{cursor:not-allowed;opacity:.72}.maintenance-card:disabled:hover{transform:none;box-shadow:0 8px 25px -12px rgba(90,62,53,.1),0 0 0 1px rgba(90,62,53,.05)}.maintenance-card:focus-visible{outline:3px solid #b85b69;outline-offset:3px}.maintenance-illustration{flex:0 0 38%;max-width:180px;display:flex;align-items:center;justify-content:center;height:96px;border-radius:16px;background:linear-gradient(150deg,#FFF5EB 0%,#FFE4B5 100%);box-shadow:inset 0 2px 6px rgba(90,62,53,.06)}.illustration-icon{width:40px;height:40px;color:#7B5F3B;opacity:.85}.maintenance-content{flex:1;display:flex;flex-direction:column;min-width:0}.maintenance-title{margin:0 0 4px;font-size:1rem;font-weight:600;color:#5A3E35}.maintenance-description{margin:0;font-size:.8rem;color:#7B5F3B;line-height:1.35}.maintenance-chevron{flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#5A3E35;opacity:.6}.chevron-icon{width:16px;height:16px}.maintenance-info-banner{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#EBE9E0;border:1px solid #DEDAD0;border-radius:18px;font-size:.8rem;color:#7B5F3B;line-height:1.4}.info-icon{width:16px;height:16px;flex-shrink:0;color:#B45F04}.maintenance-file-input{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.validation-result{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.75rem;border:1px solid #bfd5c6;border-radius:18px;padding:1rem;background:#eef7f1;color:#3f6d50}.validation-result--error{border-color:#e2b9b9;background:#fff0ef;color:#963f47}.validation-result strong,.validation-result p,.validation-result small{display:block;margin:0}.validation-result p{margin-top:.25rem;color:#765f55;font-size:.72rem}.validation-result ul{margin:.5rem 0;padding-left:1.2rem;font-size:.68rem;line-height:1.45}.validation-result small{margin-top:.45rem;color:#806d63;font-size:.62rem}.maintenance-error{margin:0;border-radius:12px;padding:.75rem;background:#fff0ef;color:#963f47;font-size:.75rem}.maintenance-modal-backdrop{position:fixed;z-index:5000;inset:0;display:grid;place-items:center;padding:1rem;background:rgba(47,36,31,.42);backdrop-filter:blur(3px)}.maintenance-modal{width:min(650px,96vw);max-height:min(760px,92vh);overflow:auto;border:1px solid rgba(91,67,57,.14);border-radius:24px;padding:1.25rem;background:#fbf7ef;color:#4e3932;box-shadow:0 2rem 5rem rgba(49,37,32,.25);outline:0}.maintenance-modal header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.maintenance-modal header span{color:#a44955;font-size:.63rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.maintenance-modal h2{margin:.2rem 0 0;font:700 1.45rem/1.2 Georgia,serif}.modal-close{display:grid;place-items:center;width:2.35rem;height:2.35rem;border:1px solid #e1d4ca;border-radius:50%;background:#fffdf8;color:inherit;cursor:pointer}.export-loading{display:flex;align-items:center;justify-content:center;gap:.55rem;min-height:210px;color:#806b62;font-weight:700}.spin{animation:maintenance-spin .8s linear infinite}.backup-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;margin-top:1rem}.backup-summary span{display:grid;gap:.15rem;border:1px solid #e5d8ce;border-radius:12px;padding:.65rem;background:#fffdf8;color:#8b756a;font-size:.6rem;text-align:center}.backup-summary strong{color:#5a3e35;font-size:1.05rem}.export-primary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-top:.85rem}.export-primary-actions button{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.1rem .55rem;border:1px solid #decfc5;border-radius:14px;padding:.85rem;background:#fffaf4;color:#684e45;font-weight:850;text-align:left;cursor:pointer}.export-primary-actions button svg{grid-row:1/3}.export-primary-actions small{color:#9a8278;font-size:.58rem;font-weight:600}.export-parts{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.75rem}.export-parts button{border:1px solid #decfc5;border-radius:999px;padding:.5rem .68rem;background:#fff;color:#765249;font-size:.62rem;font-weight:800;cursor:pointer}.export-parts button:disabled{cursor:not-allowed;opacity:.45}.export-boundary{display:flex;align-items:flex-start;gap:.45rem;margin:.85rem 0 0;border-radius:12px;padding:.7rem;background:#efe9df;color:#806d63;font-size:.62rem;line-height:1.45}.export-boundary svg{flex:0 0 auto}.maintenance-modal button:focus-visible{outline:3px solid #b85b69;outline-offset:3px}@keyframes maintenance-spin{to{transform:rotate(360deg)}}.reset-modal-content{margin-top:1.25rem;color:#5a3e35;line-height:1.5}.reset-warning-text{margin:0 0 1rem 0;padding:.85rem 1rem;background:#fff0ef;border:1px solid #e2b9b9;border-radius:12px;color:#963f47;font-size:.85rem;line-height:1.4}.reset-features-list{list-style:none;padding:0;margin:0 0 1.5rem 0;display:flex;flex-direction:column;gap:.75rem}.reset-features-list li{display:flex;align-items:flex-start;gap:.5rem;font-size:.85rem;color:#7b5f3b}.reset-features-list li svg{flex-shrink:0;color:#b45f04;margin-top:.15rem}.reset-modal-actions{display:flex;justify-content:flex-end;gap:.65rem;padding-top:1rem;border-top:1px solid rgba(91,67,57,.1)}.reset-modal-actions button{padding:.65rem 1.25rem;border-radius:99px;font-weight:600;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:all .2s}.reset-modal-actions .btn-cancel{background:transparent;border:1px solid #decfc5;color:#684e45}.reset-modal-actions .btn-cancel:hover{background:#f4eee6}.reset-modal-actions .btn-danger{background:#e11d48;border:1px solid #be123c;color:#fff;box-shadow:0 2px 8px rgba(225,29,72,.2)}.reset-modal-actions .btn-danger:hover{background:#be123c}.reset-modal-actions button:disabled{opacity:.6;cursor:not-allowed}@media(max-width:768px){.maintenance-card{position:relative;flex-direction:column;text-align:center}.maintenance-content{text-align:center;align-items:center}.maintenance-illustration{flex:0 0 auto;max-width:140px;margin:0 auto}.maintenance-chevron{position:absolute;top:20px;right:20px}.backup-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.export-primary-actions{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.maintenance-card,.spin{transition:none;animation:none}}
 </style>

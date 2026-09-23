@@ -3475,7 +3475,6 @@ function cancelLibrarySwitch(): void {
       <div v-if="editor.selectedPropertyErrors.length" class="validation-summary" role="status">
         {{ editor.selectedPropertyErrors.length }} invalid {{ editor.selectedPropertyErrors.length === 1 ? 'setting' : 'settings' }}. Fix them before publishing.
       </div>
-
       <button type="button" class="discard-draft-button" :disabled="editor.isSavingDraft" @click="discardDraft">Discard Draft</button>
       <p class="save-status" aria-live="polite">{{ saveStatus }}</p>
     </aside>
