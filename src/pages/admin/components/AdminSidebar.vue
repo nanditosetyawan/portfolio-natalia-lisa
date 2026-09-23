@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import { Clock3, Edit, FileText, Heart, Image, LayoutDashboard, Mail, Wrench } from 'lucide-vue-next'
+import { Clock3, Edit, FileText, Heart, Image, LayoutDashboard, Mail, Wrench, Award } from 'lucide-vue-next'
 
 interface SidebarItem {
   path: string
@@ -103,7 +103,8 @@ const iconMap = {
   'clock': Clock3,
   'image': Image,
   'wrench': Wrench,
-  'mail': Mail
+  'mail': Mail,
+  'award': Award
 }
 
 const getIconComponent = (iconName: string) => {

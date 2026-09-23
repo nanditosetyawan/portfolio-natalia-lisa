@@ -43,6 +43,11 @@ const router = createRouter({
           component: () => import('../pages/admin/AdminDrafts.vue')
         },
         {
+          path: 'certificates',
+          name: 'admin-certificates',
+          component: () => import('../pages/admin/AdminCertificates.vue')
+        },
+        {
           path: 'favorites',
           name: 'admin-favorites',
           component: () => import('../pages/admin/AdminFavorites.vue')

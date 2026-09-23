@@ -5053,3 +5053,48 @@ px vue-tsc --noEmit PASS (0 errors).
   2. **Certificate**: Ditemukan *bug* minor di mana atribut data-photo-area-id terlewat/tidak tertulis pada parent wrapper-nya (thumbnail dan detail slide). Akibatnya, khusus di section Certificate, admin sebelumnya tidak bisa mengklik gambar untuk menggantinya.
 - **Work Performed**: Menambahkan atribut data-photo-area-id ke wrapper thumbnail dan slide di CertificateSection.vue.
 - **Status**: COMPLETED.
+
+## Request: Halaman Khusus Manajemen Media Sertifikat (Admin)
+- **Date**: 2026-09-23 00:09:21 +07:00
+- **Mode**: Execution
+- **Scope**: Membuat halaman baru AdminCertificates.vue untuk upload gambar dan manajemen sertifikat.
+- **Specs Consulted**: AGENTS.md, TALI-TEMALI_ADMIN_OPENCODE.md
+- **Work Performed**:
+  1. Menambahkan route /admin/certificates dan sidebar shortcut di bawah Drafts.
+  2. Membangun UI AdminCertificates.vue sesuai style global admin.
+  3. Menerapkan LIFO logic untuk sertifikat baru (masuk langsung urutan ke-0/atas).
+  4. Membuat fungsi Drag & Drop arrange manual.
+  5. Memberikan batasan ketat upload file (hanya webp, max 500kb foto detail, max 100kb thumbnail).
+  6. Mengkoneksikan backend UI ke Supabase Storage (bucket portfolio-media) dan PostgreSQL (table certificates, certificate_images, media_assets).
+- **Files Created**: src/pages/admin/AdminCertificates.vue
+- **Files Modified**: src/router/index.ts, src/pages/admin/components/AdminLayout.vue
+- **Status**: COMPLETED.
+- **Guest Impact**: Positif - Halaman guest otomatis membaca data yang sama dari Supabase.
+
+
+## Request: Perbaikan UX/UI & Bug Fix AdminCertificates
+- **Date**: 2026-09-23 00:43:00 +07:00
+- **Mode**: Execution
+- **Scope**: Memperbaiki bug order_index saat arrange, menambahkan fitur edit dengan clean replace images, format input calendar (type=month), merombak UI input file (dashed box), dan menambahkan expand preview slideshow di halaman Admin.
+- **Work Performed**:
+  1. Mengganti upsert menjadi loop update order_index untuk memperbaiki error drag & drop.
+  2. Mengganti tipe input Date menjadi type=month.
+  3. Menambahkan UI preview gambar lama saat mode Edit, dan logika clean-wipe hapus dari Supabase Storage jika gambar diganti.
+  4. Menyisipkan Expand Animation & Slideshow dots mirip guest UI pada AdminCertificates.vue.
+  5. Menghapus (wipe) semua data dummy test pada Database agar fresh start.
+- **Files Modified**: src/pages/admin/AdminCertificates.vue
+- **Status**: COMPLETED.
+
+## Request: Fix Gambar Tidak Muncul di Admin dan Guest
+- **Date**: 2026-09-23 05:58:00 +07:00
+- **Mode**: Debugging & Execution
+- **Root Cause Analysis**:
+  1. Insert ke tabel certificate_images GAGAL DIAM-DIAM karena kolom placeholder_config (jsonb NOT NULL) tidak dikirim saat insert, dan kode tidak memeriksa error response dari Supabase client.
+  2. Storage path menggunakan draft/certificates/ tetapi Supabase storage RLS anon read policy HANYA mengizinkan folder published/. Sehingga gambar yang berhasil diupload pun tidak bisa dibaca oleh Guest.
+- **Fix Applied**:
+  1. Menambahkan placeholder_config: {} ke semua insert certificate_images.
+  2. Menambahkan error checking (if (error) throw error) pada setiap insert certificate_images agar tidak gagal diam-diam.
+  3. Mengubah semua storage path dari draft/certificates/ ke published/certificates/ agar file bisa dibaca secara publik oleh Guest dan Admin.
+  4. Membersihkan data testing orphan dari database (1 certificate tanpa images, 2 media_assets tanpa relasi).
+- **Files Modified**: src/pages/admin/AdminCertificates.vue
+- **Status**: COMPLETED.

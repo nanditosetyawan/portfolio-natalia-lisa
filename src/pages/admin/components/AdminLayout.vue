@@ -100,6 +100,7 @@ const sidebarItems = [
   { path: '/admin', label: 'Dashboard', icon: 'layout-dashboard' },
   { path: '/admin/edit', label: 'Edit', icon: 'edit' },
   { path: '/admin/drafts', label: 'Drafts', icon: 'file-text' },
+  { path: '/admin/certificates', label: 'Manage Certifikat', icon: 'award' },
   { path: '/admin/favorites', label: 'Favorites', icon: 'heart' },
   { path: '/admin/published', label: 'Publish History', icon: 'clock' },
   { path: '/admin/media', label: 'Manage Media', icon: 'image' },
