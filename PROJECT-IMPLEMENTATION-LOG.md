@@ -5130,3 +5130,16 @@ px vue-tsc --noEmit PASS (0 errors).
   3. Membangun logika \executeResetSystem\ yang melakukan update status published menjadi rchived di tabel site_revisions, sehingga memicu sifat fallback default runtime bawaan tanpa merusak constraint/draft.  
 - **Files Modified**: src/pages/admin/AdminEdit.vue, src/pages/admin/AdminMaintenance.vue  
 - **Status**: COMPLETED. 
+
+## Request: Fix Reset Conflict & Maintenance UI Redesign
+- **Date**: 2026-09-23 10:30:00 +07:00  
+- **Mode**: Execution  
+- **Scope**: Memperbaiki bug di mana menekan Publish gagal diam-diam setelah melakukan Reset System, karena terjadinya konflik versi (mismatch base_revision_number pada draft lama). Serta merombak UI Reset di Maintenance.
+- **Work Performed**:  
+  1. Membuat migrasi database \ 026_reset_site_to_default.sql\ berisi RPC \eset_site_to_default\.
+  2. RPC tersebut mengarsipkan status 'published' dan juga memutuskan relasi (\ase_revision_number = null\) pada status 'draft' sehingga publish berikutnya berjalan mulus tanpa terblokir sistem anti-konflik.
+  3. Memperbarui \AdminMaintenance.vue\ untuk men-disable tombol Reset jika situs masih berada dalam kondisi default (belum ada yang di-publish).
+  4. Merombak desain modal pop-up Reset agar terlihat lebih premium dan sesuai styling halaman Maintenance.
+- **Files Created**: supabase/migrations/0026_reset_site_to_default.sql
+- **Files Modified**: src/pages/admin/AdminMaintenance.vue
+- **Status**: COMPLETED. 

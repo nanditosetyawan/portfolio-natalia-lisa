@@ -19,7 +19,7 @@
         <span class="maintenance-chevron"><ChevronRight class="chevron-icon" /></span>
       </button>
 
-      <button type="button" class="maintenance-card maintenance-card--reset" aria-label="Reset system to default" @click="showResetModal = true">
+      <button type="button" class="maintenance-card maintenance-card--reset" :disabled="site.guestRuntimeSource === 'default'" aria-label="Reset system to default" @click="showResetModal = true">
         <span class="maintenance-illustration"><RefreshCw class="illustration-icon" /></span>
         <span class="maintenance-content">
           <span class="maintenance-title">Reset System</span>
@@ -115,6 +115,7 @@ import { nextTick, ref } from 'vue'
 import { Archive, ChevronRight, CircleAlert, Download, FileCheck, Info, RefreshCw, ShieldCheck, Upload, X } from 'lucide-vue-next'
 import ProductSkeleton from '../../components/ProductSkeleton.vue'
 import { productFeedback } from '../../composables/useProductFeedback'
+import { useSiteStore } from '../../stores/site'
 import {
   createProductionBackup,
   exportBackupJson,
@@ -127,6 +128,7 @@ import {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const exportDialog = ref<HTMLElement | null>(null)
+const site = useSiteStore()
 const exportOpen = ref(false)
 const exportLoading = ref(false)
 const backup = ref<ProductionBackup | null>(null)
@@ -204,7 +206,7 @@ async function executeResetSystem(): Promise<void> {
     resetStatus.value = 'Archiving published revisions...'
     const { supabaseClient } = await import('../../lib/supabaseClient')
     if (supabaseClient) {
-      const { error } = await supabaseClient.from('site_revisions').update({ status: 'archived' }).eq('status', 'published')
+      const { error } = await supabaseClient.rpc('reset_site_to_default')
       if (error) throw error
       
       productFeedback.success('System Reset Complete', 'The published site has been reverted to factory defaults.')
