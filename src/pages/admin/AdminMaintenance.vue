@@ -203,7 +203,7 @@ async function validateImport(event: Event): Promise<void> {
 async function executeResetSystem(): Promise<void> {
   try {
     resetLoading.value = true
-    resetStatus.value = 'Archiving published revisions...'
+    resetStatus.value = 'Deleting published revisions...'
     const { supabaseClient } = await import('../../lib/supabaseClient')
     if (supabaseClient) {
       const { error } = await supabaseClient.rpc('reset_site_to_default')

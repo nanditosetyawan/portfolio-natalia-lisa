@@ -2587,7 +2587,7 @@ function persistPreviewScroll(event: Event): void {
 
 function markSessionChanged(): void {
   if (!editorReady.value) return
-  if (!editorHasChanges.value && !['Conflict', 'Error / Unsaved'].includes(editorSaveStatus.value)) editorSaveStatus.value = 'Unsaved session'
+  // if (!editorHasChanges.value && !['Conflict', 'Error / Unsaved'].includes(editorSaveStatus.value)) editorSaveStatus.value = 'Unsaved session'
 }
 
 function selectPreviewEntity(event: MouseEvent): void {

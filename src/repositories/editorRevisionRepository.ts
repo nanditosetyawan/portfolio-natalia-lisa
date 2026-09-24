@@ -641,7 +641,7 @@ export class SupabaseEditorPublishRepository implements EditorPublishRepository 
   }
 
   async getHistory(): Promise<RevisionRecord[]> {
-    const rows = await supabaseTableRows<RevisionRow>('site_revisions', '?select=*&status=eq.published&order=revision_number.desc')
+    const rows = await supabaseTableRows<RevisionRow>('site_revisions', '?select=*&status=eq.published&order=revision_number.desc&limit=5')
     return rows.map(fromRow)
   }
 }
