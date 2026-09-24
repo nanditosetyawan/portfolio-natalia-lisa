@@ -5173,3 +5173,14 @@ px vue-tsc --noEmit PASS (0 errors).
  -   * * F i l e s   M o d i f i e d * * :   s r c / s e c t i o n s / p o r t f o l i o / P o r t f o l i o S e c t i o n . v u e 
  -   * * S t a t u s * * :   C O M P L E T E D .  
  
+## Request: Fix Editor Save & Revert Anomalies
+- **Date**: 2026-09-24T22:50:00+07:00
+- **Mode**: Execution
+- **Scope**: Memperbaiki bug di mana posisi gambar yang digeser gagal tersimpan dan UI reverts ke posisi awal setelah mencoba menyimpan draf baru berkali-kali. Memperbaiki bug di mana menekan Save masih memicu indicator unsaved changes. Memperbaiki bug kotak seleksi ganda pada gambar profil.
+- **Work Performed**:
+  1. Menghapus properti entities dan instances dari fungsi contentSignature() di src/stores/editor.ts agar normalisasi metadata otomatis setelah Save tidak dibaca sebagai unsaved changes.
+  2. Menambahkan Cache-Control: no-cache pada konfigurasi global supabaseClient.ts. Sebelumnya, browser men-cache hasil GET dari get_active_published_snapshot, sehingga membuat draf baru terus-menerus mengambil base_revision_number yang kadaluarsa, mengakibatkan Supabase menolak save dengan PT409 (Draft Conflict), memicu fungsi Reload dan menghapus (revert) posisi drag di frontend secara berulang-ulang sampai cache usang pada upaya ke-7.
+  3. Menghapus :data-entity-id ganda dari div.profile-image-wrapper di src/sections/portfolio/PortfolioSection.vue untuk mencegah kotak seleksi double (phantom) yang menarget parent (layout) dan child (gambar) sekaligus di area yang sama.
+- **Files Modified**: src/stores/editor.ts, src/lib/supabaseClient.ts, src/sections/portfolio/PortfolioSection.vue
+- **Status**: COMPLETED.
+

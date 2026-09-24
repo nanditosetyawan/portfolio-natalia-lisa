@@ -80,7 +80,7 @@ const wrapperTransform = computed(() => {
           {{ site.current.content.portfolio.title }}
         </h1>
 
-          <div class="profile-image-wrapper" :data-entity-id="site.current.content.profile.id" :style="{
+          <div class="profile-image-wrapper" :style="{
             bottom: vConfig.profileImageWrapper.bottom,
             left: wrapperLeft,
             transform: wrapperTransform,

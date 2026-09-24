@@ -87,8 +87,6 @@ function applyCommandValue(snapshot: EditorSnapshot, command: EditorCommand, dir
 
 function contentSignature(snapshot: EditorSnapshot): string {
   return JSON.stringify({
-    entities: snapshot.entities,
-    instances: snapshot.instances,
     content: snapshot.content,
     certificateCards: snapshot.certificateCards,
     typography: snapshot.typography,

@@ -9,5 +9,11 @@ const clientUrl = url || 'http://127.0.0.1:54321'
 const clientKey = key || 'unconfigured-local-client'
 
 export const supabaseClient = createClient(clientUrl, clientKey, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  }
 })
