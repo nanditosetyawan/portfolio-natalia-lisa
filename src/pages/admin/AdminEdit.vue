@@ -2272,6 +2272,9 @@ async function saveDraft(): Promise<void> {
       baseRevisionNumber: result.revision.base_revision_number
     })
     draftScope.value = result.revision.id
+    if (route.query.draft === 'new') {
+      void router.replace({ query: { draft: result.revision.id } })
+    }
     editorHasChanges.value = false
     editorSaveStatus.value = 'Saved'
     saveStatus.value = 'Saved'

@@ -215,8 +215,9 @@ async function executeResetSystem(): Promise<void> {
     } else {
       throw new Error('Supabase client not available.')
     }
-  } catch (err) {
-    resetStatus.value = err instanceof Error ? `Reset failed: ${err.message}` : 'Reset failed.'
+  } catch (err: any) {
+    const errorMsg = err?.message || (typeof err === 'string' ? err : 'Unknown error')
+    resetStatus.value = `Reset failed: ${errorMsg}`
     console.error('Factory Reset Error:', err)
   } finally {
     resetLoading.value = false

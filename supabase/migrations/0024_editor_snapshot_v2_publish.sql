@@ -17,6 +17,7 @@ set search_path = ''
 as $$
 declare
   current_published bigint;
+  global_max bigint;
   draft_row public.site_revisions;
   next_published bigint;
   activated_id uuid;
@@ -316,7 +317,11 @@ begin
     raise exception 'Prepared media identity or metadata differs from the saved Draft.';
   end if;
 
-  next_published := coalesce(current_published, 0) + 1;
+  select coalesce(max(revision.revision_number), 0)
+  into global_max
+  from public.site_revisions as revision;
+
+  next_published := global_max + 1;
 
   insert into public.site_revisions (
     revision_number,
