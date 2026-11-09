@@ -2,8 +2,10 @@ name: Supabase Database Keep Alive
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Setiap hari Minggu jam 00:00 UTC
+    - cron: '0 0 */3 * *' # Setiap 3 hari jam 00:00 UTC (di bawah batas pause 7 hari Supabase Free Tier)
   workflow_dispatch:
+
+permissions: {}
 
 jobs:
   keep-alive:
@@ -12,10 +14,30 @@ jobs:
       - name: Ping Supabase Database
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_KEY}" ]; then
+            echo "::error::Missing Supabase GitHub secrets. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY)."
+            exit 1
+          fi
+
+          BASE_URL="${SUPABASE_URL%/}"
+          RESPONSE_FILE="/tmp/supabase-keepalive.json"
+
           echo "Sending keep-alive request to Supabase..."
-          curl -f -s -i -X GET "${SUPABASE_URL}/rest/v1/portfolios?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+          HTTP_STATUS=$(curl -sS -o "${RESPONSE_FILE}" -w "%{http_code}" \
+            -X GET "${BASE_URL}/rest/v1/portfolio_profile?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Accept: application/json")
+
+          echo "HTTP status: ${HTTP_STATUS}"
+          cat "${RESPONSE_FILE}"
+          echo ""
+
+          if [ "${HTTP_STATUS}" -lt 200 ] || [ "${HTTP_STATUS}" -ge 300 ]; then
+            echo "::error::Supabase keep-alive request failed with HTTP ${HTTP_STATUS}."
+            exit 1
+          fi
+
           echo "Keep-alive ping successful!"

@@ -5184,3 +5184,76 @@ px vue-tsc --noEmit PASS (0 errors).
 - **Files Modified**: src/stores/editor.ts, src/lib/supabaseClient.ts, src/sections/portfolio/PortfolioSection.vue
 - **Status**: COMPLETED.
 
+
+## Request: Project Onboarding Audit, Dev Server Run, Supabase & GitHub Action Diagnostics
+- **Date**: 2026-11-10T00:41:25+07:00
+- **Mode**: Inspection / Diagnostic & Local Dev Run
+- **Scope**: Memverifikasi workspace, daftar plugin/skill, identitas proyek, riwayat edit terakhir dan bug/isu yang belum tuntas, cara menjalankan website serta menjalankan dev server lokal, tes koneksi live Supabase, diagnosa workflow `.github/workflows/supabase-keep-alive.yml`, dan audit struktur database dari migrasi + generated types (tanpa mengubah kode/konfigurasi aplikasi).
+- **Specifications & Sources Consulted**: `AGENTS.md`, `PROJECT-IMPLEMENTATION-LOG.md` (tail), `package.json`, `vite.config.ts`, `README.md`, `DEPLOYMENT-GUIDE.md`, `KNOWN-LIMITATIONS.md`, `PROGRESS_STATUS_AND_NEXT_STEPS.md`, `.env`, `.env.example`, `.mcp.json`, `skills-lock.json`, `.github/workflows/supabase-keep-alive.yml`, `supabase/migrations/0001`–`0027` & `20260924153436_clear_legacy_tables_on_reset.sql`, `src/types/database.generated.ts`, `src/lib/supabaseClient.ts`, `src/lib/supabaseRest.ts`, `src/repositories/editorRevisionRepository.ts`, `src/stores/editor.ts`, `src/composables/useEditorSession.ts`, `src/composables/useAdminEntityRegistry.ts`, `src/composables/useEditorObjectRegistry.ts`, `src/composables/usePhotoAreaRegistry.ts`, `src/editor/objectRegistry.ts`, `src/editor/objectDomTarget.ts`, `src/editor/propertyRuntime.ts`, `src/runtime/publishedSnapshotDom.ts`, `src/sections/portfolio/PortfolioSection.vue`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminDrafts.vue`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/components/AdminLayout.vue`, `src/router/index.ts`, `src/App.vue`, `patch_publish.cjs`. (`md/` directory does not exist in workspace).
+- **Work Performed (Completed)**:
+  1. Memverifikasi identitas workspace (`d:\DITO\portfolio_natalia\portfolio-project`, branch `main`, HEAD `b31caf9`) dan seluruh plugin/skill aktif.
+  2. Mengaudit progres commit terakhir (`ee753dd`, `16e6750`, `44ae90d`, `b31caf9`) dan mengidentifikasi bug/anomali yang belum selesai: header anti-cache pada `src/lib/supabaseClient.ts` tidak memengaruhi `supabaseRpc`/`supabaseTableRows` di `src/lib/supabaseRest.ts`; penghapusan `:data-entity-id` di `PortfolioSection.vue` membuat `profile-lisa-natalia` kehilangan target DOM di canvas; `markSessionChanged()` masih dikomentari di `AdminEdit.vue`; `patch_publish.cjs` tertinggal di root; `20260924153436_clear_legacy_tables_on_reset.sql` kosong 0 byte; `0027_allow_published_draft_deletion.sql` belum terverifikasi status apply-nya di remote DB; perubahan `b31caf9` belum diverifikasi di browser.
+  3. Menjalankan Vite dev server (`npm run dev`, background task `task-5762`) di `http://localhost:5173/`.
+  4. Menguji koneksi live Supabase dan mendiagnosa `.github/workflows/supabase-keep-alive.yml` (gagal HTTP 404 `PGRST205` karena tabel `public.portfolios` tidak ada, potensi mismatch nama secret `VITE_SUPABASE_ANON_KEY` vs `VITE_SUPABASE_PUBLISHABLE_KEY`, serta jadwal cron mingguan 7 hari yang terlalu mepet).
+  5. Mengaudit struktur database (21 tabel di migrasi `0001`–`0027`, `database.generated.ts` baru mencakup 19 tabel sebelum `site_revisions` dan `editor_favorites`, bucket Storage `portfolio-media`, RPC, trigger, dan `pg_cron` `messages-auto-delete`).
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log audit). Tidak ada file kode, workflow, atau konfigurasi yang diubah.
+- **Files Protected**: `AGENTS.md`, `design/**` (termasuk seluruh kode aplikasi & `.github/workflows/supabase-keep-alive.yml` sesuai mode inspeksi).
+- **Validation Performed**:
+  - `npx vue-tsc --noEmit` -> PASS (exit code 0, tanpa error).
+  - `npm run dev` -> RUNNING (`http://localhost:5173/`, `Invoke-WebRequest` -> HTTP `200`).
+  - Live Supabase REST checks: `GET /rest/v1/portfolios?select=id&limit=1` -> `404 PGRST205`; `GET /rest/v1/portfolio_profile?select=id&limit=1` -> `200 []`; `POST /rest/v1/rpc/get_active_published_snapshot` -> `200 []`.
+- **Visual Verification**: Belum dilakukan.
+- **Current Status**: COMPLETED (diagnostic briefing & dev server active).
+- **Next Required Step**: Menunggu konfirmasi user apakah ingin memperbaiki `.github/workflows/supabase-keep-alive.yml`, membersihkan artefak/migrasi (`patch_publish.cjs`, file migrasi 0-byte, cek status migrasi `0027`), dan menuntaskan bug editor (`saveDraft`/cache, `PortfolioSection.vue` target DOM `profile-lisa-natalia`, `markSessionChanged`).
+
+## Request: Fix GitHub Actions Supabase Keep-Alive Workflow
+- **Date**: 2026-11-10T00:45:30+07:00
+- **Mode**: Execution (Scoped)
+- **Scope**: Memperbaiki `.github/workflows/supabase-keep-alive.yml` sesuai arahan user, lalu berhenti menunggu perintah berikutnya.
+- **Specifications & Files Consulted**: `AGENTS.md`, `PROJECT-IMPLEMENTATION-LOG.md` (tail), `.github/workflows/supabase-keep-alive.yml`, `.env.example`, `DEPLOYMENT-GUIDE.md`, `supabase/migrations/0008_data_api_role_grants.sql`.
+- **Work Performed (Completed)**:
+  1. Mengganti target endpoint keep-alive dari tabel tidak ada (`portfolios`) ke endpoint ringan yang valid dan memiliki grant `SELECT` untuk `anon`: `GET ${BASE_URL}/rest/v1/portfolio_profile?select=id&limit=1` dengan header `apikey` dan `Accept: application/json`.
+  2. Menambahkan fallback GitHub Secret `${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY }}`, normalisasi trailing slash `VITE_SUPABASE_URL`, serta validasi awal bila secret kosong.
+  3. Mengubah jadwal cron dari mingguan (`0 0 * * 0`) menjadi setiap 3 hari (`0 0 */3 * *`) agar aman di bawah batas inactivity pause 7 hari Supabase Free Tier.
+  4. Menambahkan `permissions: {}` (least privilege) dan logging status HTTP + isi respons sebelum fail jika status di luar `2xx`.
+- **Files Modified**: `.github/workflows/supabase-keep-alive.yml`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Files Protected**: Seluruh file source aplikasi, `AGENTS.md`, `design/**` tidak disentuh.
+- **Validation Performed**:
+  - `python` `yaml.safe_load` -> `YAML OK`.
+  - `git diff --check` -> PASS (exit code `0`).
+  - Live `curl.exe` test ke `GET /rest/v1/portfolio_profile?select=id&limit=1` dengan header `apikey` -> `HTTP status: 200`, respons `[]`.
+  - GitHub Actions workflow run langsung di runner GitHub (`schedule` / `workflow_dispatch`) belum dijalankan dari lokal karena `gh` CLI tidak terpasang dan perubahan belum di-commit/push ke GitHub.
+- **Visual Verification**: Tidak berlaku (perubahan CI workflow).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Commit & push `.github/workflows/supabase-keep-alive.yml`, pastikan GitHub Repository Secrets (`VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_ANON_KEY`) sudah terisi, lalu uji lewat `workflow_dispatch` di tab GitHub Actions. Menunggu perintah user selanjutnya.
+
+## Request: Check Active Supabase Connection Identity
+- **Date**: 2026-11-10T00:47:15+07:00
+- **Mode**: Inspection (Read-Only)
+- **Scope**: Memastikan koneksi / project Supabase mana yang dipakai pada pengujian dan konfigurasi workspace saat ini.
+- **Sources Consulted**: `.env`, `.env.example`, `.mcp.json`, `supabase/.temp/linked-project.json`, `src/lib/supabaseClient.ts`, `src/lib/supabaseRest.ts`, `SUPABASE-PROJECT-IDENTITY-VERIFY-015.md`.
+- **Work Performed (Completed)**:
+  1. Memverifikasi bahwa hanya ada satu file environment aktif (`.env`, tidak ada `.env.local`/`.env.production`) dan semua konfigurasi lokal (`.env`, `.env.example`, `.mcp.json`, `supabase/.temp/linked-project.json`) menunjuk ke project ref tunggal `anyhuqqnjliepllrkebo` (`name: "portfolio-natalia"`, `organization_id: "zdiiuiowmudxpdajjqdu"`).
+  2. Mengonfirmasi dari header respons live sebelumnya (`sb-project-ref: anyhuqqnjliepllrkebo`) bahwa tes REST/RPC diarahkan ke `https://anyhuqqnjliepllrkebo.supabase.co` dengan key `sb_publishable_...`.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log inspeksi).
+- **Validation Performed**: Verifikasi file & pencarian lintas workspace (`Get-ChildItem`, `Select-String`) untuk `supabase.co` / `project_ref`.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu perintah user selanjutnya.
+
+## Request: List Prior & Existing Project Problems
+- **Date**: 2026-11-10T00:50:03+07:00
+- **Mode**: Inspection (Read-Only)
+- **Scope**: Merangkum daftar problem teknis aktif, problem historis/sebagian diperbaiki, serta blocker rilis dan keterbatasan operasional dari riwayat implementasi, git history, dokumentasi RC, dan kode saat ini.
+- **Sources Consulted**: AGENTS.md, PROJECT-IMPLEMENTATION-LOG.md (tail & entri 23-25 Sep 2026), KNOWN-LIMITATIONS.md, RELEASE-CANDIDATE-v1.0.0-FINAL.md, git history (16e6750, 44ae90d, 31caf9, ee753dd), src/lib/supabaseClient.ts, src/lib/supabaseRest.ts, src/repositories/editorRevisionRepository.ts, src/sections/portfolio/PortfolioSection.vue, src/composables/useAdminEntityRegistry.ts, src/editor/objectDomTarget.ts, src/pages/admin/AdminEdit.vue, src/pages/admin/AdminMaintenance.vue, src/stores/editor.ts, src/types/database.generated.ts, patch_publish.cjs, supabase/migrations/ ( 016,  019,  024,  026,  027, 20260924153436), .github/workflows/supabase-keep-alive.yml.
+- **Work Performed (Completed)**:
+  1. Memverifikasi status aktual problem teknis di kode (Cache-Control di supabaseClient.ts tidak memengaruhi supabaseRest.ts pada loadPublishedSnapshot/saveDraft; :data-entity-id di PortfolioSection.vue dihapus dari .profile-image-wrapper sehingga esolveObjectDomTarget untuk profile-lisa-natalia bernilai 
+ull; markSessionChanged() di AdminEdit.vue dikomentari; patch_publish.cjs, migrasi 0-byte 20260924153436, teks status AdminMaintenance.vue vs  026_reset_site_to_default.sql, serta database.generated.ts yang belum diperbarui).
+  2. Merangkum status perbaikan sebelumnya (keep-alive workflow lokal belum di-push, fix publish/reset  024/ 026/ 027 belum terverifikasi status apply-nya di Cloud karena tidak ada CLI/MCP admin aktif, serta riwayat bug foto/drag/sertifikat).
+  3. Mencatat blocker rilis & keterbatasan dari RELEASE-CANDIDATE-v1.0.0-FINAL.md dan KNOWN-LIMITATIONS.md (leaked-password protection, absennya VITE_SITE_URL/header produksi, Mobile Lighthouse 66, belum adanya sesi E2E GoTrue browser penuh pasca perubahan 25 Sep 2026, bucket portfolio-media public, serta md//design/ tidak ada di workspace).
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log inspeksi).
+- **Files Protected**: Seluruh kode aplikasi, migrasi, workflow, AGENTS.md, design/** tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung file terkait & git show/git log (hanya inspeksi read-only).
+- **Visual Verification**: Tidak dilakukan (permintaan inspeksi/list problem).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user problem mana yang ingin diprioritaskan dan ditangani terlebih dahulu.
