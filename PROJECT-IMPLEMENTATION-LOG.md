@@ -5245,15 +5245,44 @@ px vue-tsc --noEmit PASS (0 errors).
 - **Date**: 2026-11-10T00:50:03+07:00
 - **Mode**: Inspection (Read-Only)
 - **Scope**: Merangkum daftar problem teknis aktif, problem historis/sebagian diperbaiki, serta blocker rilis dan keterbatasan operasional dari riwayat implementasi, git history, dokumentasi RC, dan kode saat ini.
-- **Sources Consulted**: AGENTS.md, PROJECT-IMPLEMENTATION-LOG.md (tail & entri 23-25 Sep 2026), KNOWN-LIMITATIONS.md, RELEASE-CANDIDATE-v1.0.0-FINAL.md, git history (16e6750, 44ae90d, 31caf9, ee753dd), src/lib/supabaseClient.ts, src/lib/supabaseRest.ts, src/repositories/editorRevisionRepository.ts, src/sections/portfolio/PortfolioSection.vue, src/composables/useAdminEntityRegistry.ts, src/editor/objectDomTarget.ts, src/pages/admin/AdminEdit.vue, src/pages/admin/AdminMaintenance.vue, src/stores/editor.ts, src/types/database.generated.ts, patch_publish.cjs, supabase/migrations/ ( 016,  019,  024,  026,  027, 20260924153436), .github/workflows/supabase-keep-alive.yml.
+- **Sources Consulted**: AGENTS.md, PROJECT-IMPLEMENTATION-LOG.md (tail & entri 23-25 Sep 2026), KNOWN-LIMITATIONS.md, RELEASE-CANDIDATE-v1.0.0-FINAL.md, git history (16e6750, 44ae90d, b31caf9, ee753dd), src/lib/supabaseClient.ts, src/lib/supabaseRest.ts, src/repositories/editorRevisionRepository.ts, src/sections/portfolio/PortfolioSection.vue, src/composables/useAdminEntityRegistry.ts, src/editor/objectDomTarget.ts, src/pages/admin/AdminEdit.vue, src/pages/admin/AdminMaintenance.vue, src/stores/editor.ts, src/types/database.generated.ts, patch_publish.cjs, supabase/migrations/ (0016, 0019, 0024, 0026, 0027, 20260924153436), .github/workflows/supabase-keep-alive.yml.
 - **Work Performed (Completed)**:
-  1. Memverifikasi status aktual problem teknis di kode (Cache-Control di supabaseClient.ts tidak memengaruhi supabaseRest.ts pada loadPublishedSnapshot/saveDraft; :data-entity-id di PortfolioSection.vue dihapus dari .profile-image-wrapper sehingga esolveObjectDomTarget untuk profile-lisa-natalia bernilai 
-ull; markSessionChanged() di AdminEdit.vue dikomentari; patch_publish.cjs, migrasi 0-byte 20260924153436, teks status AdminMaintenance.vue vs  026_reset_site_to_default.sql, serta database.generated.ts yang belum diperbarui).
-  2. Merangkum status perbaikan sebelumnya (keep-alive workflow lokal belum di-push, fix publish/reset  024/ 026/ 027 belum terverifikasi status apply-nya di Cloud karena tidak ada CLI/MCP admin aktif, serta riwayat bug foto/drag/sertifikat).
-  3. Mencatat blocker rilis & keterbatasan dari RELEASE-CANDIDATE-v1.0.0-FINAL.md dan KNOWN-LIMITATIONS.md (leaked-password protection, absennya VITE_SITE_URL/header produksi, Mobile Lighthouse 66, belum adanya sesi E2E GoTrue browser penuh pasca perubahan 25 Sep 2026, bucket portfolio-media public, serta md//design/ tidak ada di workspace).
+  1. Memverifikasi status aktual problem teknis di kode (Cache-Control di supabaseClient.ts tidak memengaruhi supabaseRest.ts pada loadPublishedSnapshot/saveDraft; :data-entity-id di PortfolioSection.vue dihapus dari .profile-image-wrapper sehingga resolveObjectDomTarget untuk profile-lisa-natalia bernilai null; markSessionChanged() di AdminEdit.vue dikomentari; patch_publish.cjs, migrasi 0-byte 20260924153436, teks status AdminMaintenance.vue vs 0026_reset_site_to_default.sql, serta database.generated.ts yang belum diperbarui).
+  2. Merangkum status perbaikan sebelumnya (keep-alive workflow lokal belum di-push, fix publish/reset 0024/0026/0027 belum terverifikasi status apply-nya di Cloud karena tidak ada CLI/MCP admin aktif, serta riwayat bug foto/drag/sertifikat).
+  3. Mencatat blocker rilis & keterbatasan dari RELEASE-CANDIDATE-v1.0.0-FINAL.md dan KNOWN-LIMITATIONS.md.
 - **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log inspeksi).
 - **Files Protected**: Seluruh kode aplikasi, migrasi, workflow, AGENTS.md, design/** tidak dimodifikasi.
 - **Validation Performed**: Pembacaan langsung file terkait & git show/git log (hanya inspeksi read-only).
 - **Visual Verification**: Tidak dilakukan (permintaan inspeksi/list problem).
 - **Current Status**: COMPLETED.
 - **Next Required Step**: Menunggu keputusan user problem mana yang ingin diprioritaskan dan ditangani terlebih dahulu.
+
+## Request: Install Ponytail & Playwright Skills in Workspace
+- **Date**: 2026-11-10T01:09:27+07:00
+- **Mode**: Execution (Workspace Customizations)
+- **Scope**: Menginstal skill & rules always-on dari DietrichGebert/ponytail serta skill playwright-cli dari microsoft/playwright-cli ke .agents/ di workspace tanpa memodifikasi AGENTS.md atau package.json.
+- **Specifications & Docs Consulted**: AGENTS.md (Bagian 29 & 50), PROJECT-IMPLEMENTATION-LOG.md (tail), agy-customizations (SKILL.md, docs/rules.md, docs/skills.md, docs/plugins.md), antigravity_guide, DietrichGebert/ponytail (INSTALL.md, AGENTS.md, skills/*/SKILL.md), microsoft/playwright-cli (README.md, skillCheck.js, skills/playwright-cli/**).
+- **Work Performed (Completed)**:
+  1. Memasang 6 skill Ponytail (ponytail, ponytail-audit, ponytail-debt, ponytail-gain, ponytail-help, ponytail-review) ke .agents/skills/<nama>/SKILL.md.
+  2. Memasang ruleset compact Ponytail sebagai aturan workspace always-on di .agents/rules/ponytail.md (trigger: always_on, 3.235 karakter) dengan tetap menjaga AGENTS.md di root repo tidak tersentuh.
+  3. Memasang skill playwright-cli beserta 10 dokumen referensinya ke .agents/skills/playwright-cli/.
+- **Files Created**:
+  - .agents/rules/ponytail.md
+  - .agents/skills/ponytail/SKILL.md
+  - .agents/skills/ponytail-audit/SKILL.md
+  - .agents/skills/ponytail-debt/SKILL.md
+  - .agents/skills/ponytail-gain/SKILL.md
+  - .agents/skills/ponytail-help/SKILL.md
+  - .agents/skills/ponytail-review/SKILL.md
+  - .agents/skills/playwright-cli/SKILL.md
+  - .agents/skills/playwright-cli/references/*.md (10 file)
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log).
+- **Files Protected**: AGENTS.md, package.json, package-lock.json, design/**, serta seluruh source aplikasi tidak dimodifikasi.
+- **Validation Performed**:
+  - Verifikasi Python memastikan semua file di .agents/ non-kosong, SKILL.md memiliki frontmatter name/description valid, dan .agents/rules/ponytail.md memiliki frontmatter trigger: always_on (< 24 KB) tanpa control characters.
+  - git diff -- AGENTS.md package.json package-lock.json kosong.
+  - git diff --check lolos tanpa error whitespace.
+  - Aktivasi otomatis di turn baru dan instalasi paket npm @playwright/cli belum dilakukan (menunggu konfirmasi user untuk penambahan paket npm).
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Konfirmasi ke user apakah perlu juga menginstal paket npm @playwright/cli (global) dan/atau @playwright/test di package.json, atau lanjut ke perbaikan problem proyek berikutnya.
