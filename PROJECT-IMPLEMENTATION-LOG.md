@@ -6554,3 +6554,135 @@ px vue-tsc --noEmit PASS (0 errors).
 - **Visual Verification**: Tidak berlaku.
 - **Current Status**: BLOCKED BY MISSING GITHUB AUTHENTICATION / SECRETS ACCESS (Workflow YAML tidak bermasalah; menunggu user mengisi Secrets di GitHub atau memasang/login `gh` CLI).
 - **Next Required Step**: User menambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` (opsional `VITE_SUPABASE_ANON_KEY`) dari `.env` ke `GitHub Repo -> Settings -> Secrets and variables -> Actions -> Repository secrets`, lalu menekan `Run workflow` pada `Supabase Database Keep Alive`.
+
+## Request: GitHub UI Click-Through Guidance for Actions Secrets & Manual Keep-Alive Dispatch
+- **Date**: 2026-11-10T16:26:12+07:00
+- **Mode**: Read-Only UI Guidance (No Codebase Modification)
+- **Scope**: Menjawab pertanyaan lanjutan `buka tab action yang mana` dan `klik apa yang action` berdasarkan 2 tangkapan layar GitHub Settings yang diunggah user (`media_1794302668982_664187ff.png` dan `media_1794302682277_3e579974.jpg`).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`
+  - `.github/workflows/supabase-keep-alive.yml` (lines 1-43)
+  - `.env.example` (lines 1-5) & `.env` (pengecekan nama key per baris saja tanpa mencetak nilai rahasia)
+  - `git remote get-url origin` (`https://github.com/nanditosetyawan/portfolio-natalia-lisa.git`)
+  - Inspeksi visual langsung terhadap `media_1794302668982_664187ff.png` & `media_1794302682277_3e579974.jpg`
+- **Work Performed (Completed)**:
+  1. Memverifikasi secara visual dari screenshot ke-1 bahwa user sedang berada di `Settings -> Code, planning, and automation -> Actions -> General` (halaman izin Actions yang memang sudah tepat di `Allow all actions and reusable workflows`), bukan halaman pengisian Secrets maupun tab eksekusi workflow.
+  2. Memverifikasi secara visual dari screenshot ke-2 bahwa menu yang dicari berada di sidebar kiri bagian `Security and quality -> Secrets and variables v -> Actions` untuk menambahkan `Repository secrets` (`VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY`, opsional `VITE_SUPABASE_ANON_KEY`).
+  3. Memverifikasi nama workflow (`Supabase Database Keep Alive`) dan trigger `workflow_dispatch` pada `.github/workflows/supabase-keep-alive.yml` serta menyusun panduan klik langkah demi langkah menuju tab `Actions` paling atas halaman repositori untuk menekan `Run workflow`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, `.env`, seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - Pembacaan langsung `.github/workflows/supabase-keep-alive.yml`, `.env.example`, nama key `.env`, `git remote get-url origin`, serta inspeksi 2 screenshot user.
+  - `git diff --check PROJECT-IMPLEMENTATION-LOG.md` (dijalankan setelah append).
+- **Not Verified**: Pengisian GitHub Secrets dan hasil eksekusi nyata `Run workflow` di halaman web GitHub belum dilakukan karena masih menunggu klik langsung dari user di browser GitHub-nya.
+- **Visual Verification**: Inspeksi visual langsung terhadap 2 screenshot UI GitHub Settings yang diunggah user (**VERIFIED**).
+- **Current Status**: COMPLETED (Read-Only Guidance: menunggu user mengisi 2 Secrets lalu menekan `Run workflow` di tab `Actions` atas).
+- **Next Required Step**: User menambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` di `Settings -> Secrets and variables -> Actions`, lalu menjalankan `Supabase Database Keep Alive` lewat tab `Actions` paling atas.
+## Request: Confirm Keep-Alive Workflow Success Screenshot & Explain Cron Schedule
+- **Date**: 2026-11-10T16:31:13+07:00
+- **Mode**: Read-Only Visual Confirmation & Schedule Explanation
+- **Scope**: Memverifikasi tangkapan layar GitHub Actions run `#9` (`media_1794303023366_158ec430.png`) dari pertanyaan `sudah sukses kn? selanjutnya ini otomatis tidak? tiap berapa hari?`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`
+  - `.github/workflows/supabase-keep-alive.yml` (lines 1-43)
+  - `git log -n 5 --oneline`, `git diff 59b8f62 -- .github/workflows/supabase-keep-alive.yml`, `git status -s`
+  - Inspeksi visual langsung terhadap `media_1794303023366_158ec430.png`
+- **Work Performed (Completed)**:
+  1. Memverifikasi secara visual dari screenshot `media_1794303023366_158ec430.png` bahwa run `Supabase Database Keep Alive #9` (branch `main`, commit `59b8f62`, job `keep-alive`) berstatus `Success` (centang hijau, 10s total / 4s job), yang membuktikan secret `VITE_SUPABASE_URL` & key Supabase sudah terbaca dan `curl` mengembalikan HTTP `2xx`.
+  2. Memastikan dari `.github/workflows/supabase-keep-alive.yml` baris 3-5 bahwa workflow memakai trigger `schedule` dengan ekspresi `0 0 */3 * *` (otomatis setiap 3 hari pada tanggal 1, 4, 7, ..., 31 pukul `00:00 UTC` / `07:00 WIB`) serta mencatat 2 catatan penting: aturan nonaktif otomatis cron GitHub bila 60 hari tanpa aktivitas commit dan banner kewajiban aktivasi 2FA GitHub sebelum 7 Desember 2026 di bagian atas screenshot.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - Inspeksi `media_1794303023366_158ec430.png`, `.github/workflows/supabase-keep-alive.yml`, `git diff 59b8f62 -- .github/workflows/supabase-keep-alive.yml` (kosong), `git status -s`.
+  - `git diff --check PROJECT-IMPLEMENTATION-LOG.md` (**PASS** setelah append).
+- **Not Verified**: Isi log teks terperinci di dalam langkah `Ping Supabase Database` serta teks `1 notice` pada `Annotations` belum dilihat langsung karena hanya halaman Summary yang diunggah.
+- **Visual Verification**: Inspeksi visual langsung terhadap `media_1794303023366_158ec430.png` (**VERIFIED**).
+- **Current Status**: COMPLETED (GitHub Actions Keep-Alive aktif & terverifikasi `Success` pada commit `main` `59b8f62`).
+- **Next Required Step**: Opsional: aktifkan 2FA GitHub sebelum 7 Desember 2026 (sesuai banner akun), dan bila ingin melanjutkan item produksi non-browser lain, bereskan *leaked-password protection* Supabase Auth & `VITE_SITE_URL` + audit Lighthouse Mobile.
+## Request: Clarify GitHub 60-Day Schedule Rule & Zero-Push Alternatives
+- **Date**: 2026-11-10T16:34:23+07:00
+- **Mode**: Read-Only Clarification & Options Analysis
+- **Scope**: Menjawab keberatan user (`masa selalu harus push`) terkait aturan nonaktif otomatis `schedule` 60 hari di GitHub Actions dan memberikan opsi tanpa push manual.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`
+  - `.github/workflows/supabase-keep-alive.yml` (lines 1-43), `README.md`
+  - Verifikasi dokumentasi resmi GitHub melalui `search_web` (`docs.github.com`: aturan `60 days` khusus repositori `Public`, serta kuota `2,000 minutes/month` pada GitHub Free untuk repositori `Private`)
+- **Work Performed (Completed)**:
+  1. Memastikan aturan nonaktif otomatis 60 hari oleh GitHub hanya berlaku pada repositori `Public` (bukan `Private`; repo Private gratis mendapat 2.000 menit/bulan sementara workflow `keep-alive` hanya memakai <2 menit/bulan).
+  2. Menyajikan opsi tanpa harus push rutin bila repo tetap `Public`: (a) memakai penjadwal eksternal gratis seperti `cron-job.org` langsung ke endpoint REST `/rest/v1/portfolio_profile?select=id&limit=1` dengan header `apikey`, atau (b) opsi alternatif workflow auto-commit kosong di GitHub beserta konsekuensinya.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - `search_web` ke `docs.github.com` (*Disabling and enabling a workflow* & *Actions billing/2,000 minutes*).
+  - `git diff --check PROJECT-IMPLEMENTATION-LOG.md` (**PASS** setelah append).
+- **Not Verified**: Status visibilitas saat ini repo GitHub user (`Public` vs `Private`) serta penjadwal eksternal pihak ketiga seperti `cron-job.org` tidak dikonfigurasi/diuji dalam sesi ini.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED (Read-Only Advice).
+- **Next Required Step**: Opsional — user memilih tetap pakai workflow saat ini (ubah repo ke `Private` atau klik `Enable workflow` / push bila repo `Public` lewat 60 hari), atau berpindah ke penjadwal eksternal jika ingin 100% lepas dari aturan 60 hari pada repo `Public`.
+## Request: Plain-Language Explanation of External Keep-Alive Ping (cron-job.org & apikey Header)
+- **Date**: 2026-11-10T16:40:07+07:00
+- **Mode**: Read-Only Explanation (No Codebase Modification)
+- **Scope**: Menjelaskan secara sederhana maksud perintah GET ke REST endpoint Supabase dengan header `apikey` (`VITE_SUPABASE_PUBLISHABLE_KEY`) melalui `cron-job.org` serta mengoreksi teks catatan internal yang sempat ikut terkirim pada balasan sebelumnya.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`
+  - `.github/workflows/supabase-keep-alive.yml` (lines 25-42), `.env` (pengecekan nomor baris key tanpa mencetak nilainya)
+- **Work Performed (Completed)**:
+  1. Menjelaskan dalam bahasa sederhana bahwa perintah keep-alive hanya meminta 1 baris kolom `id` dari tabel `portfolio_profile` lewat URL REST Supabase disertai header `apikey` (berisi `VITE_SUPABASE_PUBLISHABLE_KEY` dari baris 2 `.env`) agar proyek Supabase Free Tier tetap tercatat aktif dan tidak masuk mode *pause* 7 hari.
+  2. Menjelaskan peran `cron-job.org` sebagai layanan penjadwal gratis di luar GitHub yang bisa mengetuk URL REST Supabase tersebut setiap 3 hari secara otomatis tanpa bergantung pada aturan 60 hari repositori `Public` GitHub.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, `.env`, seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - Rujukan baris aktual `.github/workflows/supabase-keep-alive.yml` & `.env` (tanpa membaca/mencetak nilai secret).
+  - `git diff --check PROJECT-IMPLEMENTATION-LOG.md` (**PASS** setelah append).
+- **Not Verified**: Pembuatan atau uji langsung akun/job di situs `cron-job.org` belum dilakukan (hanya penjelasan konsep & panduan).
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED (Read-Only Explanation).
+- **Next Required Step**: Opsional — user memutuskan tetap memakai GitHub Actions saat ini atau menambah jadwal cadangan di `cron-job.org`.
+## Request: Explain External Cron Service & Step-by-Step cron-job.org Tutorial
+- **Date**: 2026-11-10T16:54:15+07:00
+- **Mode**: Read-Only Guidance & Tutorial
+- **Scope**: Menjawab pertanyaan `cron job itu web eksternal atau apa, coba tutor` dengan membedakan konsep *cron job* vs layanan web eksternal `cron-job.org` serta menyusun panduan langkah demi langkah penyiapan ping keep-alive Supabase.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`
+  - `.github/workflows/supabase-keep-alive.yml` (lines 25-42), `.env` (rujukan nomor baris `VITE_SUPABASE_PUBLISHABLE_KEY` tanpa mencetak nilai rahasia)
+  - `search_web` verifikasi UI `console.cron-job.org` (`Create cronjob`, `Execution schedule`, tab `Advanced` -> `Request method` & `Headers`, `Test Run` -> `200 OK`) serta konfirmasi bahwa `pg_cron` internal tidak mencegah *auto-pause* Free Tier Supabase.
+- **Work Performed (Completed)**:
+  1. Menjelaskan perbedaan *cron job* (konsep tugas terjadwal otomatis) vs `cron-job.org` (situs/layanan web eksternal gratis).
+  2. Menyusun tutorial langkah demi langkah mulai dari daftar di `https://cron-job.org`, membuat cronjob baru ke REST endpoint `/rest/v1/portfolio_profile?select=id&limit=1`, mengisi jadwal (`Every day` atau custom tiap 3 hari), menambahkan `Request method: GET` dan header `apikey` dari baris 2 `.env` pada tab `Advanced`, hingga uji tombol `Test Run` untuk memastikan `200 OK`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, `.env`, seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - `search_web` atas dokumentasi/UI `cron-job.org` dan perilaku *auto-pause* Supabase Free Tier.
+  - `git diff --check PROJECT-IMPLEMENTATION-LOG.md` (**PASS** setelah append).
+- **Not Verified**: Pembuatan akun, pengaturan job, dan hasil nyata tombol `Test Run` di browser user pada `console.cron-job.org` belum dieksekusi langsung oleh agen.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED (Read-Only Tutorial).
+- **Next Required Step**: Opsional — user mengikuti tutorial jika ingin memakai `cron-job.org` sebagai pengaman bebas aturan 60 hari GitHub, atau melanjutkan task berikutnya.
+
+## Request: Whole-Repository Read-Only Audit ("ada bug apa lagi, kembal ke ptoject")
+- **Date**: 2026-11-10T17:59:27+07:00
+- **Mode**: Read-Only Quality Audit (`AGENTS.md` §25 + `ponytail-audit`)
+- **Scope**: Audit menyeluruh repositori (`src/`, `supabase/migrations/`, `public/sw.js`, `vite.config.ts`, inventaris `tests/`, `package.json`, serta status live Supabase read-only) untuk melaporkan bug, celah keamanan, risiko data/skala, inkonsistensi UI/editor, duplikasi, dan kode mati.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (tail), `AGENTS.md`, `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`, `.agents/skills/ponytail-audit/SKILL.md`
+  - Kode & konfigurasi yang dibaca langsung: `src/lib/supabaseAuth.ts`, `src/lib/supabaseRest.ts`, `src/lib/supabaseClient.ts`, `src/stores/auth.ts`, `src/stores/site.ts`, `src/stores/certificates.ts`, `src/runtime/publishedRuntime.ts`, `src/repositories/editorRevisionRepository.ts`, `src/repositories/certificateRepository.ts`, `src/repositories/messageRepository.ts`, `src/repositories/siteRepository.ts`, `src/composables/useAdminEntityRegistry.ts`, `src/composables/usePhotoAreaRegistry.ts`, `src/composables/useEditorObjectRegistry.ts`, `src/pages/admin/AdminBootstrap.vue`, `src/pages/admin/AdminCertificates.vue`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminPublishedHistory.vue`, `src/pages/admin/AdminAssetLibrary.vue`, `src/pages/admin/AdminMessages.vue`, `src/pages/admin/AdminDashboard.vue`, `src/pages/admin/AdminLayout.vue`, `src/pages/admin/components/AdminLayout.vue`, `src/pages/admin/components/DesignSystemPanel.vue`, `src/pages/admin/components/PropertyControl.vue`, `src/pages/admin/components/propertyControlRegistry.ts`, `src/pages/admin/components/property-controls/PropertyThumbnailControl.vue`, `src/pages/admin/AdminMediaImages.vue`, `src/pages/admin/AdminMediaDocuments.vue`, `src/pages/admin/AdminMediaVideos.vue`, `src/pages/guest/HomePage.vue`, `src/pages/guest/ContactDetail.vue`, `src/sections/certificate/CertificateSection.vue`, `src/sections/experience/ExperienceSection.vue`, `src/sections/education/shs/SHSSection.vue`, `src/data/default/visual/shs.ts`, `src/sections/about/AboutSection.vue`, `src/components/GuestNavbar.vue`, `src/production/backup.ts`, `src/router/index.ts`, `public/sw.js`, `vite.config.ts`, `package.json`, `list bug.md`, `supabase/migrations/0012_message_center.sql`, `0019_atomic_publish_pipeline.sql`, `0028_decouple_draft_save_from_published_base.sql`, `0031_revoke_obsolete_test_reset.sql`, `0032_delete_published_revisions_on_reset.sql`
+- **Work Performed (Completed)**:
+  1. Memetakan dependensi, routes, alur Guest/Admin/Editor/Publish/Certificate/Media/Messages, serta memverifikasi item lama yang sudah diperbaiki di commit terbaru/working tree agar tidak salah dilaporkan (`AdminEdit` preview media sertifikat, blokir accordion saat klik thumbnail sertifikat, cek `getPublishedRevision()` di `AdminMaintenance`, watcher `route.query.draft`).
+  2. Mengidentifikasi 20 temuan terverifikasi (11 *Must fix*, 7 *Should fix*, 2 *Nice to have*) lengkap dengan pemicu konkret, tautan file+baris, perbaikan terkecil, dan pengukuran *Lean*.
+  3. Memverifikasi status live Cloud Supabase via read-only `execute_sql` & `get_advisors`: `rollback_published_revision` masih memakai `current_published + 1`, `public.test_reset()` masih tersisa, bucket `portfolio-media` menyimpan 33 objek yatim (`28,015,345` byte: 28 `published/`, 5 `draft/`) saat tabel DB kosong, dan `auth_leaked_password_protection` masih nonaktif.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entry ini saja).
+- **Files Protected**: Seluruh `src/**`, `supabase/**`, `public/**`, `tests/**`, `package.json`, `vite.config.ts`, `.env`, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - `npx vue-tsc --noEmit` -> **PASS** (exit 0).
+  - `npx vite build --outDir $env:TEMP\portfolio-audit-check --emptyOutDir` -> **PASS** (exit 0, 2047 modul), folder sementara dihapus segera setelah build.
+  - Read-only Supabase MCP `execute_sql` & `get_advisors` (`type=security`) -> **PASS**.
+- **Not Verified**: Suite Playwright (`tests/*.mjs`) dan audit Lighthouse Mobile tidak dijalankan dalam sesi read-only ini; komponen/seksi lain yang tidak disentuh (`PortfolioSection.vue`, `CollegeSection.vue`, `ContactSection.vue`, `AdminDrafts.vue`, `AdminFavorites.vue`, `AdminLogin.vue`, `AdminMedia.vue`) tidak diaudit baris per baris.
+- **Visual Verification**: Tidak berlaku (read-only audit).
+- **Current Status**: COMPLETED (Read-Only Audit Report Delivered).
+- **Next Required Step**: User memilih nomor temuan yang ingin diperbaiki (misalnya `#1`–`#11` terlebih dahulu secara bertahap) sebelum eksekusi modifikasi kode/migrasi.
