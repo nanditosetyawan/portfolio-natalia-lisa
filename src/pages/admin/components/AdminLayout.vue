@@ -47,6 +47,17 @@
             <span>{{ editor.isPublishing ? 'Publishing…' : 'Publish' }}</span>
           </button>
         </template>
+        <template v-else-if="isManageMediaPage">
+          <button
+            type="button"
+            class="tbar-btn tbar-cleanup"
+            data-storage-cleanup-trigger
+            @click="showStorageCleanup = true"
+          >
+            <Trash2 :size="15" aria-hidden="true" />
+            <span>Clean Storage</span>
+          </button>
+        </template>
       </AdminHeader>
       <main class="admin-content" :class="{ 'admin-content--editor': isEditPage }">
         <router-view />
@@ -71,16 +82,22 @@
         </div>
       </section>
     </div>
+    <StorageCleanupDialog
+      v-if="isManageMediaPage"
+      :open="showStorageCleanup"
+      @close="showStorageCleanup = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LoaderCircle, Undo, Redo, Save } from 'lucide-vue-next'
+import { LoaderCircle, Undo, Redo, Save, Trash2 } from 'lucide-vue-next'
 import { useAuthStore } from '../../../stores/auth'
 import AdminSidebar from './AdminSidebar.vue'
 import AdminHeader from './AdminHeader.vue'
+import StorageCleanupDialog from './StorageCleanupDialog.vue'
 import { editorHasChanges, editorSaveStatus, markEditorChanged, saveEditor } from '../../../composables/useEditorSession'
 import { editorPublishErrors, editorPublishStatus, publishEditor, resetEditorPublishFeedback } from '../../../composables/useEditorPublish'
 import { useEditorStore } from '../../../stores/editor'
@@ -92,6 +109,7 @@ const auth = useAuthStore()
 const sidebarOpen = ref(false)
 const isSaving = ref(false)
 const showPublishDialog = ref(false)
+const showStorageCleanup = ref(false)
 const publishNote = ref('')
 const publishCancelButton = ref<HTMLButtonElement | null>(null)
 const editor = useEditorStore()
@@ -214,6 +232,10 @@ const pageTitle = computed(() => {
 })
 
 const isEditPage = computed(() => route.path === '/admin/edit')
+const isManageMediaPage = computed(() => route.path === '/admin/media')
+watch(isManageMediaPage, (active) => {
+  if (!active) showStorageCleanup.value = false
+})
 </script>
 
 <style scoped>
@@ -310,6 +332,26 @@ const isEditPage = computed(() => route.path === '/admin/edit')
 
 .tbar-save:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.9);
+}
+
+.tbar-cleanup {
+  background: rgba(255, 255, 255, 0.85);
+  color: #5A3E35;
+  border: 1px solid rgba(138, 124, 110, 0.32);
+  padding: 0.48rem 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tbar-cleanup:hover:not(:disabled) {
+  background: #FFF0EF;
+  border-color: rgba(201, 61, 77, 0.35);
+  color: #963F47;
+}
+
+.tbar-cleanup:focus-visible {
+  outline: 2px solid #7B5F3B;
+  outline-offset: 2px;
 }
 
 .tbar-publish {

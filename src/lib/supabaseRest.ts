@@ -2,6 +2,7 @@ const configuredUrl = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim().rep
 const publishableKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim()
 
 let accessToken: string | null = null
+let refreshAccessToken: (() => Promise<string | null>) | null = null
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(configuredUrl && publishableKey)
@@ -11,15 +12,15 @@ export function setSupabaseAccessToken(token: string | null): void {
   accessToken = token
 }
 
+export function setSupabaseAccessTokenRefresher(refresher: (() => Promise<string | null>) | null): void {
+  refreshAccessToken = refresher
+}
+
 export function supabasePublicStorageUrl(bucket: string, storagePath: string): string {
   if (!isSupabaseConfigured()) throw new Error('Supabase environment is not configured')
   const encodedBucket = encodeURIComponent(bucket)
   const encodedPath = storagePath.split('/').map((segment) => encodeURIComponent(segment)).join('/')
   return `${configuredUrl}/storage/v1/object/public/${encodedBucket}/${encodedPath}`
-}
-
-function authorizationToken(): string {
-  return accessToken ?? publishableKey
 }
 
 export async function supabaseRestRequest<T>(
@@ -35,28 +36,44 @@ export async function supabaseRestRequest<T>(
   if (!isSupabaseConfigured()) throw new Error('Supabase environment is not configured')
   if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Network unavailable. Check your connection and retry.')
 
-  const controller = new AbortController()
-  const timeout = globalThis.setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000)
-  let response: Response
-  try {
-    response = await fetch(`${configuredUrl}/rest/v1/${table}${options.query ?? ''}`, {
-      method: options.method ?? 'GET',
-      cache: 'no-store',
-      headers: {
-        apikey: publishableKey,
-        Authorization: `Bearer ${authorizationToken()}`,
-        Accept: 'application/json',
-        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        ...(options.prefer === undefined ? {} : { Prefer: options.prefer })
-      },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: controller.signal
-    })
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error('Supabase request timed out. Retry when the connection is stable.')
-    throw new Error(error instanceof Error ? `Supabase network request failed: ${error.message}` : 'Supabase network request failed.')
-  } finally {
-    globalThis.clearTimeout(timeout)
+  const sendFetch = async (bearerToken: string): Promise<Response> => {
+    const controller = new AbortController()
+    const timeout = globalThis.setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000)
+    try {
+      return await fetch(`${configuredUrl}/rest/v1/${table}${options.query ?? ''}`, {
+        method: options.method ?? 'GET',
+        cache: 'no-store',
+        headers: {
+          apikey: publishableKey,
+          Authorization: `Bearer ${bearerToken}`,
+          Accept: 'application/json',
+          ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...(options.prefer === undefined ? {} : { Prefer: options.prefer })
+        },
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: controller.signal
+      })
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error('Supabase request timed out. Retry when the connection is stable.')
+      throw new Error(error instanceof Error ? `Supabase network request failed: ${error.message}` : 'Supabase network request failed.')
+    } finally {
+      globalThis.clearTimeout(timeout)
+    }
+  }
+
+  const requestToken = accessToken
+  let response = await sendFetch(requestToken ?? publishableKey)
+
+  if (response.status === 401 && requestToken) {
+    const refreshedToken = accessToken && accessToken !== requestToken
+      ? accessToken
+      : refreshAccessToken
+        ? await refreshAccessToken()
+        : null
+    if (refreshedToken && refreshedToken !== requestToken) {
+      await response.body?.cancel?.().catch(() => undefined)
+      response = await sendFetch(refreshedToken)
+    }
   }
 
   if (!response.ok) {

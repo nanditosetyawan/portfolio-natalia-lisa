@@ -242,7 +242,7 @@ function assertUsableMediaBlob(blob: Blob, expectedMimeType: string, label: stri
   if (expectedMimeType && blob.type && blob.type !== expectedMimeType) throw new Error(`${label} MIME mismatch: expected ${expectedMimeType}, received ${blob.type}.`)
 }
 
-async function prepareSupabasePublishedSnapshot(snapshot: EditorSnapshot, revisionNumber: number): Promise<EditorSnapshot> {
+async function prepareSupabasePublishedSnapshot(snapshot: EditorSnapshot): Promise<EditorSnapshot> {
   const supabaseClient = await loadSupabaseClient()
   const prepared = clone(snapshot)
   const attemptId = crypto.randomUUID()
@@ -259,7 +259,7 @@ async function prepareSupabasePublishedSnapshot(snapshot: EditorSnapshot, revisi
     }
 
     const extension = extensionForMedia(expectedMimeType, reference.storagePath ?? reference.uri)
-    const destination = `published/${revisionNumber}/${reference.assetId}-${attemptId}.${extension}`
+    const destination = `published/${attemptId}/${reference.assetId}.${extension}`
 
     if (reference.storagePath) {
       if (!reference.storagePath.startsWith('draft/')) throw new Error(`Media ${reference.assetId} is outside the allowed draft/* staging prefix.`)
@@ -446,11 +446,12 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
     const target = this.records.find((record) => record.id === input.targetRevisionId && record.status === 'published')
     if (!target) throw new PublishValidationError(['Published revision was not found.'])
     if (target.revision_number >= input.expectedPublishedRevision) throw new PublishValidationError(['Rollback must select an older Published revision.'])
+    const revisionNumber = nextRevision(this.records)
     const now = new Date().toISOString()
     const revision: RevisionRecord = {
       ...clone(target),
-      id: `published-${input.expectedPublishedRevision + 1}-${crypto.randomUUID()}`,
-      revision_number: input.expectedPublishedRevision + 1,
+      id: `published-${revisionNumber}-${crypto.randomUUID()}`,
+      revision_number: revisionNumber,
       base_revision_number: input.expectedPublishedRevision,
       created_by: this.actorId,
       created_at: now,
@@ -595,8 +596,7 @@ export class SupabaseEditorPublishRepository implements EditorPublishRepository 
     if (!validation.valid || !validation.draft) throw new PublishValidationError(validation.errors)
     if (validation.draft.lock_version !== input.expectedDraftLockVersion) throw new PublishConflictError('The Draft changed while Publish was being prepared.')
 
-    const nextPublishedRevision = (input.expectedPublishedRevision ?? 0) + 1
-    const preparedSnapshot = await prepareSupabasePublishedSnapshot(validation.draft.snapshot, nextPublishedRevision)
+    const preparedSnapshot = await prepareSupabasePublishedSnapshot(validation.draft.snapshot)
     try {
       const rows = await supabaseRpc<RevisionRow[]>('publish_editor_draft', {
         p_draft_id: input.draftRevisionId,

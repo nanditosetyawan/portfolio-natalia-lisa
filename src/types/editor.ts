@@ -28,7 +28,7 @@ export type EditorObjectType = BuiltInEditorObjectType | (string & {})
 export type PropertyBinding =
   | { kind: 'snapshot'; path: string }
   | { kind: 'runtime'; path: string }
-  | { kind: 'action'; action: 'upload-media' | 'choose-media' | 'replace-media' | 'remove-media' | 'duplicate-media-reference' | 'reveal-media-library' | 'set-media-crop' | 'set-media-fit' | 'preview-media' | 'set-animation-config' | 'apply-animation-preset' | 'preview-animation' | 'preview-animation-timeline' | 'copy-animation' | 'paste-animation' | 'duplicate-animation' | 'reset-animation' }
+  | { kind: 'action'; action: 'upload-media' | 'choose-media' | 'replace-media' | 'remove-media' | 'duplicate-media-reference' | 'reveal-media-library' | 'set-media-crop' | 'set-media-fit' | 'preview-media' | 'set-animation-config' | 'apply-animation-preset' | 'preview-animation' | 'preview-animation-timeline' | 'copy-animation' | 'paste-animation' | 'duplicate-animation' | 'reset-animation' | 'upload-slot-media' }
   | { kind: 'metadata'; field: 'objectId' | 'objectType' | 'capabilities' | 'validationStatus' | 'section' | 'layer' }
 
 export type EditorCommandType =
@@ -87,6 +87,11 @@ export interface EditorObjectUxMetadata {
   mediaFitPath?: string
   /** Marks an object whose canonical identity lives in EditorSnapshot.instances. */
   dynamicInstance?: boolean
+  excludedCapabilities?: string[]
+  excludedProperties?: string[]
+  visibleProperties?: string[]
+  dragGroupEntityId?: string
+  disableDelete?: boolean
 }
 
 export interface EditorObject extends EntityDescriptor {

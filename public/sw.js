@@ -22,10 +22,9 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request, { cache: 'no-store' }).then((response) => {
-      if (response.ok) void caches.open(runtimeCache).then((cache) => cache.put(request, response.clone()))
-      return response
-    }).catch(async () => (await caches.match('/offline.html')) || (await caches.match(request)) || (await caches.match('/'))))
+    event.respondWith(
+      fetch(request, { cache: 'no-store' }).catch(async () => (await caches.match('/offline.html')) || Response.error())
+    )
     return
   }
 

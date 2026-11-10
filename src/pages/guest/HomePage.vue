@@ -140,7 +140,7 @@ function handleMediaLoadError(event: Event): void {
     <AboutSection />
     <EducationGlobal />
     <ExperienceSection />
-    <CertificateSection />
+    <CertificateSection :editor-preview="editorPreview" />
     <ContactSection />
   </div>
   <main v-else class="published-runtime-state" :aria-busy="site.publishedRuntimeStatus === 'loading'">

@@ -52,6 +52,7 @@ export interface TypographySettings {
   textShadow?: string
   hoverColor?: string
   textAlign?: 'left' | 'center' | 'right' | 'justify'
+  fontStyle?: 'normal' | 'italic'
 }
 
 export interface LayoutSettings {
@@ -99,6 +100,7 @@ export interface MediaStyleSettings {
   outlineWidth?: number
   aspectRatioLocked?: boolean
   aspectRatio?: number
+  objectFit?: 'scale-down' | 'cover' | 'contain'
 }
 
 export interface BackgroundSettings {

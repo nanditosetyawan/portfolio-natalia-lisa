@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { Search, X } from 'lucide-vue-next'
+import { EDITOR_IMAGE_FILE_ACCEPT, validateMediaUploadFile } from '../../../lib/mediaUploadRules'
 import { useMediaLibraryStore } from '../../../stores/mediaLibrary'
 import type { MediaLibraryAsset, MediaLibraryFilter } from '../../../types/mediaLibrary'
 import AssetVirtualGrid from './AssetVirtualGrid.vue'
@@ -22,6 +23,8 @@ const panel = ref<HTMLElement | null>(null)
 const search = ref('')
 const filter = ref<MediaLibraryFilter>('all')
 const selectedId = ref<string | null>(null)
+const uploadError = ref('')
+const uploading = ref(false)
 
 const tabs: Array<{ value: MediaLibraryFilter; label: string }> = [
   { value: 'all', label: 'All' },
@@ -57,6 +60,24 @@ function applyAsset(asset = selectedAsset.value): void {
   if (asset) emit('apply', asset)
 }
 
+async function handleModalFileUpload(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  uploadError.value = ''
+  uploading.value = true
+  try {
+    validateMediaUploadFile(file, 'image')
+    const asset = await library.upload(file)
+    emit('apply', asset)
+  } catch (error) {
+    uploadError.value = error instanceof Error ? error.message : 'Image upload failed.'
+  } finally {
+    uploading.value = false
+  }
+}
+
 function resetView(): void {
   search.value = ''
   filter.value = 'all'
@@ -71,6 +92,7 @@ function handleDialogKeydown(event: KeyboardEvent): void {
 
 watch(() => props.open, async (open) => {
   if (!open) return
+  uploadError.value = ''
   selectedId.value = props.currentAssetId ?? assets.value[0]?.id ?? null
   if (!library.lastLoadedAt && !library.loading) {
     try { await library.refresh() } catch { /* Error is rendered in the picker. */ }
@@ -104,6 +126,7 @@ watch(() => props.open, async (open) => {
       </nav>
 
       <p v-if="library.error" class="picker-error" role="alert">{{ library.error }} <button type="button" @click="void library.refresh()">Retry</button></p>
+      <p v-if="uploadError" class="picker-error" role="alert">{{ uploadError }}</p>
 
       <div class="picker-grid">
         <AssetVirtualGrid
@@ -125,6 +148,10 @@ watch(() => props.open, async (open) => {
         </div>
         <span v-else class="picker-selection-empty">Select an asset</span>
         <div class="picker-actions">
+          <label v-if="mode === 'replace'" class="picker-upload-button" :class="{ disabled: uploading }">
+            <span>{{ uploading ? 'Uploading...' : 'Upload New Image' }}</span>
+            <input type="file" :accept="EDITOR_IMAGE_FILE_ACCEPT" :disabled="uploading" @change="void handleModalFileUpload($event)" />
+          </label>
           <button type="button" @click="emit('close')">Cancel</button>
           <button type="button" class="primary" :disabled="!selectedAsset" @click="applyAsset()">{{ actionLabel }}</button>
         </div>
@@ -151,6 +178,9 @@ watch(() => props.open, async (open) => {
 .asset-picker > footer { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-top: .75rem; border-top: 1px solid rgba(91,67,57,.12); }
 .picker-selection { display: flex; align-items: center; gap: .55rem; min-width: 0; }.picker-selection img { width: 42px; height: 42px; object-fit: cover; border-radius: 9px; }.picker-selection span { display: grid; min-width: 0; }.picker-selection strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; }.picker-selection small,.picker-selection-empty { color: #927d72; font-size: .62rem; }
 .picker-actions { display: flex; gap: .45rem; }.picker-actions button { border: 1px solid rgba(91,67,57,.15); border-radius: 10px; padding: .58rem .9rem; background: #fffdf8; color: #604941; font-weight: 800; cursor: pointer; }.picker-actions button.primary { border-color: #a64c5c; background: #a64c5c; color: white; }.picker-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.picker-upload-button { position: relative; display: inline-flex; align-items: center; border: 1px solid rgba(91,67,57,.18); border-radius: 10px; padding: .58rem .9rem; background: #fffdf8; color: #604941; font-weight: 800; cursor: pointer; }
+.picker-upload-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.picker-upload-button.disabled { opacity: .55; cursor: wait; }
 .asset-picker button:focus-visible,.asset-picker input:focus-visible { outline: 3px solid rgba(184,91,105,.32); outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 720px) { .asset-picker-layer { padding: 0; }.asset-picker { width: 100vw; height: 100dvh; border-radius: 0; }.asset-picker > footer { align-items: flex-end; }.picker-selection { max-width: 48%; } }

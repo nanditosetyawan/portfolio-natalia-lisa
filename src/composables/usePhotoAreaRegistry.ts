@@ -33,7 +33,31 @@ export function usePhotoAreaRegistry() {
     }))
   )))
 
-  const areas = computed(() => [...semanticMediaAreas.value, ...site.current.photoAreas, ...certificateAreas.value])
+  const contactDetailAreas = computed<PhotoAreaEntity[]>(() => {
+    const detail = site.current.content.contact.detail
+    const mainId = detail?.mainPhotoId ?? 'contact-detail-photo-main'
+    const messageId = detail?.messagePhotoId ?? 'contact-detail-photo-message'
+    const slots = [
+      { id: mainId, section: 'Contact Detail', label: 'Main Photo', role: 'main-photo' },
+      { id: messageId, section: 'Text Me', label: 'Message Photo', role: 'message-photo' }
+    ]
+    return slots.map((slot) => {
+      const media = site.contactDetailMedia[slot.id]
+      return {
+        id: slot.id,
+        ownerType: 'contact-detail' as const,
+        ownerId: 'contact-detail',
+        role: slot.role,
+        section: slot.section,
+        label: slot.label,
+        source: media?.source ?? '',
+        objectPosition: media?.objectPosition ?? '50% 50%',
+        persistence: 'runtime' as const
+      }
+    })
+  })
+
+  const areas = computed(() => [...semanticMediaAreas.value, ...site.current.photoAreas, ...contactDetailAreas.value, ...certificateAreas.value])
 
   function find(photoAreaId: string) {
     return areas.value.find((area) => area.id === photoAreaId)
@@ -42,6 +66,10 @@ export function usePhotoAreaRegistry() {
   async function updateSource(photoAreaId: string, source: string): Promise<boolean> {
     const target = find(photoAreaId)
     if (!target) return false
+    if (target.ownerType === 'contact-detail') {
+      site.setContactDetailMediaSource(photoAreaId, source)
+      return true
+    }
     if (site.current.mediaUsages.some((usage) => usage.id === photoAreaId)) {
       site.setMediaUsageSource(photoAreaId, source)
       return true
@@ -54,6 +82,10 @@ export function usePhotoAreaRegistry() {
   async function updateObjectPosition(photoAreaId: string, objectPosition: string): Promise<boolean> {
     const target = find(photoAreaId)
     if (!target) return false
+    if (target.ownerType === 'contact-detail') {
+      site.setContactDetailMediaObjectPosition(photoAreaId, objectPosition)
+      return true
+    }
     if (site.current.mediaUsages.some((usage) => usage.id === photoAreaId)) {
       site.setMediaUsageObjectPosition(photoAreaId, objectPosition)
       return true

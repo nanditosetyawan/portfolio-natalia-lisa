@@ -473,6 +473,7 @@ export function resolveResponsiveLayoutProperties(
 ): ResponsiveLayoutProperty[] {
   return responsiveLayoutRegistry.filter((property) => {
     if (!entity.capabilities.includes(property.metadata.capability)) return false
+    if (entity.ux?.excludedProperties?.includes(property.metadata.propertyKey)) return false
     if (property.metadata.propertyKey === 'responsive.safeArea' && breakpoint !== 'mobile') return true
     return true
   })
@@ -678,7 +679,7 @@ export function applyResponsiveObjectProperties(
 
   if (breakpoint !== 'desktop') {
     for (const property of propertyRegistry) {
-      if (!entity.capabilities.includes(property.capability) || !snapshotMappingTemplate(property)) continue
+      if (!entity.capabilities.includes(property.capability) || entity.ux?.excludedProperties?.includes(property.propertyKey) || !snapshotMappingTemplate(property)) continue
       const state = resolveResponsiveSnapshotProperty(property, snapshot, objectId, breakpoint)
       if (state.source === 'base') continue
       const value = property.serializer.deserialize(state.value)

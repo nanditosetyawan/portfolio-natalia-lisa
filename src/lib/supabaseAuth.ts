@@ -1,9 +1,9 @@
 import type { Session } from '@supabase/supabase-js'
-import { setSupabaseAccessToken } from './supabaseRest'
+import { setSupabaseAccessToken, setSupabaseAccessTokenRefresher } from './supabaseRest'
 import { supabaseClient } from './supabaseClient'
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim().replace(/\/$/, '')
-const publishableKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim()
+const publishableKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim()
 
 export interface SupabaseUser {
   id: string
@@ -16,6 +16,10 @@ export interface SupabaseSession {
   expires_at?: number
   user: SupabaseUser
 }
+
+const sessionListeners = new Set<(session: SupabaseSession | null) => void>()
+let authSubscriptionBound = false
+let inFlightRefresh: Promise<string | null> | null = null
 
 function mapSession(session: Session): SupabaseSession {
   return {
@@ -30,11 +34,74 @@ function syncAccessToken(session: SupabaseSession | null): void {
   setSupabaseAccessToken(session?.access_token ?? null)
 }
 
+function syncSession(session: SupabaseSession | null): void {
+  syncAccessToken(session)
+  for (const listener of sessionListeners) listener(session)
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (inFlightRefresh) return inFlightRefresh
+  inFlightRefresh = (async () => {
+    try {
+      const { data, error } = await supabaseClient.auth.refreshSession()
+      if (error) {
+        if (error.name !== 'AuthRetryableFetchError' && error.name !== 'AuthRefreshDiscardedError') {
+          syncSession(null)
+        }
+        return null
+      }
+      if (!data.session) {
+        syncSession(null)
+        return null
+      }
+      const mapped = mapSession(data.session)
+      syncSession(mapped)
+      return mapped.access_token
+    } catch {
+      return null
+    } finally {
+      inFlightRefresh = null
+    }
+  })()
+  return inFlightRefresh
+}
+
+function ensureAuthSync(): void {
+  if (authSubscriptionBound) return
+  authSubscriptionBound = true
+  setSupabaseAccessTokenRefresher(refreshAccessToken)
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    // Initial session restoration is handled explicitly by restoreSession() so test $patch state stays intact.
+    if (event === 'INITIAL_SESSION') return
+    if (event === 'SIGNED_OUT') {
+      syncSession(null)
+      return
+    }
+    if (
+      event === 'SIGNED_IN' ||
+      event === 'TOKEN_REFRESHED' ||
+      event === 'USER_UPDATED' ||
+      event === 'MFA_CHALLENGE_VERIFIED'
+    ) {
+      syncSession(session ? mapSession(session) : null)
+    }
+  })
+}
+
+export function subscribeAuthSession(listener: (session: SupabaseSession | null) => void): () => void {
+  ensureAuthSync()
+  sessionListeners.add(listener)
+  return () => {
+    sessionListeners.delete(listener)
+  }
+}
+
 function authError(error: { message: string }): Error {
   return new Error(`Supabase Auth failed: ${error.message}`)
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<SupabaseSession> {
+  ensureAuthSync()
   const { data, error } = await supabaseClient.auth.signInWithPassword({
     email: email.trim(),
     password
@@ -48,6 +115,7 @@ export async function signInWithPassword(email: string, password: string): Promi
 }
 
 export async function signUpWithPassword(email: string, password: string): Promise<SupabaseSession | null> {
+  ensureAuthSync()
   const { data, error } = await supabaseClient.auth.signUp({
     email: email.trim(),
     password
@@ -61,6 +129,7 @@ export async function signUpWithPassword(email: string, password: string): Promi
 }
 
 export async function restoreSession(): Promise<SupabaseSession | null> {
+  ensureAuthSync()
   const { data, error } = await supabaseClient.auth.getSession()
   if (error) {
     syncAccessToken(null)

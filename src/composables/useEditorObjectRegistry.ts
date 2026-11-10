@@ -20,6 +20,9 @@ export function useEditorObjectRegistry(snapshot?: ComputedRef<EditorSnapshot>):
   const certificates = useCertificatesStore()
 
   function mediaFitPath(areaId: string): string | undefined {
+    if (areaId === 'contact-detail-photo-main' || areaId === 'contact-detail-photo-message') {
+      return `media.styles.${areaId}.objectFit`
+    }
     if (areaId === 'about-frame-main') return 'visual.about.frameMainImage.objectFit'
     if (areaId === 'about-frame-back-2') return 'visual.about.frameBack2Image.objectFit'
     if (site.current.content.experience.items.some((item) => item.frameId === areaId)) {
@@ -42,6 +45,7 @@ export function useEditorObjectRegistry(snapshot?: ComputedRef<EditorSnapshot>):
         section: entity.section,
         label: entity.label,
         kind: entity.kind,
+        objectType: entity.objectType,
         capabilities: entity.capabilities ?? entity.properties.map((property) => property.metadata.capability),
         propertyValues: Object.fromEntries(entity.properties.map((property) => [property.metadata.propertyKey, property.read()])),
         isMedia: Boolean(entity.photoAreaId),

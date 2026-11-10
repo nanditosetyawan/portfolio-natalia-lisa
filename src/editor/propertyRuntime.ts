@@ -94,18 +94,18 @@ export function applyRegisteredObjectProperties(
   const element = resolveSnapshotObjectDomTarget(root, snapshot, objectId)
   if (!element) return
   const reference = findSnapshotObjectReference(snapshot, objectId)
-  const capabilities = reference
+  const editorObject = reference
     ? createEditorObject({
       id: reference.entityId,
       section: reference.section,
       label: reference.label,
       kind: reference.kind,
       isMedia: reference.kind === 'media'
-    }, 0).capabilities
+    }, 0)
     : null
 
   for (const property of propertyRegistry) {
-    if (capabilities && !capabilities.includes(property.capability)) continue
+    if (editorObject && (!editorObject.capabilities.includes(property.capability) || editorObject.ux?.excludedProperties?.includes(property.propertyKey))) continue
     const mapping = property.databaseMapping
     if (mapping.kind !== 'snapshot' || !mapping.path.includes('{entityId}')) continue
     const path = resolvePropertyPath(property, objectId)

@@ -5,6 +5,7 @@ const props = defineProps<{
   source: string
   alt: string
   objectPosition?: string
+  objectFit?: 'scale-down' | 'cover' | 'contain'
   omitEditorId?: boolean
 }>()
 
@@ -13,7 +14,8 @@ const naturalWidth = ref(0)
 const naturalHeight = ref(0)
 
 const imageStyle = computed(() => ({
-  objectPosition: props.objectPosition ?? 'center center'
+  objectPosition: props.objectPosition ?? 'center center',
+  ...(props.objectFit ? { objectFit: props.objectFit } : {})
 }))
 
 function onImageLoad(event: Event) {

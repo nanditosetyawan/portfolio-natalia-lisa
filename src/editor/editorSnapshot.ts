@@ -1,4 +1,5 @@
 import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/site'
+import { defaultContact, type DefaultContactDetail } from '../data/default/contact'
 import type { CertificateCard } from '../data/default/certificates'
 import type { MediaUsage, PhotoAreaEntity } from '../types/site'
 import { validateRegisteredProperties } from './propertyRegistry'
@@ -60,32 +61,53 @@ function entityReferences(snapshot: SiteSnapshot): SnapshotEntityReference[] {
   snapshot.content.experience.items.forEach((item) => add(item, 'Experience', 'content', 'Experience'))
   add(snapshot.content.certificate, 'Certificate', 'content', 'Certificate')
   add(snapshot.content.contact, 'Contact', 'content', 'Contact')
+  const d = snapshot.content.contact.detail
+  if (d) {
+    if (d.sectionId) references.push({ entityId: d.sectionId, section: 'Contact Detail', kind: 'background', label: 'Contact Detail Section' })
+    if (d.mainPhotoId) references.push({ entityId: d.mainPhotoId, section: 'Contact Detail', kind: 'media', label: 'Main Photo' })
+    if (d.welcomeGroupId) references.push({ entityId: d.welcomeGroupId, section: 'Contact Detail', kind: 'container', label: 'Welcome Group' })
+    if (d.title?.id) references.push({ entityId: d.title.id, section: 'Contact Detail', kind: 'text', label: 'Name' })
+    if (d.subtitle?.id) references.push({ entityId: d.subtitle.id, section: 'Contact Detail', kind: 'text', label: 'Role' })
+    if (d.description?.id) references.push({ entityId: d.description.id, section: 'Contact Detail', kind: 'text', label: 'Description' })
+    if (d.socialLinks?.whatsapp?.id) references.push({ entityId: d.socialLinks.whatsapp.id, section: 'Contact Detail', kind: 'button', label: 'WhatsApp' })
+    if (d.socialLinks?.linkedin?.id) references.push({ entityId: d.socialLinks.linkedin.id, section: 'Contact Detail', kind: 'button', label: 'LinkedIn' })
+    if (d.socialLinks?.cv?.id) references.push({ entityId: d.socialLinks.cv.id, section: 'Contact Detail', kind: 'button', label: 'CV' })
+    if (d.messageSectionId) references.push({ entityId: d.messageSectionId, section: 'Text Me', kind: 'background', label: 'Text Me Section' })
+    if (d.messageCardId) references.push({ entityId: d.messageCardId, section: 'Text Me', kind: 'container', label: 'Message Card' })
+    if (d.message?.title?.id) references.push({ entityId: d.message.title.id, section: 'Text Me', kind: 'text', label: 'Text Me Title' })
+    if (d.messageFieldsId) references.push({ entityId: d.messageFieldsId, section: 'Text Me', kind: 'container', label: 'Message Fields' })
+    if (d.message?.submitButton?.id) references.push({ entityId: d.message.submitButton.id, section: 'Text Me', kind: 'button', label: 'Submit Button' })
+    if (d.messagePhotoId) references.push({ entityId: d.messagePhotoId, section: 'Text Me', kind: 'media', label: 'Message Photo' })
+  }
   add(snapshot.content.navigation, 'Navigation', 'navigation', 'Navigation')
   return references
 }
 
 export function createEditorSnapshot(snapshot: SiteSnapshot, revision: Partial<EditorSnapshot['revision']> = {}): EditorSnapshot {
-  return {
+  const references = entityReferences(snapshot)
+  const created: EditorSnapshot = {
     compatibility: { schemaVersion: EDITOR_SNAPSHOT_SCHEMA_VERSION, minimumReaderVersion: EDITOR_SNAPSHOT_MINIMUM_SUPPORTED_VERSION, maximumWriterVersion: EDITOR_SNAPSHOT_READER_VERSION },
     revision: { baseRevisionNumber: revision.baseRevisionNumber ?? null, draftRevisionNumber: revision.draftRevisionNumber ?? null },
-    entities: entityReferences(snapshot),
+    entities: references,
     instances: [],
     content: clone(snapshot.content),
     certificateCards: [],
-    typography: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
-    layout: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
+    typography: Object.fromEntries(references.map(ref => [ref.entityId, {}])),
+    layout: Object.fromEntries(references.map(ref => [ref.entityId, {}])),
     media: {
       references: snapshot.mediaAssets.map((asset) => ({ assetId: asset.id, uri: asset.source, mimeType: asset.mimeType, alt: asset.alt })),
       assignments: snapshot.mediaUsages.map((usage) => ({ entityId: usage.id, role: usage.role, assetId: usage.mediaAssetId, objectPosition: usage.objectPosition })),
       styles: Object.fromEntries(snapshot.mediaUsages.map(usage => [usage.id, { hoverEnabled: false, outlineEnabled: false, outlineWidth: 1, aspectRatioLocked: false }]))
     },
-    backgrounds: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, { boxShadow: 'none' }])),
-    buttons: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
-    animations: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, { name: 'none' }])),
+    backgrounds: Object.fromEntries(references.map(ref => [ref.entityId, { boxShadow: 'none' }])),
+    buttons: Object.fromEntries(references.map(ref => [ref.entityId, {}])),
+    animations: Object.fromEntries(references.map(ref => [ref.entityId, { name: 'none' }])),
     session: defaultEditorSession(),
     visual: clone(snapshot.visual),
     behavior: clone(snapshot.behavior)
   }
+  normalizeContactDetailSnapshot(created as unknown as Record<string, unknown>)
+  return created
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,6 +173,7 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
   if (!isRecord(input)) return { valid: false, errors: ['Snapshot must be an object.'] }
   const normalized = clone(input)
   normalizeLegacyProfileObject(normalized)
+  normalizeContactDetailSnapshot(normalized)
   if (!isRecord(normalized.session)) normalized.session = defaultEditorSession()
   else {
     if (!('userZoom' in normalized.session)) normalized.session.userZoom = typeof normalized.session.zoom === 'number' && normalized.session.zoom > 0 ? normalized.session.zoom : null
@@ -241,6 +264,7 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     if (settings.letterSpacing !== undefined && !(settings.letterSpacing === 'normal' || validCssLength(settings.letterSpacing))) errors.push(`typography.${key}.letterSpacing is invalid.`)
     if (settings.textShadow !== undefined && !validString(settings.textShadow, 256, true)) errors.push(`typography.${key}.textShadow is invalid.`)
     if (settings.textAlign !== undefined && !['left', 'center', 'right', 'justify'].includes(String(settings.textAlign))) errors.push(`typography.${key}.textAlign is invalid.`)
+    if (settings.fontStyle !== undefined && !['normal', 'italic'].includes(String(settings.fontStyle))) errors.push(`typography.${key}.fontStyle is invalid.`)
   }
   for (const [key, settings] of Object.entries(normalized.layout ?? {})) {
     if (!isRecord(settings)) { errors.push(`layout.${key} is invalid.`); continue }
@@ -279,6 +303,7 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
       if (settings.outlineWidth !== undefined && (typeof settings.outlineWidth !== 'number' || !Number.isFinite(settings.outlineWidth) || settings.outlineWidth < 0 || settings.outlineWidth > 64)) errors.push(`media.styles.${key}.outlineWidth is invalid.`)
       if (settings.aspectRatioLocked !== undefined && typeof settings.aspectRatioLocked !== 'boolean') errors.push(`media.styles.${key}.aspectRatioLocked is invalid.`)
       if (settings.aspectRatio !== undefined && (typeof settings.aspectRatio !== 'number' || !Number.isFinite(settings.aspectRatio) || settings.aspectRatio <= 0 || settings.aspectRatio > 1000)) errors.push(`media.styles.${key}.aspectRatio is invalid.`)
+      if (settings.objectFit !== undefined && !['scale-down', 'cover', 'contain'].includes(String(settings.objectFit))) errors.push(`media.styles.${key}.objectFit is invalid.`)
     }
     if (Array.isArray(normalized.instances)) {
       const assignments = new Map((normalized.media.assignments as unknown[]).flatMap((assignment) => isRecord(assignment) && typeof assignment.entityId === 'string' ? [[assignment.entityId, assignment]] : []))
@@ -346,6 +371,145 @@ export function validateEditorSnapshot(input: unknown): SnapshotValidationResult
     }
   }
   return errors.length ? { valid: false, errors } : { valid: true, errors: [], value: clone(normalized as unknown as EditorSnapshot) }
+}
+
+/** Backfills ContactDetail entities & defaults into older snapshots non-destructively. */
+function normalizeContactDetailSnapshot(normalized: Record<string, unknown>): void {
+  if (!isRecord(normalized.content) || !isRecord(normalized.content.contact)) return
+  const contact = normalized.content.contact
+  const fallback: DefaultContactDetail = clone(defaultContact.detail)
+
+  if (!isRecord(contact.detail)) {
+    contact.detail = fallback
+  } else {
+    const raw = contact.detail
+    const mergeTextNode = <T extends { id: string; text: string }>(candidate: unknown, def: T): T => {
+      if (!isRecord(candidate)) return clone(def)
+      return {
+        id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : def.id,
+        text: typeof candidate.text === 'string' ? candidate.text : def.text
+      } as T
+    }
+    const mergeLinkNode = <T extends { id: string; label: string; href: string }>(candidate: unknown, def: T): T => {
+      if (!isRecord(candidate)) return clone(def)
+      return {
+        id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : def.id,
+        label: typeof candidate.label === 'string' && candidate.label.trim() ? candidate.label : def.label,
+        href: typeof candidate.href === 'string' ? candidate.href : def.href
+      } as T
+    }
+    const rawSocial = isRecord(raw.socialLinks) ? raw.socialLinks : {}
+    const rawMessage = isRecord(raw.message) ? raw.message : {}
+    contact.detail = {
+      sectionId: typeof raw.sectionId === 'string' && raw.sectionId ? raw.sectionId : fallback.sectionId,
+      messageSectionId: typeof raw.messageSectionId === 'string' && raw.messageSectionId ? raw.messageSectionId : fallback.messageSectionId,
+      welcomeGroupId: typeof raw.welcomeGroupId === 'string' && raw.welcomeGroupId ? raw.welcomeGroupId : fallback.welcomeGroupId,
+      messageCardId: typeof raw.messageCardId === 'string' && raw.messageCardId ? raw.messageCardId : fallback.messageCardId,
+      messageFieldsId: typeof raw.messageFieldsId === 'string' && raw.messageFieldsId ? raw.messageFieldsId : fallback.messageFieldsId,
+      mainPhotoId: typeof raw.mainPhotoId === 'string' && raw.mainPhotoId ? raw.mainPhotoId : fallback.mainPhotoId,
+      messagePhotoId: typeof raw.messagePhotoId === 'string' && raw.messagePhotoId ? raw.messagePhotoId : fallback.messagePhotoId,
+      title: mergeTextNode(raw.title, fallback.title),
+      subtitle: mergeTextNode(raw.subtitle, fallback.subtitle),
+      description: mergeTextNode(raw.description, fallback.description),
+      socialLinks: {
+        whatsapp: mergeLinkNode(rawSocial.whatsapp, fallback.socialLinks.whatsapp),
+        linkedin: mergeLinkNode(rawSocial.linkedin, fallback.socialLinks.linkedin),
+        cv: mergeLinkNode(rawSocial.cv, fallback.socialLinks.cv)
+      },
+      message: {
+        title: mergeTextNode(rawMessage.title, fallback.message.title),
+        submitButton: mergeTextNode(rawMessage.submitButton, fallback.message.submitButton)
+      }
+    }
+  }
+
+  // Backfill entities array with any missing ContactDetail entity references
+  const contactDetailEntityIds = [
+    'contact-detail-section', 'contact-detail-photo-main', 'contact-detail-welcome-group',
+    'contact-detail-title', 'contact-detail-subtitle', 'contact-detail-description',
+    'contact-detail-wa', 'contact-detail-linkedin', 'contact-detail-cv',
+    'contact-message-section', 'contact-detail-message-card', 'contact-detail-message-title',
+    'contact-detail-message-fields', 'contact-detail-submit-btn', 'contact-detail-photo-message'
+  ]
+  const entityMeta: Record<string, { section: string; kind: string; label: string }> = {
+    'contact-detail-section': { section: 'Contact Detail', kind: 'background', label: 'Contact Detail Section' },
+    'contact-detail-photo-main': { section: 'Contact Detail', kind: 'media', label: 'Main Photo' },
+    'contact-detail-welcome-group': { section: 'Contact Detail', kind: 'container', label: 'Welcome Group' },
+    'contact-detail-title': { section: 'Contact Detail', kind: 'text', label: 'Name' },
+    'contact-detail-subtitle': { section: 'Contact Detail', kind: 'text', label: 'Role' },
+    'contact-detail-description': { section: 'Contact Detail', kind: 'text', label: 'Description' },
+    'contact-detail-wa': { section: 'Contact Detail', kind: 'button', label: 'WhatsApp' },
+    'contact-detail-linkedin': { section: 'Contact Detail', kind: 'button', label: 'LinkedIn' },
+    'contact-detail-cv': { section: 'Contact Detail', kind: 'button', label: 'CV' },
+    'contact-message-section': { section: 'Text Me', kind: 'background', label: 'Text Me Section' },
+    'contact-detail-message-card': { section: 'Text Me', kind: 'container', label: 'Message Card' },
+    'contact-detail-message-title': { section: 'Text Me', kind: 'text', label: 'Text Me Title' },
+    'contact-detail-message-fields': { section: 'Text Me', kind: 'container', label: 'Message Fields' },
+    'contact-detail-submit-btn': { section: 'Text Me', kind: 'button', label: 'Submit Button' },
+    'contact-detail-photo-message': { section: 'Text Me', kind: 'media', label: 'Message Photo' }
+  }
+  if (Array.isArray(normalized.entities)) {
+    const existingIds = new Set(
+      normalized.entities
+        .filter((e): e is Record<string, unknown> => Boolean(e) && typeof e === 'object')
+        .map((e) => e.entityId as string)
+    )
+    for (const id of contactDetailEntityIds) {
+      if (!existingIds.has(id)) {
+        const meta = entityMeta[id]!
+        normalized.entities.push({ entityId: id, section: meta.section, kind: meta.kind, label: meta.label })
+      }
+    }
+  }
+
+  // Backfill default typography (non-destructive — only set keys that are missing)
+  if (isRecord(normalized.typography)) {
+    const typo = normalized.typography as Record<string, unknown>
+    const setTypoDefault = (id: string, defaults: Record<string, unknown>) => {
+      if (!isRecord(typo[id])) typo[id] = {}
+      const target = typo[id] as Record<string, unknown>
+      for (const [k, v] of Object.entries(defaults)) if (target[k] === undefined) target[k] = v
+    }
+    setTypoDefault('contact-detail-title', { fontFamily: "'Impact', 'Arial Black', 'Franklin Gothic Heavy', sans-serif", color: '#ffffff', fontWeight: 400, fontStyle: 'normal' })
+    setTypoDefault('contact-detail-subtitle', { fontFamily: "'Inter', system-ui, sans-serif", color: '#E8DED0', fontWeight: 500, fontStyle: 'normal' })
+    setTypoDefault('contact-detail-description', { fontFamily: "'Inter', system-ui, sans-serif", color: '#F5EAE6', fontWeight: 400, fontStyle: 'normal' })
+    setTypoDefault('contact-detail-message-title', { fontFamily: "'Impact', 'Arial Black', 'Franklin Gothic Heavy', sans-serif", color: '#7B2329', fontWeight: 400, fontStyle: 'normal' })
+    setTypoDefault('contact-detail-submit-btn', { fontFamily: "'Inter', system-ui, sans-serif", color: '#ffffff', fontWeight: 700, fontStyle: 'normal' })
+  }
+
+  // Backfill default backgrounds (non-destructive)
+  if (isRecord(normalized.backgrounds)) {
+    const bg = normalized.backgrounds as Record<string, unknown>
+    const setBgDefault = (id: string, color: string) => {
+      if (!isRecord(bg[id])) bg[id] = {}
+      const target = bg[id] as Record<string, unknown>
+      if (target.color === undefined) target.color = color
+      if (target.boxShadow === undefined) target.boxShadow = 'none'
+    }
+    setBgDefault('contact-detail-section', '#7B2329')
+    setBgDefault('contact-message-section', '#F6F4E8')
+    setBgDefault('contact-detail-message-card', '#ffffff')
+    setBgDefault('contact-detail-message-fields', '#FAF9F5')
+  }
+
+  // Backfill default buttons (non-destructive)
+  if (isRecord(normalized.buttons)) {
+    const btns = normalized.buttons as Record<string, unknown>
+    if (!isRecord(btns['contact-detail-submit-btn'])) btns['contact-detail-submit-btn'] = {}
+    const btn = btns['contact-detail-submit-btn'] as Record<string, unknown>
+    if (btn.backgroundColor === undefined) btn.backgroundColor = '#7B2329'
+  }
+
+  // Ensure layout & animations entries exist (empty defaults)
+  for (const domainKey of ['layout', 'animations'] as const) {
+    if (!isRecord(normalized[domainKey])) continue
+    const domain = normalized[domainKey] as Record<string, unknown>
+    for (const id of contactDetailEntityIds) {
+      if (!isRecord(domain[id])) {
+        domain[id] = domainKey === 'animations' ? { name: 'none' } : {}
+      }
+    }
+  }
 }
 
 export function serializeEditorSnapshot(snapshot: EditorSnapshot): string {

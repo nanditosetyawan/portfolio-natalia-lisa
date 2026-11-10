@@ -100,4 +100,22 @@ defineEmits(['toggle-sidebar'])
   gap: 0.5rem;
   flex-wrap: nowrap;
 }
+
+@media (max-width: 640px) {
+  .admin-header {
+    padding: 0 0.85rem;
+    gap: 0.5rem;
+  }
+
+  .header-left {
+    gap: 0.5rem;
+  }
+
+  .page-title {
+    font-size: 1.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
 </style>

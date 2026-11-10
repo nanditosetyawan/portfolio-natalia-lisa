@@ -25,7 +25,7 @@ export interface MediaUsage {
   objectPosition: string
 }
 
-export type PhotoAreaOwnerType = 'profile' | 'about' | 'college-entry' | 'shs-entry' | 'experience-entry' | 'certificate' | 'contact'
+export type PhotoAreaOwnerType = 'profile' | 'about' | 'college-entry' | 'shs-entry' | 'experience-entry' | 'certificate' | 'contact' | 'contact-detail'
 
 export interface PhotoAreaEntity {
   id: EntityId

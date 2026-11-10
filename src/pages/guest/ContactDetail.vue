@@ -1,42 +1,81 @@
 <template>
-  <div class="contact-detail-page">
+  <div ref="runtimeRoot" class="contact-detail-page" :class="{ 'contact-detail-page--editor-preview': editorPreview }">
     <!-- Floating Back Button (Back to Home) -->
-    <button class="back-home-btn" @click="$router.push('/')" aria-label="Kembali ke Beranda">
+    <button v-if="!editorPreview" class="back-home-btn" @click="$router.push('/')" aria-label="Kembali ke Beranda">
       <ArrowLeft class="back-icon" />
     </button>
 
     <!-- SECTION 1: CONTACT2 (1 Viewport Height) -->
-    <section class="section-contact2">
+    <section class="section-contact2" data-editor-section-id="contact-detail" :data-entity-id="detail.sectionId">
       <div class="contact2-container">
         <!-- Left Side: Responsive Photo Placeholder / Input Image -->
         <div class="contact2-left">
-          <div class="contact2-photo-frame">
-            <img v-if="adminInputImage" :src="adminInputImage" alt="Lisa Natalia" class="contact2-portrait-image" loading="eager" decoding="async" fetchpriority="high" />
-            <div v-else class="contact2-photo-placeholder">
-              <div class="contact2-placeholder-decor-line"></div>
-              <span class="contact2-placeholder-text">Photo Area</span>
-            </div>
+          <div class="contact2-photo-frame" :data-entity-id="detail.mainPhotoId" :data-photo-area-id="detail.mainPhotoId">
+            <PhotoArea
+              omit-editor-id
+              :frame-id="detail.mainPhotoId"
+              :source="mainPhoto?.source ?? ''"
+              :alt="detail.title.text || 'Lisa Natalia'"
+              :object-position="mainPhoto?.objectPosition"
+              :object-fit="mainPhotoFit"
+              style="pointer-events: none;"
+            >
+              <div class="contact2-photo-placeholder">
+                <div class="contact2-placeholder-decor-line"></div>
+                <span class="contact2-placeholder-text">Photo Area</span>
+              </div>
+            </PhotoArea>
           </div>
         </div>
 
         <!-- Right Side: Text & Social Welcome Box -->
         <div class="contact2-right">
-          <div class="welcome-box">
-            <h1 class="welcome-title">Lisa Natalia</h1>
-            <h2 class="welcome-subtitle">Nurse</h2>
-            <p class="welcome-desc">
-              Hii, Thanks a lot for choose me, I am dedicated to providing high-quality healthcare services and professional support. Feel free to contact me or send a message below.
+          <div class="welcome-box" :data-entity-id="detail.welcomeGroupId">
+            <h1 class="welcome-title" :data-entity-id="detail.title.id">{{ detail.title.text }}</h1>
+            <h2 class="welcome-subtitle" :data-entity-id="detail.subtitle.id">{{ detail.subtitle.text }}</h2>
+            <p class="welcome-desc" :data-entity-id="detail.description.id">
+              {{ detail.description.text }}
             </p>
             
             <!-- Horizontal Social Circle Buttons -->
-            <div class="social-circle-buttons">
-              <a href="https://wa.me/#" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="WhatsApp">
+            <div v-if="editorPreview || waHref || linkedinHref || cvHref" class="social-circle-buttons">
+              <a
+                v-if="editorPreview || waHref"
+                :data-entity-id="detail.socialLinks.whatsapp.id"
+                :href="editorPreview ? undefined : (waHref || undefined)"
+                :target="editorPreview || !waHref ? undefined : '_blank'"
+                :rel="editorPreview || !waHref ? undefined : 'noopener noreferrer'"
+                class="social-circle-btn"
+                :class="{ 'social-circle-btn--unlinked': editorPreview && !waHref }"
+                aria-label="WhatsApp"
+                @click="editorPreview && $event.preventDefault()"
+              >
                 <img :src="waLogo" alt="WhatsApp" class="social-logo-img" decoding="async" />
               </a>
-              <a href="https://linkedin.com/in/#" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="LinkedIn">
+              <a
+                v-if="editorPreview || linkedinHref"
+                :data-entity-id="detail.socialLinks.linkedin.id"
+                :href="editorPreview ? undefined : (linkedinHref || undefined)"
+                :target="editorPreview || !linkedinHref ? undefined : '_blank'"
+                :rel="editorPreview || !linkedinHref ? undefined : 'noopener noreferrer'"
+                class="social-circle-btn"
+                :class="{ 'social-circle-btn--unlinked': editorPreview && !linkedinHref }"
+                aria-label="LinkedIn"
+                @click="editorPreview && $event.preventDefault()"
+              >
                 <img :src="linkedinLogo" alt="LinkedIn" class="social-logo-img" decoding="async" />
               </a>
-              <a href="#" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="CV / Resume">
+              <a
+                v-if="editorPreview || cvHref"
+                :data-entity-id="detail.socialLinks.cv.id"
+                :href="editorPreview ? undefined : (cvHref || undefined)"
+                :target="editorPreview || !cvHref ? undefined : '_blank'"
+                :rel="editorPreview || !cvHref ? undefined : 'noopener noreferrer'"
+                class="social-circle-btn"
+                :class="{ 'social-circle-btn--unlinked': editorPreview && !cvHref }"
+                aria-label="CV / Resume"
+                @click="editorPreview && $event.preventDefault()"
+              >
                 <img :src="cvLogo" alt="CV" class="social-logo-img" decoding="async" />
               </a>
             </div>
@@ -46,61 +85,70 @@
     </section>
 
     <!-- SECTION 2: MESSAGE (Form 2/3 and Image/Placeholder 1/3) -->
-    <section id="message-section" class="section-message">
+    <section id="message-section" class="section-message" data-editor-section-id="text-me" :data-entity-id="detail.messageSectionId">
       <div class="message-container">
         <!-- Left Column: Card Form (2/3 Width) -->
         <div class="message-left-column">
-          <div class="message-card">
-            <h3 class="message-card-title">text me</h3>
+          <div class="message-card" :data-entity-id="detail.messageCardId">
+            <h3 class="message-card-title" :data-entity-id="detail.message.title.id">{{ detail.message.title.text }}</h3>
             
             <form @submit.prevent="handleSubmit" class="message-form">
-              <div class="form-row-grid">
+              <div class="message-fields-group" :data-entity-id="detail.messageFieldsId">
+                <div class="form-row-grid">
+                  <div class="form-group">
+                    <label for="name">Nama</label>
+                    <input 
+                      type="text" 
+                      id="name" 
+                      v-model="form.name" 
+                      placeholder="Nama lengkap Anda" 
+                      required 
+                      :readonly="editorPreview"
+                      :tabindex="editorPreview ? -1 : undefined"
+                      class="form-input" 
+                    />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="email">Email</label>
+                    <input 
+                      type="email" 
+                      id="email" 
+                      v-model="form.email" 
+                      placeholder="name@example.com" 
+                      :readonly="editorPreview"
+                      :tabindex="editorPreview ? -1 : undefined"
+                      class="form-input" 
+                    />
+                  </div>
+                </div>
+
                 <div class="form-group">
-                  <label for="name">Nama</label>
-                  <input 
-                    type="text" 
-                    id="name" 
-                    v-model="form.name" 
-                    placeholder="Nama lengkap Anda" 
+                  <label for="message">Message</label>
+                  <textarea 
+                    id="message" 
+                    v-model="form.message" 
+                    placeholder="Tulis pesan Anda di sini..." 
+                    rows="3" 
                     required 
-                    class="form-input" 
-                  />
+                    :readonly="editorPreview"
+                    :tabindex="editorPreview ? -1 : undefined"
+                    class="form-textarea"
+                  ></textarea>
                 </div>
-
-                <div class="form-group">
-                  <label for="email">Email</label>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    v-model="form.email" 
-                    placeholder="name@example.com" 
-                    class="form-input" 
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="message">Message</label>
-                <textarea 
-                  id="message" 
-                  v-model="form.message" 
-                  placeholder="Tulis pesan Anda di sini..." 
-                  rows="3" 
-                  required 
-                  class="form-textarea"
-                ></textarea>
               </div>
 
               <button 
                 type="submit" 
                 class="btn-submit"
+                :data-entity-id="detail.message.submitButton.id"
                 :disabled="isSubmitting"
                 :class="{ 'btn-clicked': isClicked }"
                 @mousedown="handleMouseDown"
                 @mouseup="handleMouseUp"
                 @mouseleave="handleMouseLeave"
               >
-                <span>{{ isSubmitting ? 'Mengirim…' : 'Kirim Pesan' }}</span>
+                <span>{{ isSubmitting ? 'Mengirim…' : detail.message.submitButton.text }}</span>
                 <Send v-if="!isClicked" class="send-icon" />
               </button>
             </form>
@@ -115,12 +163,21 @@
 
         <!-- Right Column: Tall Photo Box matching Card Height (1/3 Width) -->
         <div class="message-right-column">
-          <div class="message-photo-frame">
-            <img v-if="messageInputImage" :src="messageInputImage" alt="Message illustration" class="message-portrait-image" loading="lazy" decoding="async" />
-            <div v-else class="message-photo-placeholder">
-              <div class="message-placeholder-decor-line"></div>
-              <span class="message-placeholder-text">Photo Area</span>
-            </div>
+          <div class="message-photo-frame" :data-entity-id="detail.messagePhotoId" :data-photo-area-id="detail.messagePhotoId">
+            <PhotoArea
+              omit-editor-id
+              :frame-id="detail.messagePhotoId"
+              :source="messagePhoto?.source ?? ''"
+              alt="Message illustration"
+              :object-position="messagePhoto?.objectPosition"
+              :object-fit="messagePhotoFit"
+              style="pointer-events: none;"
+            >
+              <div class="message-photo-placeholder">
+                <div class="message-placeholder-decor-line"></div>
+                <span class="message-placeholder-text">Photo Area</span>
+              </div>
+            </PhotoArea>
           </div>
         </div>
       </div>
@@ -129,13 +186,107 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, Send } from 'lucide-vue-next'
+import PhotoArea from '../../components/PhotoArea.vue'
+import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
+import { defaultContact } from '../../data/default/contact'
+import { responsiveBreakpointForWidth, responsiveSnapshotEntityId, type ResponsiveBreakpoint } from '../../editor/responsiveLayout'
 import { messageRepository } from '../../repositories/messageRepository'
+import {
+  activeGuestEditorSnapshot,
+  initializePublishedRuntime,
+  subscribePublishedRuntimeInvalidation
+} from '../../runtime/publishedRuntime'
+import { applyPublishedSnapshotDom } from '../../runtime/publishedSnapshotDom'
+import { useSiteStore } from '../../stores/site'
 
-// Admin inputs can bind here in the future
-const adminInputImage = ref('')
-const messageInputImage = ref('')
+const props = defineProps<{ editorPreview?: boolean }>()
+
+const site = useSiteStore()
+const photoRegistry = usePhotoAreaRegistry()
+const runtimeRoot = ref<HTMLElement | null>(null)
+let unsubscribeRuntimeInvalidation: (() => void) | null = null
+let appliedRuntimeBreakpoint: ResponsiveBreakpoint | null = null
+let appliedStackedViewport: boolean | null = null
+let clickResetTimer: ReturnType<typeof setTimeout> | null = null
+let successAlertTimer: ReturnType<typeof setTimeout> | null = null
+const guestRuntimeReady = props.editorPreview ? null : initializePublishedRuntime()
+
+function sanitizeContactHref(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed || trimmed.startsWith('#') || /^https?:\/\/(?:www\.)?(?:wa\.me|linkedin\.com\/in)\/?(?:#.*)?$/i.test(trimmed)) {
+    return ''
+  }
+  if (/^(?:https?:\/\/|mailto:|tel:|\/(?!\/))/i.test(trimmed)) return trimmed
+  return ''
+}
+
+const detail = computed(() => site.current.content.contact.detail ?? defaultContact.detail)
+const waHref = computed(() => sanitizeContactHref(detail.value.socialLinks.whatsapp.href))
+const linkedinHref = computed(() => sanitizeContactHref(detail.value.socialLinks.linkedin.href))
+const cvHref = computed(() => sanitizeContactHref(detail.value.socialLinks.cv.href))
+const mainPhoto = computed(() => photoRegistry.find(detail.value.mainPhotoId))
+const messagePhoto = computed(() => photoRegistry.find(detail.value.messagePhotoId))
+const mainPhotoFit = computed(() => site.contactDetailMedia[detail.value.mainPhotoId]?.objectFit)
+const messagePhotoFit = computed(() => site.contactDetailMedia[detail.value.messagePhotoId]?.objectFit)
+
+async function applyPublishedStyles(): Promise<void> {
+  await nextTick()
+  if (!props.editorPreview && runtimeRoot.value && activeGuestEditorSnapshot.value) {
+    applyPublishedSnapshotDom(runtimeRoot.value, activeGuestEditorSnapshot.value)
+    const width = runtimeRoot.value.clientWidth || window.innerWidth
+    appliedRuntimeBreakpoint = responsiveBreakpointForWidth(width)
+    appliedStackedViewport = width <= 768
+    if (appliedStackedViewport) {
+      for (const stackedId of [detail.value.mainPhotoId, detail.value.welcomeGroupId]) {
+        const hasStackedOverride = Boolean(
+          activeGuestEditorSnapshot.value.layout[responsiveSnapshotEntityId('mobile', stackedId)]
+          || activeGuestEditorSnapshot.value.layout[responsiveSnapshotEntityId('tablet', stackedId)]
+        )
+        if (!hasStackedOverride) {
+          const element = runtimeRoot.value.querySelector<HTMLElement>(`[data-entity-id="${stackedId}"]`)
+          if (element) element.style.translate = ''
+        }
+      }
+    }
+  }
+}
+
+function handleRuntimeResize(): void {
+  if (props.editorPreview || !runtimeRoot.value || !activeGuestEditorSnapshot.value) return
+  const width = runtimeRoot.value.clientWidth || window.innerWidth
+  const next = responsiveBreakpointForWidth(width)
+  const stacked = width <= 768
+  if (next !== appliedRuntimeBreakpoint || stacked !== appliedStackedViewport) void applyPublishedStyles()
+}
+
+onMounted(async () => {
+  if (guestRuntimeReady) await guestRuntimeReady
+  await applyPublishedStyles()
+  if (!props.editorPreview) {
+    unsubscribeRuntimeInvalidation = subscribePublishedRuntimeInvalidation()
+    window.addEventListener('resize', handleRuntimeResize, { passive: true })
+  }
+})
+
+onBeforeUnmount(() => {
+  unsubscribeRuntimeInvalidation?.()
+  unsubscribeRuntimeInvalidation = null
+  window.removeEventListener('resize', handleRuntimeResize)
+  if (clickResetTimer) {
+    clearTimeout(clickResetTimer)
+    clickResetTimer = null
+  }
+  if (successAlertTimer) {
+    clearTimeout(successAlertTimer)
+    successAlertTimer = null
+  }
+})
+
+watch(activeGuestEditorSnapshot, () => {
+  void applyPublishedStyles()
+})
 
 // Form State
 const form = reactive({
@@ -156,12 +307,16 @@ const cvLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' 
 
 // Form Action
 const handleMouseDown = () => {
+  if (props.editorPreview) return
   isClicked.value = true
 }
 
 const handleMouseUp = () => {
-  setTimeout(() => {
+  if (props.editorPreview) return
+  if (clickResetTimer) clearTimeout(clickResetTimer)
+  clickResetTimer = setTimeout(() => {
     isClicked.value = false
+    clickResetTimer = null
   }, 350)
 }
 
@@ -170,6 +325,7 @@ const handleMouseLeave = () => {
 }
 
 const handleSubmit = async () => {
+  if (props.editorPreview) return
   isSubmitting.value = true
   submitError.value = ''
   showSuccessAlert.value = false
@@ -179,12 +335,18 @@ const handleSubmit = async () => {
     form.name = ''
     form.email = ''
     form.message = ''
-    setTimeout(() => { showSuccessAlert.value = false }, 4000)
+    if (successAlertTimer) clearTimeout(successAlertTimer)
+    successAlertTimer = setTimeout(() => {
+      showSuccessAlert.value = false
+      successAlertTimer = null
+    }, 4000)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Pesan belum dapat dikirim.'
     submitError.value = message.includes("You have reached today's message limit")
       ? "You have reached today's message limit. Please try again tomorrow."
-      : message
+      : message.includes('"PT429"')
+        ? 'Maaf, pengiriman pesan sedang dibatasi sementara. Silakan coba lagi nanti.'
+        : message
   } finally {
     isSubmitting.value = false
   }
@@ -280,6 +442,7 @@ const handleSubmit = async () => {
 /* Kotak Kosong Placeholder - Contact 2 specific */
 .contact2-photo-placeholder {
   flex: 1;
+  align-self: stretch;
   border: 2px dashed rgba(232, 222, 208, 0.25);
   border-radius: 20px;
   margin: 12px;
@@ -318,7 +481,7 @@ const handleSubmit = async () => {
 }
 
 .welcome-title {
-  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-family: 'Impact', 'Arial Black', 'Franklin Gothic Heavy', sans-serif;
   font-size: clamp(3.2rem, 5.2vw, 5.2rem);
   text-transform: uppercase;
   line-height: 1.0;
@@ -371,6 +534,11 @@ const handleSubmit = async () => {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
+.social-circle-btn--unlinked {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
 .social-logo-img {
   width: 20px;
   height: 20px;
@@ -418,7 +586,7 @@ const handleSubmit = async () => {
 }
 
 .message-card-title {
-  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-family: 'Impact', 'Arial Black', 'Franklin Gothic Heavy', sans-serif;
   font-size: 2rem;
   text-transform: uppercase;
   color: #7B2329;
@@ -427,6 +595,12 @@ const handleSubmit = async () => {
 }
 
 .message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.message-fields-group {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -456,7 +630,7 @@ const handleSubmit = async () => {
 .form-textarea {
   width: 100%;
   padding: 11px 14px;
-  background: #FAF9F5;
+  background-color: var(--contact-field-bg, #FAF9F5);
   border: 1.5px solid #E8DED0;
   border-radius: 10px;
   font-size: 0.85rem;
@@ -470,8 +644,14 @@ const handleSubmit = async () => {
 .form-input:focus,
 .form-textarea:focus {
   border-color: #7B2329;
-  background: #ffffff;
+  background-color: var(--contact-field-bg, #FAF9F5);
   box-shadow: 0 0 0 3px rgba(123, 35, 41, 0.06);
+}
+
+.contact-detail-page--editor-preview .form-input,
+.contact-detail-page--editor-preview .form-textarea {
+  pointer-events: none;
+  user-select: none;
 }
 
 .form-textarea {
@@ -488,7 +668,7 @@ const handleSubmit = async () => {
   padding: 13px 28px;
   background-color: #7B2329;
   color: #ffffff;
-  border: 2px solid #7B2329;
+  border: 2px solid transparent;
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -498,9 +678,8 @@ const handleSubmit = async () => {
   transition: all 0.2s ease;
 }
 
-.btn-submit:hover {
-  background-color: #5C1A1E;
-  border-color: #5C1A1E;
+.contact-detail-page:not(.contact-detail-page--editor-preview) .btn-submit:hover {
+  filter: brightness(0.92);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(123, 35, 41, 0.2);
 }
@@ -512,8 +691,8 @@ const handleSubmit = async () => {
   box-shadow: none;
 }
 
-.btn-submit:active,
-.btn-submit.btn-clicked {
+.contact-detail-page:not(.contact-detail-page--editor-preview) .btn-submit:active,
+.contact-detail-page:not(.contact-detail-page--editor-preview) .btn-submit.btn-clicked {
   background-color: transparent !important;
   color: #7B2329 !important;
   border-color: #7B2329 !important;
@@ -577,6 +756,7 @@ const handleSubmit = async () => {
 /* Kotak Kosong Placeholder - Message specific */
 .message-photo-placeholder {
   flex: 1;
+  align-self: stretch;
   border: 2px dashed rgba(123, 35, 41, 0.2);
   border-radius: 18px;
   margin: 12px;
@@ -625,18 +805,42 @@ const handleSubmit = async () => {
     gap: 2rem;
   }
 
+  .contact2-left {
+    width: 100%;
+    justify-content: center;
+  }
+
   .contact2-photo-frame {
-    max-width: 280px;
+    max-width: min(280px, 100%);
+  }
+
+  .contact2-right {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .welcome-box {
+    width: 100%;
+    max-width: 100%;
     align-items: center;
     text-align: center;
   }
 
+  .welcome-title {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
   .welcome-desc {
+    max-width: min(480px, 100%);
     margin-left: auto;
     margin-right: auto;
+  }
+
+  .social-circle-buttons {
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   /* Section 2 Mobile */
@@ -650,18 +854,20 @@ const handleSubmit = async () => {
   }
 
   .message-left-column {
-    flex: 1;
+    flex: none;
     width: 100%;
   }
 
   .message-right-column {
-    flex: 1;
+    flex: none;
     width: 100%;
     height: 380px; /* Set mobile height for placeholder so it doesn't collapse */
   }
 
   .message-photo-frame {
+    width: 100%;
     max-width: 280px;
+    height: 100%;
     margin: 0 auto;
   }
 

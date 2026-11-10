@@ -81,6 +81,7 @@ function hydrateRuntime(resolution: GuestRuntimeResolution): void {
   } else {
     site.hydrateDefaultRuntime(editorSnapshotToSiteSnapshot(snapshot), resolution.templateVersion)
   }
+  site.hydrateContactDetailMedia(snapshot.media)
   certificates.hydrateEditorCards(editorSnapshotToCertificateCards(snapshot))
 }
 
@@ -122,6 +123,37 @@ export async function initializePublishedRuntime(
   try { return await pendingInitialization }
   finally {
     if (initializationPromise === pendingInitialization) initializationPromise = null
+  }
+}
+
+export async function refreshPublishedCertificates(
+  repository: GuestPublishedRepository = guestPublishedRepository
+): Promise<boolean> {
+  const certificates = useCertificatesStore()
+  if (certificates.isLoading) return false
+
+  const usesApplicationRepository = repository === guestPublishedRepository
+  const sequence = usesApplicationRepository ? ++initializationSequence : null
+  certificates.isLoading = true
+  certificates.errorMessage = ''
+
+  try {
+    const resolution = await resolveGuestRuntimeSnapshot(repository)
+    if (sequence !== null && sequence !== initializationSequence) {
+      certificates.showAll = true
+      return true
+    }
+    if (usesApplicationRepository) runtimeCache = cloneResolution(resolution)
+    hydrateRuntime(resolution)
+    certificates.showAll = true
+    return true
+  } catch {
+    if (sequence !== null && sequence !== initializationSequence) return false
+    certificates.errorMessage = 'Data sertifikat terbaru belum dapat dimuat.'
+    return false
+  } finally {
+    certificates.isInitialized = true
+    certificates.isLoading = false
   }
 }
 

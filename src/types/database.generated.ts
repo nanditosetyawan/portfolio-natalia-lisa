@@ -847,6 +847,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      list_referenced_storage_paths: { Args: never; Returns: string[] }
       publish_editor_draft: {
         Args: {
           p_draft_id: string

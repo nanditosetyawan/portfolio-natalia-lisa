@@ -1,6 +1,26 @@
 import { defineStore } from 'pinia'
 import { supabaseRpc, supabaseTableRows } from '../lib/supabaseRest'
-import { hasSupabaseAuthConfig, restoreSession, signInWithPassword, signUpWithPassword, signOut, type SupabaseSession } from '../lib/supabaseAuth'
+import { hasSupabaseAuthConfig, restoreSession, signInWithPassword, signUpWithPassword, signOut, subscribeAuthSession, type SupabaseSession } from '../lib/supabaseAuth'
+
+const boundAuthStores = new WeakSet<object>()
+let stopAuthSync: (() => void) | null = null
+
+function ensureAuthSessionSync(store: ReturnType<typeof useAuthStore>) {
+  if (boundAuthStores.has(store)) return
+  stopAuthSync?.()
+  boundAuthStores.add(store)
+  stopAuthSync = subscribeAuthSession((nextSession) => {
+    const previousUserId = store.session?.user.id ?? null
+    store.session = nextSession
+    if (!nextSession) {
+      store.isAdmin = false
+      return
+    }
+    if (!store.isLoading && nextSession.user.id !== previousUserId) {
+      void store.refreshAuthorization()
+    }
+  })
+}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -16,6 +36,7 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async initialize() {
       if (this.isInitialized || this.isLoading) return
+      ensureAuthSessionSync(this)
       this.isLoading = true
       this.errorMessage = ''
       try {
@@ -45,6 +66,7 @@ export const useAuthStore = defineStore('auth', {
       return await supabaseRpc<boolean>('bootstrap_first_admin')
     },
     async login(email: string, password: string) {
+      ensureAuthSessionSync(this)
       this.isLoading = true
       this.errorMessage = ''
       try {
@@ -69,12 +91,14 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async bootstrap(email: string, password: string) {
+      ensureAuthSessionSync(this)
       this.isLoading = true
       this.errorMessage = ''
       try {
         this.session = await signUpWithPassword(email, password)
         if (!this.session) throw new Error('Email confirmation is required before bootstrap can continue')
         await this.bootstrapFirstAdmin()
+        await this.refreshAuthorization()
         if (!this.isAdmin) throw new Error('First-admin bootstrap was closed or did not authorize this user')
       } catch (error) {
         this.session = null

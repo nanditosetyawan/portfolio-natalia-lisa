@@ -6,6 +6,10 @@ import PhotoArea from '../../components/PhotoArea.vue'
 import { useCertificatesStore } from '../../stores/certificates'
 import { useSiteStore } from '../../stores/site'
 import { useEditorStore } from '../../stores/editor'
+import { isSupabaseConfigured } from '../../lib/supabaseRest'
+import { refreshPublishedCertificates } from '../../runtime/publishedRuntime'
+
+const props = defineProps<{ editorPreview?: boolean }>()
 
 // ===== Card Data =====
 // Add image URLs to the `detailImages` array to replace placeholders.
@@ -16,6 +20,17 @@ const editorStore = useEditorStore()
 const certificatesTitle = computed(() => site.current.content.certificate.title)
 const vConfig = computed(() => site.current.visual.certificate)
 const certificatesStore = useCertificatesStore()
+const usesPublishedCertificateRuntime = () => (
+  !props.editorPreview && (isSupabaseConfigured() || site.guestRuntimeSource === 'published')
+)
+
+async function refreshCertificates() {
+  if (usesPublishedCertificateRuntime()) {
+    await refreshPublishedCertificates()
+    return
+  }
+  await certificatesStore.refreshCertificates()
+}
 const cards = computed(() => certificatesStore.displayedCards)
 const photoSource = (image: CertificateCard['thumbnail']) => image.source
 const certificateOrigin = (id: string) => (
@@ -109,7 +124,7 @@ watch(cards, (nextCards) => {
 })
 
 onMounted(() => {
-  if (!certificatesStore.isInitialized) {
+  if (!certificatesStore.isInitialized && !usesPublishedCertificateRuntime()) {
     certificatesStore.loadInitial()
   }
 })
@@ -474,7 +489,7 @@ onBeforeUnmount(() => {
         class="refresh-btn"
         :disabled="certificatesStore.isLoading"
         aria-label="Refresh and show all certificates"
-        @click="certificatesStore.refreshCertificates()"
+        @click="refreshCertificates()"
       >
         <svg class="refresh-icon" :class="{ 'is-loading': certificatesStore.isLoading }" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10" />

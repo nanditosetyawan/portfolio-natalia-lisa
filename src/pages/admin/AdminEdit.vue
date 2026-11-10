@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, watch } fro
 import { useRoute, useRouter } from 'vue-router'
 import { ClipboardCopy, ClipboardPaste, Eye, EyeOff, Layers, Lock, Palette, Unlock } from 'lucide-vue-next'
 import HomePage from '../guest/HomePage.vue'
+import ContactDetail from '../guest/ContactDetail.vue'
 import type { RuntimeAdminProperty } from '../../composables/useAdminEntityRegistry'
 import { useEditorObjectRegistry, type EditorRuntimeObject } from '../../composables/useEditorObjectRegistry'
 import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
@@ -127,6 +128,8 @@ import {
 import type {
   DraftMediaReference,
   EditorCommandType,
+  EditorObjectType,
+  EditorObjectUxMetadata,
   EditorValue,
   EntityDescriptor,
   EditorObject,
@@ -343,9 +346,14 @@ const sourceLabel = computed(() => editor.draftRevisionId
 const canAlignSelection = computed(() => editor.selectedObjectIds.length > 1)
 const canDistributeSelection = computed(() => editor.selectedObjectIds.length > 2)
 const canDuplicateSelection = computed(() => selectedRuntimeObjects.value.some((object) => (
-  Boolean(object.ux?.collectionPath)
-  || (object.type === 'Image' && editor.draftSnapshot.media.assignments.some((assignment) => assignment.entityId === object.photoAreaId))
-) && !editor.objectState(object.id).locked))
+  !object.ux?.excludedProperties?.includes('media.duplicateReference')
+  && (
+    Boolean(object.ux?.collectionPath)
+    || (object.type === 'Image' && editor.draftSnapshot.media.assignments.some((assignment) => assignment.entityId === object.photoAreaId))
+  )
+  && !editor.objectState(object.id).locked
+)))
+const canDeleteSelection = computed(() => selectedRuntimeObjects.value.some((object) => !editor.objectState(object.id).locked && !object.ux?.disableDelete))
 const propertySearch = computed({
   get: () => editor.draftSnapshot.session.propertySearch,
   set: (value: string) => {
@@ -415,6 +423,7 @@ const registryPanelProperties = computed<PanelProperty[]>(() => {
     metadata.propertyKey.startsWith('runtime.')
     && metadata.databaseMapping.kind === 'snapshot'
     && descriptor.capabilities.includes(metadata.capability)
+    && !descriptor.ux?.excludedProperties?.includes(metadata.propertyKey)
     && !visibleKeys.has(metadata.propertyKey)
   ))
   return [...visible, ...advancedRuntime].map((metadata) => {
@@ -486,12 +495,37 @@ function inspectorMetadata(property: PanelProperty, presentation: ResolvedInspec
   }
 }
 
+function presentationForProperty(
+  metadata: PropertyRegistryEntry,
+  objectType: EditorObjectType,
+  ux?: EditorObjectUxMetadata
+): ResolvedInspectorPresentation {
+  const presentation = resolveInspectorPresentation(metadata, objectType)
+  if (metadata.propertyKey === 'runtime.backgroundColor' && ux?.visibleProperties?.includes('runtime.backgroundColor')) {
+    return {
+      ...presentation,
+      mode: 'simple',
+      category: 'effects',
+      categoryLabel: 'EFFECTS',
+      categoryOrder: 40,
+      order: 60,
+      label: 'Background color',
+      classification: 'USER-FRIENDLY',
+      friendlyUi: 'Background fill color.',
+      advancedRaw: false,
+      advancedEditable: false
+    }
+  }
+  return presentation
+}
+
 const inspectorPanelProperties = computed<InspectorPanelProperty[]>(() => {
   const objectType = selectedEntity.value?.type
   if (!objectType) return []
+  const ux = selectedEntity.value?.ux
   const result: InspectorPanelProperty[] = []
   for (const property of selectedPanelProperties.value) {
-    const resolvedPresentation = resolveInspectorPresentation(property.metadata, objectType)
+    const resolvedPresentation = presentationForProperty(property.metadata, objectType, ux)
     const presentation = resolvedPresentation.adapter === 'font-family'
       ? { ...resolvedPresentation, options: inspectorFontOptions(readPanelValue(property)) }
       : resolvedPresentation
@@ -624,6 +658,7 @@ function stylePropertyForObject(object: EditorObject, styleKey: string): Propert
     && property.databaseMapping.kind === 'snapshot'
     && property.databaseMapping.path.includes('{entityId}')
     && object.capabilities.includes(property.capability)
+    && !object.ux?.excludedProperties?.includes(property.propertyKey)
   )) ?? null
 }
 
@@ -854,7 +889,7 @@ function saveSelectedSectionTemplate(): void {
   for (const object of editor.objects.filter((candidate) => candidate.section === section)) {
     const values: Record<string, EditorValue> = {}
     for (const property of propertyRegistry) {
-      if (!property.styleKey || property.databaseMapping.kind !== 'snapshot' || !object.capabilities.includes(property.capability) || values[property.styleKey] !== undefined) continue
+      if (!property.styleKey || property.databaseMapping.kind !== 'snapshot' || !object.capabilities.includes(property.capability) || object.ux?.excludedProperties?.includes(property.propertyKey) || values[property.styleKey] !== undefined) continue
       const path = resolvePropertyPath(property, object.id)
       const value = path ? readSnapshotPath(editor.draftSnapshot, path) : undefined
       if (value !== undefined) values[property.styleKey] = cloneEditorData(value)
@@ -889,7 +924,7 @@ function saveSelectedComponentPreset(): void {
   if (!object) return
   const styleValues: Record<string, EditorValue> = {}
   for (const property of propertyRegistry) {
-    if (!property.styleKey || property.databaseMapping.kind !== 'snapshot' || !object.capabilities.includes(property.capability) || styleValues[property.styleKey] !== undefined) continue
+    if (!property.styleKey || property.databaseMapping.kind !== 'snapshot' || !object.capabilities.includes(property.capability) || object.ux?.excludedProperties?.includes(property.propertyKey) || styleValues[property.styleKey] !== undefined) continue
     const path = resolvePropertyPath(property, object.id)
     const value = path ? readSnapshotPath(editor.draftSnapshot, path) : undefined
     if (value !== undefined) styleValues[property.styleKey] = cloneEditorData(value)
@@ -928,7 +963,10 @@ watch(() => editor.previewMutation.version, async () => {
     }, sitePaths)
     if (mutation.propertyPaths.some((path) => /^certificateCards(\.|$)/.test(path))) certificates.hydrateEditorCards(editor.draftSnapshot.certificateCards)
   }
-  if (mutation.propertyPaths.some((path) => path === '*' || /^media(\.|$)/.test(path))) await syncSnapshotMediaToPreview()
+  if (mutation.propertyPaths.some((path) => path === '*' || /^media(\.|$)/.test(path))) {
+    site.hydrateContactDetailMedia(cloneEditorData(editor.draftSnapshot.media))
+    await syncSnapshotMediaToPreview()
+  }
   await nextTick()
   if (mutation.propertyPaths.some((path) => path === '*' || path === 'media' || /^instances(?:\.|$)/.test(path) || /^media\.(?:references|assignments)(?:\.|$)/.test(path))) {
     reconcileEditorInstances()
@@ -982,6 +1020,7 @@ function hydrateEditorPreviewSnapshot(): void {
     visual: toRaw(snapshot.visual),
     behavior: toRaw(snapshot.behavior)
   })
+  site.hydrateContactDetailMedia(cloneEditorData(snapshot.media))
   if (snapshot.certificateCards.length) certificates.hydrateEditorCards(snapshot.certificateCards)
 }
 
@@ -1113,8 +1152,12 @@ async function initializeEditor(): Promise<void> {
     editorReady.value = true
     unregisterSave = registerEditorSave(saveDraft)
     unregisterPublish = registerEditorPublish(publishCurrentDraft)
-    previewObserver = new ResizeObserver(schedulePreviewMetrics)
+    previewObserver = new ResizeObserver(() => {
+      schedulePreviewMetrics()
+      schedulePreviewHeightMeasurement(0)
+    })
     if (canvasScroll.value) previewObserver.observe(canvasScroll.value)
+    if (previewStage.value) previewObserver.observe(previewStage.value)
     updatePreviewMetrics()
     schedulePreviewHeightMeasurement(0)
     decoratePreviewEntities()
@@ -1198,7 +1241,7 @@ function availableGroups(entity: EditorRuntimeObject): string[] {
     ...resolveResponsiveLayoutProperties(descriptor, activeBreakpoint.value).map((property) => property.metadata)
   ]
   const groups = properties.flatMap((property) => {
-    const presentation = resolveInspectorPresentation(property, entity.type)
+    const presentation = presentationForProperty(property, entity.type, entity.ux)
     return presentation.mode === 'hidden' ? [] : [normalizeInspectorCategory(presentation.category)]
   })
   if (entity.properties.some((property) => property.metadata.category === 'content' || property.metadata.capability === 'content')) groups.push('content')
@@ -1634,7 +1677,7 @@ function isPanelPropertyApplicable(property: PanelProperty): boolean {
     && mediaInsertionAvailabilityError()) return false
   if (property.metadata.databaseMapping.kind === 'action'
     && property.metadata.databaseMapping.action === 'replace-media'
-    && (!selectedPhotoArea.value || !selectedMediaAssignment.value)) return false
+    && !selectedPhotoArea.value) return false
   if (property.metadata.databaseMapping.kind === 'action') {
     const actionName = property.metadata.databaseMapping.action
     const settings = effectiveAnimationSettings(descriptor.entityId)
@@ -1757,6 +1800,10 @@ function resetPanelOverride(property: PanelProperty): void {
 async function handlePropertyFile(property: PanelProperty, file: File): Promise<void> {
   const action = property.metadata.databaseMapping.kind === 'action' ? property.metadata.databaseMapping.action : undefined
   if (action === 'upload-media') await uploadNewMediaAsset(file)
+  else if (action === 'upload-slot-media') {
+    const asset = await uploadMediaAssetToLibrary(file)
+    if (asset) await assignMediaReferenceToSelected(asset, 'REPLACE_MEDIA')
+  }
 }
 
 const propertyButtonActionHandlers: Partial<Record<PropertyAction, (property: PanelProperty) => void | Promise<void>>> = {
@@ -2082,8 +2129,8 @@ function openMediaAssetPicker(mode: AssetPickerMode): void {
     assetPickerTargetObjectId.value = null
   } else {
     const entity = selectedEntity.value
-    if (!entity || entity.type !== 'Image' || !selectedMediaAssignment.value) {
-      saveStatus.value = 'Select an image with an assigned asset first.'
+    if (!entity || entity.type !== 'Image' || !selectedPhotoArea.value) {
+      saveStatus.value = 'Select a photo area first.'
       return
     }
     assetPickerTargetObjectId.value = entity.id
@@ -2554,12 +2601,17 @@ function beginPreviewPointer(event: PointerEvent): void {
   }
   if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return
   const object = editor.objects.find((candidate) => candidate.id === objectId)
-  if (!object || editor.objectState(object.id).locked || !object.capabilities.includes('position')) return
+  if (!object || editor.objectState(object.id).locked) return
+  const dragTargetId = object.ux?.dragGroupEntityId ?? object.id
+  const dragTarget = editor.objects.find((candidate) => candidate.id === dragTargetId)
+  if (!dragTarget || editor.objectState(dragTarget.id).locked || !dragTarget.capabilities.includes('position')) return
   if (!editor.selectedObjectIds.includes(objectId)) selectEntity(objectId, target)
-  const elements = editor.selectedObjects.flatMap((selected) => {
-    if (!selected.capabilities.includes('position') || editor.objectState(selected.id).locked) return []
-    const element = preferredPreviewElement(selected.id)
-    return element ? [{ objectId: selected.id, element, originalTranslate: element.style.translate }] : []
+  const uniqueTargetIds = [...new Set(editor.selectedObjects.map((selected) => selected.ux?.dragGroupEntityId ?? selected.id))]
+  const elements = uniqueTargetIds.flatMap((targetId) => {
+    const candidate = editor.objects.find((item) => item.id === targetId)
+    if (!candidate || !candidate.capabilities.includes('position') || editor.objectState(candidate.id).locked) return []
+    const element = preferredPreviewElement(candidate.id)
+    return element ? [{ objectId: candidate.id, element, originalTranslate: element.style.translate }] : []
   })
   if (!elements.length) return
   previewDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false, elements }
@@ -2604,6 +2656,7 @@ function endPreviewObjectDrag(event?: PointerEvent): void {
     item.element.classList.remove('editor-preview-dragging')
   }
   if (!drag.moved) return
+  window.setTimeout(() => { selectionBoxMoved = false }, 0)
   const offsets = new Map(drag.elements.map((item) => [item.objectId, { x, y }]))
   if (applySelectionOffsets(offsets, 'NUDGE') && previewStage.value) {
     for (const item of drag.elements) applyEditorPreviewObject(previewStage.value, item.objectId)
@@ -2648,6 +2701,7 @@ function selectPreviewEntity(event: MouseEvent): void {
   const entityId = target?.dataset.editorObjectId
   if (!entityId || !target) return
   event.preventDefault()
+  if ((event.target as HTMLElement).closest('a')) event.stopPropagation()
   selectEntity(entityId, target, event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'additive' : 'replace')
 }
 
@@ -2817,7 +2871,7 @@ function offsetValue(value: EditorValue, delta: number): EditorValue {
 }
 
 function applySelectionOffsets(offsets: Map<string, { x: number; y: number }>, type: EditorCommandType): boolean {
-  const editableObjects = editor.selectedObjects.filter((object) => object.capabilities.includes('position') && !editor.objectState(object.id).locked && offsets.has(object.id))
+  const editableObjects = editor.objects.filter((object) => object.capabilities.includes('position') && !editor.objectState(object.id).locked && offsets.has(object.id))
   const changes = editableObjects.flatMap((object) => {
     const offset = offsets.get(object.id) ?? { x: 0, y: 0 }
     const layout = effectiveResponsiveLayout(editor.draftSnapshot, object.id, activeBreakpoint.value)
@@ -2826,8 +2880,9 @@ function applySelectionOffsets(offsets: Map<string, { x: number; y: number }>, t
       ...(offset.y ? [{ propertyPath: responsiveLayoutFieldPath(object.id, 'y', activeBreakpoint.value), nextValue: offsetValue(layout.y, offset.y) }] : [])
     ]
   })
-  if (!changes.length || !editor.selectedObjectId) return false
-  const applied = editor.setProperties(editor.selectedObjectId, changes, {
+  const primaryId = editableObjects[0]?.id ?? editor.selectedObjectId
+  if (!changes.length || !primaryId) return false
+  const applied = editor.setProperties(primaryId, changes, {
     objectIds: editableObjects.map((object) => object.id),
     interaction: type.toLowerCase()
   }, type)
@@ -2836,8 +2891,9 @@ function applySelectionOffsets(offsets: Map<string, { x: number; y: number }>, t
 }
 
 function nudgeSelection(x: number, y: number): void {
-  const offsets = new Map(editor.selectedObjectIds.map((objectId) => [objectId, { x, y }]))
-  if (applySelectionOffsets(offsets, 'NUDGE')) saveStatus.value = `Moved ${editor.selectedObjectIds.length} object${editor.selectedObjectIds.length === 1 ? '' : 's'}.`
+  const targetIds = [...new Set(editor.selectedObjects.map((object) => object.ux?.dragGroupEntityId ?? object.id))]
+  const offsets = new Map(targetIds.map((objectId) => [objectId, { x, y }]))
+  if (applySelectionOffsets(offsets, 'NUDGE')) saveStatus.value = `Moved ${targetIds.length} object${targetIds.length === 1 ? '' : 's'}.`
 }
 
 function selectedElementRects(): Array<{ object: EditorObject; element: HTMLElement; rect: DOMRect }> {
@@ -2937,7 +2993,7 @@ function selectAfterObjectRemoval(removedIds: string[], attempt = 0): void {
 async function duplicateSelectedObjects(): Promise<void> {
   saveStatus.value = 'Duplicating selected objects...'
   const sources = selectedRuntimeObjects.value.filter((object) => {
-    if (editor.objectState(object.id).locked) return false
+    if (editor.objectState(object.id).locked || object.ux?.excludedProperties?.includes('media.duplicateReference')) return false
     if (object.ux?.collectionPath) return true
     return object.type === 'Image'
       && Boolean(object.photoAreaId)
@@ -3021,7 +3077,7 @@ async function duplicateSelectedObjects(): Promise<void> {
 }
 
 async function deleteSelectedObjects(): Promise<void> {
-  const sources = selectedRuntimeObjects.value.filter((object) => !editor.objectState(object.id).locked)
+  const sources = selectedRuntimeObjects.value.filter((object) => !editor.objectState(object.id).locked && !object.ux?.disableDelete)
   if (!sources.length || !editor.selectedObjectId) return
   const dynamicDeleteIds = sources.filter((object) => object.ux?.dynamicInstance).map((object) => object.id)
   if (dynamicDeleteIds.length) {
@@ -3104,7 +3160,11 @@ async function beginInlineTextEdit(event: MouseEvent): Promise<void> {
   const boundary = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
   const entityId = boundary?.dataset.editorObjectId
   const entity = entityId ? editorEntities.value.find((candidate) => candidate.id === entityId) : undefined
-  const contentProperties = entity?.properties.filter((candidate) => candidate.metadata.category === 'content' && ['text', 'textarea'].includes(candidate.metadata.control)) ?? []
+  const contentProperties = entity?.properties.filter((candidate) => (
+    candidate.metadata.category === 'content'
+    && ['text', 'textarea'].includes(candidate.metadata.control)
+    && candidate.path !== 'href'
+  )) ?? []
   if (!boundary || !entity || entity.type === 'Image' || !contentProperties.length || editor.objectState(entity.id).locked) return
   const element = editableTextTarget(event.target as HTMLElement, boundary)
   if (!element) return
@@ -3599,6 +3659,7 @@ function cancelLibrarySwitch(): void {
           <div ref="previewStage" class="preview-stage" :style="previewStageStyle" :data-canvas-width="activeCanvasWidth" :data-responsive-breakpoint="activeBreakpoint">
             <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" :data-responsive-breakpoint="activeBreakpoint" @dragstart.prevent @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
               <HomePage editor-preview />
+              <ContactDetail editor-preview />
             </div>
           </div>
         </div>
@@ -3610,7 +3671,7 @@ function cancelLibrarySwitch(): void {
         <button type="button" :disabled="!canPasteStyle" @click="pasteSelectedStyle(); contextMenu.open = false">Paste Style <kbd>Ctrl+V</kbd></button>
         <button type="button" @click="moveSelectionLayer('front')">Bring Front</button>
         <button type="button" @click="moveSelectionLayer('back')">Send Back</button>
-        <button type="button" class="danger" @click="void deleteSelectedObjects(); contextMenu.open = false">Delete <kbd>Del</kbd></button>
+        <button type="button" class="danger" :disabled="!canDeleteSelection" @click="void deleteSelectedObjects(); contextMenu.open = false">Delete <kbd>Del</kbd></button>
       </menu>
       <footer class="editor-status-bar" aria-label="Editor status">
         <span><strong>Selection</strong>{{ selectedObjectCount ? `${selectedObjectCount} · ${editor.selectedObject?.name ?? editor.selectedObjectId}` : 'None' }}</span>
@@ -3755,9 +3816,9 @@ function cancelLibrarySwitch(): void {
 .canvas-scroll { width: 100%; height: calc(100% - 2.2rem); min-width: 0; min-height: 0; overflow-x: auto; overflow-y: auto; touch-action: pan-x pan-y; background: #fff; scrollbar-gutter: stable; }.canvas-scroll.is-panning,.canvas-scroll.is-panning :deep(*) { cursor: grabbing !important; user-select: none !important; }
 .preview-frame { position: relative; margin: 1.5rem auto 7rem; background: #fff; box-shadow: 0 1rem 2rem rgba(73,54,47,.12); }
 .preview-stage { transform-origin: top left; }
-.editor-preview-runtime :deep([data-editor-object-id]) { cursor: pointer; outline-offset: 3px; border-radius: 4px; }
-.editor-preview-runtime :deep([data-editor-object-id]:hover) { outline: 1px dashed rgba(184,91,105,.55); background: transparent; }
-.editor-preview-runtime :deep(.editor-preview-selected) { outline: 1.5px solid rgba(184,91,105,.78) !important; outline-offset: 3px !important; border-radius: 6px; background: transparent !important; }.editor-preview-runtime :deep(.editor-preview-selected--primary) { outline-width: 3px !important; outline-color: rgba(184,91,105,.98) !important; outline-offset: 4px !important; border-radius: 7px; }
+.editor-preview-runtime :deep([data-editor-object-id]) { cursor: pointer; outline-offset: 3px; }
+.editor-preview-runtime :deep([data-editor-object-id]:hover) { outline: 1px dashed rgba(184,91,105,.55); }
+.editor-preview-runtime :deep(.editor-preview-selected) { outline: 1.5px solid rgba(184,91,105,.78) !important; outline-offset: 3px !important; }.editor-preview-runtime :deep(.editor-preview-selected--primary) { outline-width: 3px !important; outline-color: rgba(184,91,105,.98) !important; outline-offset: 4px !important; }
 .editor-preview-runtime :deep(.editor-media-drop-target) { outline: 4px solid rgba(172,78,94,.98) !important; outline-offset: 6px !important; border-radius: 9px; background: rgba(255,244,236,.12) !important; box-shadow: 0 0 0 5px rgba(255,255,255,.72),0 0 0 9px rgba(172,78,94,.18); }
 .editor-preview-runtime :deep(.editor-preview-locked) { cursor: default; }.editor-preview-runtime :deep(.editor-preview-locked.editor-preview-selected) { outline-style: dashed !important; outline-color: rgba(139,100,65,.95) !important; }
 .editor-preview-runtime :deep(.editor-preview-hidden) { opacity: .08 !important; pointer-events: none; }.editor-preview-runtime :deep(.editor-preview-hidden.editor-preview-selected) { opacity: .2 !important; outline-style: dotted !important; }

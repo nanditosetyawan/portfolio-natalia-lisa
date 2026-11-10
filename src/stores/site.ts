@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { createDefaultSiteSnapshot, type SiteSnapshot } from '../data/default/site'
 import { createExperienceFrameConfig } from '../data/default/visual/experience'
 import { siteRepository } from '../repositories/siteRepository'
+import type { SnapshotMediaModel } from '../types/editorSnapshot'
 
 function clonePreviewValue<T>(value: T): T {
   if (Array.isArray(value)) return value.map((item) => clonePreviewValue(item)) as T
@@ -65,7 +66,8 @@ export const useSiteStore = defineStore('site', {
     guestRuntimeSource: null as 'default' | 'published' | null,
     defaultRuntimeTemplateVersion: null as number | null,
     publishedRevisionNumber: null as number | null,
-    publishedAt: null as string | null
+    publishedAt: null as string | null,
+    contactDetailMedia: {} as Record<string, { source: string; objectPosition: string; objectFit?: 'scale-down' | 'cover' | 'contain' }>
   }),
   getters: {
     aboutParagraphs: (state) => ordered(state.current.content.about.paragraphs),
@@ -137,6 +139,7 @@ export const useSiteStore = defineStore('site', {
     },
     resetToSeed() {
       hydrateInPlace(this.current, createDefaultSiteSnapshot())
+      this.contactDetailMedia = {}
     },
     mediaSourceForUsage(usageId: string): string {
       const usage = this.current.mediaUsages.find((candidate) => candidate.id === usageId)
@@ -180,6 +183,35 @@ export const useSiteStore = defineStore('site', {
       const area = this.current.photoAreas.find((candidate) => candidate.id === photoAreaId)
       if (!area) throw new Error(`Unknown photo area: ${photoAreaId}`)
       area.objectPosition = objectPosition
+    },
+    hydrateContactDetailMedia(media: SnapshotMediaModel) {
+      const main = media.assignments.find((a) => a.entityId === 'contact-detail-photo-main')
+      const msg = media.assignments.find((a) => a.entityId === 'contact-detail-photo-message')
+      const resolve = (assetId: string | undefined) => assetId ? (media.references.find((r) => r.assetId === assetId)?.uri ?? '') : ''
+      this.contactDetailMedia = {
+        'contact-detail-photo-main': {
+          source: resolve(main?.assetId),
+          objectPosition: main?.objectPosition ?? '50% 50%',
+          objectFit: media.styles['contact-detail-photo-main']?.objectFit
+        },
+        'contact-detail-photo-message': {
+          source: resolve(msg?.assetId),
+          objectPosition: msg?.objectPosition ?? '50% 50%',
+          objectFit: media.styles['contact-detail-photo-message']?.objectFit
+        }
+      }
+    },
+    setContactDetailMediaSource(areaId: string, source: string) {
+      if (!this.contactDetailMedia[areaId]) this.contactDetailMedia[areaId] = { source: '', objectPosition: '50% 50%' }
+      this.contactDetailMedia[areaId].source = source
+    },
+    setContactDetailMediaObjectPosition(areaId: string, objectPosition: string) {
+      if (!this.contactDetailMedia[areaId]) this.contactDetailMedia[areaId] = { source: '', objectPosition: '50% 50%' }
+      this.contactDetailMedia[areaId].objectPosition = objectPosition
+    },
+    setContactDetailMediaObjectFit(areaId: string, objectFit?: 'scale-down' | 'cover' | 'contain') {
+      if (!this.contactDetailMedia[areaId]) this.contactDetailMedia[areaId] = { source: '', objectPosition: '50% 50%' }
+      this.contactDetailMedia[areaId].objectFit = objectFit
     },
     replaceAboutParagraphs(paragraphs: SiteSnapshot['content']['about']['paragraphs']) {
       assertUniqueIds(paragraphs.map((paragraph) => paragraph.id), 'about paragraph')

@@ -110,8 +110,16 @@
       <div class="modal-content delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cert-delete-dialog-title">
         <h2 id="cert-delete-dialog-title">Hapus Sertifikat?</h2>
         <p class="delete-confirm-desc">
-          Sertifikat <strong>{{ deleteConfirmTarget.title }}</strong> beserta fotonya akan dihapus secara permanen.
+          Sertifikat <strong>{{ deleteConfirmTarget.title }}</strong> beserta fotonya akan dihapus dari daftar Manage Certifikat.
         </p>
+        <div v-if="deleteReferencingPublished" class="delete-published-warning" role="alert">
+          <p class="delete-published-warning-title">
+            Sertifikat ini sedang tayang di situs Published aktif (Revisi #{{ deleteReferencingPublished.revision_number }}):
+          </p>
+          <p class="delete-published-warning-note">
+            Sertifikat ini akan tetap tampil di situs publik hingga Anda melakukan <strong>Update ke Draf</strong> lalu <strong>Publish ulang</strong>. File gambarnya di Storage tetap dipertahankan agar foto di situs publik tidak putus (404).
+          </p>
+        </div>
         <div v-if="deleteReferencingDrafts.length > 0" class="delete-draft-warning" role="alert">
           <p class="delete-draft-warning-title">
             Sertifikat ini sedang dipakai di {{ deleteReferencingDrafts.length }} Draf:
@@ -129,7 +137,7 @@
         <div class="modal-actions">
           <button type="button" @click="cancelDeleteCertificate" :disabled="Boolean(isDeleting)">Batal</button>
           <button type="button" class="danger-confirm-btn" @click="confirmDeleteCertificate" :disabled="Boolean(isDeleting)">
-            {{ isDeleting ? 'Menghapus...' : (deleteReferencingDrafts.length > 0 ? 'Tetap Hapus' : 'Hapus') }}
+            {{ isDeleting ? 'Menghapus...' : ((deleteReferencingDrafts.length > 0 || deleteReferencingPublished) ? 'Tetap Hapus' : 'Hapus') }}
           </button>
         </div>
       </div>
@@ -216,7 +224,7 @@ import { Image as ImageIcon, ChevronDown } from 'lucide-vue-next'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { supabasePublicStorageUrl } from '../../lib/supabaseRest'
 import { useCertificatesStore } from '../../stores/certificates'
-import { editorDraftRepository, type SaveDraftResult } from '../../repositories/editorRevisionRepository'
+import { editorDraftRepository, editorPublishRepository, type RevisionRecord, type SaveDraftResult } from '../../repositories/editorRevisionRepository'
 import { productFeedback } from '../../composables/useProductFeedback'
 import { cloneCertificateCard } from '../../data/default/certificates'
 
@@ -233,6 +241,7 @@ interface CertImage {
   id: string
   role: string
   media_asset_id: string
+  order_index: number
 }
 
 interface Certificate {
@@ -269,6 +278,7 @@ const isDeleting = ref<string | null>(null)
 const checkingDeleteId = ref<string | null>(null)
 const deleteConfirmTarget = ref<Certificate | null>(null)
 const deleteReferencingDrafts = ref<SaveDraftResult[]>([])
+const deleteReferencingPublished = ref<RevisionRecord | null>(null)
 const deletedDetails = ref<CertImage[]>([])
 
 // Drag and drop state
@@ -503,9 +513,138 @@ async function uploadFileToSupabase(file: File): Promise<string> {
   return assetId
 }
 
-async function removeAsset(assetId: string) {
-  await supabaseClient.from('media_assets').delete().eq('id', assetId)
-  await supabaseClient.storage.from(PORTFOLIO_MEDIA_BUCKET).remove([`published/certificates/${assetId}.webp`])
+function matchesAssetIdentifier(value: unknown, assetId: string, storagePath: string): boolean {
+  if (typeof value !== 'string' || !value) return false
+  return value.includes(assetId) || (Boolean(storagePath) && value.includes(storagePath))
+}
+
+function isAssetReferencedInSnapshot(snapshot: unknown, assetId: string, storagePath = `published/certificates/${assetId}.webp`): boolean {
+  if (!snapshot || typeof snapshot !== 'object' || !assetId) return false
+  const record = snapshot as Record<string, unknown>
+
+  if (Array.isArray(record.certificateCards)) {
+    for (const card of record.certificateCards) {
+      if (!card || typeof card !== 'object') continue
+      const candidate = card as { thumbnail?: { source?: unknown }; detailImages?: Array<{ source?: unknown }> }
+      if (matchesAssetIdentifier(candidate.thumbnail?.source, assetId, storagePath)) return true
+      if (Array.isArray(candidate.detailImages) && candidate.detailImages.some((detail) => matchesAssetIdentifier(detail?.source, assetId, storagePath))) {
+        return true
+      }
+    }
+  }
+
+  const media = record.media
+  if (media && typeof media === 'object') {
+    const typedMedia = media as {
+      references?: Array<{ assetId?: unknown; storagePath?: unknown; uri?: unknown }>
+      assignments?: Array<{ assetId?: unknown }>
+    }
+    if (Array.isArray(typedMedia.references) && typedMedia.references.some((ref) =>
+      ref?.assetId === assetId
+      || (Boolean(storagePath) && ref?.storagePath === storagePath)
+      || matchesAssetIdentifier(ref?.uri, assetId, storagePath)
+    )) {
+      return true
+    }
+    if (Array.isArray(typedMedia.assignments) && typedMedia.assignments.some((assignment) => assignment?.assetId === assetId)) {
+      return true
+    }
+  }
+
+  const backgrounds = record.backgrounds
+  if (backgrounds && typeof backgrounds === 'object') {
+    for (const bg of Object.values(backgrounds as Record<string, { imageAssetId?: unknown } | undefined>)) {
+      if (bg?.imageAssetId === assetId) return true
+    }
+  }
+
+  return false
+}
+
+function certificateAssetIds(cert: Certificate): string[] {
+  return [
+    cert.thumbnail?.media_asset_id,
+    ...cert.details.map((detail) => detail.media_asset_id)
+  ].filter((value): value is string => Boolean(value))
+}
+
+function isCertificateReferencedInSnapshot(snapshot: unknown, cert: Certificate): boolean {
+  if (!snapshot || typeof snapshot !== 'object') return false
+  const record = snapshot as { certificateCards?: Array<{ id?: unknown }> }
+  if (Array.isArray(record.certificateCards) && record.certificateCards.some((card) => card?.id === cert.id)) {
+    return true
+  }
+  return certificateAssetIds(cert).some((assetId) => isAssetReferencedInSnapshot(snapshot, assetId))
+}
+
+async function listProtectedRevisionSnapshots(): Promise<unknown[] | null> {
+  try {
+    // RLS on site_revisions exposes all published revisions and this admin's own drafts/archives.
+    const [revisionsRes, latestDrafts, activePublished] = await Promise.all([
+      supabaseClient.from('site_revisions').select('snapshot').in('status', ['published', 'draft', 'archived']),
+      editorDraftRepository.listDrafts(),
+      editorPublishRepository.getPublishedRevision()
+    ])
+    if (revisionsRes.error) return null
+    const snapshots: unknown[] = (revisionsRes.data ?? []).map((row: { snapshot: unknown }) => row.snapshot)
+    for (const draft of latestDrafts) snapshots.push(draft.revision.snapshot)
+    if (activePublished) snapshots.push(activePublished.snapshot)
+    return snapshots
+  } catch {
+    // Fail closed if reference lookup errors so Published / Rollback / Draft images never 404.
+    return null
+  }
+}
+
+async function removeUnreferencedAssets(assetIds: string[]): Promise<string[]> {
+  const uniqueIds = [...new Set(assetIds.filter((id): id is string => Boolean(id && id.trim())))]
+  if (uniqueIds.length === 0) return []
+
+  const snapshots = await listProtectedRevisionSnapshots()
+  if (snapshots === null) return uniqueIds
+
+  const [certImagesRes, entityMediaRes, photoFramesRes, mediaAssetsRes] = await Promise.all([
+    supabaseClient.from('certificate_images').select('media_asset_id').in('media_asset_id', uniqueIds),
+    supabaseClient.from('entity_media').select('media_asset_id').in('media_asset_id', uniqueIds),
+    supabaseClient.from('photo_frames').select('media_asset_id').in('media_asset_id', uniqueIds),
+    supabaseClient.from('media_assets').select('id, storage_bucket, storage_path').in('id', uniqueIds)
+  ])
+  if (certImagesRes.error || entityMediaRes.error || photoFramesRes.error || mediaAssetsRes.error) {
+    return uniqueIds
+  }
+
+  const stillBoundInTables = new Set<string>()
+  for (const row of [...(certImagesRes.data ?? []), ...(entityMediaRes.data ?? []), ...(photoFramesRes.data ?? [])]) {
+    const id = (row as { media_asset_id?: string | null }).media_asset_id
+    if (id) stillBoundInTables.add(id)
+  }
+
+  const assetRowsById = new Map<string, { storage_bucket: string | null; storage_path: string | null }>()
+  for (const row of mediaAssetsRes.data ?? []) {
+    const typed = row as { id: string; storage_bucket: string | null; storage_path: string | null }
+    assetRowsById.set(typed.id, typed)
+  }
+
+  const retainedAssetIds: string[] = []
+  for (const assetId of uniqueIds) {
+    const assetRow = assetRowsById.get(assetId)
+    const bucket = assetRow?.storage_bucket || PORTFOLIO_MEDIA_BUCKET
+    const storagePath = assetRow?.storage_path || `published/certificates/${assetId}.webp`
+
+    if (stillBoundInTables.has(assetId) || snapshots.some((snapshot) => isAssetReferencedInSnapshot(snapshot, assetId, storagePath))) {
+      retainedAssetIds.push(assetId)
+      continue
+    }
+
+    const { error: deleteRowError } = await supabaseClient.from('media_assets').delete().eq('id', assetId)
+    if (deleteRowError) {
+      retainedAssetIds.push(assetId)
+      continue
+    }
+    await supabaseClient.storage.from(bucket).remove([storagePath])
+  }
+
+  return retainedAssetIds
 }
 
 async function submitCertificate() {
@@ -520,6 +659,7 @@ async function submitCertificate() {
   try {
     const now = new Date().toISOString()
     const certId = isEditing.value && editingCertId.value ? editingCertId.value : crypto.randomUUID()
+    const assetsPendingCleanup: string[] = []
 
     // 1. Create or update certificate row FIRST (foreign key parent)
     uploadProgress.value = 'Menyimpan data sertifikat...'
@@ -550,12 +690,13 @@ async function submitCertificate() {
     if (formThumbFile.value) {
       uploadProgress.value = 'Mengunggah Thumbnail baru...'
       thumbAssetId = await uploadFileToSupabase(formThumbFile.value)
-      
+
       if (isEditing.value && existingThumb.value) {
-        await supabaseClient.from('certificate_images').delete().eq('id', existingThumb.value.id)
-        await removeAsset(existingThumb.value.media_asset_id)
+        const { error: thumbDeleteErr } = await supabaseClient.from('certificate_images').delete().eq('id', existingThumb.value.id)
+        if (thumbDeleteErr) throw thumbDeleteErr
+        if (existingThumb.value.media_asset_id) assetsPendingCleanup.push(existingThumb.value.media_asset_id)
       }
-      
+
       const { error: thumbInsertErr } = await supabaseClient.from('certificate_images').insert({
         id: crypto.randomUUID(),
         certificate_id: certId,
@@ -574,14 +715,18 @@ async function submitCertificate() {
     if (deletedDetails.value.length > 0) {
       uploadProgress.value = 'Menghapus foto detail yang dibuang...'
       const detailIds = deletedDetails.value.map(d => d.id)
-      await supabaseClient.from('certificate_images').delete().in('id', detailIds)
+      const { error: detailDeleteErr } = await supabaseClient.from('certificate_images').delete().in('id', detailIds)
+      if (detailDeleteErr) throw detailDeleteErr
       for (const detail of deletedDetails.value) {
-        await removeAsset(detail.media_asset_id)
+        if (detail.media_asset_id) assetsPendingCleanup.push(detail.media_asset_id)
       }
     }
 
     if (formDetailFiles.value.length > 0) {
-      let startIndex = existingDetails.value.length
+      const startIndex = existingDetails.value.reduce(
+        (maxIndex, detail) => Math.max(maxIndex, Number.isFinite(detail.order_index) ? detail.order_index : -1),
+        -1
+      ) + 1
       for (let i = 0; i < formDetailFiles.value.length; i++) {
         uploadProgress.value = `Mengunggah Foto Detail baru ${i+1}/${formDetailFiles.value.length}...`
         const dAssetId = await uploadFileToSupabase(formDetailFiles.value[i])
@@ -599,6 +744,8 @@ async function submitCertificate() {
         if (detailInsertErr) throw detailInsertErr
       }
     }
+
+    await removeUnreferencedAssets(assetsPendingCleanup)
 
     await loadCertificates()
     await certificatesStore.fetchCertificates(true) // update guest
@@ -659,17 +806,23 @@ async function requestDeleteCertificate(cert: Certificate) {
   if (isDeleting.value || checkingDeleteId.value) return
   checkingDeleteId.value = cert.id
   try {
-    const latestDrafts = await editorDraftRepository.listDrafts()
+    const [latestDrafts, activePublished] = await Promise.all([
+      editorDraftRepository.listDrafts(),
+      editorPublishRepository.getPublishedRevision()
+    ])
     draftsList.value = latestDrafts
     deleteReferencingDrafts.value = latestDrafts.filter((draft) =>
       Array.isArray(draft.revision.snapshot.certificateCards)
       && draft.revision.snapshot.certificateCards.some((card) => card.id === cert.id)
     )
+    deleteReferencingPublished.value = activePublished && isCertificateReferencedInSnapshot(activePublished.snapshot, cert)
+      ? activePublished
+      : null
     deleteConfirmTarget.value = cert
   } catch (error) {
     productFeedback.error(
-      'Gagal memeriksa referensi Draf',
-      error instanceof Error ? error.message : 'Tidak dapat memeriksa penggunaan sertifikat pada Draf.'
+      'Gagal memeriksa referensi Draf & Published',
+      error instanceof Error ? error.message : 'Tidak dapat memeriksa penggunaan sertifikat pada Draf atau versi Published.'
     )
   } finally {
     checkingDeleteId.value = null
@@ -680,6 +833,7 @@ function cancelDeleteCertificate() {
   if (isDeleting.value) return
   deleteConfirmTarget.value = null
   deleteReferencingDrafts.value = []
+  deleteReferencingPublished.value = null
 }
 
 async function confirmDeleteCertificate() {
@@ -689,16 +843,12 @@ async function confirmDeleteCertificate() {
   const draftsToClean = [...deleteReferencingDrafts.value]
   isDeleting.value = id
   try {
-    const assetIds: string[] = []
-    if (cert.thumbnail) assetIds.push(cert.thumbnail.media_asset_id)
-    cert.details.forEach((detail) => assetIds.push(detail.media_asset_id))
+    const assetIds = certificateAssetIds(cert)
 
-    await supabaseClient.from('certificate_images').delete().eq('certificate_id', id)
-    await supabaseClient.from('certificates').delete().eq('id', id)
-
-    for (const assetId of assetIds) {
-      await removeAsset(assetId)
-    }
+    const { error: imagesDeleteErr } = await supabaseClient.from('certificate_images').delete().eq('certificate_id', id)
+    if (imagesDeleteErr) throw imagesDeleteErr
+    const { error: certDeleteErr } = await supabaseClient.from('certificates').delete().eq('id', id)
+    if (certDeleteErr) throw certDeleteErr
 
     const cleanedDraftNumbers: number[] = []
     for (const draft of draftsToClean) {
@@ -716,16 +866,26 @@ async function confirmDeleteCertificate() {
       cleanedDraftNumbers.push(targetDraft.revision.revision_number)
     }
 
+    const retainedAssets = await removeUnreferencedAssets(assetIds)
+
     deleteConfirmTarget.value = null
     deleteReferencingDrafts.value = []
+    deleteReferencingPublished.value = null
     await loadCertificates()
     await certificatesStore.fetchCertificates(true)
     await loadAvailableDrafts()
 
+    const draftSummary = cleanedDraftNumbers.length > 0
+      ? ` dan dihilangkan dari ${cleanedDraftNumbers.map((num) => `Draf #${num}`).join(', ')}`
+      : ''
+    const retentionSummary = retainedAssets.length > 0
+      ? ' Gambar lama tetap dipertahankan di Storage karena masih dirujuk versi Published/revisi lain.'
+      : ''
+
     productFeedback.success(
       'Sertifikat dihapus',
-      cleanedDraftNumbers.length > 0
-        ? `Sertifikat dihapus dan juga dihilangkan dari ${cleanedDraftNumbers.map((num) => `Draf #${num}`).join(', ')}.`
+      cleanedDraftNumbers.length > 0 || retainedAssets.length > 0
+        ? `Sertifikat dihapus${draftSummary}.${retentionSummary}`
         : 'Sertifikat beserta fotonya berhasil dihapus.'
     )
   } catch (error: any) {
@@ -1074,6 +1234,25 @@ watch(certificates, (nextCards) => {
   margin: 0 0 1rem;
   color: #374151;
   line-height: 1.5;
+}
+.delete-published-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  color: #78350f;
+}
+.delete-published-warning-title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.delete-published-warning-note {
+  margin: 0;
+  font-size: 0.825rem;
+  line-height: 1.45;
+  color: #92400e;
 }
 .delete-draft-warning {
   background: #fef2f2;

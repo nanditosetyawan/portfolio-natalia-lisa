@@ -249,7 +249,49 @@ registerMany([
   ['advanced.validation', advanced('Validation status')],
   ['advanced.section', advanced('Page area')],
   ['advanced.layer', advanced('Layer path')],
-  ['runtime.fontWeight', advanced('Font weight')],
+  ['runtime.fontWeight', {
+    label: 'Weight',
+    category: 'font',
+    categoryLabel: 'TYPOGRAPHY',
+    categoryOrder: 10,
+    order: 66,
+    rowKey: 'font-weight-style',
+    control: 'select',
+    resolvedStyle: 'font-weight',
+    options: [
+      { label: 'Light', value: '300' },
+      { label: 'Regular', value: '400' },
+      { label: 'Medium', value: '500' },
+      { label: 'Semi-bold', value: '600' },
+      { label: 'Bold', value: '700' },
+      { label: 'Extra-bold', value: '800' },
+      { label: 'Black', value: '900' }
+    ],
+    classification: 'USER-FRIENDLY',
+    friendlyUi: 'Font weight thickness preset.'
+  }],
+  ['font.style', {
+    label: 'Style',
+    category: 'font',
+    categoryLabel: 'TYPOGRAPHY',
+    categoryOrder: 10,
+    order: 67,
+    rowKey: 'font-weight-style',
+    control: 'segmented',
+    resolvedStyle: 'font-style',
+    classification: 'USER-FRIENDLY',
+    friendlyUi: 'Normal or italic text style.'
+  }],
+  ['media.slotUpload', {
+    label: 'Upload Image',
+    category: 'media',
+    categoryLabel: 'MEDIA',
+    categoryOrder: 20,
+    order: 25,
+    helperText: 'Upload an image into this photo slot.',
+    classification: 'USER-FRIENDLY',
+    friendlyUi: 'Upload a photo into this slot.'
+  }],
   ['runtime.lineHeight', advanced('Line height', { advancedEditable: true })],
   ['runtime.textAlign', {
     label: 'Text alignment', category: 'font', categoryLabel: 'TYPOGRAPHY', categoryOrder: 10, order: 65,
@@ -441,6 +483,7 @@ export function formatInspectorValue(
   if (presentation.adapter === 'rotation-degrees') return rounded(degreeValue(canonicalValue) ?? 0)
   if (presentation.adapter === 'opacity-percent') return rounded((finiteNumber(canonicalValue) ?? 1) * 100)
   if (presentation.adapter === 'font-family') return typeof canonicalValue === 'string' ? canonicalValue : ''
+  if (presentation.control === 'select' && typeof canonicalValue === 'number') return String(canonicalValue)
   return typeof canonicalValue === 'string' || typeof canonicalValue === 'number' || typeof canonicalValue === 'boolean' || canonicalValue === null
     ? canonicalValue
     : ''

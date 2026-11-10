@@ -2,8 +2,9 @@ import { computed, reactive, type ComputedRef } from 'vue'
 import { useCertificatesStore } from '../stores/certificates'
 import { useSiteStore } from '../stores/site'
 import type { AdminPropertyDefinition } from '../types/site'
+import { defaultContact } from '../data/default/contact'
 import { ensurePropertyMetadata } from '../editor/propertyRegistry'
-import type { EditorObjectUxMetadata, PropertyRegistryEntry } from '../types/editor'
+import type { EditorObjectType, EditorObjectUxMetadata, PropertyRegistryEntry } from '../types/editor'
 
 export interface RuntimeAdminProperty extends AdminPropertyDefinition {
   read(): string | number | boolean
@@ -16,7 +17,8 @@ export interface RuntimeAdminEntity {
   id: string
   section: string
   label: string
-  kind: 'content' | 'text' | 'frame' | 'media' | 'navigation'
+  kind: 'content' | 'text' | 'frame' | 'media' | 'navigation' | 'button' | 'container' | 'background'
+  objectType?: EditorObjectType
   properties: RuntimeAdminProperty[]
   capabilities?: string[]
   photoAreaId?: string
@@ -136,6 +138,25 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
     const contact = current.content.contact as unknown as Record<string, unknown>
     entities.push({ id: current.content.contact.id, section: 'Contact', label: 'Contact', kind: 'content', properties: contentProperties(contact, [['line1', 'Line 1', 'text'], ['line2', 'Line 2', 'text']]) })
     entities.push({ id: current.content.contact.cta.id, section: 'Contact', label: 'Contact CTA', kind: 'navigation', properties: contentProperties(current.content.contact.cta as unknown as Record<string, unknown>, [['text', 'Text', 'text'], ['href', 'Href', 'text']]) })
+
+    const detail = current.content.contact.detail ?? defaultContact.detail
+    entities.push({ id: detail.sectionId, section: 'Contact Detail', label: 'Contact Detail Section', kind: 'background', objectType: 'Background', properties: [] })
+    entities.push({ id: detail.mainPhotoId, section: 'Contact Detail', label: 'Main Photo', kind: 'media', objectType: 'Image', photoAreaId: detail.mainPhotoId, capabilities: ['media', 'media-slot-upload', 'media-fit', 'position'], properties: [] })
+    entities.push({ id: detail.welcomeGroupId, section: 'Contact Detail', label: 'Welcome Group', kind: 'container', objectType: 'Container', capabilities: ['position'], properties: [] })
+    entities.push({ id: detail.title.id, section: 'Contact Detail', label: 'Name', kind: 'text', objectType: 'Text', properties: contentProperties(detail.title as unknown as Record<string, unknown>, [['text', 'Text', 'text']]) })
+    entities.push({ id: detail.subtitle.id, section: 'Contact Detail', label: 'Role', kind: 'text', objectType: 'Text', properties: contentProperties(detail.subtitle as unknown as Record<string, unknown>, [['text', 'Text', 'text']]) })
+    entities.push({ id: detail.description.id, section: 'Contact Detail', label: 'Description', kind: 'text', objectType: 'Text', properties: contentProperties(detail.description as unknown as Record<string, unknown>, [['text', 'Text', 'textarea']]) })
+    entities.push({ id: detail.socialLinks.whatsapp.id, section: 'Contact Detail', label: 'WhatsApp', kind: 'button', objectType: 'Button', properties: contentProperties(detail.socialLinks.whatsapp as unknown as Record<string, unknown>, [['href', 'Link', 'text']]) })
+    entities.push({ id: detail.socialLinks.linkedin.id, section: 'Contact Detail', label: 'LinkedIn', kind: 'button', objectType: 'Button', properties: contentProperties(detail.socialLinks.linkedin as unknown as Record<string, unknown>, [['href', 'Link', 'text']]) })
+    entities.push({ id: detail.socialLinks.cv.id, section: 'Contact Detail', label: 'CV', kind: 'button', objectType: 'Button', properties: contentProperties(detail.socialLinks.cv as unknown as Record<string, unknown>, [['href', 'Link', 'text']]) })
+
+    entities.push({ id: detail.messageSectionId, section: 'Text Me', label: 'Text Me Section', kind: 'background', objectType: 'Background', properties: [] })
+    entities.push({ id: detail.messageCardId, section: 'Text Me', label: 'Message Card', kind: 'container', objectType: 'Container', properties: [] })
+    entities.push({ id: detail.message.title.id, section: 'Text Me', label: 'Text Me Title', kind: 'text', objectType: 'Text', properties: [] })
+    entities.push({ id: detail.messageFieldsId, section: 'Text Me', label: 'Message Fields', kind: 'container', objectType: 'Container', properties: [] })
+    entities.push({ id: detail.message.submitButton.id, section: 'Text Me', label: 'Submit Button', kind: 'button', objectType: 'Button', capabilities: ['typography', 'button-background', 'advanced'], properties: [] })
+    entities.push({ id: detail.messagePhotoId, section: 'Text Me', label: 'Message Photo', kind: 'media', objectType: 'Image', photoAreaId: detail.messagePhotoId, capabilities: ['media', 'media-slot-upload', 'media-fit'], properties: [] })
+
     entities.push({ id: 'navigation-brand', section: 'Navigation', label: 'Lisa name (navigation brand)', kind: 'text', properties: contentProperties(current.content.navigation as unknown as Record<string, unknown>, [['brand', 'Name', 'text']]) })
     current.content.navigation.navItems.forEach((item) => entities.push({ id: item.id, section: 'Navigation', label: item.label, kind: 'navigation', properties: contentProperties(item as unknown as Record<string, unknown>, [['label', 'Label', 'text'], ['targetSectionId', 'Target section ID', 'text']]), ux: { collectionPath: 'content.navigation.navItems' } }))
 
