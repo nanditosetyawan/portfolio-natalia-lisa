@@ -56,7 +56,7 @@ export function useEditorObjectRegistry(snapshot?: ComputedRef<EditorSnapshot>):
       const object = createEditorObject({
         id: area.id,
         section: area.section,
-        label: area.label,
+        label: existing?.label ?? area.label,
         kind: 'media',
         objectType: 'Image',
         capabilities: [...(existing?.capabilities ?? []), ...(fitPath ? ['media-fit'] : [])],

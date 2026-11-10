@@ -214,7 +214,7 @@ try {
     const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const settle=async()=>{await tick();await new Promise(resolve=>setTimeout(resolve,80));await tick()};
     const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
     const target=[...document.querySelectorAll('[data-editor-object-id="portfolio-hero"]')].sort((a,b)=>a.getBoundingClientRect().width*a.getBoundingClientRect().height-b.getBoundingClientRect().width*b.getBoundingClientRect().height)[0];
-    const root=target.closest('.portfolio-section');const siblings=[document.querySelector('[data-editor-object-id="profile-lisa-natalia"]'),document.querySelector('[data-editor-object-id="portfolio-profile-media"]'),root].filter(Boolean);
+    const root=target.closest('.portfolio-section');const siblings=[document.querySelector('[data-editor-object-id="portfolio-profile-media"]'),root].filter(Boolean);
     const fingerprint=node=>({inline:node.getAttribute('style')||'',border:getComputedStyle(node).border,stroke:getComputedStyle(node).webkitTextStrokeWidth,rect:Object.values(node.getBoundingClientRect().toJSON()).slice(0,4)});
     const siblingBefore=siblings.map(fingerprint);const field=document.querySelector('[data-property-key="effects.border"]');const oldCanonical=editor.draftSnapshot.backgrounds['portfolio-hero']?.border??'';const historyBefore=editor.commandHistory.length;
     const toggle=field.querySelector('input[type="checkbox"]');if(!toggle.checked){toggle.click();await settle()}

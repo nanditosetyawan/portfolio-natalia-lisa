@@ -119,7 +119,7 @@ export interface EditorPublishRepository {
 
 export class RevisionConflictError extends Error {
   readonly code = 'REVISION_CONFLICT'
-  constructor(message = 'The draft is based on an older published revision.') {
+  constructor(message = 'The Draft changed since it was loaded. Reload the latest Draft.') {
     super(message)
     this.name = 'RevisionConflictError'
   }
@@ -317,9 +317,6 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
 
   async saveDraft(input: SaveDraftInput): Promise<SaveDraftResult> {
     const normalizedSnapshot = assertSnapshot(input.snapshot)
-    const published = this.records.filter((candidate) => candidate.status === 'published').sort((a, b) => b.revision_number - a.revision_number)[0]
-    const currentBase = published?.revision_number ?? null
-    if (currentBase !== input.expectedBaseRevision) throw new RevisionConflictError()
     const existing = input.createNew ? undefined : this.records.find((candidate) => candidate.status === 'draft' && candidate.id === input.draftRevisionId)
     if (!existing && !input.createNew && input.draftRevisionId) throw new Error('Draft revision was not found.')
     if (existing && existing.lock_version !== input.expectedDraftLockVersion) throw new RevisionConflictError('The Draft changed since it was loaded. Reload the latest Draft.')
@@ -408,7 +405,6 @@ export class InMemoryEditorRevisionRepository implements EditorDraftRepository, 
     if (!validation.valid || !validation.draft) throw new PublishValidationError(validation.errors)
     const currentPublished = publishedRevisionNumber(this.records)
     if (currentPublished !== input.expectedPublishedRevision) throw new PublishConflictError()
-    if (validation.draft.base_revision_number !== currentPublished) throw new PublishConflictError('This Draft is based on an older Published revision.')
     if (validation.draft.lock_version !== input.expectedDraftLockVersion) throw new PublishConflictError('The Draft changed while Publish was being prepared.')
 
     const revisionNumber = (currentPublished ?? 0) + 1

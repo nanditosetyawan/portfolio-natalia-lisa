@@ -678,7 +678,7 @@ export function applyResponsiveObjectProperties(
 
   if (breakpoint !== 'desktop') {
     for (const property of propertyRegistry) {
-      if (!snapshotMappingTemplate(property)) continue
+      if (!entity.capabilities.includes(property.capability) || !snapshotMappingTemplate(property)) continue
       const state = resolveResponsiveSnapshotProperty(property, snapshot, objectId, breakpoint)
       if (state.source === 'base') continue
       const value = property.serializer.deserialize(state.value)

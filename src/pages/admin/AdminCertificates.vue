@@ -105,6 +105,36 @@
       </div>
     </div>
 
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div v-if="deleteConfirmTarget" class="modal-backdrop" @click.self="cancelDeleteCertificate">
+      <div class="modal-content delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cert-delete-dialog-title">
+        <h2 id="cert-delete-dialog-title">Hapus Sertifikat?</h2>
+        <p class="delete-confirm-desc">
+          Sertifikat <strong>{{ deleteConfirmTarget.title }}</strong> beserta fotonya akan dihapus secara permanen.
+        </p>
+        <div v-if="deleteReferencingDrafts.length > 0" class="delete-draft-warning" role="alert">
+          <p class="delete-draft-warning-title">
+            Sertifikat ini sedang dipakai di {{ deleteReferencingDrafts.length }} Draf:
+          </p>
+          <ul class="delete-draft-list">
+            <li v-for="draft in deleteReferencingDrafts" :key="draft.revision.id">
+              <strong>Draf #{{ draft.revision.revision_number }}</strong>
+              <span>({{ new Date(draft.revision.updated_at).toLocaleString('id-ID') }})</span>
+            </li>
+          </ul>
+          <p class="delete-draft-warning-note">
+            Jika tetap dihapus, sertifikat ini juga akan otomatis dihapus dari Draf tersebut.
+          </p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" @click="cancelDeleteCertificate" :disabled="Boolean(isDeleting)">Batal</button>
+          <button type="button" class="danger-confirm-btn" @click="confirmDeleteCertificate" :disabled="Boolean(isDeleting)">
+            {{ isDeleting ? 'Menghapus...' : (deleteReferencingDrafts.length > 0 ? 'Tetap Hapus' : 'Hapus') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- CERTIFICATES LIST -->
     <div class="certificates-list" v-if="!loading">
       <div 
@@ -132,9 +162,9 @@
             </div>
           </div>
           <div class="cert-actions" @click.stop>
-            <button @click="openEditModal(cert)" class="edit-btn" :disabled="isDeleting === cert.id">Edit</button>
-            <button @click="deleteCertificate(cert.id)" class="delete-btn" :disabled="isDeleting === cert.id">
-              {{ isDeleting === cert.id ? '...' : 'Hapus' }}
+            <button @click="openEditModal(cert)" class="edit-btn" :disabled="isDeleting === cert.id || checkingDeleteId === cert.id">Edit</button>
+            <button @click="requestDeleteCertificate(cert)" class="delete-btn" :disabled="isDeleting === cert.id || checkingDeleteId === cert.id">
+              {{ isDeleting === cert.id || checkingDeleteId === cert.id ? '...' : 'Hapus' }}
             </button>
             <button class="expand-btn" aria-label="Toggle" @click="toggleCard(cert.id)">
               <ChevronDown :class="{ 'is-rotated': isExpanded(cert.id) }" :size="20" stroke-width="2.5" />
@@ -236,6 +266,9 @@ const uploadError = ref('')
 const isUploading = ref(false)
 const uploadProgress = ref('')
 const isDeleting = ref<string | null>(null)
+const checkingDeleteId = ref<string | null>(null)
+const deleteConfirmTarget = ref<Certificate | null>(null)
+const deleteReferencingDrafts = ref<SaveDraftResult[]>([])
 const deletedDetails = ref<CertImage[]>([])
 
 // Drag and drop state
@@ -255,7 +288,9 @@ async function loadAvailableDrafts() {
   loadingDrafts.value = true
   try {
     draftsList.value = await editorDraftRepository.listDrafts()
-    if (draftsList.value.length > 0) {
+    if (draftsList.value.length === 0) {
+      selectedDraftId.value = ''
+    } else if (!draftsList.value.some((draft) => draft.revision.id === selectedDraftId.value)) {
       selectedDraftId.value = draftsList.value[0].revision.id
     }
   } catch (error) {
@@ -282,7 +317,8 @@ async function syncToDraft() {
       snapshot: draft.revision.snapshot,
       mediaReferences: draft.mediaReferences,
       draftRevisionId: draft.revision.id,
-      expectedBaseRevision: draft.revision.base_revision_number
+      expectedBaseRevision: draft.revision.base_revision_number,
+      expectedDraftLockVersion: draft.revision.lock_version
     })
     
     productFeedback.success('Sukses', 'Sertifikat berhasil disinkronkan ke draf.')
@@ -399,16 +435,7 @@ function removeExistingDetail(index: number) {
   deletedDetails.value.push(removed[0])
 }
 
-function requireSelectedDraft(): boolean {
-  if (!selectedDraftId.value) {
-    productFeedback.error('Pilih Draf Terlebih Dahulu', 'Anda harus memilih draf dari menu dropdown sebelum dapat mengelola sertifikat.')
-    return false
-  }
-  return true
-}
-
 function openAddModal() {
-  if (!requireSelectedDraft()) return
   isEditing.value = false
   editingCertId.value = null
   formTitle.value = ''
@@ -424,7 +451,6 @@ function openAddModal() {
 }
 
 function openEditModal(cert: Certificate) {
-  if (!requireSelectedDraft()) return
   isEditing.value = true
   editingCertId.value = cert.id
   formTitle.value = cert.title
@@ -594,17 +620,78 @@ async function submitCertificate() {
   }
 }
 
-async function deleteCertificate(id: string) {
-  if (!requireSelectedDraft()) return
-  if (!confirm('Hapus sertifikat ini beserta fotonya?')) return
+function pruneCertificateFromSnapshot(snapshot: SaveDraftResult['revision']['snapshot'], cert: Certificate) {
+  const nextSnapshot = structuredClone(snapshot)
+  const removedPhotoIds = new Set<string>(
+    [cert.thumbnail?.id, ...cert.details.map((detail) => detail.id)].filter((value): value is string => Boolean(value))
+  )
+  const removedEntityIds = new Set<string>([cert.id, ...removedPhotoIds])
+
+  nextSnapshot.certificateCards = Array.isArray(nextSnapshot.certificateCards)
+    ? nextSnapshot.certificateCards.filter((card) => card.id !== cert.id)
+    : []
+  nextSnapshot.entities = Array.isArray(nextSnapshot.entities)
+    ? nextSnapshot.entities.filter((entity) => !removedEntityIds.has(entity.entityId))
+    : []
+  for (const entityId of removedEntityIds) {
+    if (nextSnapshot.layout) delete nextSnapshot.layout[entityId]
+    if (nextSnapshot.typography) delete nextSnapshot.typography[entityId]
+    if (nextSnapshot.backgrounds) delete nextSnapshot.backgrounds[entityId]
+    if (nextSnapshot.buttons) delete nextSnapshot.buttons[entityId]
+    if (nextSnapshot.animations) delete nextSnapshot.animations[entityId]
+    if (nextSnapshot.session?.objectStates) delete nextSnapshot.session.objectStates[entityId]
+  }
+  if (nextSnapshot.media) {
+    if (Array.isArray(nextSnapshot.media.assignments)) {
+      nextSnapshot.media.assignments = nextSnapshot.media.assignments.filter((assignment) => !removedPhotoIds.has(assignment.entityId))
+    }
+    if (nextSnapshot.media.styles) {
+      for (const photoId of removedPhotoIds) delete nextSnapshot.media.styles[photoId]
+    }
+  }
+  if (nextSnapshot.session && removedEntityIds.has(nextSnapshot.session.selectedEntityId)) {
+    nextSnapshot.session.selectedEntityId = ''
+  }
+  return nextSnapshot
+}
+
+async function requestDeleteCertificate(cert: Certificate) {
+  if (isDeleting.value || checkingDeleteId.value) return
+  checkingDeleteId.value = cert.id
+  try {
+    const latestDrafts = await editorDraftRepository.listDrafts()
+    draftsList.value = latestDrafts
+    deleteReferencingDrafts.value = latestDrafts.filter((draft) =>
+      Array.isArray(draft.revision.snapshot.certificateCards)
+      && draft.revision.snapshot.certificateCards.some((card) => card.id === cert.id)
+    )
+    deleteConfirmTarget.value = cert
+  } catch (error) {
+    productFeedback.error(
+      'Gagal memeriksa referensi Draf',
+      error instanceof Error ? error.message : 'Tidak dapat memeriksa penggunaan sertifikat pada Draf.'
+    )
+  } finally {
+    checkingDeleteId.value = null
+  }
+}
+
+function cancelDeleteCertificate() {
+  if (isDeleting.value) return
+  deleteConfirmTarget.value = null
+  deleteReferencingDrafts.value = []
+}
+
+async function confirmDeleteCertificate() {
+  const cert = deleteConfirmTarget.value
+  if (!cert || isDeleting.value) return
+  const id = cert.id
+  const draftsToClean = [...deleteReferencingDrafts.value]
   isDeleting.value = id
   try {
-    const cert = certificates.value.find(c => c.id === id)
-    if (!cert) return
-
-    const assetIds = []
+    const assetIds: string[] = []
     if (cert.thumbnail) assetIds.push(cert.thumbnail.media_asset_id)
-    cert.details.forEach(d => assetIds.push(d.media_asset_id))
+    cert.details.forEach((detail) => assetIds.push(detail.media_asset_id))
 
     await supabaseClient.from('certificate_images').delete().eq('certificate_id', id)
     await supabaseClient.from('certificates').delete().eq('id', id)
@@ -613,10 +700,36 @@ async function deleteCertificate(id: string) {
       await removeAsset(assetId)
     }
 
+    const cleanedDraftNumbers: number[] = []
+    for (const draft of draftsToClean) {
+      const freshDraft = await editorDraftRepository.loadDraft(draft.revision.id)
+      const targetDraft = freshDraft ?? draft
+      if (!targetDraft.revision.snapshot.certificateCards.some((card) => card.id === id)) continue
+      const prunedSnapshot = pruneCertificateFromSnapshot(targetDraft.revision.snapshot, cert)
+      await editorDraftRepository.saveDraft({
+        snapshot: prunedSnapshot,
+        mediaReferences: targetDraft.mediaReferences,
+        draftRevisionId: targetDraft.revision.id,
+        expectedBaseRevision: targetDraft.revision.base_revision_number,
+        expectedDraftLockVersion: targetDraft.revision.lock_version
+      })
+      cleanedDraftNumbers.push(targetDraft.revision.revision_number)
+    }
+
+    deleteConfirmTarget.value = null
+    deleteReferencingDrafts.value = []
     await loadCertificates()
-    await certificatesStore.fetchCertificates(true) // update guest
+    await certificatesStore.fetchCertificates(true)
+    await loadAvailableDrafts()
+
+    productFeedback.success(
+      'Sertifikat dihapus',
+      cleanedDraftNumbers.length > 0
+        ? `Sertifikat dihapus dan juga dihilangkan dari ${cleanedDraftNumbers.map((num) => `Draf #${num}`).join(', ')}.`
+        : 'Sertifikat beserta fotonya berhasil dihapus.'
+    )
   } catch (error: any) {
-    alert('Gagal menghapus sertifikat: ' + error.message)
+    productFeedback.error('Gagal menghapus sertifikat', error?.message || 'Terjadi kesalahan saat menghapus sertifikat.')
   } finally {
     isDeleting.value = null
   }
@@ -636,7 +749,6 @@ function onDragOver(event: DragEvent, _index: number) {
 }
 
 async function onDrop(_event: DragEvent, index: number) {
-  if (!requireSelectedDraft()) return
   if (draggedIndex.value === null || draggedIndex.value === index) return
   
   const newList = [...certificates.value]
@@ -953,6 +1065,51 @@ watch(certificates, (nextCards) => {
 }
 .primary-btn:disabled {
   background: #ccc;
+  cursor: not-allowed;
+}
+.delete-confirm-modal {
+  max-width: 480px;
+}
+.delete-confirm-desc {
+  margin: 0 0 1rem;
+  color: #374151;
+  line-height: 1.5;
+}
+.delete-draft-warning {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  color: #7f1d1d;
+}
+.delete-draft-warning-title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.delete-draft-list {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+.delete-draft-list li {
+  margin-bottom: 0.25rem;
+}
+.delete-draft-warning-note {
+  margin: 0;
+  font-size: 0.825rem;
+  color: #991b1b;
+}
+.danger-confirm-btn {
+  background: #dc2626;
+  color: #fff;
+}
+.danger-confirm-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.danger-confirm-btn:disabled {
+  background: #fca5a5;
   cursor: not-allowed;
 }
 .error-msg {

@@ -36,17 +36,24 @@ function buildCanonicalDefaultSnapshot(): EditorSnapshot {
 
   const entities = new Map(snapshot.entities.map((entity) => [entity.entityId, entity]))
 
-  addEntity(entities, site.content.about.cta.id, 'About', 'button', site.content.about.cta.text)
-  addEntity(entities, site.content.contact.cta.id, 'Contact', 'button', site.content.contact.cta.text)
-  addEntity(entities, 'navigation-brand', 'Navigation', 'text', site.content.navigation.brand)
+  addEntity(entities, site.content.about.cta.id, 'About', 'button', 'About CTA')
+  addEntity(entities, site.content.contact.cta.id, 'Contact', 'button', 'Contact CTA')
+  addEntity(entities, 'navigation-brand', 'Navigation', 'text', 'Lisa name (navigation brand)')
   for (const item of site.content.navigation.navItems) {
     addEntity(entities, item.id, 'Navigation', 'button', item.label)
   }
   for (const usage of site.mediaUsages) {
-    addEntity(entities, usage.id, usage.ownerType === 'profile' ? 'Portfolio' : usage.ownerType === 'about' ? 'About' : 'Contact', 'media', usage.role)
+    if (!entities.has(usage.id)) {
+      addEntity(entities, usage.id, usage.ownerType === 'profile' ? 'Portfolio' : usage.ownerType === 'about' ? 'About' : 'Contact', 'media', usage.role)
+    }
   }
   for (const area of site.photoAreas) {
-    addEntity(entities, area.id, area.section, 'media', area.label)
+    const label = area.id === 'about-frame-main'
+      ? 'Main frame'
+      : area.ownerType === 'experience-entry'
+        ? `${area.label} frame`
+        : area.label
+    addEntity(entities, area.id, area.section, 'media', label)
   }
   for (const card of snapshot.certificateCards) {
     addEntity(entities, card.id, 'Certificate', 'content', card.title)

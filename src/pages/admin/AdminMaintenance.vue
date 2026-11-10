@@ -19,7 +19,7 @@
         <span class="maintenance-chevron"><ChevronRight class="chevron-icon" /></span>
       </button>
 
-      <button type="button" class="maintenance-card maintenance-card--reset" :disabled="site.guestRuntimeSource === 'default'" aria-label="Reset system to default" @click="showResetModal = true">
+      <button type="button" class="maintenance-card maintenance-card--reset" :disabled="checkingPublishedState || hasActivePublished === false" aria-label="Reset system to default" @click="showResetModal = true">
         <span class="maintenance-illustration"><RefreshCw class="illustration-icon" /></span>
         <span class="maintenance-content">
           <span class="maintenance-title">Reset System</span>
@@ -111,10 +111,12 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { Archive, ChevronRight, CircleAlert, Download, FileCheck, Info, RefreshCw, ShieldCheck, Upload, X } from 'lucide-vue-next'
 import ProductSkeleton from '../../components/ProductSkeleton.vue'
 import { productFeedback } from '../../composables/useProductFeedback'
+import { editorPublishRepository } from '../../repositories/editorRevisionRepository'
+import { invalidatePublishedRuntimeCache } from '../../runtime/publishedRuntime'
 import { useSiteStore } from '../../stores/site'
 import {
   createProductionBackup,
@@ -129,6 +131,8 @@ import {
 const fileInput = ref<HTMLInputElement | null>(null)
 const exportDialog = ref<HTMLElement | null>(null)
 const site = useSiteStore()
+const hasActivePublished = ref<boolean | null>(null)
+const checkingPublishedState = ref(false)
 const exportOpen = ref(false)
 const exportLoading = ref(false)
 const backup = ref<ProductionBackup | null>(null)
@@ -144,6 +148,22 @@ const exportParts = [
   { id: 'theme' as const, label: 'Active Theme' },
   { id: 'tokens' as const, label: 'Design Tokens' }
 ]
+
+async function refreshPublishedState(): Promise<void> {
+  checkingPublishedState.value = true
+  try {
+    const publishedRevision = await editorPublishRepository.getPublishedRevision()
+    hasActivePublished.value = Boolean(publishedRevision)
+  } catch {
+    hasActivePublished.value = site.guestRuntimeSource === null ? null : site.guestRuntimeSource === 'published'
+  } finally {
+    checkingPublishedState.value = false
+  }
+}
+
+onMounted(() => {
+  void refreshPublishedState()
+})
 
 async function openExport(): Promise<void> {
   exportOpen.value = true
@@ -203,12 +223,14 @@ async function validateImport(event: Event): Promise<void> {
 async function executeResetSystem(): Promise<void> {
   try {
     resetLoading.value = true
-    resetStatus.value = 'Deleting published revisions...'
+    resetStatus.value = 'Clearing published revisions...'
     const { supabaseClient } = await import('../../lib/supabaseClient')
     if (supabaseClient) {
       const { error } = await supabaseClient.rpc('reset_site_to_default')
       if (error) throw error
-      
+
+      invalidatePublishedRuntimeCache(0)
+      hasActivePublished.value = false
       productFeedback.success('System Reset Complete', 'The published site has been reverted to factory defaults.')
       // Force reload to apply the default runtime snapshot natively
       window.location.reload()

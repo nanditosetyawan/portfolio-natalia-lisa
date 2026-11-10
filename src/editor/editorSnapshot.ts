@@ -43,7 +43,14 @@ function entityReferences(snapshot: SiteSnapshot): SnapshotEntityReference[] {
     references.push({ entityId: row.id, section, kind, label: row.title ?? row.label ?? row.name ?? row.school ?? fallback })
   }
   add(snapshot.content.portfolio, 'Portfolio', 'content', 'Portfolio')
-  add(snapshot.content.profile, 'Portfolio', 'media', 'Profile')
+  if (snapshot.content.profile?.mediaUsageId) {
+    references.push({
+      entityId: snapshot.content.profile.mediaUsageId,
+      section: 'Portfolio',
+      kind: 'media',
+      label: 'Profile'
+    })
+  }
   add(snapshot.content.about, 'About', 'content', 'About')
   snapshot.content.about.paragraphs.forEach((item) => add(item, 'About', 'content', 'Paragraph'))
   add(snapshot.content.education, 'Education', 'content', 'Education')
@@ -70,7 +77,7 @@ export function createEditorSnapshot(snapshot: SiteSnapshot, revision: Partial<E
     media: {
       references: snapshot.mediaAssets.map((asset) => ({ assetId: asset.id, uri: asset.source, mimeType: asset.mimeType, alt: asset.alt })),
       assignments: snapshot.mediaUsages.map((usage) => ({ entityId: usage.id, role: usage.role, assetId: usage.mediaAssetId, objectPosition: usage.objectPosition })),
-      styles: Object.fromEntries(snapshot.mediaUsages.map(usage => [usage.id, { hoverEnabled: false, outlineEnabled: false, outlineWidth: 0, aspectRatioLocked: false }]))
+      styles: Object.fromEntries(snapshot.mediaUsages.map(usage => [usage.id, { hoverEnabled: false, outlineEnabled: false, outlineWidth: 1, aspectRatioLocked: false }]))
     },
     backgrounds: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, { boxShadow: 'none' }])),
     buttons: Object.fromEntries(entityReferences(snapshot).map(ref => [ref.entityId, {}])),
@@ -99,10 +106,51 @@ function validString(value: unknown, maximum = 256, allowEmpty = false): boolean
   return typeof value === 'string' && value.length <= maximum && (allowEmpty || value.trim().length > 0)
 }
 
+function normalizeLegacyProfileObject(snapshot: Record<string, unknown>): void {
+  const profile = isRecord(snapshot.content) && isRecord(snapshot.content.profile) ? snapshot.content.profile : null
+  const legacyId = profile && typeof profile.id === 'string' ? profile.id : ''
+  const mediaId = profile && typeof profile.mediaUsageId === 'string' ? profile.mediaUsageId : ''
+  if (!legacyId || !mediaId || legacyId === mediaId) return
+
+  if (Array.isArray(snapshot.entities) && snapshot.entities.some((entity) => isRecord(entity) && entity.entityId === legacyId)) {
+    const hasMediaEntity = snapshot.entities.some((entity) => isRecord(entity) && entity.entityId === mediaId)
+    const fallbackLabel = typeof profile?.name === 'string' && profile.name.trim() ? profile.name.trim() : 'Profile'
+    snapshot.entities = snapshot.entities.flatMap((entity) => {
+      if (!isRecord(entity) || entity.entityId !== legacyId) return [entity]
+      return hasMediaEntity ? [] : [{ entityId: mediaId, section: 'Portfolio', kind: 'media', label: typeof entity.label === 'string' && entity.label.trim() ? entity.label : fallbackLabel }]
+    })
+  }
+
+  for (const domainKey of ['layout', 'backgrounds', 'animations'] as const) {
+    const domain = snapshot[domainKey]
+    if (!isRecord(domain) || !isRecord(domain[legacyId])) continue
+    const source = domain[legacyId] as Record<string, unknown>
+    const target = isRecord(domain[mediaId]) ? { ...(domain[mediaId] as Record<string, unknown>) } : {}
+    for (const [key, value] of Object.entries(source)) {
+      if (domainKey === 'backgrounds' && key === 'boxShadow' && value === 'none') continue
+      if (domainKey === 'animations' && key === 'name' && value === 'none') continue
+      if (target[key] === undefined) target[key] = value
+    }
+    if (Object.keys(target).length) domain[mediaId] = target
+    delete domain[legacyId]
+  }
+  for (const domainKey of ['typography', 'buttons'] as const) {
+    if (isRecord(snapshot[domainKey])) delete (snapshot[domainKey] as Record<string, unknown>)[legacyId]
+  }
+  if (isRecord(snapshot.session)) {
+    if (snapshot.session.selectedEntityId === legacyId) snapshot.session.selectedEntityId = mediaId
+    if (isRecord(snapshot.session.objectStates) && isRecord(snapshot.session.objectStates[legacyId])) {
+      if (!snapshot.session.objectStates[mediaId]) snapshot.session.objectStates[mediaId] = snapshot.session.objectStates[legacyId]
+      delete snapshot.session.objectStates[legacyId]
+    }
+  }
+}
+
 export function validateEditorSnapshot(input: unknown): SnapshotValidationResult {
   const errors: string[] = []
   if (!isRecord(input)) return { valid: false, errors: ['Snapshot must be an object.'] }
   const normalized = clone(input)
+  normalizeLegacyProfileObject(normalized)
   if (!isRecord(normalized.session)) normalized.session = defaultEditorSession()
   else {
     if (!('userZoom' in normalized.session)) normalized.session.userZoom = typeof normalized.session.zoom === 'number' && normalized.session.zoom > 0 ? normalized.session.zoom : null

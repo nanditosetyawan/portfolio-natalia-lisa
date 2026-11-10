@@ -410,6 +410,43 @@ try {
   assert(JSON.stringify(beforeReload) === JSON.stringify({ ...afterReload, registered: undefined, selected: undefined }) || (JSON.stringify(beforeReload.ids) === JSON.stringify(afterReload.ids) && JSON.stringify(beforeReload.instances) === JSON.stringify(afterReload.instances) && JSON.stringify(beforeReload.layout) === JSON.stringify(afterReload.layout) && JSON.stringify(beforeReload.responsive) === JSON.stringify(afterReload.responsive) && beforeReload.asset === afterReload.asset && afterReload.schema === 2 && afterReload.registered), `Draft reload changed stable instances: ${JSON.stringify({beforeReload,afterReload})}`)
   for (const instanceId of afterReload.ids) await requireLoadedImage(`[data-snapshot-instance-id="${instanceId}"]`, `draft-reload-${instanceId}`)
 
+  const instanceSignatureCheck = await evaluate(`(async()=>{
+    const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const repo=await import('/src/repositories/editorRevisionRepository.ts');
+    const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
+    const id=${JSON.stringify(insertedB.id)};
+    const initialDirty=editor.hasUnsavedChanges;
+    const initialStatus=document.querySelector('.editor-save-status')?.textContent?.trim()??'';
+    editor.renameObject(id,'Image B Signature');await tick();
+    const afterRenameDirty=editor.hasUnsavedChanges;
+    editor.undo();await tick();
+    const afterUndoDirty=editor.hasUnsavedChanges;
+    const sortKeys=(value)=>Array.isArray(value)?value.map(sortKeys):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,sortKeys(value[key])])):value;
+    const originalSave=repo.editorDraftRepository.saveDraft.bind(repo.editorDraftRepository);
+    repo.editorDraftRepository.saveDraft=async(input)=>{
+      const result=await originalSave(input);
+      result.revision.snapshot=sortKeys(result.revision.snapshot);
+      return result;
+    };
+    try{
+      editor.renameObject(id,'Image B Saved');await tick();
+      document.querySelector('.tbar-save').click();
+      for(let attempt=0;attempt<120&&(editor.isSavingDraft||document.querySelector('.editor-save-status')?.textContent?.trim()!=='Saved');attempt+=1)await new Promise(resolve=>setTimeout(resolve,25));
+      await tick();await new Promise(resolve=>setTimeout(resolve,80));
+      const postSaveDirty=editor.hasUnsavedChanges;
+      const postSaveStatus=document.querySelector('.editor-save-status')?.textContent?.trim()??'';
+      editor.renameObject(id,'Image B');await tick();
+      const secondRenameDirty=editor.hasUnsavedChanges;
+      document.querySelector('.tbar-save').click();
+      for(let attempt=0;attempt<120&&(editor.isSavingDraft||document.querySelector('.editor-save-status')?.textContent?.trim()!=='Saved');attempt+=1)await new Promise(resolve=>setTimeout(resolve,25));
+      await tick();
+      return {initialDirty,initialStatus,afterRenameDirty,afterUndoDirty,postSaveDirty,postSaveStatus,secondRenameDirty,finalDirty:editor.hasUnsavedChanges,finalStatus:document.querySelector('.editor-save-status')?.textContent?.trim()??''};
+    }finally{
+      repo.editorDraftRepository.saveDraft=originalSave;
+    }
+  })()`)
+  assert(!instanceSignatureCheck.initialDirty && instanceSignatureCheck.initialStatus === '' && instanceSignatureCheck.afterRenameDirty && !instanceSignatureCheck.afterUndoDirty && !instanceSignatureCheck.postSaveDirty && instanceSignatureCheck.postSaveStatus === 'Saved' && instanceSignatureCheck.secondRenameDirty && !instanceSignatureCheck.finalDirty && instanceSignatureCheck.finalStatus === 'Saved', `Instance/key-order contentSignature check failed: ${JSON.stringify(instanceSignatureCheck)}`)
+
   await selectObject(insertedB.id)
   const beforeDuplicate = await evaluate(`(()=>{const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');return{ids:editor.draftSnapshot.instances.map(item=>item.instanceId),layout:JSON.parse(JSON.stringify(editor.draftSnapshot.layout[${JSON.stringify(insertedB.id)}])),asset:editor.draftSnapshot.media.assignments.find(item=>item.entityId===${JSON.stringify(insertedB.id)})?.assetId}})()`)
   await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'d',ctrlKey:true,bubbles:true,cancelable:true}))`)

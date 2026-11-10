@@ -144,8 +144,16 @@ try {
   }
   await evaluate(`(async()=>{
     const authModule=await import('/src/stores/auth.ts');
+    const siteModule=await import('/src/stores/site.ts');
     const router=(await import('/src/router/index.ts')).default;
     const auth=authModule.useAuthStore();
+    const site=siteModule.useSiteStore();
+    let legacyLoadCalls=0;
+    const originalLoad=site.load;
+    site.load=async()=>{legacyLoadCalls+=1;throw new Error('site.load must not run when published snapshot is absent');};
+    site.current.content.portfolio.title='STALE LEGACY SEED MUST NOT LEAK';
+    globalThis.__r3LegacyLoadCalls=()=>legacyLoadCalls;
+    globalThis.__r3RestoreSiteLoad=()=>{site.load=originalLoad;};
     auth.$patch({isAdmin:true,isInitialized:true,isLoading:false});
     await router.push('/admin/edit');
     return true;
@@ -156,6 +164,8 @@ try {
     const diagnostics = await evaluate(`({hash:location.hash,body:document.body.innerText.slice(0,1200),recovery:document.querySelector('.editor-recovery')?.innerText,app:Boolean(document.querySelector('#app')?.__vue_app__)})`)
     throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}; runtimeErrors=${runtimeErrors.join(' | ')}`)
   }
+  const defaultResetCheck = await evaluate(`(()=>{const calls=globalThis.__r3LegacyLoadCalls();globalThis.__r3RestoreSiteLoad();const pinia=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia;const editor=pinia._s.get('editor');const site=pinia._s.get('site');return {calls,editorTitle:editor.draftSnapshot.content.portfolio.title,siteTitle:site.current.content.portfolio.title};})()`)
+  assert(defaultResetCheck.calls === 0 && defaultResetCheck.editorTitle === 'PORTFOLIO' && defaultResetCheck.siteTitle === 'PORTFOLIO', `Editor used legacy site.load() or kept stale seed when no published revision exists: ${JSON.stringify(defaultResetCheck)}`)
 
   const fontMetadata = await evaluate(`(()=>{
     const labels=[...document.querySelectorAll('[data-property-category="font"] .property-field > span')].map(node=>node.textContent.trim());
@@ -345,6 +355,40 @@ try {
   assert(restoredSession.zoom === '0.75' && restoredSession.title === 'PORTFOLIO-R3-SAVED', 'zoom or Draft content restore failed')
   const restoredCertificate = await evaluate(`document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor').draftSnapshot.certificateCards.some(card=>card.title==='CERTIFICATE R3')`)
   assert(restoredCertificate, 'Certificate did not survive Save Draft and editor reload')
+
+  const sessionAndEntityCheck = await evaluate(`(async()=>{
+    const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
+    await tick();await new Promise(resolve=>setTimeout(resolve,80));
+    const loadStatus=document.querySelector('.editor-save-status')?.textContent?.trim()??'';
+    const canvas=document.querySelector('.canvas-scroll');
+    canvas.scrollTop=240;canvas.dispatchEvent(new Event('scroll'));await tick();
+    const afterScrollStatus=document.querySelector('.editor-save-status')?.textContent?.trim()??'';
+    const afterScrollSessionDirty=editor.sessionDirty;
+    const afterScrollUnsaved=editor.hasUnsavedChanges;
+    const publishEnabledAfterScroll=!document.querySelector('.tbar-publish')?.disabled;
+    const savedScrollValue=editor.draftSnapshot.session.previewScrollTop;
+    document.querySelector('.tbar-save').click();
+    for(let attempt=0;attempt<120&&(editor.isSavingDraft||document.querySelector('.editor-save-status')?.textContent?.trim()!=='Saved');attempt+=1)await new Promise(resolve=>setTimeout(resolve,25));
+    const afterSaveSessionDirty=editor.sessionDirty;
+    const lockBtn=document.querySelector('[data-layer-object-id="navigation-brand"] .object-state-button');
+    lockBtn.click();await tick();
+    const afterLockStatus=document.querySelector('.editor-save-status')?.textContent?.trim()??'';
+    lockBtn.click();await tick();
+    editor.renameObject('navigation-brand','Brand Check');await tick();
+    const entityRenameDirty=editor.hasUnsavedChanges;
+    editor.undo();await tick();
+    const entityUndoDirty=editor.hasUnsavedChanges;
+    document.querySelector('.tbar-save').click();
+    for(let attempt=0;attempt<120&&(editor.isSavingDraft||document.querySelector('.editor-save-status')?.textContent?.trim()!=='Saved');attempt+=1)await new Promise(resolve=>setTimeout(resolve,25));
+    const router=(await import('/src/router/index.ts')).default;
+    await router.push({name:'admin-drafts'});await new Promise(resolve=>setTimeout(resolve,100));
+    await router.push({name:'admin-edit',query:{draft:editor.draftRevisionId}});
+    return {loadStatus,afterScrollStatus,afterScrollSessionDirty,afterScrollUnsaved,publishEnabledAfterScroll,savedScrollValue,afterSaveSessionDirty,afterLockStatus,entityRenameDirty,entityUndoDirty};
+  })()`)
+  await waitFor(`Boolean(document.querySelector('.edit-page')) && Boolean(document.querySelector('[data-editor-entity-id="navigation-brand"]'))`)
+  const scrollReloadStatus = await evaluate(`(async()=>{const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));await tick();await new Promise(resolve=>setTimeout(resolve,100));const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');return {status:document.querySelector('.editor-save-status')?.textContent?.trim()??'',hasUnsaved:editor.hasUnsavedChanges,restoredScrollTop:Math.round(editor.draftSnapshot.session.previewScrollTop)};})()`)
+  assert(sessionAndEntityCheck.loadStatus === '' && sessionAndEntityCheck.afterScrollStatus === '' && !sessionAndEntityCheck.afterScrollSessionDirty && !sessionAndEntityCheck.afterScrollUnsaved && sessionAndEntityCheck.publishEnabledAfterScroll && sessionAndEntityCheck.savedScrollValue === 240 && !sessionAndEntityCheck.afterSaveSessionDirty && sessionAndEntityCheck.afterLockStatus === 'Unsaved session' && sessionAndEntityCheck.entityRenameDirty && !sessionAndEntityCheck.entityUndoDirty && scrollReloadStatus.status === '' && !scrollReloadStatus.hasUnsaved && scrollReloadStatus.restoredScrollTop === 240, `Session/entity dirty regression: ${JSON.stringify({sessionAndEntityCheck,scrollReloadStatus})}`)
 
   await evaluate(`(async()=>{const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const input=document.querySelector('[data-property-key="runtime.navigation-brand.brand"] input,[data-property-key="runtime.navigation-brand.brand"] textarea');input.value='UNSAVED';input.dispatchEvent(new Event('input',{bubbles:true}));await tick();document.querySelector('.open-source-button').click();await tick();[...document.querySelectorAll('.source-options button')][0].click();await tick();return true})()`)
   await waitFor(`Boolean(document.querySelector('.unsaved-modal'))`)

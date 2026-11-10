@@ -32,7 +32,7 @@ import DesignSystemPanel from './components/DesignSystemPanel.vue'
 import { useEditorStore } from '../../stores/editor'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import { useDesignSystemStore } from '../../stores/designSystem'
-import { createEditorSnapshot } from '../../editor/editorSnapshot'
+import { loadDefaultRuntimeTemplate } from '../../runtime/defaultRuntimeSnapshot'
 import {
   editorPublishErrors,
   editorPublishStatus,
@@ -133,7 +133,7 @@ import type {
   PropertyRegistryEntry,
   PropertyVisibilityContext
 } from '../../types/editor'
-import type { AnimationSettings, EditorSnapshot, LayoutSettings, SnapshotMediaModel, SnapshotMediaReference } from '../../types/editorSnapshot'
+import type { AnimationSettings, LayoutSettings, SnapshotMediaModel, SnapshotMediaReference } from '../../types/editorSnapshot'
 import type { MediaLibraryAsset } from '../../types/mediaLibrary'
 import { validateMediaUploadFile } from '../../lib/mediaUploadRules'
 import { resolveMediaSource } from '../../repositories/mediaRepository'
@@ -249,7 +249,6 @@ const userZoom = ref<number | null>(null)
 const previewHeight = ref(900)
 const activeCanvasPresetId = ref<ResponsiveCanvasPresetId>(defaultResponsiveCanvasPresetId)
 const draftScope = ref(`editor-session-${crypto.randomUUID()}`)
-const publishedBaseline = ref<EditorSnapshot | null>(null)
 const mediaInputVersion = ref(0)
 const inlineTextEdit = ref<InlineTextEdit | null>(null)
 const selectionBox = ref<SelectionBoxState>({ active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
@@ -937,10 +936,11 @@ watch(() => editor.previewMutation.version, async () => {
   schedulePreviewObjects(mutation.objectIds)
 })
 
-watch(previewScale, (zoom) => {
+watch([previewScale, userZoom], ([zoom, nextUserZoom]) => {
   if (!editorReady.value) return
-  editor.setViewport({ zoom, userZoom: userZoom.value })
-  markSessionChanged()
+  const userZoomChanged = editor.draftSnapshot.session.userZoom !== nextUserZoom
+  editor.setViewport({ zoom, userZoom: nextUserZoom })
+  if (userZoomChanged) markSessionChanged()
 })
 
 watch(activeCanvasPresetId, async (nextPresetId, previousPresetId) => {
@@ -1056,11 +1056,10 @@ async function initializeEditor(): Promise<void> {
     const savedDraft = requestedDraftId === 'new' ? null : await editorDraftRepository.loadDraft(requestedDraftId)
     if (requestedDraftId && requestedDraftId !== 'new' && !savedDraft) throw new Error('The requested Draft could not be found. Retry or return to the Draft Library.')
     const published = await guestPublishedRepository.loadPublishedSnapshot()
-    if (!published) await site.load()
+    if (!published) site.resetToSeed()
     const publishedSnapshot = published
       ? await guestPublishedRepository.resolvePublishedMedia(published.snapshot)
-      : createEditorSnapshot(toRaw(site.current))
-    publishedBaseline.value = cloneEditorData(publishedSnapshot)
+      : loadDefaultRuntimeTemplate().snapshot
 
     if (savedDraft) {
       editor.initialize(savedDraft.revision.snapshot, {
@@ -1070,7 +1069,7 @@ async function initializeEditor(): Promise<void> {
         baseRevisionNumber: published?.revision.source_draft_revision_id === savedDraft.revision.id
           ? published.revision.revision_number
           : savedDraft.revision.base_revision_number,
-        publishedRevisionNumber: published?.revision.revision_number ?? savedDraft.revision.base_revision_number
+        publishedRevisionNumber: published?.revision.revision_number ?? null
       })
       editor.draftMediaReferences = savedDraft.mediaReferences
       draftScope.value = savedDraft.revision.id
@@ -1103,7 +1102,10 @@ async function initializeEditor(): Promise<void> {
       canvasScroll.value.scrollTop = editor.draftSnapshot.session.previewScrollTop
       canvasScroll.value.scrollLeft = editor.draftSnapshot.session.previewScrollLeft
     }
-    if (savedDraft) await restoreDraftMedia(savedDraft.mediaReferences)
+    if (savedDraft) {
+      await restoreDraftMedia(savedDraft.mediaReferences)
+      editor.syncSavedBaseline()
+    }
 
     editorHasChanges.value = false
     editorSaveStatus.value = ''
@@ -1130,6 +1132,13 @@ onMounted(() => {
   reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   reducedMotionActive.value = prefersReducedMotion()
   reducedMotionQuery.addEventListener('change', handleReducedMotionChange)
+  void initializeEditor()
+})
+
+watch(() => route.query.draft, (nextDraft, prevDraft) => {
+  if (nextDraft === prevDraft) return
+  if (typeof nextDraft === 'string' && nextDraft !== 'new' && nextDraft === editor.draftRevisionId) return
+  if (inlineTextEdit.value) cancelInlineTextEdit()
   void initializeEditor()
 })
 
@@ -1169,7 +1178,12 @@ function handleReducedMotionChange(event: MediaQueryListEvent): void {
 
 function restoreSelectionFromSession(): void {
   const session = editor.draftSnapshot.session
-  const exact = editorEntities.value.find((entity) => entity.id === session.selectedEntityId)
+  const legacyProfileId = editor.draftSnapshot.content.profile.id
+  const profileMediaId = editor.draftSnapshot.content.profile.mediaUsageId
+  const selectedId = legacyProfileId && profileMediaId && session.selectedEntityId === legacyProfileId
+    ? profileMediaId
+    : session.selectedEntityId
+  const exact = editorEntities.value.find((entity) => entity.id === selectedId)
   const sectionFallback = editorEntities.value.find((entity) => entity.section === session.selectedSection)
   const fallback = editorEntities.value.find((entity) => entity.section === 'Portfolio') ?? editorEntities.value[0]
   const entity = exact ?? sectionFallback ?? fallback
@@ -1293,7 +1307,8 @@ function readPanelValue(property: PanelProperty): string | number | boolean | nu
     }
     if (metadata.databaseMapping.action === 'preview-media') {
       const reference = assignment ? editor.draftSnapshot.media.references.find((candidate) => candidate.assetId === assignment.assetId) : undefined
-      return reference ? editorMediaUrl(reference.assetId, reference) : ''
+      if (reference) return editorMediaUrl(reference.assetId, reference)
+      return selectedPhotoArea.value?.source ?? ''
     }
     return primitiveValue(metadata.defaultValue)
   }
@@ -1545,6 +1560,27 @@ async function updatePanelProperty(property: PanelProperty, value: string | numb
         objectIds: [entity.id],
         breakpoint: activeBreakpoint.value,
         interaction: 'proportional-image-size'
+      }, property.metadata.commandType)) return
+      markDesignPropertyOverride(entity, property)
+      markEditorChanged()
+      await nextTick()
+      updateSelectedOutline()
+      return
+    }
+  }
+  if (property.metadata.propertyKey === 'media.outlineEnabled' && Boolean(serialized)) {
+    const effective = materializeResponsiveObjectSnapshot(editor.draftSnapshot, entity.id, activeBreakpoint.value)
+    if ((effective.media.styles[entity.id]?.outlineWidth ?? 1) <= 0) {
+      const widthProperty = propertyRegistry.find((candidate) => candidate.propertyKey === 'media.outlineWidth')
+      const widthPath = widthProperty ? responsiveSnapshotWritePath(widthProperty, entity.id, activeBreakpoint.value) : null
+      const changes = [
+        { propertyPath: path, nextValue: serialized },
+        ...(widthPath ? [{ propertyPath: widthPath, nextValue: widthProperty?.defaultValue ?? 1 }] : [])
+      ]
+      if (!editor.setProperties(entity.id, changes, {
+        objectIds: [entity.id],
+        breakpoint: activeBreakpoint.value,
+        interaction: 'media-outline-enable'
       }, property.metadata.commandType)) return
       markDesignPropertyOverride(entity, property)
       markEditorChanged()
@@ -2283,7 +2319,7 @@ async function saveDraft(): Promise<void> {
     editorHasChanges.value = true
     if (error instanceof RevisionConflictError) {
       editorSaveStatus.value = 'Conflict'
-      saveStatus.value = 'This draft is outdated. Reload latest draft.'
+      saveStatus.value = error.message || 'This draft is outdated. Reload latest draft.'
     } else {
       editorSaveStatus.value = 'Error / Unsaved'
       saveStatus.value = error instanceof Error ? error.message : 'Draft save failed.'
@@ -2356,10 +2392,10 @@ async function discardDraft(): Promise<void> {
   try {
     await editorDraftRepository.discardDraft(editor.draftRevisionId ?? undefined)
     const published = await guestPublishedRepository.loadPublishedSnapshot()
+    if (!published) site.resetToSeed()
     const snapshot = published
       ? await guestPublishedRepository.resolvePublishedMedia(published.snapshot)
-      : publishedBaseline.value ?? createEditorSnapshot(toRaw(site.current))
-    publishedBaseline.value = cloneEditorData(snapshot)
+      : loadDefaultRuntimeTemplate().snapshot
     editor.initialize(snapshot, {
       publishedRevisionNumber: published?.revision.revision_number ?? null,
       baseRevisionNumber: published?.revision.revision_number ?? null
@@ -2371,6 +2407,7 @@ async function discardDraft(): Promise<void> {
     editor.registerObjects(editorEntities.value)
     restoreSelectionFromSession()
     userZoom.value = editor.draftSnapshot.session.userZoom ?? null
+    editor.syncSavedBaseline()
     editorHasChanges.value = false
     editorSaveStatus.value = 'Saved'
     saveStatus.value = 'Draft discarded. Published-derived workspace restored.'
@@ -2528,6 +2565,7 @@ function beginPreviewPointer(event: PointerEvent): void {
   previewDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false, elements }
   window.addEventListener('pointermove', movePreviewObjectDrag)
   window.addEventListener('pointerup', endPreviewObjectDrag, { once: true })
+  window.addEventListener('pointercancel', cancelPreviewObjectDrag, { once: true })
 }
 
 function movePreviewObjectDrag(event: PointerEvent): void {
@@ -2547,8 +2585,15 @@ function movePreviewObjectDrag(event: PointerEvent): void {
   }
 }
 
+function cancelPreviewObjectDrag(): void {
+  if (previewDrag) previewDrag.moved = false
+  endPreviewObjectDrag()
+}
+
 function endPreviewObjectDrag(event?: PointerEvent): void {
   window.removeEventListener('pointermove', movePreviewObjectDrag)
+  window.removeEventListener('pointerup', endPreviewObjectDrag)
+  window.removeEventListener('pointercancel', cancelPreviewObjectDrag)
   const drag = previewDrag
   if (!drag) return
   previewDrag = null
@@ -2580,14 +2625,18 @@ function endCanvasPan(): void {
 }
 
 function persistPreviewScroll(event: Event): void {
+  if (!editorReady.value || editor.isSavingDraft) return
   const element = event.currentTarget as HTMLElement
-  editor.setViewport({ previewScrollTop: element.scrollTop, previewScrollLeft: element.scrollLeft })
-  markSessionChanged()
+  const session = editor.draftSnapshot.session
+  if (Math.round(element.scrollTop) === Math.round(session.previewScrollTop) && Math.round(element.scrollLeft) === Math.round(session.previewScrollLeft)) return
+  editor.setViewport({ previewScrollTop: element.scrollTop, previewScrollLeft: element.scrollLeft }, false)
 }
 
 function markSessionChanged(): void {
   if (!editorReady.value) return
-  // if (!editorHasChanges.value && !['Conflict', 'Error / Unsaved'].includes(editorSaveStatus.value)) editorSaveStatus.value = 'Unsaved session'
+  if (!editorHasChanges.value && !editor.hasUnsavedChanges && !['Saving...', 'Conflict', 'Error / Unsaved'].includes(editorSaveStatus.value)) {
+    editorSaveStatus.value = 'Unsaved session'
+  }
 }
 
 function selectPreviewEntity(event: MouseEvent): void {
@@ -3056,7 +3105,7 @@ async function beginInlineTextEdit(event: MouseEvent): Promise<void> {
   const entityId = boundary?.dataset.editorObjectId
   const entity = entityId ? editorEntities.value.find((candidate) => candidate.id === entityId) : undefined
   const contentProperties = entity?.properties.filter((candidate) => candidate.metadata.category === 'content' && ['text', 'textarea'].includes(candidate.metadata.control)) ?? []
-  if (!boundary || !entity || !contentProperties.length || editor.objectState(entity.id).locked) return
+  if (!boundary || !entity || entity.type === 'Image' || !contentProperties.length || editor.objectState(entity.id).locked) return
   const element = editableTextTarget(event.target as HTMLElement, boundary)
   if (!element) return
   const visibleText = element.innerText.trim().replace(/\s+/g, ' ')
@@ -3548,7 +3597,7 @@ function cancelLibrarySwitch(): void {
       <div ref="canvasScroll" class="canvas-scroll" data-lenis-prevent :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan">
         <div class="preview-frame" :style="previewFrameStyle">
           <div ref="previewStage" class="preview-stage" :style="previewStageStyle" :data-canvas-width="activeCanvasWidth" :data-responsive-breakpoint="activeBreakpoint">
-            <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" :data-responsive-breakpoint="activeBreakpoint" @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
+            <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" :data-responsive-breakpoint="activeBreakpoint" @dragstart.prevent @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
               <HomePage editor-preview />
             </div>
           </div>
@@ -3713,6 +3762,7 @@ function cancelLibrarySwitch(): void {
 .editor-preview-runtime :deep(.editor-preview-locked) { cursor: default; }.editor-preview-runtime :deep(.editor-preview-locked.editor-preview-selected) { outline-style: dashed !important; outline-color: rgba(139,100,65,.95) !important; }
 .editor-preview-runtime :deep(.editor-preview-hidden) { opacity: .08 !important; pointer-events: none; }.editor-preview-runtime :deep(.editor-preview-hidden.editor-preview-selected) { opacity: .2 !important; outline-style: dotted !important; }
 .editor-preview-runtime :deep(.editor-inline-text-edit) { min-width: 1ch; cursor: text !important; outline: 2px solid rgba(184,91,105,.92) !important; outline-offset: 3px !important; border-radius: 3px; caret-color: #8d363a; background: transparent !important; }
+.editor-preview-runtime :deep(img), .editor-preview-runtime :deep(a) { -webkit-user-drag: none; user-select: none; }
 .editor-preview-runtime :deep(.editor-preview-dragging) { cursor: move !important; will-change: translate; }
 .editor-preview-runtime :deep(.editor-responsive-stack > *) { grid-area: 1 / 1; }
 .editor-preview-runtime :deep(.editor-constraint-x-right) { margin-left: auto; transform-origin: right center; }.editor-preview-runtime :deep(.editor-constraint-x-center) { margin-inline: auto; transform-origin: center center; }.editor-preview-runtime :deep(.editor-constraint-x-stretch) { width: auto; align-self: stretch; }.editor-preview-runtime :deep(.editor-constraint-x-scale) { max-width: 100%; transform-origin: left center; }

@@ -75,7 +75,14 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
         property({ key: 'color', label: 'Color', group: 'Typography', control: 'color' }, current.visual.portfolio.title as unknown as Record<string, unknown>, 'color')
       ]
     })
-    entities.push({ id: current.content.profile.id, section: 'Portfolio', label: 'Profile', kind: 'content', properties: contentProperties(current.content.profile as unknown as Record<string, unknown>, [['name', 'Name / alt', 'text']]) })
+    entities.push({
+      id: current.content.profile.mediaUsageId,
+      section: 'Portfolio',
+      label: 'Profile',
+      kind: 'media',
+      photoAreaId: current.content.profile.mediaUsageId,
+      properties: contentProperties(current.content.profile as unknown as Record<string, unknown>, [['name', 'Name / alt', 'text']])
+    })
 
     const about = current.content.about as unknown as Record<string, unknown>
     entities.push({

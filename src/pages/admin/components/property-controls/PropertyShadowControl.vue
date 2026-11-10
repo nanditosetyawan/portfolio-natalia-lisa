@@ -20,7 +20,10 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const rawValue = computed(() => typeof props.modelValue === 'string' ? props.modelValue : '')
-const enabled = computed(() => Boolean(rawValue.value.trim()))
+const enabled = computed(() => {
+  const normalized = rawValue.value.trim().toLowerCase()
+  return Boolean(normalized && normalized !== 'none')
+})
 const parts = computed(() => parseShadowValue(rawValue.value, props.allowSpread))
 
 function serialize(next: ShadowValueParts): string {

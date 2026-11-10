@@ -150,14 +150,7 @@ export const useCertificatesStore = defineStore('certificates', {
       return buildCertificateDisplay(state.databaseCertificates, state.showAll)
     },
     editableCards(state): CertificateViewCard[] {
-      const databaseCards = state.databaseCertificates.map((card) => ({ ...cloneCertificateCard(card), origin: 'database' as const }))
-      if (databaseCards.length >= INITIAL_CARD_COUNT) return databaseCards
-      const usedIds = new Set(databaseCards.map((card) => card.id))
-      const fallbacks = defaultCertificates.cards
-        .filter((card) => !usedIds.has(card.id))
-        .slice(0, INITIAL_CARD_COUNT - databaseCards.length)
-        .map((card) => ({ ...cloneCertificateCard(card), origin: 'default' as const }))
-      return [...databaseCards, ...fallbacks]
+      return buildCertificateDisplay(state.databaseCertificates, true)
     }
   },
   actions: {

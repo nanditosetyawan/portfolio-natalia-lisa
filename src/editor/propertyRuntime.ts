@@ -1,6 +1,8 @@
 import { propertyRegistry, readSnapshotPath, resolvePropertyPath } from './propertyRegistry'
 import type { EditorSnapshot } from '../types/editorSnapshot'
 import { resolveSnapshotObjectDomTarget } from './objectDomTarget'
+import { createEditorObject } from './objectRegistry'
+import { findSnapshotObjectReference } from './editorInstances'
 
 interface ElementBaseline {
   styles: Map<string, string>
@@ -91,8 +93,19 @@ export function applyRegisteredObjectProperties(
   if (restore) restoreObjectScope(scope, objectId)
   const element = resolveSnapshotObjectDomTarget(root, snapshot, objectId)
   if (!element) return
+  const reference = findSnapshotObjectReference(snapshot, objectId)
+  const capabilities = reference
+    ? createEditorObject({
+      id: reference.entityId,
+      section: reference.section,
+      label: reference.label,
+      kind: reference.kind,
+      isMedia: reference.kind === 'media'
+    }, 0).capabilities
+    : null
 
   for (const property of propertyRegistry) {
+    if (capabilities && !capabilities.includes(property.capability)) continue
     const mapping = property.databaseMapping
     if (mapping.kind !== 'snapshot' || !mapping.path.includes('{entityId}')) continue
     const path = resolvePropertyPath(property, objectId)

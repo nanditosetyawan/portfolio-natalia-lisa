@@ -47,6 +47,14 @@ function toggleCard(id: string) {
   }
 }
 
+function handleCardHeaderClick(id: string, event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('[data-editor-mode="true"]') && target.closest('.card-thumbnail, [data-photo-area-id]')) {
+    return
+  }
+  toggleCard(id)
+}
+
 function startAutoSlide(id: string) {
   if (!site.current.behavior.certificate.autoplay) return
   const card = cards.value.find(c => c.id === id)
@@ -314,7 +322,7 @@ onBeforeUnmount(() => {
           :style="{ backgroundColor: vConfig.certificateCard.backgroundColor }"
         >
           <!-- Card Header — always visible, clickable to expand/collapse -->
-          <div class="card-header" @click="toggleCard(card.id)">
+          <div class="card-header" @click="handleCardHeaderClick(card.id, $event)">
 <!-- Thumbnail -->
              <div class="card-thumbnail-wrapper">
                <div class="card-thumbnail" :data-photo-area-id="card.thumbnail.id">

@@ -301,6 +301,35 @@ export type Database = {
         }
         Relationships: []
       }
+      editor_favorites: {
+        Row: {
+          created_at: string
+          id: string
+          revision_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          revision_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          revision_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editor_favorites_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "site_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       education_sections: {
         Row: {
           active: boolean
@@ -488,7 +517,7 @@ export type Database = {
           email?: string | null
           expires_at?: string | null
           id?: string
-          ip_hash?: string
+          ip_hash: string
           is_saved?: boolean
           message: string
           name: string
@@ -701,12 +730,223 @@ export type Database = {
         }
         Relationships: []
       }
+      site_revisions: {
+        Row: {
+          base_revision_number: number | null
+          created_at: string
+          created_by: string
+          id: string
+          lock_version: number
+          publication_kind: string | null
+          publish_note: string | null
+          published_at: string | null
+          published_by: string | null
+          revision_number: number
+          rollback_source_revision_id: string | null
+          snapshot: Json
+          source_draft_revision_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_revision_number?: number | null
+          created_at?: string
+          created_by: string
+          id?: string
+          lock_version?: number
+          publication_kind?: string | null
+          publish_note?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          revision_number: number
+          rollback_source_revision_id?: string | null
+          snapshot: Json
+          source_draft_revision_id?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          base_revision_number?: number | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          lock_version?: number
+          publication_kind?: string | null
+          publish_note?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          revision_number?: number
+          rollback_source_revision_id?: string | null
+          snapshot?: Json
+          source_draft_revision_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_revisions_rollback_source_revision_id_fkey"
+            columns: ["rollback_source_revision_id"]
+            isOneToOne: false
+            referencedRelation: "site_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_revisions_source_draft_revision_id_fkey"
+            columns: ["source_draft_revision_id"]
+            isOneToOne: false
+            referencedRelation: "site_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_editor_favorite: {
+        Args: { p_revision_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          revision_id: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "editor_favorites"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      bootstrap_first_admin: { Args: never; Returns: boolean }
+      discard_editor_draft: { Args: { p_draft_id: string }; Returns: undefined }
+      get_active_published_snapshot: {
+        Args: never
+        Returns: {
+          base_revision_number: number | null
+          created_at: string
+          created_by: string
+          id: string
+          lock_version: number
+          publication_kind: string | null
+          publish_note: string | null
+          published_at: string | null
+          published_by: string | null
+          revision_number: number
+          rollback_source_revision_id: string | null
+          snapshot: Json
+          source_draft_revision_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "site_revisions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      publish_editor_draft: {
+        Args: {
+          p_draft_id: string
+          p_expected_draft_lock_version: number
+          p_expected_published_revision: number
+          p_note?: string
+          p_prepared_snapshot: Json
+        }
+        Returns: {
+          base_revision_number: number | null
+          created_at: string
+          created_by: string
+          id: string
+          lock_version: number
+          publication_kind: string | null
+          publish_note: string | null
+          published_at: string | null
+          published_by: string | null
+          revision_number: number
+          rollback_source_revision_id: string | null
+          snapshot: Json
+          source_draft_revision_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "site_revisions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      remove_editor_favorite: {
+        Args: { p_revision_id: string }
+        Returns: undefined
+      }
+      reset_site_to_default: { Args: never; Returns: undefined }
+      rollback_published_revision: {
+        Args: {
+          p_expected_published_revision: number
+          p_note?: string
+          p_target_revision_id: string
+        }
+        Returns: {
+          base_revision_number: number | null
+          created_at: string
+          created_by: string
+          id: string
+          lock_version: number
+          publication_kind: string | null
+          publish_note: string | null
+          published_at: string | null
+          published_by: string | null
+          revision_number: number
+          rollback_source_revision_id: string | null
+          snapshot: Json
+          source_draft_revision_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "site_revisions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      save_editor_draft: {
+        Args: {
+          p_create_new?: boolean
+          p_draft_id: string
+          p_expected_base_revision: number
+          p_expected_lock_version?: number
+          p_snapshot: Json
+        }
+        Returns: {
+          base_revision_number: number | null
+          created_at: string
+          created_by: string
+          id: string
+          lock_version: number
+          publication_kind: string | null
+          publish_note: string | null
+          published_at: string | null
+          published_by: string | null
+          revision_number: number
+          rollback_source_revision_id: string | null
+          snapshot: Json
+          source_draft_revision_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "site_revisions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      test_reset: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -725,12 +965,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -754,11 +994,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -779,11 +1019,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -804,11 +1044,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -821,11 +1061,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

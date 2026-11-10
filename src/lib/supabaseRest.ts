@@ -41,6 +41,7 @@ export async function supabaseRestRequest<T>(
   try {
     response = await fetch(`${configuredUrl}/rest/v1/${table}${options.query ?? ''}`, {
       method: options.method ?? 'GET',
+      cache: 'no-store',
       headers: {
         apikey: publishableKey,
         Authorization: `Bearer ${authorizationToken()}`,

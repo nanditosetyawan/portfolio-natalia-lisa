@@ -153,7 +153,7 @@ try {
     for(const node of exact('portfolio-hero'))add(node,node===target?'selected-text':'duplicate-target');
     for(const node of section.querySelectorAll('[data-editor-object-id],[data-editor-entity-id],img,svg')){
       const id=node.getAttribute('data-editor-object-id')||node.getAttribute('data-editor-entity-id')||'';
-      const role=id==='profile-lisa-natalia'?'lisa-text':id==='portfolio-profile-media'?'profile-image':id?'sibling-object':node.matches('img')?'image-descendant':'decorative';
+      const role=id==='portfolio-profile-media'?'profile-image':id?'sibling-object':node.matches('img')?'image-descendant':'decorative';
       add(node,role);
     }
     const pathOf=node=>{const parts=[];let current=node;while(current&&current!==section){const parent=current.parentElement;if(!parent)break;parts.unshift([...parent.children].indexOf(current));current=parent}return parts.join('.')||'root'};
@@ -477,16 +477,136 @@ try {
     const open=async category=>{const toggle=document.querySelector('[data-property-category="'+category+'"] .accordion-toggle');if(toggle?.getAttribute('aria-expanded')!=='true'){toggle.click();await settle()}};
     await select('portfolio-profile-media');await open('media');let outline=document.querySelector('[data-property-key="media.outlineEnabled"] input[type="checkbox"]');if(outline.checked){outline.click();await settle()}
     const thicknessOff=!document.querySelector('[data-property-key="media.outlineWidth"]');outline.click();await settle();const thickness=document.querySelector('[data-property-key="media.outlineWidth"] input');const thicknessOn=Boolean(thickness&&!thickness.disabled);thickness.value='5';thickness.dispatchEvent(new Event('input',{bubbles:true}));await settle();const image=document.querySelector('[data-editor-object-id="portfolio-profile-media"]');const imageStyle=getComputedStyle(image);const imageFilter=imageStyle.filter;const designBorderWidth=imageStyle.borderWidth;const alphaRadius=[...document.querySelectorAll('svg[data-snapshot-image-filter]')].find(svg=>svg.dataset.snapshotImageFilter==='portfolio-profile-media')?.querySelector('feMorphology')?.getAttribute('radius');const outlineCommand=editor.commandHistory.at(-1);editor.undo();await settle();editor.undo();await settle();
-    await select('about-frame-main');await open('layout');const mode=document.querySelector('[data-property-key="responsive.container.mode"]');const horizontal=[...mode.querySelectorAll('button')].find(button=>button.textContent.trim()==='Horizontal');const frame=document.querySelector('[data-editor-object-id="about-frame-main"]');const descendant=frame.querySelector('*');const descendantBefore=descendant?.getAttribute('style')||'';horizontal.click();await settle();const alignmentField=document.querySelector('[data-property-key="responsive.container.align"]');const alignment=alignmentField?.querySelector('select');const alignmentAvailable=Boolean(alignment&&!alignment.disabled);alignment.value='center';alignment.dispatchEvent(new Event('change',{bubbles:true}));await settle();const frameStyle=getComputedStyle(frame);const alignmentCommand=editor.commandHistory.at(-1);const descendantStable=(descendant?.getAttribute('style')||'')===descendantBefore;editor.undo();await settle();editor.undo();await settle();
-    return {thicknessOff,thicknessOn,imageFilter,designBorderWidth,alphaRadius,outlineCommand:{entityId:outlineCommand?.entityId,path:outlineCommand?.propertyPath},alignmentAvailable,display:frameStyle.display,alignItems:frameStyle.alignItems,alignmentCommand:{entityId:alignmentCommand?.entityId,path:alignmentCommand?.propertyPath},descendantStable,selection:editor.selectedObjectId};
+    await select('about-frame-main');await open('layout');const mode=document.querySelector('[data-property-key="responsive.container.mode"]');const horizontal=[...mode.querySelectorAll('button')].find(button=>button.textContent.trim()==='Horizontal');const frame=document.querySelector('[data-editor-object-id="about-frame-main"]');const descendant=frame.querySelector('*');const descendantBefore=descendant?.getAttribute('style')||'';horizontal.click();await settle();const alignmentField=document.querySelector('[data-property-key="responsive.container.align"]');const alignment=alignmentField?.querySelector('select');const alignmentAvailable=Boolean(alignment&&!alignment.disabled);alignment.value='center';alignment.dispatchEvent(new Event('change',{bubbles:true}));await settle();const frameStyle=getComputedStyle(frame);const frameDisplay=frameStyle.display;const frameAlignItems=frameStyle.alignItems;const alignmentCommand=editor.commandHistory.at(-1);const descendantStable=(descendant?.getAttribute('style')||'')===descendantBefore;editor.undo();await settle();editor.undo();await settle();const restoredAlignItems=getComputedStyle(frame).alignItems;
+    return {thicknessOff,thicknessOn,imageFilter,designBorderWidth,alphaRadius,outlineCommand:{entityId:outlineCommand?.entityId,path:outlineCommand?.propertyPath},alignmentAvailable,display:frameDisplay,alignItems:frameAlignItems,restoredAlignItems,alignmentCommand:{entityId:alignmentCommand?.entityId,path:alignmentCommand?.propertyPath},descendantStable,selection:editor.selectedObjectId};
   })()`)
 
   if (dependencyAlignmentEvidence) {
     process.stdout.write(`${JSON.stringify({ status: 'DEPENDENCY_ALIGNMENT', ...dependencyAlignmentEvidence })}\n`)
     assert(dependencyAlignmentEvidence.thicknessOff && dependencyAlignmentEvidence.thicknessOn && /url\(/.test(dependencyAlignmentEvidence.imageFilter) && dependencyAlignmentEvidence.designBorderWidth === '0px' && dependencyAlignmentEvidence.alphaRadius === '5', `Outline dependency is not functional: ${JSON.stringify(dependencyAlignmentEvidence)}`)
     assert(dependencyAlignmentEvidence.outlineCommand.entityId === 'portfolio-profile-media' && dependencyAlignmentEvidence.outlineCommand.path === 'media.styles.portfolio-profile-media.outlineWidth', 'Outline thickness escaped selected Image')
-    assert(dependencyAlignmentEvidence.alignmentAvailable && dependencyAlignmentEvidence.display === 'flex' && dependencyAlignmentEvidence.alignItems === 'center', `Container alignment is enabled but has no effect: ${JSON.stringify(dependencyAlignmentEvidence)}`)
+    assert(dependencyAlignmentEvidence.alignmentAvailable && dependencyAlignmentEvidence.display === 'flex' && dependencyAlignmentEvidence.alignItems === 'center' && dependencyAlignmentEvidence.restoredAlignItems === 'normal', `Container alignment is enabled or restored unexpectedly: ${JSON.stringify(dependencyAlignmentEvidence)}`)
     assert(dependencyAlignmentEvidence.alignmentCommand.entityId === 'about-frame-main' && dependencyAlignmentEvidence.selection === 'about-frame-main' && dependencyAlignmentEvidence.descendantStable, 'Container alignment mutated a child directly or changed selection')
+  }
+
+  const profileUnificationSetup = process.env.PHASE037A_DIAGNOSTIC === '1' ? null : await evaluate(`(async()=>{
+    const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const settle=async()=>{await tick();await new Promise(resolve=>setTimeout(resolve,80));await tick()};
+    const resolver=await import('/src/editor/objectDomTarget.ts');
+    const model=await import('/src/editor/editorSnapshot.ts');
+    const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
+    const previewStage=document.querySelector('.editor-preview-runtime');
+    const missingDomTargets=editor.objects.filter(object=>object.id!=='certificate-behavior'&&!/^cert-.*-detail-[0-9]+$/.test(object.id)&&!resolver.resolveObjectDomTarget(previewStage,object.id,object.type)).map(object=>object.id);
+    const hasLegacyInObjects=editor.objects.some(object=>object.id==='profile-lisa-natalia');
+    const hasLegacyInEntities=editor.draftSnapshot.entities.some(entity=>entity.entityId==='profile-lisa-natalia');
+    const profileObject=editor.objects.find(object=>object.id==='portfolio-profile-media');
+    const wrapper=document.querySelector('.profile-image-wrapper');
+    const profileTargets=[...document.querySelectorAll('[data-editor-object-id="portfolio-profile-media"]')];
+    const section=document.querySelector('#section-select');section.value='Portfolio';section.dispatchEvent(new Event('change',{bubbles:true}));await settle();
+    const entitySelect=document.querySelector('#entity-select');entitySelect.value='portfolio-profile-media';entitySelect.dispatchEvent(new Event('change',{bubbles:true}));await settle();
+    document.querySelector('.canvas-scroll').scrollTop=0;await settle();
+    const contentToggle=document.querySelector('[data-property-category="content"] .accordion-toggle');
+    if(contentToggle&&contentToggle.getAttribute('aria-expanded')!=='true'){contentToggle.click();await settle()}
+    const altInput=document.querySelector('[data-property-key="runtime.portfolio-profile-media.name"] input');
+    const initialAlt=altInput?.value??'';
+    if(altInput){altInput.value='Natalia Profile Alt';altInput.dispatchEvent(new Event('input',{bubbles:true}));await settle()}
+    const afterAltEdit={domAlt:profileTargets[0]?.getAttribute('alt'),siteProfileName:model.editorSnapshotToSiteSnapshot(editor.draftSnapshot).content.profile.name};
+    editor.undo();await settle();
+    const afterAltUndo=profileTargets[0]?.getAttribute('alt');
+    editor.redo();await settle();
+    const afterAltRedo=profileTargets[0]?.getAttribute('alt');
+    editor.undo();await settle();
+    profileTargets[0]?.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));await settle();
+    const inlineEditOpen=Boolean(document.querySelector('.editor-inline-text-edit,[contenteditable="true"]'));
+    profileTargets[0]?.scrollIntoView({block:'center',inline:'center'});await settle();
+    const rect=profileTargets[0].getBoundingClientRect();
+    const canvasRect=document.querySelector('.canvas-scroll').getBoundingClientRect();
+    let dragCenter={x:Math.round(rect.left+rect.width/2),y:Math.round(rect.top+rect.height*0.65)};
+    for(const yf of [0.65,0.5,0.75,0.35,0.82]){
+      for(const xf of [0.5,0.35,0.65]){
+        const cx=Math.round(rect.left+rect.width*xf);
+        const cy=Math.round(rect.top+rect.height*yf);
+        if(cx>canvasRect.left&&cx<canvasRect.right&&cy>canvasRect.top&&cy<canvasRect.bottom&&document.elementFromPoint(cx,cy)===profileTargets[0]){
+          dragCenter={x:cx,y:cy};
+          break;
+        }
+      }
+      if(document.elementFromPoint(dragCenter.x,dragCenter.y)===profileTargets[0])break;
+    }
+    const legacySnapshot=JSON.parse(JSON.stringify(editor.draftSnapshot));
+    legacySnapshot.entities=legacySnapshot.entities.filter(item=>item.entityId!=='portfolio-profile-media');
+    legacySnapshot.entities.splice(1,0,{entityId:'profile-lisa-natalia',section:'Portfolio',kind:'content',label:'Profile'});
+    legacySnapshot.layout['profile-lisa-natalia']={x:27,y:-14};
+    legacySnapshot.session.selectedEntityId='profile-lisa-natalia';
+    legacySnapshot.session.objectStates['profile-lisa-natalia']={locked:false,hidden:true};
+    const migrated=model.deserializeEditorSnapshot(JSON.stringify(legacySnapshot));
+    return {
+      missingDomTargets,hasLegacyInObjects,hasLegacyInEntities,
+      profileObject:profileObject?{id:profileObject.id,type:profileObject.type,kind:profileObject.kind,label:profileObject.label}:null,
+      hasFontGroup:Boolean(document.querySelector('[data-property-category="font"]')),
+      hasAltControl:Boolean(altInput),initialAlt,afterAltEdit,afterAltUndo,afterAltRedo,inlineEditOpen,
+      wrapperClean:!wrapper?.hasAttribute('data-entity-id')&&!wrapper?.hasAttribute('data-editor-object-id'),
+      profileTargetCount:profileTargets.length,profileTargetTag:profileTargets[0]?.tagName,
+      dragCenter,dragHitTarget:document.elementFromPoint(dragCenter.x,dragCenter.y)===profileTargets[0],
+      rectBefore:{x:+rect.x.toFixed(2),y:+rect.y.toFixed(2)},
+      wrapperInlineBefore:wrapper?.getAttribute('style')||'',
+      migrated:{
+        hasLegacyEntity:migrated.entities.some(item=>item.entityId==='profile-lisa-natalia'),
+        hasMediaEntity:migrated.entities.some(item=>item.entityId==='portfolio-profile-media'),
+        hasLegacyLayout:Boolean(migrated.layout['profile-lisa-natalia']),
+        mediaLayoutX:migrated.layout['portfolio-profile-media']?.x,
+        selectedEntityId:migrated.session.selectedEntityId,
+        migratedHidden:migrated.session.objectStates['portfolio-profile-media']?.hidden===true
+      }
+    };
+  })()`)
+
+  if (profileUnificationSetup) {
+    assert(profileUnificationSetup.missingDomTargets.length === 0, `Objects still missing DOM targets: ${JSON.stringify(profileUnificationSetup.missingDomTargets)}`)
+    assert(!profileUnificationSetup.hasLegacyInObjects && !profileUnificationSetup.hasLegacyInEntities, `Orphan profile-lisa-natalia leaked into registry/entities: ${JSON.stringify(profileUnificationSetup)}`)
+    assert(profileUnificationSetup.profileObject?.label === 'Profile' && profileUnificationSetup.profileObject?.type === 'Image', `Unified profile object metadata mismatch: ${JSON.stringify(profileUnificationSetup.profileObject)}`)
+    assert(profileUnificationSetup.profileTargetCount === 1 && profileUnificationSetup.profileTargetTag === 'IMG' && profileUnificationSetup.wrapperClean, `Profile selection box is duplicated or attached to wrapper: ${JSON.stringify(profileUnificationSetup)}`)
+    assert(!profileUnificationSetup.hasFontGroup && profileUnificationSetup.hasAltControl && profileUnificationSetup.afterAltEdit.domAlt === 'Natalia Profile Alt' && profileUnificationSetup.afterAltEdit.siteProfileName === 'Natalia Profile Alt' && profileUnificationSetup.afterAltUndo === profileUnificationSetup.initialAlt && profileUnificationSetup.afterAltRedo === 'Natalia Profile Alt', `Profile Name / alt binding or Undo/Redo failed: ${JSON.stringify(profileUnificationSetup)}`)
+    assert(!profileUnificationSetup.inlineEditOpen && profileUnificationSetup.dragHitTarget, `Inline text edit opened or drag target occluded: ${JSON.stringify({ inlineEditOpen: profileUnificationSetup.inlineEditOpen, dragHitTarget: profileUnificationSetup.dragHitTarget, dragCenter: profileUnificationSetup.dragCenter })}`)
+    assert(!profileUnificationSetup.migrated.hasLegacyEntity && profileUnificationSetup.migrated.hasMediaEntity && !profileUnificationSetup.migrated.hasLegacyLayout && profileUnificationSetup.migrated.mediaLayoutX === 27 && profileUnificationSetup.migrated.selectedEntityId === 'portfolio-profile-media' && profileUnificationSetup.migrated.migratedHidden, `Legacy profile migration failed: ${JSON.stringify(profileUnificationSetup.migrated)}`)
+
+    const dragStart = profileUnificationSetup.dragCenter
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: dragStart.x, y: dragStart.y, button: 'left', buttons: 1, clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragStart.x + 28, y: dragStart.y + 18, button: 'left', buttons: 1 })
+    await wait(80)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragStart.x + 52, y: dragStart.y + 30, button: 'left', buttons: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: dragStart.x + 52, y: dragStart.y + 30, button: 'left', buttons: 0, clickCount: 1 })
+    await wait(160)
+
+    const profileDragEvidence = await evaluate(`(async()=>{
+      const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const settle=async()=>{await tick();await new Promise(resolve=>setTimeout(resolve,80));await tick()};
+      const editor=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('editor');
+      const runtime=await import('/src/runtime/publishedSnapshotDom.ts');
+      const image=document.querySelector('img[data-editor-object-id="portfolio-profile-media"]');
+      const wrapper=document.querySelector('.profile-image-wrapper');
+      const rectAfter=image.getBoundingClientRect();
+      const draggedX=editor.draftSnapshot.layout['portfolio-profile-media']?.x;
+      const draggedY=editor.draftSnapshot.layout['portfolio-profile-media']?.y;
+      const altInput=document.querySelector('[data-property-key="runtime.portfolio-profile-media.name"] input');
+      altInput.value='Coexisting Alt';altInput.dispatchEvent(new Event('input',{bubbles:true}));await settle();
+      const coexistingX=editor.draftSnapshot.layout['portfolio-profile-media']?.x;
+      const host=document.createElement('div');host.className='guest-home';host.style.cssText='position:fixed;left:-2500px;top:0;width:1440px';
+      host.innerHTML='<div class="profile-image-wrapper"><img data-media-usage-id="portfolio-profile-media" alt="Coexisting Alt"></div>';
+      document.body.append(host);runtime.applyPublishedSnapshotDom(host,JSON.parse(JSON.stringify(editor.draftSnapshot)));
+      const guestTranslate=host.querySelector('img')?.style.translate||'';host.remove();
+      editor.undo();await settle();editor.undo();await settle();
+      return {
+        selected:editor.selectedObjectId,
+        rectAfter:{x:+rectAfter.x.toFixed(2),y:+rectAfter.y.toFixed(2)},
+        draggedX,draggedY,coexistingX,guestTranslate,
+        wrapperInlineUnchanged:(wrapper?.getAttribute('style')||'')===${JSON.stringify(profileUnificationSetup.wrapperInlineBefore)}
+      };
+    })()`)
+    process.stdout.write(`${JSON.stringify({ status: 'PROFILE_UNIFICATION', migrated: profileUnificationSetup.migrated, drag: profileDragEvidence })}\n`)
+    assert(profileDragEvidence.selected === 'portfolio-profile-media' && profileDragEvidence.rectAfter.x > profileUnificationSetup.rectBefore.x && profileDragEvidence.rectAfter.y > profileUnificationSetup.rectBefore.y, `Profile pointer drag did not visually move image: ${JSON.stringify(profileDragEvidence)}`)
+    assert(Boolean(profileDragEvidence.draggedX) && Boolean(profileDragEvidence.draggedY) && profileDragEvidence.coexistingX === profileDragEvidence.draggedX && profileDragEvidence.wrapperInlineUnchanged, `Profile drag did not persist on portfolio-profile-media or modified wrapper: ${JSON.stringify(profileDragEvidence)}`)
+    assert(profileDragEvidence.guestTranslate.includes(String(profileDragEvidence.draggedX)), `Guest renderer did not apply dragged profile translation: ${JSON.stringify(profileDragEvidence)}`)
   }
 
   if (process.env.PHASE037A_DIAGNOSTIC !== '1') {

@@ -5286,3 +5286,1271 @@ px vue-tsc --noEmit PASS (0 errors).
 - **Visual Verification**: Tidak berlaku.
 - **Current Status**: COMPLETED.
 - **Next Required Step**: Konfirmasi ke user apakah perlu juga menginstal paket npm @playwright/cli (global) dan/atau @playwright/test di package.json, atau lanjut ke perbaikan problem proyek berikutnya.
+
+
+## Request: Technical Deep-Dive on Problem #1 (b31caf9 Cache Path & Structural 409 Draft Conflict)
+- **Date**: 2026-11-10T01:16:00+07:00
+- **Mode**: Read-Only Analysis & Technical Planning (Non-Destructive)
+- **Scope**: Menganalisis detail penyebab commit b31caf9 tidak menyentuh jalur RPC/REST yang dipakai draft/published revision, mekanisme konflik 409 (40001 / PT409), daftar fitur yang benar-benar terdampak, serta rancangan perbaikan teknisnya tanpa memodifikasi kode aplikasi.
+- **Sources Consulted**:
+  - AGENTS.md (Bagian 25, 26, 51) & PROJECT-IMPLEMENTATION-LOG.md (tail)
+  - git show b31caf9
+  - src/lib/supabaseClient.ts, src/lib/supabaseRest.ts, src/repositories/editorRevisionRepository.ts, src/stores/editor.ts
+  - src/pages/admin/AdminEdit.vue, src/pages/admin/components/AdminLayout.vue, src/pages/admin/AdminCertificates.vue, src/pages/admin/AdminDrafts.vue, src/pages/admin/AdminFavorites.vue, src/pages/admin/components/DraftLibraryCard.vue, src/pages/admin/AdminPublishedHistory.vue, src/pages/admin/AdminMaintenance.vue
+  - src/composables/useEditorSession.ts, src/composables/useEditorPublish.ts, src/runtime/publishedRuntime.ts, public/sw.js
+  - supabase/migrations/0015_draft_library_favorites.sql, 0016_draft_lock_version.sql, 0019_atomic_publish_pipeline.sql, 0022_revision_conflict_http_409.sql, 0024_editor_snapshot_v2_publish.sql, 0026_reset_site_to_default.sql
+  - tests/editor-repository-runtime.mjs, tests/publish-pipeline-runtime.mjs
+- **Work Performed (Completed)**:
+  1. Menelusuri seluruh caller supabaseClient, supabaseRest (supabaseTableRows & supabaseRpc), saveDraft, loadDraft, publishDraft, rollbackRevision, dan reset_site_to_default di src/ dan tests/.
+  2. Mengidentifikasi 4 akar masalah pada jalur cache & konflik 409 (supabaseRestRequest tanpa cache: 'no-store', base_revision_number mismatch pada AdminEdit.vue & post-publish DB row di 0024, hilangnya expectedDraftLockVersion & base stale di AdminCertificates.syncToDraft, serta desync lintas-tab antara Publish/Rollback/Reset System dan AdminEdit).
+  3. Memetakan fitur-fitur yang terdampak beserta rancangan technical fix yang kompatibel dengan kontrak test concurrency di tests/editor-repository-runtime.mjs dan tests/publish-pipeline-runtime.mjs.
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, workflow, AGENTS.md, package.json, dan design/** tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung file terkait & verifikasi caller di seluruh src/ serta tests/.
+- **Visual Verification**: Tidak dilakukan (analisis arsitektur/kode read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu persetujuan dan perintah user apakah ingin mengeksekusi technical fix Problem #1 atau membahas problem berikutnya.
+
+
+## Request: Re-Audit Problem #1 (b31caf9 Cache Path, Draft/Publish/Rollback Model, & Structural 409)
+- **Date**: 2026-11-10T01:25:00+07:00
+- **Mode**: Read-Only Re-Audit (Non-Destructive)
+- **Scope**: Melakukan pengecekan ulang menyeluruh atas Problem #1 dengan meluruskan model bisnis Publish (1 live site dipilih dari Draft) dan Rollback (1 aksi mengembalikan Live site ke versi Published sebelumnya, bukan per-draft), memeriksa keterkaitan commit 16e6750, 44ae90d (patch_publish.cjs), dan b31caf9, serta memetakan kontradiksi aturan SQL save_editor_draft/publish_editor_draft terhadap model tersebut.
+- **Sources Consulted**:
+  - AGENTS.md, ARCHITECTURE.md, KNOWN-LIMITATIONS.md, PROJECT-IMPLEMENTATION-LOG.md (tail & lines 4060-4200, 5050-5230)
+  - git log / git show 16e6750, 44ae90d, b31caf9
+  - src/lib/supabaseClient.ts, src/lib/supabaseRest.ts, src/repositories/editorRevisionRepository.ts, src/runtime/publishedRuntime.ts, public/sw.js
+  - src/pages/admin/AdminEdit.vue, src/pages/admin/AdminCertificates.vue, src/pages/admin/AdminPublishedHistory.vue, src/pages/admin/AdminMaintenance.vue, src/pages/admin/components/AdminLayout.vue
+  - supabase/migrations/0014, 0015, 0016, 0019, 0022, 0024, 0026, 0027
+  - tests/editor-repository-runtime.mjs, tests/publish-pipeline-runtime.mjs
+- **Work Performed (Completed)**:
+  1. Memverifikasi ulang mengapa commit b31caf9 (header Cache-Control di supabaseClient.ts) tidak menyentuh satu pun request Draft/Published/Publish/Rollback di editorRevisionRepository.ts (yang memakai fetch via supabaseRest.ts, serta get_active_published_snapshot menggunakan POST, bukan GET).
+  2. Mengkonfirmasi model aplikasi: hanya ada 1 active Published revision untuk Guest (dipilih dari 1 Draft saat Publish), dan Rollback di Publish History mengembalikan active Published tersebut ke snapshot Published sebelumnya (bukan per-draft).
+  3. Mengidentifikasi kontradiksi desain antara model di atas dengan SQL save_editor_draft (0016#L39-L41 yang menolak Save Draft dengan 409 jika current_published berbeda dari p_expected_base_revision), 0024#L66-L68 (publish_editor_draft tidak memperbarui base_revision_number milik row draft sumber setelah Publish), AdminCertificates.syncToDraft (mengirim expectedDraftLockVersion = null -> selalu 409), AdminMaintenance.vue (lupa invalidatePublishedRuntimeCache saat reset), serta temuan commit 44ae90d (patch_publish.cjs yang mengarah pada penghapusan baris published lama di Cloud).
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log).
+- **Files Protected**: Seluruh kode aplikasi, migrasi SQL, workflow, tests, AGENTS.md, dan design/** tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung & penelusuran riwayat git/migrasi/caller.
+- **Visual Verification**: Tidak dilakukan (inspeksi read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user atas opsi arah perbaikan (apakah Save Draft dibebaskan dari ketergantungan base_revision_number dan hanya dikunci oleh lock_version, atau tetap mewajibkan base_revision_number dengan Rebase otomatis/eksplisit), serta apakah perlu memeriksa status fungsi SQL aktual di Cloud (termasuk dampak patch_publish.cjs).
+
+
+## Request: Decision Analysis — Save Draft Conflict Strategy (Option A vs Option B)
+- **Date**: 2026-11-10T01:33:00+07:00
+- **Mode**: Read-Only Advisory (Architecture & UX Decision)
+- **Scope**: Membandingkan dan merekomendasikan pilihan antara Opsi A (membebaskan Save Draft dari blokir base_revision_number dan mengandalkan lock_version, sambil menjaga guard expectedPublishedRevision di Publish) vs Opsi B (menjaga aturan ketat + tombol Rebase di UI).
+- **Sources Consulted**:
+  - PROJECT-IMPLEMENTATION-LOG.md (latest 200 lines)
+  - .agents/skills/ponytail/SKILL.md, list bug.md, patch_publish.cjs
+  - supabase/migrations/0016_draft_lock_version.sql, 0019_atomic_publish_pipeline.sql, 0024_editor_snapshot_v2_publish.sql
+  - src/repositories/editorRevisionRepository.ts, src/pages/admin/AdminEdit.vue, src/pages/admin/AdminCertificates.vue
+  - tests/editor-repository-runtime.mjs, tests/publish-pipeline-runtime.mjs
+- **Work Performed (Completed)**:
+  1. Membandingkan dampak arsitektur, UX, kompleksitas implementasi, kebutuhan migrasi SQL Cloud, dan kontrak test dari Opsi A vs Opsi B.
+  2. Menyimpulkan bahwa kedua opsi sama-sama membutuhkan migrasi/update SQL di Supabase Cloud, dan merekomendasikan Opsi A karena sesuai model Draft independen -> 1 Live Site, menghilangkan sumber konflik 409 struktural di akarnya tanpa menambah UI/state Rebase, serta tetap menjaga concurrency via lock_version (per-Draft) dan p_expected_published_revision (batas Publish/Rollback).
+  3. Memetakan implikasi Opsi A yang harus dikerjakan bersama bila disetujui: penyesuaian cek base_revision_number pada save_editor_draft (0016) dan publish_editor_draft (0024), pengiriman expectedDraftLockVersion di AdminCertificates.syncToDraft, serta pembaruan satu asersi stale published base di InMemoryEditorRevisionRepository.saveDraft dan tests/editor-repository-runtime.mjs.
+- **Decisions Made**: Merekomendasikan Opsi A (keputusan eksekusi menunggu persetujuan user).
+- **Unresolved Decisions**: Persetujuan user memilih Opsi A atau Opsi B, serta verifikasi fungsi pg_proc aktual di Supabase Cloud.
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, workflow, tests, AGENTS.md, dan design/** tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung file terkait; pengecekan integritas diff.
+- **Visual Verification**: Tidak dilakukan (inspeksi & rekomendasi arsitektur read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user atas Opsi A vs Opsi B sebelum melakukan perubahan kode atau SQL.
+
+
+## Request: Implement Problem #1 Technical Fix (Option A — REST/RPC Cache & Draft/Publish Decoupling)
+- **Date**: 2026-11-10T01:50:00+07:00
+- **Mode**: Execution
+- **Scope**: Menerapkan perbaikan Problem #1 dengan Opsi A: memperbaiki jalur cache REST/RPC pada supabaseRest.ts, membebaskan Save Draft & source draft Publish dari blokir base_revision_number sambil mempertahankan guard lock_version (per-Draft) dan p_expected_published_revision (Publish/Rollback), melengkapi expectedDraftLockVersion pada AdminCertificates.vue, serta menambahkan invalidatePublishedRuntimeCache pada reset sistem AdminMaintenance.vue.
+- **Specifications & Sources Consulted**:
+  - PROJECT-IMPLEMENTATION-LOG.md (latest 200 lines)
+  - AGENTS.md, .agents/rules/ponytail.md, .agents/skills/ponytail/SKILL.md, .agents/skills/supabase/SKILL.md, .agents/skills/supabase-postgres-best-practices/SKILL.md
+  - src/lib/supabaseRest.ts, src/repositories/editorRevisionRepository.ts, src/pages/admin/AdminEdit.vue, src/pages/admin/AdminCertificates.vue, src/pages/admin/AdminMaintenance.vue
+  - supabase/migrations/0016_draft_lock_version.sql, 0019_atomic_publish_pipeline.sql, 0022_revision_conflict_http_409.sql, 0024_editor_snapshot_v2_publish.sql, 0026_reset_site_to_default.sql
+  - tests/editor-repository-runtime.mjs, tests/supabase-persistence-runtime.mjs
+- **Work Performed (Completed)**:
+  1. Menambahkan `cache: 'no-store'` pada `fetch()` di `supabaseRestRequest()` (`src/lib/supabaseRest.ts`) agar seluruh request REST `GET` dan RPC `POST` tidak memakai HTTP cache browser.
+  2. Membuat migrasi `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` untuk memperbarui `public.save_editor_draft` dan `public.publish_editor_draft` (Opsi A): menghapus blokir `base_revision_number <> current_published` dengan tetap menegakkan `p_expected_lock_version` (`PT409`) pada Save Draft & Publish serta `p_expected_published_revision` (`PT409`) pada Publish.
+  3. Memperbarui `InMemoryEditorRevisionRepository.saveDraft` dan `publishDraft` serta default pesan `RevisionConflictError` pada `src/repositories/editorRevisionRepository.ts` agar konsisten dengan perilaku Opsi A.
+  4. Memperbarui `AdminCertificates.vue` (`syncToDraft`) untuk mengirim `expectedDraftLockVersion: draft.revision.lock_version`.
+  5. Memperbarui `AdminEdit.vue` (`publishedRevisionNumber: published?.revision.revision_number ?? null` agar tidak fallback ke base draft saat belum ada revisi published aktif, serta menampilkan `error.message` pada `RevisionConflictError`) dan `AdminMaintenance.vue` (`invalidatePublishedRuntimeCache(0)` pasca `reset_site_to_default`).
+  6. Memperbarui `tests/editor-repository-runtime.mjs` agar menguji penyimpanan & publish Draft berbasis revisi lama dengan tetap memverifikasi penolakan konflik `lock_version` dan stale `expectedPublishedRevision`.
+- **Work Pending Cloud Execution**:
+  - `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` belum dieksekusi ke database Supabase Cloud karena `supabase` CLI, `psql`, dan MCP admin SQL tidak tersedia di environment lokal.
+- **Files Created**: `supabase/migrations/0028_decouple_draft_save_from_published_base.sql`
+- **Files Modified**: `src/lib/supabaseRest.ts`, `src/repositories/editorRevisionRepository.ts`, `src/pages/admin/AdminCertificates.vue`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminMaintenance.vue`, `tests/editor-repository-runtime.mjs`, `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Protected**: `AGENTS.md`, `design/**`, serta bagian kode di luar cakupan Problem #1 tidak dimodifikasi.
+- **Validation Performed**:
+  - CORS preflight check (`OPTIONS`) ke Cloud `/rest/v1/` dan `/storage/v1/` (`200 OK`).
+  - `npx vue-tsc --noEmit` & `npm run build` (`vite build` exit code 0).
+  - `node tests/supabase-persistence-runtime.mjs` via Google Chrome headless CDP (`PASS`, live RPC `get_active_published_snapshot` OK).
+  - `node tests/editor-repository-runtime.mjs` via Google Chrome headless CDP (`PASS` — memverifikasi Opsi A + `REVISION_CONFLICT` lock_version + `PUBLISH_CONFLICT`).
+  - Chrome CDP self-check `supabaseTableRows` + `supabaseRpc` (`cache: 'no-store'` terpasang pada `GET` & `POST`) dan `invalidatePublishedRuntimeCache(0)`.
+- **Visual Verification**: Tidak dilakukan (perubahan logika persistence/cache, tanpa perubahan visual/layout).
+- **Current Status**: COMPLETED (kode lokal, migrasi file, build, & runtime test terverifikasi; migrasi SQL menunggu dijalankan di Supabase Cloud).
+- **Next Required Step**: User menjalankan `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` di SQL Editor Supabase Cloud (atau `supabase db push`), lalu menguji Save Draft / Publish / Sync Certificate di browser admin yang login.
+
+
+## Request: Verification of Problem #1 Cleanup & Cloud Database Update Path
+- **Date**: 2026-11-10T01:51:30+07:00
+- **Mode**: Read-Only Inspection & Guidance
+- **Scope**: Memverifikasi apakah seluruh sisi Problem #1 (jalur cache REST/RPC dan tambalan b31caf9) sudah bersih serta memeriksa cara tepat memperbarui fungsi SQL di Supabase Cloud dengan migrasi 0028.
+- **Sources Consulted**:
+  - PROJECT-IMPLEMENTATION-LOG.md (latest 200 lines & lines 3955-3985)
+  - src/lib/supabaseClient.ts, src/lib/supabaseRest.ts, public/sw.js, src/repositories/mediaRepository.ts
+  - supabase/migrations/0028_decouple_draft_save_from_published_base.sql
+- **Work Performed (Completed)**:
+  1. Memeriksa seluruh pemanggil `supabaseClient` dan `fetch(` di `src/` serta perilaku `public/sw.js` untuk memastikan tidak ada jalur cache tersisa pada alur Draft/Published/Publish/Rollback/Reset.
+  2. Memeriksa catatan historis `PROJECT-IMPLEMENTATION-LOG.md` bahwa `supabase db push` sebelumnya tertahan karena perbedaan riwayat timestamp migrasi remote vs lokal, dan sebelumnya migrasi diterapkan melalui Supabase MCP.
+  3. Mengonfirmasi bahwa `0028_decouple_draft_save_from_published_base.sql` memakai `create or replace function` dengan signature identik sehingga aman menimpa fungsi `save_editor_draft` dan `publish_editor_draft` yang sudah ada di Cloud (via SQL Editor atau Supabase MCP).
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, AGENTS.md, dan design/** tidak dimodifikasi.
+- **Validation Performed**: Grep caller `supabaseClient`/`fetch(`, inspeksi `public/sw.js`, verifikasi isi `0028`, dan cek riwayat log.
+- **Visual Verification**: Tidak dilakukan (inspeksi non-visual).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: User mengeksekusi `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` via SQL Editor Supabase Dashboard atau menambahkan plugin Supabase MCP agar dapat diterapkan langsung.
+
+
+## Request: Troubleshoot Supabase Plugin Sign-In & Surface Sign-In Card
+- **Date**: 2026-11-10T01:56:55+07:00
+- **Mode**: Inspection & Auth Guidance
+- **Scope**: Memeriksa status autentikasi plugin Supabase (`list_plugin_accounts`, `C:\Users\VivoBook\.gemini\config\plugins\supabase\mcp_config.json`, `plugin.json`, `AGENTS.md`, dan global `C:\Users\VivoBook\.gemini\config\mcp_config.json`), mendiagnosis dialog `Paste code` tanpa popup browser pada screenshot user, serta menampilkan kartu sign-in chat `<plugin-card catalog-id="supabase">` sesuai protokol sistem.
+- **Work Performed (Completed)**:
+  1. Memeriksa `list_plugin_accounts`: mengonfirmasi `supabase_mcp` berstatus menunggu sign-in (belum ada tool Supabase MCP yang aktif) dan sistem mewajibkan menampilkan `<plugin-card catalog-id="supabase"></plugin-card>` di chat lalu berhenti menunggu user menyelesaikan sign-in.
+  2. Memeriksa `plugin.json`, `mcp_config.json`, dan `AGENTS.md` milik plugin Supabase serta `C:\Users\VivoBook\.gemini\config\mcp_config.json`: baik konfigurasi plugin (`supabase_mcp`) maupun entri global `"supabase"` mengarah ke remote OAuth MCP `https://mcp.supabase.com/mcp` dengan dynamic client registration.
+  3. Menganalisis screenshot user (`media_1794250432089_8fe13b2b.png`): UI `Paste code` + `Submit` di sebelah daftar scope OAuth (`secrets:read`, `edge_functions:read`, dst.) adalah input manual kode otorisasi OAuth ketika proses browser consent tidak terbuka otomatis atau jendelanya tertahan/tersembunyi.
+  4. Mengembalikan EOL historis baris `4219..5291` pada `PROJECT-IMPLEMENTATION-LOG.md` agar identik dengan `HEAD` sehingga `git diff --check` bersih.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (normalisasi EOL tail baru + log entri).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `AGENTS.md`, `~/.gemini/config/*`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed**: `list_plugin_accounts`, inspeksi file plugin Supabase & global `mcp_config.json` (dengan redaksi aman), serta `git diff --check`.
+- **Visual Verification**: Inspeksi screenshot UI OAuth dari user (`media_1794250432089_8fe13b2b.png`).
+- **Current Status**: BLOCKED BY SIGN-IN (menunggu user Sign In lewat `<plugin-card catalog-id="supabase">` atau mengeksekusi `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` langsung di SQL Editor Dashboard Supabase).
+- **Next Required Step**: User mencoba Sign In lewat `<plugin-card catalog-id="supabase"></plugin-card>` di chat (atau menjalankan isi `0028_decouple_draft_save_from_published_base.sql` langsung di SQL Editor Supabase Cloud jika OAuth browser popup tetap tidak muncul), lalu konfirmasi ke agent.
+## Request: Diagnose Silent Failure on Supabase Plugin Sign-In Card
+- **Date**: 2026-11-10T02:01:00+07:00
+- **Mode**: Inspection & Auth/Migration Fallback Guidance
+- **Scope**: Mendiagnosis laporan user bahwa klik Sign in pada `<plugin-card catalog-id="supabase">` tidak memunculkan pop-up/aksi apa pun, memeriksa log sesi Antigravity IDE (`Antigravity IDE\logs\20261110T003132`), handler `https` Windows, serta dokumentasi resmi autentikasi non-OAuth untuk `https://mcp.supabase.com/mcp`.
+- **Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `list_plugin_accounts`, `C:\Users\VivoBook\.gemini\config\mcp_config.json`, `C:\Users\VivoBook\.gemini\config\plugins\supabase\SUPABASE.md`, `C:\Users\VivoBook\AppData\Roaming\Antigravity IDE\logs\20261110T003132\*`, registry `HKCU\...\UrlAssociations\https\UserChoice`, dokumentasi resmi `supabase.com` MCP (`Authorization: Bearer` PAT), dan `agy-customizations/docs/mcp_servers.md`.
+- **Work Performed (Completed)**:
+  1. Memeriksa `list_plugin_accounts`: mengonfirmasi `supabase_mcp` masih berstatus menunggu sign-in dan belum ada tool Supabase MCP yang aktif pada sesi.
+  2. Memeriksa asosiasi URL `https` di Windows (`ChromeHTML`, normal) dan seluruh log sesi IDE `20261110T003132` (`auth.log`, `main.log`, `1-Antigravity LS.log`): tidak tercatat event/error browser redirect OAuth untuk `supabase_mcp`.
+  3. Mengonfirmasi dari dokumentasi resmi Supabase MCP bahwa `https://mcp.supabase.com/mcp` mendukung Personal Access Token (PAT) via header `Authorization: Bearer sbp_...` pada konfigurasi MCP client, sementara `mcp_servers.md` mendokumentasikan `serverUrl`/`url` + `headers` di `mcp_config.json`.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, `AGENTS.md`, `~/.gemini/config/*`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan log IDE dengan redaksi aman, cek registry `https`, cek `list_plugin_accounts`, `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: BLOCKED BY AUTH / SIGN-IN (OAuth popup IDE tidak merespons; menunggu user menjalankan `0028` via SQL Editor Dashboard atau memasang Supabase PAT di `mcp_config.json` via UI MCP Servers).
+- **Next Required Step**: User memilih salah satu jalur resmi: (1) menjalankan `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` langsung di SQL Editor Dashboard Supabase, atau (2) memasang Scoped Personal Access Token (`Authorization: Bearer`) pada entri `"supabase"` di `C:\Users\VivoBook\.gemini\config\mcp_config.json` lewat `... > MCP Servers > Manage MCP Servers` lalu refresh MCP.
+## Request: Configure Supabase MCP PAT & Apply/Verify Migration 0028 on Supabase Cloud
+- **Date**: 2026-11-10T02:10:00+07:00
+- **Mode**: Execution & Verification (MCP Config + Cloud SQL Migration)
+- **Scope**: Memasang Personal Access Token (PAT) yang diberikan user pada blok `"supabase"` di `C:\Users\VivoBook\.gemini\config\mcp_config.json` (tanpa menyimpan token di log/repo), menginspeksi definisi live Cloud `pg_proc` dan riwayat migrasi, menyelaraskan batas `50` dynamic instances (`0025`) pada `0028_decouple_draft_save_from_published_base.sql`, lalu menerapkan dan memverifikasi `0028` di Supabase Cloud (`anyhuqqnjliepllrkebo`).
+- **Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `.agents/skills/supabase/SKILL.md`, `.agents/skills/supabase-postgres-best-practices/SKILL.md`, `https://supabase.com/changelog.md`, `C:\Users\VivoBook\.gemini\config\mcp_config.json`, `supabase/migrations/0022_revision_conflict_http_409.sql`, `0023_release_candidate_security_hardening.sql`, `0025_editor_instance_section_limit.sql`, `0026_reset_site_to_default.sql`, `0027_allow_published_draft_deletion.sql`, `0028_decouple_draft_save_from_published_base.sql`, `patch_publish.cjs`, `tests/editor-repository-runtime.mjs`, `tests/supabase-persistence-runtime.mjs`.
+- **Work Performed (Completed)**:
+  1. Memperbarui entri `"supabase"` di `C:\Users\VivoBook\.gemini\config\mcp_config.json` menjadi `https://mcp.supabase.com/mcp?project_ref=anyhuqqnjliepllrkebo` dengan header `Authorization: Bearer ***` (token diredaksi).
+  2. Menginspeksi Cloud live via MCP Streamable HTTP (`initialize`, `list_migrations`, `execute_sql` read-only, `get_advisors`): menemukan bahwa Cloud sudah memiliki `0025` (`having count(*) > 50`), namun `publish_editor_draft` live sempat dimodifikasi manual (`-- Check disabled to allow free publishing` + `coalesce(current_published, 0) + 1`), `save_editor_draft` masih memblokir `p_expected_base_revision` dengan `search_path='public'`, dan `site_revisions` saat ini memiliki 7 baris `archived` (`1..7`) serta `0` baris `published`.
+  3. Memperbaiki batas section instance di `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` dari `100` menjadi `50` agar selaras dengan `0025_editor_instance_section_limit.sql` dan kondisi Cloud live.
+  4. Menerapkan `0028_decouple_draft_save_from_published_base.sql` ke Supabase Cloud melalui MCP `apply_migration` (tercatat sebagai `version: 20261109190828`, `name: 0028_decouple_draft_save_from_published_base`).
+- **Files Created**: Tidak ada file baru tambahan.
+- **Files Modified**:
+  - `C:\Users\VivoBook\.gemini\config\mcp_config.json` (pembaruan blok `"supabase"` di luar repo git)
+  - `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` (penyelarasan `> 100` -> `> 50` mengikuti `0025`)
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log)
+- **Files Protected**: `AGENTS.md`, `package.json`, `package-lock.json`, `design/**`, serta file masalah lain di luar Problem #1 tidak diubah.
+- **Validation Performed**:
+  - `curl.exe` MCP `initialize` (`HTTP/1.1 200 OK`, `mcp-session-id` aktif) & Management API `GET /v1/projects/anyhuqqnjliepllrkebo` (`ACTIVE_HEALTHY`, Postgres `17.6.1.155`).
+  - Cloud `list_migrations` & `execute_sql` cek `pg_proc`: `save_editor_draft` dan `publish_editor_draft` kini `SECURITY INVOKER`, `search_path=""`, ACL hanya `{postgres=X/postgres,authenticated=X/postgres}`, bebas blokir `base_revision_number`, `publish_editor_draft` menjaga guard `p_expected_published_revision` (`PT409`), batas `50`, `global_max + 1`, tanpa `delete from site_revisions`.
+  - Cloud `get_advisors` (`security` & `performance`): 0 temuan lint untuk `save_editor_draft` / `publish_editor_draft`.
+  - HTTP `POST` anon ke `/rest/v1/rpc/save_editor_draft` & `/rest/v1/rpc/publish_editor_draft`: `401` (`42501 permission denied`).
+  - `npx vue-tsc --noEmit` & `npm run build` (`dist/` built in 3.31s).
+  - `node tests/supabase-persistence-runtime.mjs` (`CHROME_PATH` Chrome.exe): `PASS` (live `get_active_published_snapshot` OK, `hasPublished: false`, 0 DOM leak).
+  - `node tests/editor-repository-runtime.mjs` via headless Chrome CDP (`9341`): `PASS`.
+  - `git diff --check`: exit `0`.
+- **Visual Verification**: Tidak berlaku (fokus migrasi SQL Cloud, konfigurasi MCP, dan runtime persistence).
+- **Current Status**: COMPLETED (Problem #1 bersih di sisi kode lokal, file migrasi, dan Supabase Cloud).
+- **Next Required Step**: User merotasi PAT Supabase di Dashboard setelah sesi bila perlu keamanan ekstra, klik Refresh di panel MCP Servers IDE jika ingin memakai tool MCP di chat IDE langsung, serta menguji Save Draft / Publish dengan akun admin login di browser.
+## Request: Confirm Live Cloud Database Update Status
+- **Date**: 2026-11-10T02:14:20+07:00
+- **Mode**: Read-Only Inspection & Confirmation
+- **Scope**: Mengonfirmasi langsung ke Supabase Cloud (`anyhuqqnjliepllrkebo`) apakah migrasi `0028_decouple_draft_save_from_published_base` dan definisi live `save_editor_draft` / `publish_editor_draft` sudah benar-benar terbarui.
+- **Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `supabase_migrations.schema_migrations` dan `pg_proc` di Supabase Cloud via MCP `execute_sql`.
+- **Work Performed (Completed)**:
+  1. Memverifikasi entri migrasi terbaru di `supabase_migrations.schema_migrations`: `20261109190828` (`0028_decouple_draft_save_from_published_base`) tercatat.
+  2. Memverifikasi `pg_proc` untuk `public.save_editor_draft` dan `public.publish_editor_draft`: keduanya sudah aktif dengan versi `0028` (`search_path=""`, tanpa blokir lama `older published revision` dan tanpa tambalan manual `check disabled`, memakai `global_max + 1` dan batas `50`).
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, `mcp_config.json`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed**: Live read-only query ke `supabase_migrations.schema_migrations` & `pg_proc` + `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu user menguji di browser atau memberi instruksi untuk problem berikutnya.
+## Request: Frontend Technical Explanation of Problem #2 (Disconnected DOM Target `profile-lisa-natalia`)
+- **Date**: 2026-11-10T02:16:15+07:00
+- **Mode**: Read-Only Inspection & Frontend Explanation
+- **Scope**: Menjelaskan secara bahasa frontend apa masalah terputusnya target DOM `profile-lisa-natalia` akibat regresi `b31caf9` vs `ee753dd`, isi registry/DOM-nya, fitur frontend yang terdampak langsung, dan dampak visual/interaksi yang ditimbulkan.
+- **Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `git show ee753dd`, `git show b31caf9`
+  - `src/sections/portfolio/PortfolioSection.vue`, `src/data/default/profile.ts`
+  - `src/composables/useAdminEntityRegistry.ts`, `src/composables/usePhotoAreaRegistry.ts`, `src/composables/useEditorObjectRegistry.ts`
+  - `src/editor/objectDomTarget.ts`, `src/editor/objectRegistry.ts`, `src/editor/editorSnapshot.ts`, `src/editor/propertyRuntime.ts`, `src/editor/responsiveLayout.ts`
+  - `src/pages/admin/AdminEdit.vue`, `src/runtime/publishedSnapshotDom.ts`, `src/runtime/animationRuntime.ts`
+- **Work Performed (Completed)**:
+  1. Memeriksa relasi dua objek profil di editor (`profile-lisa-natalia` di `useAdminEntityRegistry.ts` / `snapshot.entities` vs `portfolio-profile-media` di `usePhotoAreaRegistry.ts`) terhadap DOM `PortfolioSection.vue` (`.profile-image-wrapper` tanpa `data-entity-id` dan `<img>` dengan `:data-media-usage-id`).
+  2. Menelusuri seluruh caller `resolveObjectDomTarget` / `resolveSnapshotObjectDomTarget` (`AdminEdit.vue`, `propertyRuntime.ts`, `responsiveLayout.ts`, `animationRuntime.ts`, `publishedSnapshotDom.ts`) untuk memetakan dampak nyata bug saat element mengembalikan `null`.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, config, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung kode terkait, `git show ee753dd`/`b31caf9`, grep pemanggil lintas `src/`, serta `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak dilakukan (inspeksi kode & penjelasan read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu perintah user apakah ingin merancang / mengeksekusi perbaikan Problem #2 atau lanjut membahas item lain.
+
+## Request: Confirm Bug Classification of Disconnected DOM Target profile-lisa-natalia
+- **Date**: 2026-11-10T02:20:26+07:00
+- **Mode**: Read-Only Confirmation & Impact Verification
+- **Scope**: Menjawab konfirmasi user apakah terputusnya target DOM profile-lisa-natalia akibat regresi b31caf9 vs ee753dd benar merupakan bug frontend, serta mengklarifikasi status bug dibanding efek samping fix sementara kotak seleksi ganda.
+- **Sources Consulted**:
+  - PROJECT-IMPLEMENTATION-LOG.md (latest 200 lines)
+  - .agents/skills/ponytail/SKILL.md
+  - git show ee753dd, git show b31caf9
+  - src/sections/portfolio/PortfolioSection.vue, src/data/default/profile.ts
+  - src/composables/useAdminEntityRegistry.ts, src/composables/usePhotoAreaRegistry.ts, src/composables/useEditorObjectRegistry.ts
+  - src/editor/objectDomTarget.ts, src/editor/editorSnapshot.ts, src/editor/propertyRuntime.ts, src/editor/responsiveLayout.ts
+  - src/pages/admin/AdminEdit.vue, src/runtime/publishedSnapshotDom.ts, src/runtime/animationRuntime.ts
+  - tests/numeric-scrub-text-outline-runtime.mjs
+- **Work Performed (Completed)**:
+  1. Memverifikasi status regresi: mengonfirmasi bahwa kondisi profile-lisa-natalia merupakan bug nyata (fix sementara di b31caf9 hanya mencabut :data-entity-id dari .profile-image-wrapper untuk menghilangkan kotak seleksi ganda, sehingga objek tetap terdaftar di registry/snapshot/hydration namun resolveObjectDomTarget() selalu mengembalikan null).
+  2. Memverifikasi jalur terdampak tambahan (previewAnimation mengembalikan not-found pada src/runtime/animationRuntime.ts, decoratePreviewEntities/updateSelectedOutline/focusPreviewObject di AdminEdit.vue, applyRegisteredObjectProperties, applyResponsiveObjectProperties, applyPublishedSnapshotDom, serta kontrak test tests/numeric-scrub-text-outline-runtime.mjs:217).
+- **Files Modified**: PROJECT-IMPLEMENTATION-LOG.md (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, config, AGENTS.md, dan design/** tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung kode terkait, grep pemanggil profile-lisa-natalia/portfolio-profile-media/resolveObjectDomTarget, dan git diff --check -- PROJECT-IMPLEMENTATION-LOG.md.
+- **Visual Verification**: Tidak dilakukan (konfirmasi analisis read-only; belum menjalankan ulang tes runtime browser khusus skenario profile-lisa-natalia).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user apakah ingin merancang atau mengeksekusi perbaikan Problem #2 (menyatukan/merapikan objek profile-lisa-natalia vs portfolio-profile-media tanpa memicu kotak seleksi ganda atau merusak persistensi drag wrapper).
+
+
+## Request: End-to-End Fix of Disconnected DOM Target profile-lisa-natalia (Ponytail full Mode)
+- **Date**: 2026-11-10T03:10:30+07:00
+- **Mode**: Execution (Ponytail full mode active)
+- **Scope**: Memperbaiki Problem #2 (objek orphan `profile-lisa-natalia` terputus dari DOM akibat regresi `b31caf9` vs `ee753dd`) end-to-end dengan menyatukan identitas objek Profile ke `portfolio-profile-media`, memperbaiki bug terkait yang terungkap di jalur Image drag, property capability runtime, dan alpha/shadow controls, memigrasikan draft/snapshot lama secara aman, serta memverifikasi seluruh suite runtime tanpa merusak fitur lain.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - `git show ee753dd`, `git show b31caf9`
+  - `src/sections/portfolio/PortfolioSection.vue`, `src/data/default/profile.ts`, `src/data/default/site.ts`
+  - `src/composables/useAdminEntityRegistry.ts`, `src/composables/useEditorObjectRegistry.ts`, `src/composables/usePhotoAreaRegistry.ts`
+  - `src/editor/editorSnapshot.ts`, `src/editor/objectRegistry.ts`, `src/editor/objectDomTarget.ts`, `src/editor/propertyRegistry.ts`, `src/editor/propertyRuntime.ts`, `src/editor/responsiveLayout.ts`, `src/editor/imageEffectRuntime.ts`
+  - `src/stores/editor.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/property-controls/PropertyShadowControl.vue`, `src/runtime/publishedSnapshotDom.ts`
+  - `tests/editor-object-system-runtime.mjs`, `tests/inspector-object-isolation-runtime.mjs`, `tests/media-image-effects-runtime.mjs`, `tests/numeric-scrub-text-outline-runtime.mjs`, `tests/editor-repository-runtime.mjs`, `tests/media-library-runtime.mjs`
+- **Work Performed (Completed)**:
+  1. **Penyatuan Objek Profile (`profile-lisa-natalia` -> `portfolio-profile-media`) & Migrasi Snapshot Lama**:
+     - `src/composables/useAdminEntityRegistry.ts`: mengikat properti konten `profile.name` (`Name / alt`) langsung ke entitas `portfolio-profile-media` (`kind: 'media'`, `photoAreaId: current.content.profile.mediaUsageId`, `label: 'Profile'`) sehingga tidak lagi menghasilkan objek orphan `profile-lisa-natalia`.
+     - `src/composables/useEditorObjectRegistry.ts`: mempertahankan `existing?.label ?? area.label` pada registrasi `photoRegistry` agar label kanonik (`'Profile'`, `'Main frame'`) tidak tertimpa `usage.role`.
+     - `src/editor/editorSnapshot.ts`: mengganti emisi referensi `entityReferences()` dari `profile-lisa-natalia` menjadi `portfolio-profile-media` (`kind: 'media'`, `label: 'Profile'`); menyelaraskan nilai awal `outlineWidth` menjadi `1`; menambahkan `normalizeLegacyProfileObject()` pada `validateEditorSnapshot()` untuk memigrasikan `entities`, `layout`, `backgrounds` (non-default), `animations` (non-default), `session.selectedEntityId`, dan `session.objectStates` dari `profile-lisa-natalia` ke `portfolio-profile-media` serta membersihkan sisa `typography`/`buttons` lama.
+     - `src/stores/editor.ts`: membersihkan `legacyProfileId` pada `registerObjects()` ketika `portfolio-profile-media` aktif terdaftar.
+     - `src/pages/admin/AdminEdit.vue`: memetakan `session.selectedEntityId` lama (`profile-lisa-natalia`) ke `portfolio-profile-media` pada `restoreSelectionFromSession()`; memblokir `beginInlineTextEdit()` untuk objek `entity.type === 'Image'` agar double-click foto profil tidak memicu `contenteditable`.
+  2. **Perbaikan Bug Terkait yang Terungkap Saat Integrasi & Tes Nyata**:
+     - `src/pages/admin/AdminEdit.vue`: menambahkan `@dragstart.prevent` dan CSS `-webkit-user-drag: none; user-select: none` pada `.editor-preview-runtime` untuk `img`/`a`, serta listener `pointercancel` (`cancelPreviewObjectDrag`) pada `beginPreviewPointer`/`endPreviewObjectDrag`, sehingga drag mouse nyata pada `<img class="profile-image">` (yang sebelumnya dibajak HTML5 native image drag + `pointercancel`, penyebab historis regresi `ee753dd`) kini terkomit persisten ke `layout['portfolio-profile-media']`.
+     - `src/editor/propertyRuntime.ts` & `src/editor/responsiveLayout.ts`: memfilter properti `propertyRegistry` berdasarkan capability objek pada `applyRegisteredObjectProperties()` dan `applyResponsiveObjectProperties()` agar properti ber-mapping domain sama milik tipe lain (mis. custom `video.filter` yang memakai `backgrounds.{entityId}.boxShadow`) tidak menimpa style preview milik `Image`.
+     - `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/property-controls/PropertyShadowControl.vue`, dan `src/editor/imageEffectRuntime.ts`: memperlakukan `boxShadow: 'none'` sebagai `Off` (tidak merender filter drop-shadow kosong) dan mempromosikan `outlineWidth <= 0` ke `1` dalam satu command saat `media.outlineEnabled` diaktifkan.
+  3. **Pembaruan & Penambahan Test End-to-End Problem #2**:
+     - `tests/inspector-object-isolation-runtime.mjs`: menghapus role lama `profile-lisa-natalia`, memperbaiki pembacaan live `CSSStyleDeclaration` `getComputedStyle(frame)` sebelum `undo()` pada `dependencyAlignmentEvidence` (+ verifikasi `restoredAlignItems === 'normal'`), serta menambahkan blok verifikasi `profileUnificationSetup` / `profileDragEvidence` (ketiadaan `profile-lisa-natalia`, seluruh objek non-modal punya target DOM non-null, satu bounding box pada `<img>` & wrapper bersih, `Name / alt` + Undo/Redo, blokir `contenteditable` double-click, drag mouse CDP nyata + koeksistensi edit alt + `applyPublishedSnapshotDom`, serta migrasi snapshot lama `profile-lisa-natalia` -> `portfolio-profile-media`).
+     - `tests/media-image-effects-runtime.mjs` & `tests/numeric-scrub-text-outline-runtime.mjs`: menetapkan `width:1440px` pada host offscreen kontras Published Desktop dan membersihkan query sibling mati `[data-editor-object-id="profile-lisa-natalia"]`.
+- **Files Modified**:
+  - `src/composables/useAdminEntityRegistry.ts`
+  - `src/composables/useEditorObjectRegistry.ts`
+  - `src/editor/editorSnapshot.ts`
+  - `src/editor/propertyRuntime.ts`
+  - `src/editor/responsiveLayout.ts`
+  - `src/editor/imageEffectRuntime.ts`
+  - `src/stores/editor.ts`
+  - `src/pages/admin/AdminEdit.vue`
+  - `src/pages/admin/components/property-controls/PropertyShadowControl.vue`
+  - `tests/inspector-object-isolation-runtime.mjs`
+  - `tests/media-image-effects-runtime.mjs`
+  - `tests/numeric-scrub-text-outline-runtime.mjs`
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Protected**: `AGENTS.md`, `design/` (tidak tersedia di workspace), `md/**`, `supabase/migrations/**`, serta perubahan Problem #1 yang belum di-commit (`supabaseRest.ts`, `AdminCertificates.vue`, `editorRevisionRepository.ts`, `AdminMaintenance.vue`, `0028_*.sql`, `editor-repository-runtime.mjs`, `list bug.md`) tetap utuh.
+- **Validation Performed**:
+  - `npm run build` (`vue-tsc && vite build`): PASSED (exit 0) setelah seluruh edit akhir `AdminEdit.vue`.
+  - Headless Chromium CDP test suites (20 standalone suites + `editor-repository-runtime.mjs` via server lokal): PASSED semua (`editor-object-system-runtime.mjs`, `inspector-object-isolation-runtime.mjs`, `media-image-effects-runtime.mjs`, `numeric-scrub-text-outline-runtime.mjs`, `default-guest-runtime.mjs`, `editor-professional-ux-runtime.mjs`, `human-friendly-inspector-runtime.mjs`, `editor-r3-runtime.mjs`, `dynamic-editor-instances-runtime.mjs`, `media-library-runtime.mjs`, `responsive-layout-runtime.mjs`, `design-system-runtime.mjs`, `animation-system-runtime.mjs`, `production-hardening-runtime.mjs`, `production-pwa-runtime.mjs`, `stabilization-runtime.mjs`, `editor-natural-scroll-runtime.mjs`, `editor-navigator-collapse-runtime.mjs`, `product-polish-runtime.mjs`, `supabase-persistence-runtime.mjs`, `editor-repository-runtime.mjs`).
+  - Catatan suite lama / Cloud: `tests/publish-pipeline-runtime.mjs` dilewati (memerlukan `PHASE029G_SERVICE_ROLE_KEY`); suite fase lama 011 (`tests/entity-admin-source-runtime.mjs`, `tests/responsive-visual-runtime.mjs`) dan tes ber-port khusus (`certificate-data-runtime.mjs`, `frame-image-*.mjs`, `magnet-tuning-*.mjs`) tidak termasuk verifikasi aktif.
+  - `git diff --check`: PASSED bersih.
+- **Visual Verification**: Screenshot hasil render editor (`artifacts/phase-037a-image-object-isolation.png`, `artifacts/phase-037a-text-object-isolation.png`, `artifacts/phase-037c-alpha-image-effects.png`) telah dibuka dan diperiksa: Navigator `Portfolio` hanya berisi `PORTFOLIO` dan `Profile (Image · portfolio-profile-media)`, seleksi `Profile` menampilkan tepat 1 kotak seleksi pada `<img>` tanpa kotak ganda pada `.profile-image-wrapper`, panel kontrol `Name or image description` tampil langsung di `Profile` tanpa grup `TYPOGRAPHY`, serta efek alpha-outline + shadow + rotate pada `Profile` terender rapi. Perbandingan langsung terhadap file di folder `design/` belum dilakukan karena direktori `design/` tidak ditemukan pada workspace.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu review/commit user atau langkah lanjutan yang diinginkan user.
+
+## Request: Confirm Fix Status of Problem #2 (`profile-lisa-natalia`) vs `list bug.md`
+- **Date**: 2026-11-10T05:26:00+07:00
+- **Mode**: Read-Only Inspection & Status Verification (Ponytail full mode)
+- **Scope**: Memverifikasi status aktual di codebase untuk item #2 pada `list bug.md` (Target DOM `profile-lisa-natalia` / regresi `b31caf9` vs `ee753dd`) serta menelusuri sisa referensi `profile-lisa-natalia` / `content.profile.id` di `src/` dan `tests/` tanpa mengubah kode maupun `list bug.md`.
+- **Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `list bug.md`
+  - `src/composables/useAdminEntityRegistry.ts`, `src/editor/objectDomTarget.ts`, `src/sections/portfolio/PortfolioSection.vue`, `src/editor/editorSnapshot.ts`, `src/pages/admin/AdminEdit.vue`
+  - `supabase/migrations/0028_decouple_draft_save_from_published_base.sql`
+- **Work Performed (Completed)**:
+  1. Memverifikasi langsung bahwa `profile-lisa-natalia` sudah tidak lagi didaftarkan oleh `useAdminEntityRegistry` (kini memakai `portfolio-profile-media` yang cocok dengan `:data-media-usage-id` di `PortfolioSection.vue` sehingga `resolveObjectDomTarget()` mengembalikan elemen `<img>` tunggal, bukan `null`).
+  2. Memverifikasi `git grep "profile-lisa-natalia"` dan `git grep "profile\.id"` lintas `src/`, `tests/`, dan `supabase/`: satu-satunya nilai `'profile-lisa-natalia'` yang tersisa adalah ID default baris tabel `portfolio_profile` (`src/data/default/profile.ts:8`) dan pemetaan migrasi/DB (`editorSnapshot.ts:111,390`, `supabaseSiteRepository.ts:224,274`, `editor.ts:260`, `AdminEdit.vue:1172`), serta assertion verifikasi di `tests/inspector-object-isolation-runtime.mjs`.
+  3. Memastikan mengapa item #2 (dan #1) masih tertulis di `list bug.md`: file `list bug.md` merupakan catatan inspeksi awal (untracked) yang sengaja dilindungi/belum diperbarui; item #3 (`markSessionChanged` masih terkomentar di `AdminEdit.vue:2624`) & item #4 di `list bug.md` tetap belum dikerjakan karena belum diminta.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code `src/**`, `tests/**`, `list bug.md`, `AGENTS.md`, `md/**`, `supabase/migrations/**`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung file terkait, `git grep` referensi `profile-lisa-natalia`/`profile.id`, dan `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak dilakukan (inspeksi status kode & catatan read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu konfirmasi user apakah ingin menindaklanjuti item #3 / #4 di `list bug.md`, memperbarui catatan `list bug.md`, atau melakukan commit perubahan Problem #1 & #2.
+
+## Request: Explain Feature Impact of Item #3 (`markSessionChanged` & `contentSignature`)
+- **Date**: 2026-11-10T06:33:00+07:00
+- **Mode**: Read-Only Inspection & Explanation (Ponytail full mode)
+- **Scope**: Menganalisis dan menjelaskan fitur frontend mana saja yang terpengaruh oleh item #3 pada `list bug.md`: pembungkaman `markSessionChanged()` pada commit `44ae90d` dan dikeluarkannya `entities`/`instances` dari `contentSignature()` pada commit `b31caf9`.
+- **Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `list bug.md`
+  - `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/AdminLayout.vue`, `src/composables/useEditorSession.ts`, `src/stores/editor.ts`, `src/editor/editorInstanceCommands.ts`
+  - `git show 44ae90d`, `git show b31caf9`
+- **Work Performed (Completed)**:
+  1. Menelusuri seluruh pemanggil `markSessionChanged()` (`persistPreviewScroll`, `setSelection`, `selectEntity`, `propertySearch`, `setLayerExpanded`, `setObjectLocked`, `setObjectHidden`, `finishSelectionBox`, `toggleAccordion`, `focusInspectorCategory`) serta hubungannya dengan `editorSaveStatus`, `statusDraft`, `editorHasChanges`, `editor.sessionDirty`, `publishDisabled`, dan `requestOpenLibrary`.
+  2. Menelusuri seluruh pemanggil dan mutasi `entities`/`instances` (`renameObject`, `reorderEditorInstanceChanges`, `insertImageInstanceChanges`, `duplicateImageInstanceChanges`, `deleteEditorInstanceChanges`) terhadap `contentSignature()` / `editor.hasUnsavedChanges`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code `src/**`, `tests/**`, `list bug.md`, `AGENTS.md`, `md/**`, `supabase/migrations/**`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung kode, `git show 44ae90d`/`b31caf9`, `git grep` seluruh caller terkait, dan `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak dilakukan (inspeksi kode read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu instruksi user apakah ingin memperbaiki, menguji di browser, atau mempertahankan salah satu perilaku item #3.
+## Request: Fix Item #3 (`markSessionChanged` & `contentSignature` entities/instances)
+- **Date**: 2026-11-10T07:09:49+07:00
+- **Mode**: Execution & Browser Verification (Ponytail full mode)
+- **Scope**: Memperbaiki item #3 pada `list bug.md`: (1) mengaktifkan kembali indikator `"Unsaved session"` di `markSessionChanged()` tanpa memicu false-dirty saat load awal, restore scroll, fit-zoom otomatis, atau save async; (2) mengembalikan `entities` dan `instances` ke `contentSignature()` dengan serialisasi key-order-independent agar Postgres `jsonb` key reordering / normalisasi `registerObjects()` pasca-save tidak dianggap kotor namun mutasi `entities`/`instances` tetap terdeteksi.
+- **Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `list bug.md` (item #3), `.agents/skills/ponytail/SKILL.md`
+  - `src/stores/editor.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/components/AdminLayout.vue`, `src/composables/useEditorSession.ts`, `src/repositories/editorRevisionRepository.ts`, `src/editor/editorSnapshot.ts`, `src/editor/responsiveLayout.ts`
+  - `tests/dynamic-editor-instances-runtime.mjs`, `tests/editor-r3-runtime.mjs`, `tests/editor-navigator-collapse-runtime.mjs`, `tests/responsive-layout-runtime.mjs`, `tests/editor-professional-ux-runtime.mjs`
+- **Work Performed (Completed)**:
+  1. `src/stores/editor.ts`: Menambahkan `stableValue()` / `stableStringify()` untuk serialisasi deterministik yang tahan terhadap pengurutan ulang key `jsonb` Postgres; mengembalikan `entities` dan `instances` ke `contentSignature()`; memperbarui `registerObjects()` agar membandingkan `entities` memakai `stableStringify()`; menambahkan `syncSavedBaseline()`; memperbarui `setViewport()` agar mengembalikan `boolean` hanya ketika ada field `session` yang benar-benar berubah.
+  2. `src/pages/admin/AdminEdit.vue`: Mengaktifkan kembali `markSessionChanged()` (menjaga `!editorHasChanges && !editor.hasUnsavedChanges` serta status `Saving...`, `Conflict`, `Error / Unsaved`); menjaga `persistPreviewScroll()` terhadap `!editorReady`, `editor.isSavingDraft`, dan no-op scroll restore (`Math.round`); mengganti watcher zoom menjadi `watch([previewScale, userZoom])` agar hanya perubahan `userZoom` eksplisit yang memanggil `markSessionChanged()`; memanggil `editor.syncSavedBaseline()` setelah `restoreDraftMedia()` pada pemuatan `savedDraft` serta saat `discardDraft()`.
+  3. `tests/dynamic-editor-instances-runtime.mjs` & `tests/editor-r3-runtime.mjs`: Menambahkan verifikasi E2E Chromium untuk deteksi `instances`/`entities` (rename + Undo), simulasi key-reordering Postgres `jsonb` pasca-`saveDraft()`, indikator `"Unsaved session"` pada scroll/Lock/Hide tanpa memblokir Publish, serta ketiadaan false-dirty pasca-load/reload.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `src/stores/editor.ts`, `src/pages/admin/AdminEdit.vue`, `tests/dynamic-editor-instances-runtime.mjs`, `tests/editor-r3-runtime.mjs`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `supabase/migrations/**`, `md/**`, `design/**`, serta perbaikan problem #1/#2 sebelumnya tetap utuh.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): PASS.
+  - 19 suite browser headless Chrome CDP standalone (`animation-system-runtime.mjs`, `default-guest-runtime.mjs`, `design-system-runtime.mjs`, `dynamic-editor-instances-runtime.mjs`, `editor-natural-scroll-runtime.mjs`, `editor-navigator-collapse-runtime.mjs`, `editor-object-system-runtime.mjs`, `editor-professional-ux-runtime.mjs`, `editor-r3-runtime.mjs`, `human-friendly-inspector-runtime.mjs`, `inspector-object-isolation-runtime.mjs`, `media-image-effects-runtime.mjs`, `media-library-runtime.mjs`, `numeric-scrub-text-outline-runtime.mjs`, `product-polish-runtime.mjs`, `production-hardening-runtime.mjs`, `production-pwa-runtime.mjs`, `responsive-layout-runtime.mjs`, `stabilization-runtime.mjs`): SEMUA PASS (`ALL_19_SUITES_PASSED`).
+  - `git diff --check`: PASS.
+- **Not Checked / Residual Scope**: Suite ber-port CDP eksternal/live-Cloud (`publish-pipeline-runtime.mjs`, `supabase-persistence-runtime.mjs`, `editor-repository-runtime.mjs`, dll.) serta uji login JWT admin nyata langsung terhadap Supabase Cloud setelah perubahan `src/stores/editor.ts`/`AdminEdit.vue` tidak dijalankan di run ini (validasi `jsonb` pasca-save disimulasikan lewat pengurutan ulang key snapshot pada respons `saveDraft()`).
+- **Visual Verification**: Tidak berlaku langsung (fokus perubahan adalah status sesi, signature dirty-state, dan interaksi kontrol di Editor; seluruh smoke/visual test runtime editor lolos).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu user meninjau hasil / meminta tindak lanjut item berikutnya (jika ada, mis. item #4 di `list bug.md`) atau commit perubahan.
+## Request: Audit Remaining Unfixed Items (Item #4 & Overall Status Check)
+- **Date**: 2026-11-10T07:13:00+07:00
+- **Mode**: Read-Only Inspection
+- **Scope**: Memeriksa status faktual seluruh sub-poin Problem #4 (`list bug.md`) serta sisa item bagian 2 & 3 pada codebase lokal dan Supabase Cloud untuk menjawab pertanyaan user apakah masih ada yang belum diperbaiki.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines & live Cloud confirmation lines `5445..5495`)
+  - `AGENTS.md`, `list bug.md`, `RELEASE-CANDIDATE-v1.0.0-FINAL.md`, `KNOWN-LIMITATIONS.md`, `package.json`
+  - `patch_publish.cjs`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminEdit.vue`, `src/stores/editor.ts`, `src/repositories/editorRevisionRepository.ts`, `src/sections/portfolio/PortfolioSection.vue`, `src/composables/useAdminEntityRegistry.ts`, `src/lib/supabaseRest.ts`, `src/lib/supabaseClient.ts`, `src/types/database.generated.ts`, `.github/workflows/supabase-keep-alive.yml`
+  - `supabase/migrations/0026_reset_site_to_default.sql`, `0027_allow_published_draft_deletion.sql`, `20260924153436_clear_legacy_tables_on_reset.sql`
+  - Live Supabase Cloud (`anyhuqqnjliepllrkebo`) via MCP `list_migrations` dan read-only `execute_sql` (`pg_proc` `reset_site_to_default`, `pg_constraint`, `site_revisions`, `information_schema.tables`)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi bahwa Problem #1 (cache & RPC `0028`), Problem #2 (`profile-lisa-natalia` -> `portfolio-profile-media`), dan Problem #3 (`markSessionChanged` + `contentSignature`) sudah terpasang fix-nya di working tree lokal (belum di-commit) dan `0028` telah ter-apply di Cloud.
+  2. Memverifikasi bahwa seluruh item teknis Problem #4 di `list bug.md` masih belum diperbaiki: `patch_publish.cjs` (1.193 byte) masih ada di root repo; `AdminMaintenance.vue#L207` masih menampilkan `"Deleting published revisions..."`; `20260924153436_clear_legacy_tables_on_reset.sql` masih 0 byte dan tidak ada di `schema_migrations` Cloud; `src/types/database.generated.ts` baru memuat 19 tabel (dari 21 tabel aktual di Cloud, belum ada `site_revisions` dan `editor_favorites`); serta `md/` dan `design/` memang tidak ada di workspace.
+  3. Menemukan penyimpangan tambahan pada `reset_site_to_default()` live di Cloud: definisi Cloud saat ini berstatus `SECURITY DEFINER`, menghapus (`DELETE`) `site_revisions` berstatus `published`, dan turut mengosongkan 18 tabel termasuk `certificates`, `certificate_images`, dan `media_assets` — bertentangan baik dengan file lokal `0026_reset_site_to_default.sql` (`SECURITY INVOKER` + `archive`) maupun teks UI modal `AdminMaintenance.vue#L94-L95` ("Media & Certificates will be preserved safely").
+  4. Memverifikasi status Bagian 2 & 3 `list bug.md`: `supabase-keep-alive.yml` sudah ter-commit & push pada `aab0520`; migrasi `0027` sudah ter-apply di Cloud (`confdeltype = n`); `getHistory()` (`editorRevisionRepository.ts#L640`) masih `limit=5`; blocker rilis RC (leaked-password protection, `VITE_SITE_URL`, uji E2E login admin nyata di browser, Lighthouse Mobile 66, batas MIME/ukuran bucket Cloud, serta working tree belum di-commit) masih terbuka.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `patch_publish.cjs`, `list bug.md`, `AGENTS.md`, dan workflow tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung seluruh file terdampak, `git status -s`, `git diff --stat`, MCP `list_migrations`, MCP read-only `execute_sql`, serta `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak berlaku (inspeksi status read-only).
+- **Current Status**: COMPLETED (audit status item yang belum di-fix selesai; menunggu arahan user item mana yang ingin ditindaklanjuti).
+- **Next Required Step**: Menunggu keputusan user apakah ingin mengeksekusi pembersihan & sinkronisasi Item #4 (terutama menyelaraskan `reset_site_to_default()` antara Cloud, `0026`/migrasi baru, dan modal UI `AdminMaintenance.vue`, menghapus `patch_publish.cjs` + migrasi 0-byte, dan memperbarui `database.generated.ts`).
+## Request: Explain Context & Feature Impact of `reset_site_to_default()` Decision
+- **Date**: 2026-11-10T11:24:00+07:00
+- **Mode**: Read-Only Explanation & Impact Mapping
+- **Scope**: Menjelaskan maksud opsi keputusan penyeragaman `reset_site_to_default()`, konteks fitur Reset Published Site pada Admin Maintenance, latar belakang terjadinya penyimpangan antara `0026_reset_site_to_default.sql` dan Cloud live, serta fitur aplikasi yang terdampak.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminCertificates.vue`, `src/pages/admin/AdminMedia.vue`, `src/pages/admin/AdminPublishedHistory.vue`
+  - `src/repositories/supabaseSiteRepository.ts`, `src/repositories/siteRepository.ts`, `src/repositories/certificateRepository.ts`, `src/repositories/mediaRepository.ts`, `src/repositories/editorRevisionRepository.ts`
+  - `src/stores/site.ts`, `src/stores/certificates.ts`, `src/runtime/publishedRuntime.ts`
+  - `supabase/migrations/0019_atomic_publish_pipeline.sql`, `0026_reset_site_to_default.sql`, `0028_decouple_draft_save_from_published_base.sql`
+- **Work Performed (Completed)**:
+  1. Memverifikasi alur UI tombol `Reset System` / modal `Reset Published Site` di `AdminMaintenance.vue#L22-L108` & `executeResetSystem()` (`#L204-L216`), termasuk janji UI `"Drafts and Favorites will not be deleted"` dan `"Media & Certificates will be preserved safely"`.
+  2. Menelusuri dampak penghapusan 18 tabel pada definisi Cloud `reset_site_to_default()` terhadap `/admin/media` (`media_assets`), `/admin/certificates` & `useCertificatesStore` (`certificates`, `certificate_images`), serta jejak `site_revisions` dan halaman `/admin/history` (`getHistory` hanya membaca `status=eq.published`).
+  3. Memverifikasi konteks historis pembersihan tabel lama: `AdminEdit.vue#L1060` (`if (!published) await site.load()`) masih memanggil `SupabaseSiteRepository.load()` ke tabel relasional lama ketika belum ada revisi published aktif, sedangkan Guest Runtime (`publishedRuntime.ts#L47-L56`) langsung fallback ke `defaultRuntimeSnapshot`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, config, `list bug.md`, dan `AGENTS.md` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung seluruh file terdampak, `git grep` pemanggil tabel/repository di `src/` & `supabase/migrations/`, serta `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak berlaku (penjelasan kontekstual read-only).
+- **Current Status**: COMPLETED (penjelasan konteks dan dampak fitur siap; menunggu keputusan user untuk langkah tindak lanjut Poin #4).
+- **Next Required Step**: Menunggu pilihan user apakah `reset_site_to_default()` diseragamkan ke perilaku aman (`0026`, menjaga Media & Certificates + archive `published`) atau skenario lain sebelum membersihkan Poin #4.
+## Request: Confirm Alignment on User Intent for Reset Behavior ("Paham Ga")
+- **Date**: 2026-11-10T11:27:00+07:00
+- **Mode**: Read-Only Confirmation & Specification Alignment
+- **Scope**: Mengonfirmasi pemahaman atas keinginan user tentang perilaku fitur Reset (melepas status live tanpa menghapus draft, kembali ke style hardcode bawaan project, dan tanpa menambah data/revisi baru) terhadap implementasi aktual di `publishedRuntime.ts`, `defaultRuntimeSnapshot.ts`, `AdminEdit.vue`, `AdminMaintenance.vue`, dan `0026_reset_site_to_default.sql`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, `src/runtime/defaultRuntimeSnapshot.ts`, `src/runtime/publishedRuntime.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminMaintenance.vue`, `src/repositories/supabaseSiteRepository.ts`, `supabase/migrations/0026_reset_site_to_default.sql`
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi bahwa di sisi SQL (`0026_reset_site_to_default.sql#L13-L22`), meng-`archive` baris `published` + `set base_revision_number = null` pada `draft` tanpa `INSERT` baris baru sudah sesuai dengan prinsip user (status live dilepas, draft utuh, tidak ada data bertambah).
+  2. Mengonfirmasi bahwa di Guest Runtime (`publishedRuntime.ts#L47-L56` -> `defaultRuntimeSnapshot.ts#L79-L81`), ketiadaan baris `published` otomatis memakai template style/konten hardcode bawaan project.
+  3. Menemukan titik yang belum konsisten terhadap keinginan user: (a) definisi `reset_site_to_default()` live di Cloud masih menghapus 18 tabel termasuk `media_assets` & `certificates` + men-delete `published`; (b) `AdminEdit.vue#L1060` saat `!published` masih memanggil `site.load()` (`SupabaseSiteRepository.load()` ke tabel legacy) alih-alih memakai template default hardcode bawaan.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, config, `list bug.md`, dan `AGENTS.md` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung `defaultRuntimeSnapshot.ts`, `publishedRuntime.ts`, `supabaseSiteRepository.ts#L191-L291`, `AdminEdit.vue#L1055-L1085`, dan `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak berlaku (konfirmasi arsitektur/desain read-only).
+- **Current Status**: COMPLETED (maksud user sudah jelas dan terpetakan; menunggu instruksi eksekusi dari user untuk membereskan Poin #4).
+- **Next Required Step**: Menunggu persetujuan user untuk mulai mengeksekusi pembersihan Poin #4 sesuai target yang sudah disepakati.
+## Request: Plain-Language Explanation of Reset Discrepancy & Poin #4 Cleanup Scope
+- **Date**: 2026-11-10T11:34:30+07:00
+- **Mode**: Read-Only Explanation & Cloud Data Inspection
+- **Scope**: Menjelaskan ulang dengan bahasa non-teknis/produk maksud dua bagian ketidaksesuaian pada fitur Reset dan arti item pembersihan Poin #4, serta memeriksa jumlah baris aktual tabel-tabel lama, `media_assets`, `certificates`, dan `site_revisions` di Supabase Cloud.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, Supabase Cloud `execute_sql` read-only row count across 17 relational/media/certificate tables + `site_revisions`
+- **Work Performed (Completed)**:
+  1. Mengaudit isi tabel live di Supabase Cloud (`anyhuqqnjliepllrkebo`): seluruh 17 tabel relasional/media/sertifikat (`portfolio_profile`, `about_*`, `education_sections`, `college_entries`, `shs_entries`, `experiences`, `certificate_sections`, `contact_profiles`, `navigation_*`, `entity_visual_configs`, `photo_frames`, `entity_media`, `media_assets`, `certificates`, `certificate_images`) saat ini memiliki `0` baris, sedangkan `site_revisions` memiliki `7` baris (`archived`).
+  2. Menyusun penjelasan berbahasa sederhana mengenai: (a) mengapa fungsi Reset Cloud lama menyapu bersih Media & Sertifikat bertentangan dengan modal UI; (b) mengapa fallback Editor ke tabel lama (`AdminEdit.vue#L1060` -> `site.load()`) dulu memicu tambalan sapu-bersih tersebut; dan (c) apa saja file/artefak Poin #4 (`patch_publish.cjs`, migrasi 0-byte, `database.generated.ts`, teks status UI Maintenance) yang akan dirapikan.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, config, `list bug.md`, dan `AGENTS.md` tidak dimodifikasi.
+- **Validation Performed**: Live read-only SQL `SELECT count(*)` di Cloud via MCP `execute_sql` dan `git diff --check -- PROJECT-IMPLEMENTATION-LOG.md`.
+- **Visual Verification**: Tidak berlaku (penjelasan read-only).
+- **Current Status**: COMPLETED (menunggu persetujuan user untuk mengeksekusi pembersihan Poin #4 dan sinkronisasi Reset).
+- **Next Required Step**: Menunggu konfirmasi user (`oke lanjut` / penyesuaian) sebelum mengeksekusi perubahan kode, migrasi SQL, dan Cloud.
+
+## Request: Fix Cloud Reset Behaviour, Decouple Editor Fallback from Legacy Tables, and Explain Snapshot vs Legacy Table Independence (Ponytail full Mode)
+- **Date**: 2026-11-10T11:54:00+07:00
+- **Mode**: Execution + Architecture Explanation (Ponytail full mode active)
+- **Scope**: Memperbaiki Masalah 1 (menghilangkan perilaku sapu-bersih 18 tabel di Cloud `reset_site_to_default()` agar sesuai `0026` tanpa menghapus `media_assets`, `certificates`, maupun `draft`, sekaligus memenuhi Security Advisor lint `0029`) dan Masalah 2 (mencegah `AdminEdit.vue` memanggil `site.load()` ke 15 tabel gudang lama saat belum ada revisi `published`), menyelaraskan label default di `defaultRuntimeSnapshot.ts`, serta menjawab pertanyaan user mengapa 1 Snapshot JSONB per revisi tetap menjaga independensi elemen/section.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - `supabase/migrations/0001_initial_schema.sql`, `0014_site_revisions.sql`, `0026_reset_site_to_default.sql`, `0028_decouple_draft_save_from_published_base.sql`
+  - `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminEdit.vue`, `src/runtime/defaultRuntimeSnapshot.ts`, `src/runtime/publishedRuntime.ts`, `src/runtime/publishedSnapshotDom.ts`, `src/types/editorSnapshot.ts`, `src/editor/editorSnapshot.ts`, `src/stores/site.ts`, `src/stores/mediaLibrary.ts`, `src/repositories/certificateRepository.ts`, `src/repositories/supabaseSiteRepository.ts`, `src/pages/admin/AdminCertificates.vue`
+  - `tests/editor-r3-runtime.mjs`, `tests/inspector-object-isolation-runtime.mjs`
+- **Work Performed (Completed)**:
+  1. **Masalah 1 — Restore Safe `reset_site_to_default()` di Supabase Cloud & Frontend Reset Cache**:
+     - Membuat dan menerapkan ke Cloud (`anyhuqqnjliepllrkebo`) migrasi `supabase/migrations/0029_restore_safe_reset_site_to_default.sql` (`20261110044121`) dan `supabase/migrations/0030_harden_safe_reset_security_invoker.sql` (`20261110044153`).
+     - Fungsi publik `public.reset_site_to_default()` kini `SECURITY INVOKER` (`SET search_path = ''`, hak eksekusi hanya `authenticated`, cek `auth.uid()` + `private.is_admin()`) yang memanggil `private.reset_site_to_default_internal()` (`SECURITY DEFINER`, advisory lock `site-revisions-publish-boundary`) untuk mengubah `site_revisions.status = 'published'` menjadi `'archived'` dan memutus `base_revision_number = null` pada `draft` tanpa INSERT/DELETE baris baru serta tanpa menyentuh `media_assets`, `certificates`, `certificate_images`, `draft`, maupun `editor_favorites`.
+     - Memperbarui `src/pages/admin/AdminMaintenance.vue`: menambahkan `invalidatePublishedRuntimeCache(0)` setelah RPC reset sukses dan mengubah `resetStatus` menjadi `'Archiving published revisions...'`.
+  2. **Masalah 2 — Memutus Fallback `site.load()` di `AdminEdit.vue` & Penyelarasan Label `defaultRuntimeSnapshot.ts`**:
+     - Memperbarui `src/pages/admin/AdminEdit.vue` (`initializeEditor()` dan `discardDraft()`) agar saat `!published` tidak lagi memanggil `site.load()` (15 tabel lama via `SupabaseSiteRepository.load()`) maupun menyimpan `publishedBaseline` basi; diganti `site.resetToSeed()` + `loadDefaultRuntimeTemplate().snapshot` (seragam dengan Guest Runtime).
+     - Memperbarui `src/runtime/defaultRuntimeSnapshot.ts` (`buildCanonicalDefaultSnapshot()`) agar label entitas default (`About CTA`, `Contact CTA`, `Lisa name (navigation brand)`, menjaga `portfolio-profile-media` tetap `Profile`, `about-frame-main` `Main frame`, serta `${area.label} frame`) selaras dengan Editor Object Registry.
+  3. **Pengujian & Perlindungan Scope**:
+     - Menambahkan verifikasi `defaultResetCheck` pada `tests/editor-r3-runtime.mjs` yang mengonfirmasi `/admin/edit` saat `!published` menghasilkan `0` panggilan `site.load()` dan mengembalikan `PORTFOLIO` meskipun `site.current` sebelumnya kotor.
+     - Membiarkan artefak Poin #4 terpisah (`patch_publish.cjs`, migrasi 0-byte `20260924153436_clear_legacy_tables_on_reset.sql`, `src/types/database.generated.ts`, dan fungsi Cloud sisa `public.test_reset()`) tetap tersentuh nol baris karena di luar scope instruksi saat ini.
+- **Files Created**: `supabase/migrations/0029_restore_safe_reset_site_to_default.sql`, `supabase/migrations/0030_harden_safe_reset_security_invoker.sql`.
+- **Files Modified**: `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminEdit.vue`, `src/runtime/defaultRuntimeSnapshot.ts`, `tests/editor-r3-runtime.mjs`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Files Deleted**: Tidak ada.
+- **Files Protected**: `AGENTS.md`, `design/**`, `list bug.md`, serta perbaikan Masalah #1-#3 sebelumnya di working tree tetap utuh.
+- **Validation Performed (Verified)**:
+  - **Cloud DB & Security Checks**: `list_migrations` memastikan `20261110044121` & `20261110044153` tercatat; `execute_sql` memastikan definisi `public.reset_site_to_default` & `private.reset_site_to_default_internal`, hak akses schema/execute, serta `site_revisions` tetap utuh (7 baris `archived`); `get_advisors (security)` bebas lint `0029`; uji HTTP `POST /rest/v1/rpc/reset_site_to_default` sebagai `anon` mengembalikan `42501 permission denied`.
+  - **Build & Automated Runtime Suites (Seluruhnya Lulus Setelah Edit Kode Terakhir)**:
+    - `npm run build` (`vue-tsc && vite build`) — PASS
+    - `node tests/editor-object-system-runtime.mjs` — PASS
+    - `node tests/editor-r3-runtime.mjs` — PASS (termasuk `defaultResetCheck`)
+    - `node tests/default-guest-runtime.mjs` & `--cloud-smoke` — PASS
+    - `node tests/inspector-object-isolation-runtime.mjs` — PASS
+    - `node tests/stabilization-runtime.mjs` — PASS
+    - `node tests/production-hardening-runtime.mjs` — PASS
+    - `node tests/dynamic-editor-instances-runtime.mjs` — PASS
+    - `node tests/media-image-effects-runtime.mjs` — PASS
+    - `node tests/numeric-scrub-text-outline-runtime.mjs` — PASS
+    - `node tests/supabase-persistence-runtime.mjs` — PASS
+  - **Hygiene Checks**: `git diff --check` exited `0`; grep seluruh `src/` dan `tests/` memastikan tidak ada pemanggil `site.load()` atau `publishedBaseline` yang tersisa.
+- **Not Verified**:
+  - Eksekusi klik interaktif tombol Reset Published Site secara langsung di browser Admin terautentikasi terhadap Cloud yang berisi baris `published`, `media_assets`, dan `certificates` aktif (karena kondisi Cloud saat ini sudah terlanjur berisi 0 baris pada tabel tersebut sebelum perbaikan diterapkan).
+  - `tests/publish-pipeline-runtime.mjs` (membutuhkan `PHASE029G_SERVICE_ROLE_KEY`) tidak dijalankan.
+- **Visual Verification**: Tidak dilakukan perbandingan screenshot visual baru terhadap referensi `design/` (scope perubahan menyasar logika Reset Cloud/Editor dan penyelarasan label entitas, bukan tata letak visual section).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu review user serta keputusan apakah ingin membersihkan sisa artefak Poin #4 (`patch_publish.cjs`, migrasi 0-byte, `database.generated.ts`, fungsi `test_reset()`) atau langsung menguji alur Draft -> Publish -> Reset dari Admin.
+
+## Request: Full Cloud & Repo Sync Check + Cleanup of Poin #4 Artifacts and Cloud test_reset() (Ponytail full Mode)
+- **Date**: 2026-11-10T12:08:30+07:00
+- **Mode**: Audit + Execution (Ponytail full mode active)
+- **Scope**: Memverifikasi kelengkapan sinkronisasi perbaikan di codebase lokal maupun Supabase Cloud (`anyhuqqnjliepllrkebo`) sebelum user membedah bug berikutnya, mencabut akses `public.test_reset()` di Cloud, membersihkan artefak Poin #4 (`patch_publish.cjs`, migrasi 0-byte `20260924153436_clear_legacy_tables_on_reset.sql`), serta meregenerasi `src/types/database.generated.ts` dari skema Cloud aktif.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `.agents/skills/supabase/SKILL.md`, `.agents/rules/ponytail.md`, `AGENTS.md`, `list bug.md`
+  - `supabase/migrations/0019_atomic_publish_pipeline.sql`, `0022_revision_conflict_http_409.sql`, `0024_editor_snapshot_v2_publish.sql`, `0027_allow_published_draft_deletion.sql`, `0028_decouple_draft_save_from_published_base.sql`
+  - Cloud inspection via MCP: `list_migrations`, `execute_sql` (`pg_proc`, `pg_constraint`, `pg_trigger`, `pg_policies`, `storage.objects` policies, `information_schema.tables`), `get_advisors` (`security`), `generate_typescript_types`
+  - `src/repositories/editorRevisionRepository.ts`, `src/pages/admin/AdminEdit.vue`, `src/stores/editor.ts`, `src/types/database.generated.ts`, `.github/workflows/supabase-keep-alive.yml`
+- **Work Performed (Completed)**:
+  1. **Audit Penyelarasan Local <-> Supabase Cloud (`anyhuqqnjliepllrkebo`)**:
+     - Memverifikasi definisi live `save_editor_draft`, `publish_editor_draft` (`0028`), `rollback_published_revision`, `get_active_published_snapshot`, `discard_editor_draft`, `add_editor_favorite`, `remove_editor_favorite`, `reset_site_to_default`, `private.reset_site_to_default_internal` (`0030`), serta constraint/FK/RLS `public.site_revisions` (`0027`) di Cloud sudah cocok dengan migrasi lokal.
+     - Menemukan fungsi eksperimen lama `public.test_reset()` (`SECURITY DEFINER`, menghapus 17 tabel termasuk `media_assets` & `certificates`) masih terpasang di Cloud dengan hak eksekusi terbuka untuk `anon` dan `authenticated`.
+     - Memverifikasi status Problem #1-#3 di working tree lokal (`supabaseRest.ts`, `useAdminEntityRegistry.ts`, `PortfolioSection.vue`, `AdminEdit.vue` `markSessionChanged()`, `editor.ts` `contentSignature()` sudah terpasang) dan status `main` terhadap `origin/main` (`ee09027`, perubahan lokal belum di-commit/push ke GitHub).
+  2. **Penutupan `public.test_reset()` di Cloud (`0031`)**:
+     - `apply_migration` dengan `DROP FUNCTION IF EXISTS public.test_reset()` ditolak/dibatalkan otomatis oleh konfirmasi DDL destruktif MCP client.
+     - Membuat dan menerapkan ke Cloud `supabase/migrations/0031_revoke_obsolete_test_reset.sql` (`20261110050621`) yang menjalankan `revoke all on function public.test_reset() from public, anon, authenticated;` dan `notify pgrst, 'reload schema'`.
+  3. **Pembersihan Artefak Poin #4 & Pembaruan `database.generated.ts`**:
+     - Menghapus `patch_publish.cjs` (script eksperimen dari `44ae90d`) dan `supabase/migrations/20260924153436_clear_legacy_tables_on_reset.sql` (migrasi 0-byte dari `16e6750`).
+     - Memperbarui `src/types/database.generated.ts` langsung dari skema Cloud via `generate_typescript_types` sehingga memuat seluruh 21 tabel (`site_revisions`, `editor_favorites`, dll.) serta definisi RPC terkini.
+- **Files Created**: `supabase/migrations/0031_revoke_obsolete_test_reset.sql`.
+- **Files Modified**: `src/types/database.generated.ts`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Files Deleted**: `patch_publish.cjs`, `supabase/migrations/20260924153436_clear_legacy_tables_on_reset.sql`.
+- **Files Protected**: `AGENTS.md`, `design/**`, `list bug.md`, serta seluruh perbaikan Masalah #1-#3 & Reset sebelumnya tetap utuh.
+- **Errors / Limitations Encountered**:
+  - `apply_migration` berisi `DROP FUNCTION public.test_reset()` dibatalkan oleh mekanisme konfirmasi destruktif MCP client (mitigasi aman via `REVOKE ALL ... FROM public, anon, authenticated`; penghapusan simbol fungsi sepenuhnya opsional via SQL Editor Dashboard).
+  - `node tests/editor-repository-runtime.mjs` gagal standalone (`ECONNREFUSED 127.0.0.1:9241`) karena skrip tersebut mensyaratkan sesi Vite+Chromium CDP aktif pada port `9241`.
+- **Validation Performed (Verified Setelah Edit Kode & DB Terakhir)**:
+  - **Cloud DB & Security**: `list_migrations` memastikan `0028`..`0031` (`20261110050621`) tercatat; `execute_sql` memastikan `anon_can_test_reset = false` & `auth_can_test_reset = false`; `get_advisors (security)` tidak lagi melaporkan `test_reset()` maupun `reset_site_to_default()`; uji HTTP langsung dengan anon key ke `/rest/v1/rpc/test_reset` dan `/rest/v1/rpc/reset_site_to_default` keduanya mengembalikan `401 / 42501 permission denied`.
+  - **Build & Automated Suites**: `npm run build` (`vue-tsc && vite build`), `node tests/default-guest-runtime.mjs`, `node tests/default-guest-runtime.mjs --cloud-smoke`, dan `node tests/supabase-persistence-runtime.mjs` semuanya PASS (exit `0`).
+  - **Hygiene Checks**: `git diff --check` exited `0`; grep seluruh repo memastikan nol pemanggil `test_reset`, `patch_publish`, atau `20260924153436`.
+- **Not Verified**:
+  - `tests/editor-repository-runtime.mjs` pada server CDP eksternal port `9241` dan `tests/publish-pipeline-runtime.mjs` (`PHASE029G_SERVICE_ROLE_KEY`) tidak dijalankan ulang pada turn ini.
+  - Perubahan working tree lokal (`0028`..`0031`, `src/**`, `tests/**`) belum di-`git commit` maupun di-`git push` ke `origin/main`.
+- **Visual Verification**: Tidak dilakukan (hanya audit Cloud/migrasi, penghapusan artefak mati, dan regenerasi file tipe TypeScript).
+- **Current Status**: COMPLETED (lokal & Cloud tersinkronisasi aman).
+- **Next Required Step**: User siap melanjutkan bedah bug berikutnya (atau melakukan `git commit` + `git push`, serta opsional `drop function if exists public.test_reset();` di Supabase SQL Editor bila ingin menghapus definisi non-aktifnya).
+
+## Request: Audit Status of GitHub Actions Keep-Alive (`supabase-keep-alive.yml`) vs Failure Notification
+- **Date**: 2026-11-10T12:13:00+07:00
+- **Mode**: Read-Only Inspection & Live Endpoint Verification
+- **Scope**: Memeriksa status perbaikan `.github/workflows/supabase-keep-alive.yml` terhadap notifikasi kegagalan GitHub Actions yang diterima user (Bagian 2 Poin #1 di `list bug.md`).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `.github/workflows/supabase-keep-alive.yml`, `git show f39cbdf`, `git show aab0520`, `git ls-remote origin refs/heads/main`
+  - GitHub REST API `https://api.github.com/repos/nanditosetyawan/portfolio-natalia-lisa/actions/runs?per_page=10` & `/jobs`
+  - Live Cloud HTTP request via `.env` (`GET /rest/v1/portfolio_profile?select=id&limit=1` dengan header `apikey` + `Accept: application/json`)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi bahwa perbaikan workflow pada commit `aab0520` (`2026-11-10 01:01:00 +07:00`) sudah berada di remote `origin/main` GitHub (`ee09027`, diverifikasi via `git ls-remote origin refs/heads/main` & `git diff origin/main`).
+  2. Menginspeksi riwayat `workflow_runs` di GitHub Actions API: seluruh 7 eksekusi gagal (termasuk run terbaru ID `42446833047` pada `2026-11-08T04:26:34Z`) berjalan pada `head_sha: b31caf9` (versi lama sebelum `aab0520`, yang menembak tabel non-eksisten `portfolios` tanpa fallback `VITE_SUPABASE_PUBLISHABLE_KEY`). Belum ada 1 pun eksekusi GitHub Actions yang berjalan pada commit baru (`aab0520` / `ee09027`).
+  3. Menguji langsung endpoint keep-alive baru terhadap Supabase Cloud memakai header yang sama persis dengan workflow (`apikey: sb_publishable_...`): `GET /rest/v1/portfolio_profile?select=id&limit=1` mengembalikan `HTTP 200 []`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, seluruh `src/**`, `tests/**`, `supabase/migrations/**`, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - `git ls-remote origin refs/heads/main` -> `ee090274d09e7ba4bdf0cfadf3d1deeabf14e124`; `git diff origin/main -- .github/workflows/supabase-keep-alive.yml` kosong.
+  - GitHub Actions REST API -> mengonfirmasi run gagal terakhir (`42446833047`) berasal dari `b31caf9` (`2026-11-08`), sebelum `aab0520` di-push (`2026-11-10`).
+  - Live HTTP GET `/rest/v1/portfolio_profile?select=id&limit=1` ke Cloud -> `200 []`.
+  - `git diff --check` -> exited `0`.
+- **Not Verified**:
+  - Isi GitHub Repository Secrets (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_ANON_KEY`) dan log step run `42446833047` tidak dapat diakses tanpa kredensial GitHub.
+  - Eksekusi langsung workflow versi `aab0520` di runner GitHub Actions (`workflow_dispatch`) belum dijalankan.
+- **Visual Verification**: Tidak berlaku (pemeriksaan workflow CI & API read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: User mengklik `Run workflow` (`workflow_dispatch`) pada tab Actions -> `Supabase Database Keep Alive` di GitHub (dan memastikan Secrets repo sudah terisi bila run manual gagal), atau lanjut membedah item bug berikutnya.
+## Request: Verify Cloud & Code Status of Post-Reset Publish & Published-Draft Deletion (Bagian 2 Poin #2)
+- **Date**: 2026-11-10T12:38:00+07:00
+- **Mode**: Read-Only Inspection & Live Cloud Schema/Function Verification
+- **Scope**: Memverifikasi apakah perbaikan pada Bagian 2 Poin #2 `list bug.md` (*Error Publish setelah Reset & Penghapusan Draft yang Pernah Di-publish* — `0024`, `0026`, dan `0027`) sudah ter-apply di Supabase Cloud (`anyhuqqnjliepllrkebo`) dan selaras dengan kode frontend/migrasi lokal.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `list bug.md`, `AGENTS.md`
+  - `supabase/migrations/0014_site_revisions.sql`, `0015_draft_library_favorites.sql`, `0019_atomic_publish_pipeline.sql`, `0024_editor_snapshot_v2_publish.sql`, `0026_reset_site_to_default.sql`, `0027_allow_published_draft_deletion.sql`, `0028_decouple_draft_save_from_published_base.sql`, `0029_restore_safe_reset_site_to_default.sql`, `0030_harden_safe_reset_security_invoker.sql`
+  - `src/repositories/editorRevisionRepository.ts`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminDrafts.vue`, `src/pages/admin/AdminFavorites.vue`, `src/pages/admin/AdminPublishedHistory.vue`, `tests/publish-pipeline-runtime.mjs`, `tests/default-guest-runtime.mjs`
+  - Live Supabase Cloud (`anyhuqqnjliepllrkebo`) via MCP `list_migrations` dan read-only `execute_sql` (`pg_get_functiondef`, `pg_constraint`, `pg_indexes`, `pg_trigger`, `site_revisions`)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi lewat `list_migrations` bahwa seluruh migrasi terkait sudah tercatat di Cloud: `20260914052029 editor_snapshot_v2_publish` (`0024`), `20260923033055 0026_reset_site_to_default.sql`, `20260924191733` & `20260924192733 0027_allow_published_draft_deletion`, `20261109190828 0028_decouple_draft_save_from_published_base`, `20261110044121 0029_restore_safe_reset_site_to_default`, `20261110044153 0030_harden_safe_reset_security_invoker`, dan `20261110050621 0031_revoke_obsolete_test_reset`.
+  2. Mengonfirmasi lewat `pg_get_functiondef` live di Cloud bahwa `public.publish_editor_draft()` memakai `global_max + 1` dan tidak lagi mensyaratkan kesamaan `base_revision_number`, `public.save_editor_draft()` memakai `coalesce(max(revision_number), 0) + 1` tanpa gagal pada `base_revision_number`, dan `public.reset_site_to_default()` memanggil `private.reset_site_to_default_internal()` yang mengarsipkan `published` serta menyetel `base_revision_number = null` pada `draft`.
+  3. Mengonfirmasi lewat `pg_constraint` live di Cloud bahwa seluruh FK/CHECK untuk penghapusan draft yang pernah di-publish aktif dan tervalidasi (`validated: true`): `site_revisions_source_draft_revision_id_fkey` memakai `ON DELETE SET NULL`, `site_revisions_published_metadata_check` mengizinkan `source_draft_revision_id IS NULL`, dan `editor_favorites_revision_id_fkey` memakai `ON DELETE CASCADE`.
+  4. Memeriksa jalur kode frontend (`prepareSupabasePublishedSnapshot` memakai UUID `attemptId` unik di Storage `published/${revisionNumber}/...`, `AdminDrafts.vue`/`AdminFavorites.vue`/`AdminEdit.vue` memakai `discardDraft`, dan `AdminPublishedHistory.vue` memakai `shortId(null) -> "—"`). Memastikan tidak ada perubahan kode yang diperlukan pada turn ini.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh `src/**`, `supabase/migrations/**`, `tests/**`, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - Supabase MCP `list_migrations` dan read-only `execute_sql` (`pg_get_functiondef`, `pg_constraint`, `pg_indexes`, `site_revisions`): memastikan definisi live Cloud sesuai perbaikan `0024`, `0027`, `0028`, `0029`, `0030`.
+  - `git diff --check`: diverifikasi setelah penulisan log (exit `0`).
+- **Not Verified**:
+  - Simulasi live write E2E di Supabase Cloud (siklus *Publish -> Reset -> Publish ulang* dan *Publish -> Delete Draft sumber* dengan sesi Admin terautentikasi / `tests/publish-pipeline-runtime.mjs`) tidak dijalankan karena sesi ini bersifat audit read-only tanpa kredensial `PHASE029G_SERVICE_ROLE_KEY`.
+  - Migrasi `0028`–`0031` sudah aktif di Cloud namun masih berada di working tree lokal (belum di-`commit`/`push` ke GitHub).
+- **Visual Verification**: Tidak berlaku (verifikasi schema, fungsi DB, dan logika repository secara read-only).
+- **Current Status**: COMPLETED (seluruh perbaikan Poin #2 Bagian 2 sudah aktif di Cloud dan selaras di kode lokal).
+- **Next Required Step**: Menunggu user meninjau item berikutnya di `list bug.md` (atau melakukan `git commit`/`git push` perubahan lokal dan uji manual Admin di browser bila diinginkan).
+## Request: Clarify Publish-vs-Draft Preservation & Meaning of `0027` Draft Deletion Fix
+- **Date**: 2026-11-10T12:49:00+07:00
+- **Mode**: Read-Only Explanation & Flow Verification
+- **Scope**: Menjelaskan perilaku aktual `publish_editor_draft()`, `get_active_published_snapshot()`, dan tujuan migrasi `0027_allow_published_draft_deletion.sql` atas pertanyaan user mengenai keamanan Draft lama saat Publish diganti ke Draft lain yang menjadi live di Guest.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, `supabase/migrations/0014_site_revisions.sql`, `0015_draft_library_favorites.sql`, `0019_atomic_publish_pipeline.sql`, `0027_allow_published_draft_deletion.sql`, `0028_decouple_draft_save_from_published_base.sql`
+  - `src/pages/admin/AdminDrafts.vue`, `src/pages/admin/AdminFavorites.vue`, `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminPublishedHistory.vue`
+  - Live Cloud `public.get_active_published_snapshot()` via MCP `execute_sql`
+- **Work Performed (Completed)**:
+  1. Memverifikasi langsung definisi live `public.get_active_published_snapshot()` di Cloud (`where status = 'published' order by revision_number desc limit 1`) serta alur `public.publish_editor_draft()` (`0028`), memastikan Publish atau ganti Publish ke Draft lain hanya menambah baris `published` baru dan tidak menghapus/mengubah baris `draft` lama maupun riwayat `published` sebelumnya.
+  2. Menjelaskan konteks `0027_allow_published_draft_deletion.sql`: bukan penghapusan otomatis saat Publish, melainkan membuka blokir agar Admin *bisa* menghapus Draft secara manual lewat tombol Delete/Discard (misal saat merapikan slot maks 10 Draft) setelah Draft tersebut pernah di-publish — yang sebelumnya diblokir oleh `on delete restrict` di `0019_atomic_publish_pipeline.sql`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh file aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - MCP `execute_sql` memeriksa `public.get_active_published_snapshot()` di live Cloud.
+  - `git diff --check` (exit `0`).
+- **Not Verified**: Tidak ada pengujian browser baru pada turn ini (tidak ada kode/skema yang diubah).
+- **Visual Verification**: Tidak berlaku (klarifikasi alur & perilaku database secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu user meninjau jawaban atau lanjut memeriksa item berikutnya di `list bug.md`.
+## Request: Audit Status of Historical Certificate Fixes, `getHistory()` Limit=5, and Verification Gap (Bagian 2 Poin #3)
+- **Date**: 2026-11-10T13:04:00+07:00
+- **Mode**: Read-Only Inspection & Live Cloud Schema/Policy Verification
+- **Scope**: Memverifikasi status faktual seluruh sub-poin Bagian 2 Poin #3 `list bug.md` (*Riwayat bug sebelumnya 22–23 Sep 2026*: bug gambar/atribut Sertifikat, `getHistory()` `limit=5`, dan status verifikasi visual/fungsional pasca 23–25 Sep 2026).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines & target historical entries lines `5046–5130` via explicit rule §4 exception)
+  - `AGENTS.md`, `list bug.md`
+  - `src/pages/admin/AdminCertificates.vue`, `src/sections/certificate/CertificateSection.vue`, `src/repositories/certificateRepository.ts`, `src/repositories/editorRevisionRepository.ts`, `src/stores/certificates.ts`, `src/runtime/publishedRuntime.ts`
+  - Git history (`git show 44ae90d`, `1cc8f5b`, `ddca88a`, `575e208`, `ee753dd`, `git diff ee09027`)
+  - Live Supabase Cloud (`anyhuqqnjliepllrkebo`) via MCP `execute_sql` (`information_schema.columns` pada `certificate_images`, `pg_policies` pada `storage.objects` & `public.certificates`/`certificate_images`/`media_assets`, serta count baris)
+- **Work Performed (Completed)**:
+  1. Memverifikasi bahwa bug Sertifikat 22–23 Sep 2026 **sudah ter-fix** di kode maupun selaras dengan Cloud: `AdminCertificates.vue` (`#L541`, `#L545`, `#L570`, `#L574`) telah mengirim `placeholder_config: {}` dan melempar error insert jika gagal; path upload & URL (`#L450`, `#L342`) sudah memakai `published/certificates/${assetId}.webp` yang sesuai dengan policy `portfolio_media_published_anon_read` (`storage.foldername(name))[1] = 'published'`); dan `CertificateSection.vue` (`#L320`, `#L406`) sudah memasang `:data-photo-area-id` pada thumbnail dan detail slide.
+  2. Memverifikasi bahwa pembatasan `getHistory()` di `SupabaseEditorPublishRepository` (`src/repositories/editorRevisionRepository.ts#L639-L642`) **masih menggunakan `&limit=5`** (batasan sengaja dari commit `44ae90d`, hanya menampilkan 5 revisi `published` terbaru pada `AdminPublishedHistory.vue`).
+  3. Mengaudit cakupan verifikasi pasca 23–25 Sep 2026: build & 19 suite Chrome CDP lokal (`default-guest-runtime.mjs`, `editor-r3-runtime.mjs`, dll.) sudah lolos, namun alur `/admin/certificates` nyata (tambah/upload WEBP/edit/sinkron `syncToDraft`/hapus ke Cloud) dan uji Publish History > 5 revisi di browser Admin Cloud nyata masih **belum terverifikasi** (`certificates = 0`, belum ada test `.mjs` yang mencakup `AdminCertificates.vue`).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - MCP `execute_sql` memeriksa kolom `certificate_images` (`placeholder_config NOT NULL DEFAULT '{}'`), storage policies `portfolio-media`, table RLS policies `certificates`/`certificate_images`/`media_assets`, dan row count (`0` baris saat ini).
+  - Inspeksi kode langsung & `git diff ee09027` pada file terkait, serta `git diff --check` (exit `0`).
+- **Not Verified**:
+  - Uji interaktif browser Admin nyata ke Cloud untuk halaman `AdminCertificates.vue` (`/admin/certificates`) maupun halaman `AdminPublishedHistory.vue` (`> 5` revisi) tidak dijalankan pada turn ini.
+- **Visual Verification**: Tidak dilakukan (hanya audit status bug/kode & policy Cloud secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu user apakah ingin mengubah `&limit=5` di `getHistory()` / melakukan verifikasi fungsional `/admin/certificates`, atau lanjut ke item Bagian 3 di `list bug.md`.
+## Request: Audit & Explain Release Blockers & Operational Limitations (Bagian 3 Poin #1–#6)
+- **Date**: 2026-11-10T13:08:30+07:00
+- **Mode**: Read-Only Inspection & Live Cloud Verification
+- **Scope**: Menjelaskan kepada user arti masing-masing item Bagian 3 (`list bug.md#L89-L99`: Auth Security, E2E Real Session, Production Origin, Mobile Performance, Storage/Cloud Data Status, dan Tooling Lokal) — membedakan mana yang bug kode vs konfigurasi Cloud, optimasi performa, sisa objek Storage, dan status normal pasca Reset.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `list bug.md`, `AGENTS.md`, `RELEASE-CANDIDATE-v1.0.0-FINAL.md`, `KNOWN-LIMITATIONS.md`, `vite.config.ts`, `.env`
+  - Live Supabase Cloud (`anyhuqqnjliepllrkebo`) via MCP `get_advisors(type="security")` dan read-only `execute_sql` (`storage.buckets`, `storage.objects`, `media_assets`, `get_active_published_snapshot`)
+  - Local shell CLI check (`Get-Command supabase, gh`)
+- **Work Performed (Completed)**:
+  1. Memverifikasi live di Cloud via `get_advisors`: `auth_leaked_password_protection` masih berstatus `WARN` (disabled pada Auth Dashboard Supabase).
+  2. Memverifikasi `vite.config.ts#L5-L34` dan `.env`: `VITE_SITE_URL` memang belum ditetapkan sehingga build metadata (`robots.txt`, `sitemap.xml`, `canonical`) jatuh ke fallback `http://localhost` (perilaku normal sebelum deploy ke domain HTTPS).
+  3. Memverifikasi `storage.buckets` dan `storage.objects` live di Cloud (`portfolio-media`): bucket masih `public: true` dengan `file_size_limit: null` & `allowed_mime_types: null`; saat ini terdapat `5` objek `draft/` (`2` sesi editor, `1` `draft/library/`, `2` `draft/certificates/`) dan `28` objek `published/` sementara `media_assets = 0` baris (sisa artefak Storage lama, tidak menyebabkan error aplikasi); dan `get_active_published_snapshot()` mengembalikan `0` baris karena seluruh `7` revisi `site_revisions` berstatus `'archived'` sesudah Reset.
+  4. Mengonfirmasi status Lighthouse RC 14 Sep (`Desktop 99`, `Mobile 66`), status belum dijalankannya E2E real GoTrue session penuh setelah edit 25 Sep / 10 Nov, serta tooling lokal (`supabase` & `gh` CLI tetap tidak terpasang di PATH, namun MCP Supabase aktif di sesi ini).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code, migrasi SQL, tests, `.env`, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - MCP `get_advisors(type="security")`, read-only `execute_sql` pada `storage.buckets`, `storage.objects`, `media_assets`, dan `get_active_published_snapshot()`, serta `git diff --check` (exit `0`).
+- **Not Verified**:
+  - Uji Lighthouse Mobile terbaru pasca perubahan terakhir belum dijalankan ulang; header HTTP produksi & sertifikat domain HTTPS nyata belum diuji karena belum ada deployment target (`VITE_SITE_URL`).
+- **Visual Verification**: Tidak berlaku (audit & penjelasan status blocker rilis secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu arahan user apakah ingin membersihkan sisa objek orphan di Storage (`draft/` / `published/`), menguji E2E browser, mengoptimasi performa Mobile, atau commit/push perubahan lokal.
+## Request: Plan & Explain End-User Browser Test Methodology and Required Tools for Admin Flows
+- **Date**: 2026-11-10T13:10:30+07:00
+- **Mode**: Planning & Environment Assessment (Read-Only, belum mengeksekusi tes live Admin)
+- **Scope**: Menjelaskan kepada user cara melakukan pengujian end-to-end sisi Admin seperti end user terhadap seluruh perbaikan bug sebelumnya, daftar tools yang tersedia/dibutuhkan, serta kebutuhan kredensial & izin data sementara Cloud sebelum eksekusi dimulai.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `AGENTS.md`, `package.json`, `src/stores/auth.ts`, `src/router/index.ts`, `.agents/skills/playwright-cli/SKILL.md`, `tests/editor-r3-runtime.mjs`, `tests/publish-pipeline-runtime.mjs`
+  - Environment tool verification: `Get-ChildItem $env:LOCALAPPDATA\ms-playwright`, `Test-Path` browser paths (`C:\Program Files\Google\Chrome\Application\chrome.exe`, `msedge.exe`), `node_modules\playwright`, `playwright-cli`, serta `execute_sql` read-only cek count `auth.users` (`1`), `admin_memberships` (`1`), dan `site_revisions` (`0` draft, `0` published, `7` archived)
+- **Work Performed (Completed)**:
+  1. Memverifikasi kesiapan tooling lokal: `C:\Program Files\Google\Chrome\Application\chrome.exe` + Vite dev server (`npm run dev`) + Node.js (`v22.23.3` built-in `WebSocket` CDP) + MCP Supabase ke Cloud aktif dan dapat dipakai tanpa instalasi package baru; sebaliknya `playwright`, `playwright-cli`, serta folder `ms-playwright\chromium-1234` tidak terpasang di environment ini.
+  2. Memetakan kendala autentikasi & data Cloud untuk uji nyata sisi Admin: `.env` tidak menyimpan kredensial Admin maupun `PHASE029G_SERVICE_ROLE_KEY`, dan Cloud memiliki `1` akun Admin terdaftar. Menyusun opsi paling aman (Chrome terlihat dibuka ke `#/admin/login`, user mengetik login sendiri agar kredensial tidak dikirim ke chat, lalu alur uji dijalankan melalui Chrome CDP + verifikasi database MCP Supabase, diikuti cleanup data uji di akhir) serta opsi alternatif (`PHASE029G_SERVICE_ROLE_KEY` via `publish-pipeline-runtime.mjs`).
+  3. Memetakan skenario uji untuk seluruh bug yang sudah diperbaiki (Problem #1–#4, `0024`/`0027`–`0030`, dan Sertifikat `AdminCertificates.vue` + `CertificateSection.vue`) sekaligus batasannya (GitHub Actions Keep-Alive & setting Dashboard Supabase/Hosting diuji di luar browser lokal).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `.env`, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi; belum ada proses browser/test write ke Cloud yang dijalankan.
+- **Validation Performed (Verified)**:
+  - Verifikasi langsung path binary browser (`chrome.exe`, `msedge.exe`), ketiadaan `playwright` / `playwright-cli`, jumlah row `auth.users` & `site_revisions` di Cloud, serta `git diff --check` (exit `0`).
+- **Not Verified**: Eksekusi uji browser Admin nyata (menunggu penjelasan dan persetujuan user terlebih dahulu sesuai permintaan *"jelaskan dulu cara nya dan tools apa yang kamu butuh"*).
+- **Visual Verification**: Tidak berlaku (tahap perencanaan/penjelasan sebelum eksekusi).
+- **Current Status**: COMPLETED (rencana pengujian & kebutuhan tools siap; menunggu keputusan & persetujuan user untuk mulai tes).
+- **Next Required Step**: Menunggu persetujuan user memilih opsi login & mengizinkan penggunaan data uji sementara di Supabase Cloud sebelum membuka browser Admin dan mengeksekusi pengujian.
+## Request: Execute Full End-User Browser E2E Test on Admin & Guest Flows, Fix Slot Mismatch Bug, and Restore Clean Cloud Baseline
+- **Date**: 2026-11-10T13:50:00+07:00
+- **Mode**: Interactive Live Browser E2E Verification, Targeted Bug Fix, & Post-Test Cloud Cleanup
+- **Scope**: Menjalankan pengujian end-to-end sisi Admin dan Guest di browser Chrome nyata (`http://localhost:5173`) terhubung ke Supabase Cloud (`anyhuqqnjliepllrkebo`) untuk memverifikasi Skenario A (Sertifikat `.webp` & `syncToDraft`), Skenario B (Editor Isolation, Scroll, Profile Drag, `instances` `.webp`, `:data-photo-area-id`), Skenario C (Save -> Publish -> Cross-Tab Guest Cache -> Safe Reset -> Post-Reset Isolation -> Republish -> Delete Published Draft & Favorites Cascade), Bagian 1 (`#1–#4`), dan Bagian 2 (`#2–#3`) dari `list bug.md`; memperbaiki bug yang ditemukan secara jelas; serta membersihkan seluruh data uji agar Cloud kembali ke kondisi bersih.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `list bug.md`
+  - `src/stores/certificates.ts`, `src/sections/certificate/CertificateSection.vue`, `src/pages/admin/AdminCertificates.vue`
+  - `src/pages/admin/AdminEdit.vue`, `src/pages/admin/AdminDrafts.vue`, `src/pages/admin/AdminFavorites.vue`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminPublishedHistory.vue`
+  - `src/repositories/editorRevisionRepository.ts`, `src/runtime/publishedRuntime.ts`, `supabase/migrations/0019_atomic_publish_pipeline.sql`, `.github/workflows/supabase-keep-alive.yml`
+- **Work Performed (Completed)**:
+  1. **Login & Dashboard (`#/admin/login?redirect=/admin`)**: Login GoTrue Admin nyata berhasil ke `#/admin` tanpa error console maupun HTTP `4xx/5xx`; memverifikasi toast guard `Pilih Draf Terlebih Dahulu` pada `+ Tambah Sertifikat Baru` saat `0` draft.
+  2. **Skenario A (`AdminCertificates.vue` & `CertificateSection.vue`)**: Membuat Draft `#8` dari `#/admin/edit?draft=new` (0 query ke 15 tabel lama); menambah `"Sertifikat Uji E2E 2026"` dengan upload `.webp` thumbnail & detail; memverifikasi baris `certificates`, `certificate_images` (`placeholder_config: {}`), `media_assets`, dan `storage.objects` (`published/certificates/*.webp`) di Cloud; menekan `Update` (`syncToDraft`) hingga `[data-certificate-origin="database"]` dan `:data-photo-area-id` tampil di Editor Preview; serta memverifikasi hapus sertifikat via tombol UI `.delete-btn` (`Hapus`) membersihkan DB + `media_assets` + Storage.
+  3. **Skenario B (`AdminEdit.vue` & `PortfolioSection.vue`)**: Memverifikasi load/reload bersih (`editorSaveStatus: ""`, `hasUnsavedChanges: false`), perilaku manual scroll (`Unsaved session` tanpa memblokir Publish sesuai `tests/editor-r3-runtime.mjs#L389`), drag tunggal wrapper `portfolio-profile-media` (`277.9 x 341`) ke `46.213, -18.485` dengan persistensi pasca-Save/reload, penolakan `.png` + upload `.webp` dinamis `instances` (`280x200`) dengan status dirty & persistensi, serta pemilihan `:data-photo-area-id` foto thumbnail maupun detail `detailImages` sertifikat DB di Editor.
+  4. **Bug Fix (`src/stores/certificates.ts#L152-L154`)**: Menemukan inkonsistensi saat `databaseCertificates` berjumlah 1 kartu: `displayedCards` merender `[DB, cert-b]`, tetapi getter `editableCards` masih mengisi slot fallback tanpa rotasi `fallbackStart` (`[DB, cert-a]`), membuat `cert-b-thumbnail` tidak bisa diklik di Editor dan memunculkan layer `"SERTIF A"` hantu. Memperbaiki `editableCards` agar memanggil `buildCertificateDisplay(state.databaseCertificates, true)`.
+  5. **Skenario C (Save, Publish, Cross-Tab Cache, Safe Reset, Republish, Delete Published Draft)**: Publish #1 (revisi `#9`) langsung memperbarui tab Guest `/` dan bertahan setelah reload; edit & Save Draft setelah Publish berhasil tanpa error `409` (`0028`); `Reset System` di `#/admin/maintenance` (`AdminMaintenance.vue#L207` memakai pesan status `'Archiving published revisions...'`) mengarsipkan `#9` sambil menjaga Draft `#8`, Favorite, Sertifikat uji, dan Media tetap utuh serta mengembalikan Guest ke default (`source: "default"`); `#/admin/edit?draft=new` pasca-Reset hanya memanggil `get_active_published_snapshot` (0 query 15 tabel lama); Republish #2 (revisi `#10`, `global_max + 1` dari `0024`) otomatis memperbarui tab Guest tanpa reload dengan seluruh gambar `complete: true`; penghapusan Draft `#8` berhasil (`0027`, Favorite ikut cascade terhapus via FK `ON DELETE CASCADE`) dan `#/admin/published` menampilkan revisi `#10` `LIVE` dengan `Source Draft: "—"`.
+  6. **Cleanup Cloud & Browser**: Menghapus seluruh data uji (`Draft`, `Favorite`, `"Sertifikat Uji E2E 2026"`, `media_assets` `60f3a187-...`, dan 5 objek Storage `portfolio-media` buatan `2026-11-10`) melalui sesi Admin terautentikasi, menutup tab Guest & mematikan proses Chrome CDP daemon uji, serta menghapus profil Chrome sementara (`portfolio-e2e-chrome`).
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - `src/stores/certificates.ts` (`editableCards` diselaraskan menggunakan `buildCertificateDisplay(state.databaseCertificates, true)`).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, seluruh migrasi SQL yang sudah ter-apply, dan aset produksi di Cloud tetap terlindungi.
+- **Decisions Made**: Perilaku UX yang bersifat preferensi/keputusan produk tidak diubah sepihak (indikator `"Unsaved session"` pada manual scroll, penguncian `requireSelectedDraft()` saat 0 draft di `AdminCertificates.vue`, toggle kartu saat memilih thumbnail sertifikat di Editor, preview `"No media assigned"` untuk foto DB sertifikat di Inspector, kondisi `:disabled` pada `AdminMaintenance.vue#L22`, `&limit=5` di `AdminPublishedHistory.vue`, serta tidak adanya watcher `route.query.draft` di `AdminEdit.vue`) dan dicatat untuk konfirmasi user.
+- **Unresolved Decisions**: Daftar poin UX/perilaku ambigu di atas menunggu keputusan user; revisi uji `#9` dan `#10` berstatus `'archived'` tetap tersimpan di Cloud (bersama `#1..#7` pra-tes) karena RLS `site_revisions` melarang `DELETE` selain `status = 'draft'` dan MCP SQL membatalkan pernyataan `DELETE`.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - Verifikasi terisolasi perbaikan `editableCards` (`verify-cert-editable-fix.mjs`, IndexedDB/in-memory port `5199`): **PASS** (`displayed` & `editable` sama-sama `["db-x","cert-b"]`, `cert-b-thumbnail` terseleksi di Editor, 0 error runtime).
+  - Suite runtime Chrome headless (`CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe`): `tests/editor-r3-runtime.mjs` **PASS**, `tests/dynamic-editor-instances-runtime.mjs` **PASS**, `tests/inspector-object-isolation-runtime.mjs` **PASS**.
+  - Supabase MCP `execute_sql` pasca-cleanup: `drafts=0`, `published=0`, `archived=9` (`#1..#7` + `#9,#10`), `favorites=0`, `certificates=0`, `certificate_images=0`, `media_assets=0`, `storage.objects=33` (`0` dibuat pada `2026-11-10`), `get_active_published_snapshot()=0` baris.
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**:
+  - Klik tombol `Rollback` di UI `#/admin/published` (membutuhkan >= 2 revisi berstatus `'published'` setelah Reset), verifikasi visual DOM sesaat pesan `'Archiving published revisions...'` sebelum `window.location.reload()`, eksekusi langsung GitHub Actions Keep-Alive (`aab0520`), skor Lighthouse Mobile (`66` pada laporan RC), konfigurasi Supabase Auth *leaked-password protection*, dan header produksi HTTPS (`VITE_SITE_URL`).
+- **Visual Verification**: Dilakukan terhadap screenshot CDP Chrome pada Dashboard, Certificates Editor Preview, Profile drag, Dynamic `.webp` instance, Certificate photo selection, Maintenance modal, Published History (`"—"`), serta tampilan Guest setelah Publish #1, Safe Reset, Republish #2, dan pasca-cleanup (`default`). Screenshot sementara dan profil Chrome uji telah dibersihkan.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user atas daftar poin UX ambigu yang ditemukan, tindakan lanjutan untuk item non-browser (Dashboard Auth leaked-password protection, trigger Keep-Alive Actions, Lighthouse Mobile, `VITE_SITE_URL`), dan apakah perubahan lokal siap di-`commit`/`push`.
+## Request: Explain Meaning of "Unsaved session" on Manual Preview Scroll in AdminEdit.vue
+- **Date**: 2026-11-10T14:04:45+07:00
+- **Mode**: Read-Only Code Inspection & Clarification
+- **Scope**: Menjelaskan kepada user arti perilaku `"Unsaved session"` saat scroll manual Preview di `AdminEdit.vue`, perbedaannya dengan `"Unsaved Changes"`, dampaknya terhadap penyimpanan posisi scroll dan tombol `Publish`, serta konsekuensi opsi mempertahankan atau menyembunyikan indikator tersebut.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines)
+  - `src/pages/admin/AdminEdit.vue` (`persistPreviewScroll`, `markSessionChanged`, `saveDraft`, `requestOpenLibrary`)
+  - `src/stores/editor.ts` (`setViewport`, `contentSignature`, `hasUnsavedChanges`, `sessionDirty`, `markDraftSaved`)
+  - `src/composables/useEditorSession.ts` (`markEditorChanged`)
+  - `src/pages/admin/components/AdminLayout.vue` (`editorSaveStatus`, `publishDisabled`)
+  - `tests/editor-r3-runtime.mjs` (`sessionAndEntityCheck`)
+- **Work Performed (Completed)**:
+  1. Memverifikasi pemisahan state antara konten (`hasUnsavedChanges` / `editorHasChanges` -> `"Unsaved Changes"`, memblokir `Publish` dan memicu modal unsaved saat pindah library) vs sesi viewport (`sessionDirty` -> `"Unsaved session"`, tidak memblokir `Publish` maupun modal unsaved).
+  2. Mengonfirmasi bahwa `saveDraft()` selalu membaca nilai `previewScrollTop` & `previewScrollLeft` terkini dari `canvasScroll.value`, sehingga penyimpanan posisi scroll tetap berjalan meski indikator `"Unsaved session"` tidak ditampilkan saat scroll.
+  3. Memastikan tidak ada file kode aplikasi yang diubah karena user hanya meminta penjelasan.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu keputusan user antara Opsi A (pertahankan indikator `"Unsaved session"` sesuai `tests/editor-r3-runtime.mjs#L389`) atau Opsi B (hilangkan indikator saat scroll manual).
+- **Unresolved Decisions**: Poin #1–#6 dari hasil audit E2E masih menunggu keputusan user.
+- **Validation Performed (Verified)**:
+  - Pembacaan langsung simbol & logika terkait di `AdminEdit.vue`, `editor.ts`, `useEditorSession.ts`, `AdminLayout.vue`, dan `editor-r3-runtime.mjs`.
+  - `git diff --check`: diverifikasi bersih.
+- **Not Verified**: Tidak ada pengujian runtime baru yang dijalankan (read-only explanation).
+- **Visual Verification**: Tidak berlaku (hanya penjelasan teks & kode secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu pilihan user atas poin `"Unsaved session"` dan item ambigu lain sebelum melakukan perubahan kode apa pun.
+## Request: Implement Pilihan B — Remove "Unsaved session" Indicator on Manual Preview Scroll & Run Runtime Tests
+- **Date**: 2026-11-10T14:08:30+07:00
+- **Mode**: Targeted Code Update & Automated Runtime Verification
+- **Scope**: Menerapkan Pilihan B sesuai persetujuan user: menghilangkan munculnya indikator `"Unsaved session"` (serta flag `sessionDirty`) saat scroll manual Preview pada `AdminEdit.vue`, tetap mempertahankan pelacakan & penyimpanan posisi scroll (`previewScrollTop` / `previewScrollLeft`) ke Draft saat `Save Draft` ditekan, memperbarui kontrak test di `tests/editor-r3-runtime.mjs`, dan menjalankan build + pengujian runtime.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/stores/editor.ts` (`setViewport`)
+  - `src/pages/admin/AdminEdit.vue` (`persistPreviewScroll`, `saveDraft`, callers `markSessionChanged`)
+  - `tests/editor-r3-runtime.mjs` (`sessionAndEntityCheck`), `tests/editor-navigator-collapse-runtime.mjs`
+- **Work Performed (Completed)**:
+  1. Memperbarui [`setViewport`](src/stores/editor.ts#L360-L368) di `src/stores/editor.ts` dengan parameter opsional `markSession = true` agar pembaruan viewport bisa menjaga `sessionDirty` tetap `false` saat `markSession = false`.
+  2. Memperbarui [`persistPreviewScroll`](src/pages/admin/AdminEdit.vue#L2619-L2625) di `src/pages/admin/AdminEdit.vue` agar memanggil `editor.setViewport({ previewScrollTop: element.scrollTop, previewScrollLeft: element.scrollLeft }, false)` tanpa memanggil `markSessionChanged()`. Pemanggil `markSessionChanged()` lain (zoom, klik seleksi, lock/hide layer, accordion) dibiarkan tetap aktif.
+  3. Menyesuaikan asersi di `tests/editor-r3-runtime.mjs` (`#L366-L389`) untuk memverifikasi `afterScrollStatus === ""`, `!afterScrollSessionDirty`, `!afterScrollUnsaved`, `publishEnabledAfterScroll === true`, `savedScrollValue === 240`, `afterLockStatus === "Unsaved session"`, serta `scrollReloadStatus.restoredScrollTop === 240` setelah `Save Draft` & membuka ulang Draft.
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - `src/stores/editor.ts` (`setViewport` opsional `markSession = true`).
+  - `src/pages/admin/AdminEdit.vue` (`persistPreviewScroll` tidak lagi memicu `"Unsaved session"`).
+  - `tests/editor-r3-runtime.mjs` (penyesuaian kontrak scroll `""` + verifikasi `restoredScrollTop === 240`).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, migrasi SQL, dan seluruh skrip lain tetap terlindungi; 5 screenshot sementara dari test di `artifacts/` dibersihkan sesudah inspeksi.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - `node tests/editor-r3-runtime.mjs` (`CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe`): **PASS** (`selection`, `propertyPanel`, `undoRedo`, `draftFavorite`, `afterScrollStatus === ""`, `restoredScrollTop === 240`).
+  - `node tests/editor-navigator-collapse-runtime.mjs` (`CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe`): **PASS**.
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Uji klik scroll langsung pada server terhubung Supabase Cloud belum diulang pada turn ini (diverifikasi lokal via Chrome CDP in-memory di `editor-r3-runtime.mjs` yang menjalankan komponen `AdminEdit.vue` & store `editor.ts` yang sama).
+- **Visual Verification**: Menginspeksi `artifacts/phase-029f-r3-editor-runtime.png` hasil `editor-r3-runtime.mjs` (Preview posisi scroll `240px`, indikator hanya muncul untuk perubahan nyata `"Unsaved Changes"` pada tombol `Publish` terkunci).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user atas sisa poin UX ambigu (#2–#6 dari ringkasan E2E sebelumnya) atau permintaan lanjutan.
+## Request: Explain Behavior of Zero-Draft Guard on AdminCertificates.vue CRUD Actions
+- **Date**: 2026-11-10T14:19:00+07:00
+- **Mode**: Read-Only Code Inspection & Clarification
+- **Scope**: Menjelaskan kepada user mekanisme penyimpanan 2 tahap di `AdminCertificates.vue` (tabel `certificates` langsung vs tombol `Update` `syncToDraft` ke Draft) serta arti blokir `requireSelectedDraft()` pada tombol Tambah, Edit, Hapus, dan Urutkan saat `0` Draft.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/pages/admin/AdminCertificates.vue` (`syncToDraft`, `requireSelectedDraft`, `openAddModal`, `openEditModal`, `deleteCertificate`, `onDrop`)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi bahwa `openAddModal`, `openEditModal`, `deleteCertificate`, dan `onDrop` menulis langsung ke tabel `certificates` / `certificate_images` / Storage, tetapi saat ini diblokir oleh `requireSelectedDraft()` bila `selectedDraftId` kosong (`0` Draft), sedangkan tombol `Update` sudah memiliki `:disabled="!selectedDraftId"`.
+  2. Menyusun perbandingan jelas antara Pilihan A (pertahankan guard wajib Draft) dan Pilihan B (buka CRUD sertifikat tanpa syarat Draft, kunci hanya tombol `Update`).
+  3. Memastikan tidak ada file kode aplikasi yang dimodifikasi karena user meminta penjelasan.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu pilihan user antara Pilihan A atau Pilihan B.
+- **Unresolved Decisions**: Poin #2–#6 hasil audit E2E masih menunggu keputusan user.
+- **Validation Performed (Verified)**: Pembacaan langsung simbol & template `AdminCertificates.vue` dan `git diff --check` (exit `0`).
+- **Not Verified**: Tidak ada pengujian baru yang dijalankan (read-only explanation).
+- **Visual Verification**: Tidak berlaku (hanya penjelasan teks & kode secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user memilih Pilihan A atau Pilihan B untuk `AdminCertificates.vue` (serta poin lanjutan lain bila diinginkan).
+## Request: Implement Pilihan B — Unlock Certificate CRUD at 0 Drafts & Warn/Prune Referencing Drafts on Delete
+- **Date**: 2026-11-10T14:35:00+07:00
+- **Mode**: Targeted Code Update & Automated Browser Verification
+- **Scope**: Menerapkan Pilihan B sesuai keputusan user pada `src/pages/admin/AdminCertificates.vue`: (1) membuka tombol `+ Tambah Sertifikat Baru`, `Edit`, `Hapus`, dan drag-and-drop urutan sertifikat meskipun belum ada Draf (`0` Draf) sambil tetap menjaga tombol `Update` (`syncToDraft`) nonaktif hingga ada Draf terpilih; (2) menambahkan modal konfirmasi sebelum menghapus sertifikat yang memeriksa seluruh Draf aktif, menampilkan peringatan daftar `Draf #<nomor>` jika sertifikat tersebut sedang dipakai di Draf, dan jika user menekan `Tetap Hapus`, menghapus sertifikat beserta aset medianya sekaligus membersihkan referensi sertifikat/foto/entity terkait dari Draf yang merujuknya.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/pages/admin/AdminCertificates.vue` (`requireSelectedDraft`, `openAddModal`, `openEditModal`, `deleteCertificate`, `onDrop`, `syncToDraft`)
+  - `src/repositories/editorRevisionRepository.ts` (`editorDraftRepository.listDrafts`, `loadDraft`, `saveDraft`)
+- **Work Performed (Completed)**:
+  1. Menghapus guard `requireSelectedDraft()` dari `openAddModal()`, `openEditModal()`, `requestDeleteCertificate()`, dan `onDrop()` di `src/pages/admin/AdminCertificates.vue` (serta menghapus fungsi `requireSelectedDraft` yang tidak lagi dipakai), sambil mempertahankan `:disabled="!selectedDraftId || isSyncing"` pada tombol `Update`.
+  2. Mengganti `window.confirm` pada aksi `Hapus` menjadi modal konfirmasi in-app (`.delete-confirm-modal`) melalui `requestDeleteCertificate()`, `cancelDeleteCertificate()`, dan `confirmDeleteCertificate()`:
+     - Sebelum menghapus, `requestDeleteCertificate()` memuat daftar Draf terbaru via `editorDraftRepository.listDrafts()` dan mendeteksi Draf yang memuat `cert.id` pada `revision.snapshot.certificateCards`.
+     - Jika ada Draf yang merujuk sertifikat tersebut, modal menampilkan blok peringatan (`.delete-draft-warning`) berisi daftar `Draf #<revision_number>` beserta waktu pembaruan terakhir dan label tombol `Tetap Hapus`. Jika tidak dipakai Draf mana pun, modal menampilkan konfirmasi standar dengan tombol `Hapus`.
+  3. Menambahkan `pruneCertificateFromSnapshot()` di `src/pages/admin/AdminCertificates.vue` untuk menghapus kartu sertifikat, entri `entities`, `layout`, `typography`, `backgrounds`, `buttons`, `animations`, `media.assignments`, `media.styles`, `session.objectStates`, serta `session.selectedEntityId` yang terkait dengan sertifikat terhapus, lalu menyimpan ulang setiap Draf terdampak via `editorDraftRepository.saveDraft()`.
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - `src/pages/admin/AdminCertificates.vue` (pembukaan guard 0-Draft pada CRUD sertifikat, modal konfirmasi penghapusan dengan deteksi Draf pengacu, dan pembersihan otomatis snapshot Draf saat `Tetap Hapus`).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, migrasi SQL, dan seluruh data Supabase Cloud (`anyhuqqnjliepllrkebo`) tetap bersih dan tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - Verifikasi E2E headless Chrome terisolasi pada rute `#/admin/certificates`: **PASS** (exit `0`) — memverifikasi tombol `Update` nonaktif saat `0` Draf sementara modal `Tambah Sertifikat` & `Edit Sertifikat` terbuka normal; menguji peringatan `Draf #1` + tombol `Tetap Hapus` saat sertifikat dipakai Draf; memverifikasi tombol `Batal` tidak mengubah sertifikat maupun Draf; memverifikasi `Tetap Hapus` menghapus sertifikat, aset media terkait, serta membersihkan `certificateCards`, `entities`, `layout`, dan `selectedEntityId` pada `Draf #1`; dan memverifikasi konfirmasi standar tanpa peringatan Draf saat sertifikat tidak dipakai Draf mana pun.
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Uji klik langsung pada server dev terhubung Supabase Cloud (`http://localhost:5173`) belum dijalankan agar kondisi Cloud tetap bersih (`0` sertifikat, `0` draf).
+- **Visual Verification**: Diinspeksi secara terprogram pada DOM ter-render di Chrome headless (`.delete-confirm-modal`, `.delete-draft-warning`, status tombol `Update` vs `+ Tambah Sertifikat Baru` / `Edit`).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user untuk poin UX lain bila ingin dilanjutkan atau siap digunakan langsung.
+## Request: Explain Certificate Thumbnail Accordion Toggle & Inspector "No media assigned" in Editor
+- **Date**: 2026-11-10T14:38:30+07:00
+- **Mode**: Read-Only Code Inspection & Clarification
+- **Scope**: Menjelaskan kepada user dua perilaku pada Editor (`AdminEdit.vue` & `CertificateSection.vue`): (1) klik pada thumbnail sertifikat di Preview Editor ikut memicu expand/collapse accordion kartu sertifikat, dan (2) panel `Inspector -> MEDIA -> Preview` menampilkan `"No media assigned"` untuk foto sertifikat yang berasal dari database (`certificates` / `certificate_images`).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/sections/certificate/CertificateSection.vue` (`card-header @click="toggleCard(card.id)"`, `.card-thumbnail`)
+  - `src/pages/admin/AdminEdit.vue` (`preview-media` pada baris 1301–1304, `selectedPhotoArea`)
+  - `src/pages/admin/components/property-controls/PropertyThumbnailControl.vue` (`"No media assigned"`)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi penyebab pertama: di `CertificateSection.vue`, elemen `.card-thumbnail` (`:data-photo-area-id`) berada di dalam `<div class="card-header" @click="toggleCard(card.id)">`, sehingga klik saat memilih thumbnail di Editor ikut men-bubble ke `toggleCard` dan membuka/menutup accordion kartu.
+  2. Mengonfirmasi penyebab kedua: di `AdminEdit.vue`, aksi `preview-media` hanya membaca `editor.draftSnapshot.media.assignments` + `references`, sedangkan foto sertifikat dari halaman *Manage Certifikat* tersimpan di `certificateCards` / `selectedPhotoArea.value.source`, sehingga Inspector menampilkan `"No media assigned"` walau gambar tampil di kanvas Preview.
+  3. Memastikan tidak ada file kode aplikasi yang diubah (read-only explanation).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu keputusan user antara Pilihan A (dibiarkan) atau Pilihan B (diperbaiki).
+- **Unresolved Decisions**: Menunggu keputusan user atas perilaku klik thumbnail sertifikat & preview Inspector MEDIA di Editor.
+- **Validation Performed (Verified)**: Pembacaan langsung simbol & template di `CertificateSection.vue`, `AdminEdit.vue`, dan `PropertyThumbnailControl.vue`.
+- **Not Verified**: Tidak ada pengujian runtime baru yang dijalankan (read-only explanation).
+- **Visual Verification**: Tidak berlaku (hanya penjelasan teks & kode secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu pilihan user apakah perilaku ini mau dibiarkan atau diperbaiki.
+## Request: Implement Pilihan B — Prevent Certificate Thumbnail Accordion Toggle in Editor & Fallback Inspector MEDIA Preview to DB Photo Source
+- **Date**: 2026-11-10T14:46:15+07:00
+- **Mode**: Targeted Code Update & Automated Browser Verification
+- **Scope**: Menerapkan Pilihan B sesuai persetujuan user tanpa memengaruhi perilaku halaman Guest: (1) mencegah klik pada thumbnail sertifikat di Preview Editor (`[data-editor-mode="true"]`) memicu expand/collapse accordion kartu sertifikat pada `src/sections/certificate/CertificateSection.vue`, dan (2) menampilkan foto sertifikat dari database (`selectedPhotoArea.value?.source`) pada kotak `Inspector -> MEDIA -> Preview` di `src/pages/admin/AdminEdit.vue` ketika belum ada override di `draftSnapshot.media.assignments`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/sections/certificate/CertificateSection.vue` (`toggleCard`, `card-header`, `.card-thumbnail`)
+  - `src/pages/admin/AdminEdit.vue` (`preview-media` pada baris 1301–1305, `editor-preview-runtime[data-editor-mode="true"]`)
+- **Work Performed (Completed)**:
+  1. Menambahkan `handleCardHeaderClick(id, event)` pada `src/sections/certificate/CertificateSection.vue` untuk menggantikan `@click="toggleCard(card.id)"` pada `.card-header`: bila klik terjadi di dalam `[data-editor-mode="true"]` dan mengenai `.card-thumbnail` atau `[data-photo-area-id]`, fungsi langsung `return` tanpa memanggil `toggleCard`, sementara klik pada tombol panah `ChevronDown`, area teks header di Editor, maupun seluruh area header termasuk thumbnail di halaman Guest tetap menjalankan `toggleCard(card.id)`.
+  2. Memperbarui handler `preview-media` di `src/pages/admin/AdminEdit.vue` agar mengembalikan `selectedPhotoArea.value?.source ?? ''` ketika tidak ditemukan `reference` di `editor.draftSnapshot.media.assignments`, sehingga foto sertifikat yang berasal dari tabel `certificates` / `certificate_images` tampil di kotak `Inspector -> MEDIA -> Preview` (tidak lagi menampilkan `"No media assigned"`).
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - `src/sections/certificate/CertificateSection.vue` (pengecualian klik thumbnail/photo-area dari toggle accordion khusus di dalam `[data-editor-mode="true"]`).
+  - `src/pages/admin/AdminEdit.vue` (fallback `preview-media` ke `selectedPhotoArea.value?.source`).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, migrasi SQL, dan data Supabase Cloud (`anyhuqqnjliepllrkebo`) tetap terlindungi dan bersih.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - Verifikasi E2E headless Chrome pada Guest (`#/`) dan Editor (`#/admin/edit`): **PASS** (exit `0`) — memverifikasi di Guest klik thumbnail sertifikat tetap membuka/menutup accordion (`true -> false`), sedangkan di Editor klik thumbnail memilih `cert-db-1-thumb` tanpa membuka accordion (`expandedAfterThumbClick === false`), `Inspector -> MEDIA -> Preview` menampilkan gambar dari `selectedPhotoArea.source`, dan klik tombol `ChevronDown` di Editor tetap bisa membuka/menutup accordion (`true -> false`).
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Uji klik langsung terhadap server dev yang terhubung ke Supabase Cloud (`http://localhost:5173`) belum dijalankan agar kondisi Cloud tetap bersih.
+- **Visual Verification**: Diinspeksi secara terprogram pada DOM ter-render di Chrome headless untuk rute Guest (`#/`) dan Editor (`#/admin/edit`).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu instruksi lanjutan dari user bila ada.
+## Request: Confirm Completion Status of Pilihan B Certificate Editor Fixes
+- **Date**: 2026-11-10T14:49:15+07:00
+- **Mode**: Read-Only Status Confirmation
+- **Scope**: Mengonfirmasi kepada user bahwa seluruh perubahan Pilihan B pada `src/sections/certificate/CertificateSection.vue` dan `src/pages/admin/AdminEdit.vue` beserta build dan pengujian E2E Chrome sudah selesai diterapkan dan terverifikasi.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+- **Work Performed (Completed)**:
+  1. Memverifikasi entri log terakhir di `PROJECT-IMPLEMENTATION-LOG.md` dan mengonfirmasi status selesai tanpa perubahan kode tambahan.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode.
+- **Unresolved Decisions**: Tidak ada.
+- **Validation Performed (Verified)**: Pembacaan `PROJECT-IMPLEMENTATION-LOG.md` mengonfirmasi `npm run build` (exit `0`), verifikasi Chrome E2E Guest + Editor (exit `0`), dan `git diff --check` (exit `0`) sudah selesai.
+- **Not Verified**: Tidak ada pengujian baru yang dijalankan.
+- **Visual Verification**: Tidak berlaku (konfirmasi status saja).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu permintaan user berikutnya bila ada.
+## Request: Explain Reset System Button Active State on Direct Load of AdminMaintenance.vue
+- **Date**: 2026-11-10T14:50:10+07:00
+- **Mode**: Read-Only Code Inspection & Clarification
+- **Scope**: Menjelaskan kepada user penyebab tombol `Reset System` pada `src/pages/admin/AdminMaintenance.vue` tetap aktif saat halaman `#/admin/maintenance` dibuka langsung tanpa membuka rute Guest (`#/`) terlebih dahulu maupun sesaat setelah `window.location.reload()` pasca Reset.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/pages/admin/AdminMaintenance.vue` (`:disabled="site.guestRuntimeSource === 'default'"` pada baris 22, `executeResetSystem` dengan `window.location.reload()` pada baris 204–227)
+  - `src/stores/site.ts` (`guestRuntimeSource: null` pada baris 65)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi bahwa nilai awal `site.guestRuntimeSource` di `src/stores/site.ts` adalah `null` dan hanya terisi (`'published'` atau `'default'`) apabila rute Guest (`#/`) pernah dimuat dalam sesi tab tersebut.
+  2. Mengonfirmasi bahwa `AdminMaintenance.vue` tidak memeriksa status revisi `published` aktif di Supabase Cloud saat `onMounted`, dan `executeResetSystem()` memanggil `window.location.reload()`, sehingga setelah reload atau saat masuk langsung ke `#/admin/maintenance`, `site.guestRuntimeSource` bernilai `null` dan tombol `Reset System` tetap aktif walau `published` di Cloud berjumlah `0`.
+  3. Memastikan tidak ada file kode aplikasi yang diubah (read-only explanation).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu keputusan user antara Pilihan A (dibiarkan) atau Pilihan B (cek status `published` di Cloud saat `AdminMaintenance.vue` dimuat).
+- **Unresolved Decisions**: Menunggu pilihan user apakah tombol `Reset System` mau dinonaktifkan otomatis berdasarkan pengecekan status `published` Cloud saat mount.
+- **Validation Performed (Verified)**: Pembacaan langsung kode `AdminMaintenance.vue` dan `site.ts`.
+- **Not Verified**: Tidak ada pengujian runtime baru yang dijalankan (read-only explanation).
+- **Visual Verification**: Tidak berlaku (hanya penjelasan teks & kode secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu pilihan user antara Pilihan A atau Pilihan B.
+## Request: Implement Pilihan B — Sync Reset System Button Disabled State with Active Cloud Published Revision on Mount
+- **Date**: 2026-11-10T14:53:15+07:00
+- **Mode**: Targeted Code Update & Automated Browser Verification
+- **Scope**: Menerapkan Pilihan B sesuai persetujuan user pada `src/pages/admin/AdminMaintenance.vue`: mengecek status revisi `published` aktif dari Supabase (`editorPublishRepository.getPublishedRevision()`) saat komponen dimuat (`onMounted`), sehingga tombol `Reset System` otomatis nonaktif (`disabled`) jika belum ada revisi `published` aktif (`0` published) bahkan saat membuka `#/admin/maintenance` langsung tanpa melalui `#/` atau sesudah `window.location.reload()`, dan hanya aktif bila memang sedang ada revisi `published` live.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/pages/admin/AdminMaintenance.vue` (`.maintenance-card--reset`, `executeResetSystem`)
+  - `src/repositories/editorRevisionRepository.ts` (`editorPublishRepository.getPublishedRevision`)
+- **Work Performed (Completed)**:
+  1. Menambahkan state `hasActivePublished` (`boolean | null`) dan `checkingPublishedState` (`boolean`) beserta helper `refreshPublishedState()` yang dipanggil pada `onMounted` di `src/pages/admin/AdminMaintenance.vue` menggunakan `editorPublishRepository.getPublishedRevision()` (dengan fallback aman ke `site.guestRuntimeSource` bila pemeriksaan jaringan gagal).
+  2. Memperbarui atribut `:disabled` pada tombol `Reset System` menjadi `:disabled="checkingPublishedState || hasActivePublished === false"` serta memperbarui `hasActivePublished.value = false` di dalam `executeResetSystem()` setelah `invalidatePublishedRuntimeCache(0)`.
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - `src/pages/admin/AdminMaintenance.vue` (pengecekan status `published` aktif saat `onMounted` untuk mengontrol status `disabled` tombol `Reset System`).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, migrasi SQL, dan seluruh data Supabase Cloud (`anyhuqqnjliepllrkebo`) tetap bersih dan terlindungi.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - Verifikasi E2E headless Chrome pada rute `#/admin/maintenance` tanpa mengunjungi `#/` terlebih dahulu: **PASS** (exit `0`) — memverifikasi bahwa saat `guestRuntimeSource === null` dan `0` revisi `published` aktif, tombol `Reset System` otomatis `disabled === true`, sedangkan saat revisi `published` aktif tersedia, tombol `Reset System` aktif (`disabled === false`).
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Uji klik langsung terhadap server dev yang terhubung ke Supabase Cloud (`http://localhost:5173`) belum dijalankan agar kondisi Cloud tetap bersih (`0` published).
+- **Visual Verification**: Diinspeksi secara terprogram pada DOM ter-render di Chrome headless (`.maintenance-card--reset`).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu permintaan user berikutnya bila ada.
+## Request: Explain Publish History Limit=5, Archived Pre-Reset Rollback Behavior, and Query-Based Draft Switching in AdminEdit.vue
+- **Date**: 2026-11-10T15:01:10+07:00
+- **Mode**: Read-Only Code & SQL Migration Inspection & Clarification
+- **Scope**: Menjelaskan kepada user tiga perilaku yang tercantum pada catatan terakhir: (1) batas `&limit=5` pada `SupabaseEditorPublishRepository.getHistory()` di `src/repositories/editorRevisionRepository.ts`, (2) status `'archived'` pasca Reset dan batasan `rollback_published_revision` pada `supabase/migrations/0019_atomic_publish_pipeline.sql` serta `AdminPublishedHistory.vue`, dan (3) `AdminEdit.vue` yang hanya membaca `route.query.draft` saat `onMounted` sehingga perubahan query `?draft=<id>` tanpa meninggalkan rute `/admin/edit` tidak memuat ulang editor secara otomatis.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/repositories/editorRevisionRepository.ts` (`getHistory` pada baris 639–642)
+  - `src/pages/admin/AdminPublishedHistory.vue` (`currentRevision`, `confirmRollback`)
+  - `supabase/migrations/0019_atomic_publish_pipeline.sql` (`rollback_published_revision` pada baris 298–340)
+  - `src/pages/admin/AdminEdit.vue` (`initializeEditor` & `onMounted` pada baris 1055–1136)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi bahwa `getHistory()` mengunci `&limit=5` dan `status=eq.published`, sehingga hanya 5 revisi `published` terbaru yang tampil dan revisi `'archived'` sebelum Reset tidak muncul.
+  2. Mengonfirmasi bahwa `rollback_published_revision` di `0019_atomic_publish_pipeline.sql` mensyaratkan target berstatus `'published'` dan membandingkan `current_published is distinct from p_expected_published_revision` (sehingga rollback juga tertolak bila saat ini `0` revisi `published` aktif pasca Reset).
+  3. Mengonfirmasi bahwa `AdminEdit.vue` memanggil `initializeEditor()` hanya di `onMounted` tanpa `watch(() => route.query.draft)`, sehingga mengganti `?draft=<id>` saat sudah berada di `#/admin/edit` tidak memuat ulang snapshot Draf.
+  4. Memastikan tidak ada file kode atau migrasi SQL yang diubah (read-only explanation).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu keputusan user apakah ketiga poin ini mau dibiarkan atau disesuaikan (beserta cakupan penyesuaiannya).
+- **Unresolved Decisions**: Menunggu keputusan user atas penyesuaian `limit=5`, arsip/rollback pra-Reset, dan `watch` query `?draft=<id>` di `AdminEdit.vue`.
+- **Validation Performed (Verified)**: Pembacaan langsung simbol & query di `editorRevisionRepository.ts`, `AdminPublishedHistory.vue`, `0019_atomic_publish_pipeline.sql`, dan `AdminEdit.vue`.
+- **Not Verified**: Tidak ada pengujian runtime baru yang dijalankan (read-only explanation).
+- **Visual Verification**: Tidak berlaku (hanya penjelasan teks & kode secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu pilihan user apakah poin-poin ini mau dibiarkan atau disesuaikan.
+## Request: Clarify Meaning of Pre-Reset Archived Revisions and route.query.draft Watcher in AdminEdit.vue
+- **Date**: 2026-11-10T15:11:30+07:00
+- **Mode**: Read-Only Clarification
+- **Scope**: Menjelaskan dalam bahasa sederhana kepada user dua hal yang ditanyakan: (1) apa yang dimaksud dengan revisi sebelum Reset (`status = 'archived'`) pada menu *Publish History*, dan (2) fungsi penambahan `watch` pada `route.query.draft` di `src/pages/admin/AdminEdit.vue`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+- **Work Performed (Completed)**:
+  1. Menjelaskan dengan contoh konkret bahwa "revisi" adalah riwayat versi website yang pernah di-publish live (misalnya Revision #1, #2, #3 di *Publish History*), dan saat Reset ditekan, riwayat tersebut diubah statusnya menjadi `archived` sehingga daftar *Publish History* menjadi kosong dan tombol *Rollback* tidak bisa dipakai untuk menghidupkan ulang versi sebelum Reset.
+  2. Menjelaskan dengan contoh URL (`#/admin/edit?draft=abc-123` -> `#/admin/edit?draft=xyz-789`) bahwa `watch` pada `route.query.draft` berguna agar saat user mengganti parameter `?draft=` langsung di address bar browser ketika sudah berada di dalam halaman Editor, Editor otomatis memuat Draf baru tanpa perlu refresh manual (`F5`).
+  3. Memastikan tidak ada file kode maupun migrasi SQL yang diubah (read-only clarification).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu pilihan user antara Pilihan A, Pilihan B, atau Pilihan C.
+- **Unresolved Decisions**: Menunggu keputusan user atas Pilihan A (biarkan semua), Pilihan B (naikkan `limit` riwayat + `watch` query `?draft=`), atau Pilihan C (Pilihan B + tampilkan & izinkan rollback arsip pra-Reset).
+- **Validation Performed (Verified)**: Pembacaan konteks log dan simbol terkait.
+- **Not Verified**: Tidak ada pengujian baru yang dijalankan (read-only clarification).
+- **Visual Verification**: Tidak berlaku (hanya penjelasan teks secara read-only).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu pilihan user (Pilihan A, B, atau C).
+## Request: Align Understanding on Reset Behavior & Fix route.query.draft Watcher in AdminEdit.vue
+- **Date**: 2026-11-10T15:16:35+07:00
+- **Mode**: Clarification + Targeted Code Update & Automated Browser Verification (Ponytail)
+- **Scope**: (1) Memahami serta menganalisis usulan user terkait Reset agar menghapus baris `published`/`archived` dari `site_revisions` alih-alih mengarsipkan sambil tetap mempertahankan Draf; dan (2) menambahkan `watch` pada `route.query.draft` di `src/pages/admin/AdminEdit.vue` sesuai instruksi user menggunakan prinsip perubahan minimal Ponytail.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `src/pages/admin/AdminEdit.vue` (`initializeEditor`, `onMounted`, `router.replace({ query: { draft } })`)
+  - `supabase/migrations/0030_harden_safe_reset_security_invoker.sql` (`private.reset_site_to_default_internal`)
+  - `supabase/migrations/0019_atomic_publish_pipeline.sql` (`rollback_published_revision`, FK `rollback_source_revision_id`)
+- **Work Performed (Completed)**:
+  1. Memeriksa fungsi Reset di database (`0030_harden_safe_reset_security_invoker.sql`) serta FK pada `site_revisions` (`rollback_source_revision_id` memakai `on delete restrict` pada sesama baris `published`, sedangkan baris `draft` tidak terhubung ke sana), sehingga siap mengonfirmasi kesesuaian logika dengan model kerja user (`Draft` sebagai workspace simpanan, `Published` sebagai salinan tayang Guest) sebelum menulis atau menerapkan migrasi SQL baru bila disetujui.
+  2. Menambahkan `watch(() => route.query.draft, ...)` tepat setelah `onMounted` di `src/pages/admin/AdminEdit.vue` (7 baris) yang menutup inline text edit aktif dan memanggil `initializeEditor()` saat `?draft=` berubah di URL, sambil melewati reload ulang saat `router.replace` menyetel `nextDraft === editor.draftRevisionId` sesudah simpan Draf baru.
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - `src/pages/admin/AdminEdit.vue` (penambahan `watch` pada `route.query.draft`).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, seluruh file migrasi `supabase/migrations/**`, dan seluruh data Supabase Cloud (`anyhuqqnjliepllrkebo`) belum diubah karena menunggu persetujuan user untuk perilaku Reset.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - Verifikasi E2E headless Chrome untuk `#/admin/edit?draft=...`: **PASS** (exit `0`) — memverifikasi perpindahan langsung `draft-ikan-1` -> `draft-ikan-2` otomatis memuat Draf ke-2 (`loadCount` naik dari `1` ke `2`), dan `router.replace` dengan `draftRevisionId` aktif tidak memicu reload ganda (`finalLoadCount === 2`).
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Uji klik langsung pada server dev terhubung Supabase Cloud (`http://localhost:5173`), serta belum mengubah `reset_site_to_default` karena menunggu konfirmasi user (dan perlu dicatat bahwa `supabase` CLI & MCP SQL admin tidak tersedia di sesi ini sehingga perubahan SQL lokal belum otomatis ter-apply ke Cloud).
+- **Visual Verification**: Tidak ada perubahan UI visual (hanya pemuatan ulang state editor saat query `?draft` berubah).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu konfirmasi user apakah fungsi Reset di SQL mau diubah dari `archived` menjadi hapus `published`/`archived` (dan apakah batas `limit=5` di *Publish History* mau diubah).
+## Request: Provide Detailed Technical Breakdown of Proposed Reset-by-Deletion Fix
+- **Date**: 2026-11-10T15:21:00+07:00
+- **Mode**: Read-Only Detailed Specification & Impact Explanation
+- **Scope**: Menjelaskan secara rinci perubahan SQL dan UI yang disarankan untuk mengubah `reset_site_to_default` agar menghapus baris `published` dan `archived` di `public.site_revisions` sambil mempertahankan seluruh Draf, Favorites, Sertifikat, dan Media.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `supabase/migrations/0030_harden_safe_reset_security_invoker.sql` (`private.reset_site_to_default_internal`)
+  - `supabase/migrations/0028_decouple_draft_save_from_published_base.sql` (`publish_editor_draft` penomoran `global_max + 1`)
+  - `src/pages/admin/AdminMaintenance.vue` (`executeResetSystem` baris 204–227)
+  - `src/repositories/editorRevisionRepository.ts` (`getHistory` baris 639–642)
+- **Work Performed (Completed)**:
+  1. Menyusun rincian perubahan SQL pada `private.reset_site_to_default_internal()` (`delete from public.site_revisions where status in ('published', 'archived')`), dampak pada foreign key, penomoran `revision_number` berikutnya (`global_max + 1`), serta keamanan data Draf/Favorites/Sertifikat/Media.
+  2. Menyusun rincian penyesuaian opsional di UI (`AdminMaintenance.vue` pesan status proses Reset & opsi `limit` di `getHistory()`) serta langkah penerapan di Supabase SQL Editor.
+  3. Memastikan tidak ada file kode maupun migrasi SQL yang diubah (read-only breakdown).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Decisions Made**: Tidak ada perubahan kode; menunggu persetujuan user untuk menulis file migrasi SQL dan pembaruan teks di `AdminMaintenance.vue`.
+- **Unresolved Decisions**: Menunggu konfirmasi user apakah saran perbaikan rinci ini siap diterapkan.
+- **Validation Performed (Verified)**: Pembacaan langsung simbol & migrasi SQL terkait.
+- **Not Verified**: Tidak ada pengujian baru yang dijalankan (read-only breakdown).
+- **Visual Verification**: Tidak berlaku (penjelasan rinci saja).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu persetujuan user untuk menulis migrasi SQL dan update kecil di `AdminMaintenance.vue`.
+## Request: Create Migration 0032 (Delete Published/Archived Revisions on Reset) & Prompt Supabase Plugin Sign-In
+- **Date**: 2026-11-10T15:23:45+07:00
+- **Mode**: Targeted Migration & UI Update + Plugin Auth Check
+- **Scope**: (1) Mempertahankan `&limit=5` di `editorRevisionRepository.ts`; (2) membuat file migrasi `supabase/migrations/0032_delete_published_revisions_on_reset.sql` agar `private.reset_site_to_default_internal()` menghapus baris `status in ('published', 'archived')` di `public.site_revisions` sambil tetap mempertahankan seluruh baris `draft`, Favorites, Sertifikat, dan Media; (3) memperbarui pesan status proses reset di `src/pages/admin/AdminMaintenance.vue` menjadi `'Clearing published revisions...'`; dan (4) memeriksa ketersediaan token/autentikasi Supabase untuk menerapkannya ke Cloud.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `supabase/migrations/0030_harden_safe_reset_security_invoker.sql` (`private.reset_site_to_default_internal`)
+  - `src/pages/admin/AdminMaintenance.vue` (`executeResetSystem`)
+  - `list_plugin_accounts` & `.env` key inspection (tanpa mencetak nilai rahasia)
+- **Work Performed (Completed)**:
+  1. Memeriksa `.env`, variabel lingkungan `SUPABASE_ACCESS_TOKEN`, dan `list_plugin_accounts`: `.env` hanya berisi kunci publik klien (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY`), `SUPABASE_ACCESS_TOKEN` belum disetel di environment lokal, sementara plugin **Supabase MCP** sudah terpasang namun menunggu proses *sign-in* dari user melalui kartu plugin di chat.
+  2. Membuat `supabase/migrations/0032_delete_published_revisions_on_reset.sql` yang memperbarui `private.reset_site_to_default_internal()` untuk menjalankan `delete from public.site_revisions where status in ('published', 'archived');` sambil tetap melepaskan `base_revision_number = null` pada baris `draft`.
+  3. Memperbarui teks status sementara di `src/pages/admin/AdminMaintenance.vue` menjadi `'Clearing published revisions...'` (serta menjaga `&limit=5` tetap seperti semula).
+- **Files Created**:
+  - `supabase/migrations/0032_delete_published_revisions_on_reset.sql`
+- **Files Modified**:
+  - `src/pages/admin/AdminMaintenance.vue` (pesan status proses Reset).
+  - `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, `src/repositories/editorRevisionRepository.ts` (`&limit=5` dipertahankan), dan seluruh data Supabase Cloud (`anyhuqqnjliepllrkebo`) tetap bersih.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Migrasi `0032_delete_published_revisions_on_reset.sql` **belum** ter-apply ke Supabase Cloud (`anyhuqqnjliepllrkebo`) karena menunggu user melakukan *sign-in* pada plugin Supabase MCP di chat.
+- **Visual Verification**: Tidak berlaku (perubahan SQL migrasi dan string status proses).
+- **Current Status**: AWAITING USER SIGN-IN ON SUPABASE PLUGIN TO APPLY MIGRATION 0032.
+- **Next Required Step**: Setelah user klik Sign In pada kartu plugin Supabase di chat, jalankan `apply_migration` untuk `0032_delete_published_revisions_on_reset.sql` ke proyek Supabase Cloud (`anyhuqqnjliepllrkebo`) dan verifikasi definisi fungsi di Cloud.
+
+## Request: Inspect MCP Config Supabase Token & Attempt Cloud Application of Migration 0032
+- **Date**: 2026-11-10T15:28:35+07:00
+- **Mode**: MCP Config & Cloud Inspection + Sanctioned Migration Attempt
+- **Scope**: Memeriksa konfigurasi server MCP `supabase` pada `C:\Users\VivoBook\.gemini\config\mcp_config.json` (tanpa mencetak nilai token rahasia), memeriksa kondisi Cloud `anyhuqqnjliepllrkebo` (`list_migrations`, `public.site_revisions`, constraint FK/CHECK, dan definisi `private.reset_site_to_default_internal`), serta mencoba menerapkan `supabase/migrations/0032_delete_published_revisions_on_reset.sql` melalui `call_mcp_tool` (`supabase` -> `apply_migration`).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines & histori entri `0030`/`0031`), `AGENTS.md`
+  - `C:\Users\VivoBook\.gemini\config\mcp_config.json` (inspeksi struktur tanpa mencetak nilai secret)
+  - `supabase/migrations/0032_delete_published_revisions_on_reset.sql`
+  - `supabase/migrations/0019_atomic_publish_pipeline.sql` & `supabase/migrations/0028_decouple_draft_save_from_published_base.sql`
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi server MCP `supabase` di `C:\Users\VivoBook\.gemini\config\mcp_config.json` (`https://mcp.supabase.com/mcp?project_ref=anyhuqqnjliepllrkebo`) memang sudah memiliki header `Authorization` aktif (berbeda dari plugin `supabase_mcp` di `list_plugin_accounts`), serta `supabase` CLI tidak terpasang di mesin lokal.
+  2. Memverifikasi status Cloud lewat tool MCP baca-saja (`list_migrations` dan `execute_sql`): migrasi Cloud saat ini berhenti di `20261110050621` (`0031_revoke_obsolete_test_reset`), `public.site_revisions` berisi `9` baris berstatus `archived` (`0` `published`, `0` `draft`), dan `editor_favorites` hanya mengizinkan referensi ke baris `status = 'draft'`.
+  3. Menjalankan `call_mcp_tool(ServerName: "supabase", ToolName: "apply_migration", name: "0032_delete_published_revisions_on_reset", ...)` melalui jalur resmi MCP: server Supabase MCP meminta konfirmasi interaktif karena SQL memuat pernyataan destruktif `delete from public.site_revisions`, dan host/client Antigravity IDE membatalkan prompt konfirmasi tersebut secara otomatis dalam `0.2 s` (`"status": "cancelled"`). Sesuai aturan keamanan, AI tidak mengekstrak token dari `mcp_config.json` untuk memanggil Management API secara langsung maupun menyamarkan SQL guna melewati gerbang konfirmasi.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `AGENTS.md`, `list bug.md`, `design/**`, `C:\Users\VivoBook\.gemini\config\mcp_config.json`, `supabase/migrations/0032_delete_published_revisions_on_reset.sql`, seluruh source code lokal, dan data Supabase Cloud (`anyhuqqnjliepllrkebo`) tetap utuh.
+- **Errors / Limitations Encountered**:
+  - `apply_migration` untuk `0032_delete_published_revisions_on_reset` dibatalkan otomatis oleh client MCP dalam `0.2 s` (`The client cancelled this confirmation 0.2 s after it was sent. Nothing was run.`) karena mengandung pernyataan `DELETE`.
+- **Validation Performed (Verified)**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit `0`).
+  - `git diff --check`: **PASS** (exit `0`).
+  - MCP `supabase` `list_migrations` & `execute_sql` (read-only): **PASS** (mengonfirmasi Cloud belum memiliki `0032`).
+- **Not Verified**: Eksekusi `private.reset_site_to_default_internal()` versi `0032` di Supabase Cloud belum dijalankan karena `0032` menunggu penerapan manual di Supabase SQL Editor.
+- **Visual Verification**: Tidak berlaku (pemeriksaan konfigurasi MCP & migrasi SQL Cloud).
+- **Current Status**: BLOCKED BY MCP DESTRUCTIVE SQL CONFIRMATION AUTO-CANCEL (kode lokal & file migrasi `0032` siap; perlu ditempel & dijalankan di Supabase Dashboard SQL Editor).
+- **Next Required Step**: User menjalankan isi `supabase/migrations/0032_delete_published_revisions_on_reset.sql` di Supabase Dashboard -> SQL Editor (dan opsional membersihkan 9 baris `archived` lama di `public.site_revisions`).
+
+## Request: Verify Current Supabase Cloud Synchronization Status
+- **Date**: 2026-11-10T15:29:45+07:00
+- **Mode**: Read-Only Cloud Verification
+- **Scope**: Menjawab pertanyaan user apakah Supabase Cloud (`anyhuqqnjliepllrkebo`) sudah tersinkron dengan migrasi lokal `0001`–`0032`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - Daftar migrasi lokal `supabase/migrations/*.sql`
+  - MCP `supabase`: `list_migrations` dan `execute_sql` baca-saja (`pg_get_functiondef('private.reset_site_to_default_internal()'::regprocedure)` serta agregasi status `public.site_revisions`)
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi migrasi `0001` sampai `0031_revoke_obsolete_test_reset` (`20261110050621`) sudah tersinkron di Cloud.
+  2. Mengonfirmasi migrasi `0032_delete_published_revisions_on_reset.sql` **belum** terpasang di Cloud: fungsi `private.reset_site_to_default_internal()` di Cloud masih versi `0030` (`set status = 'archived'`) dan `public.site_revisions` masih berisi `9` baris `archived`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, `design/**`, dan `mcp_config.json` tetap utuh.
+- **Validation Performed (Verified)**: MCP `supabase` `list_migrations` & `execute_sql` (read-only), daftar file `supabase/migrations/`, dan `git diff --check` (**PASS**, exit `0`).
+- **Not Verified**: Uji Reset runtime di Cloud pasca-`0032` belum dapat dijalankan sebelum `0032` dieksekusi di SQL Editor Dashboard Supabase.
+- **Visual Verification**: Tidak berlaku (hanya pemeriksaan status sinkronisasi Cloud).
+- **Current Status**: COMPLETED (Read-Only Check: Cloud tersinkron hingga `0031`; `0032` belum dijalankan di Cloud).
+- **Next Required Step**: User menempel & menjalankan isi `supabase/migrations/0032_delete_published_revisions_on_reset.sql` di Supabase Dashboard -> SQL Editor bila ingin `0032` aktif di Cloud.
+
+## Request: Full Parity Audit & Re-Check Toward 100% Cloud Synchronization
+- **Date**: 2026-11-10T15:31:45+07:00
+- **Mode**: Full Cloud Parity Audit & Blocker Confirmation (Read-Only)
+- **Scope**: Menindaklanjuti permintaan `coba sinkronkan ulang sampai 100%` dengan memeriksa seluruh aspek paritas lokal <-> Supabase Cloud (`anyhuqqnjliepllrkebo`): `mcp_config.json`, ketersediaan `supabase` CLI (`npx --no-install supabase`), daftar migrasi `0001`–`0032`, definisi & hak akses RPC `0028`–`0031`, Edge Functions, Security Advisors, serta kesamaan 100% `src/types/database.generated.ts` terhadap `generate_typescript_types` Cloud.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `.agents/skills/supabase/SKILL.md`
+  - `C:\Users\VivoBook\.gemini\config\mcp_config.json` (struktur ter-redaksi: `serverUrl` & `headers.Authorization`)
+  - MCP `supabase`: `list_edge_functions`, `get_advisors (security)`, `generate_typescript_types`, dan `execute_sql` baca-saja pada `pg_proc`
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi paritas 100% sudah tercapai pada aspek non-destruktif Cloud: migrasi `0001`–`0031`, definisi serta hak akses `anon`/`authenticated` untuk semua RPC (termasuk penutupan `public.test_reset()`), nol Edge Function di Cloud maupun lokal, serta `TYPES_EQUAL=True` antara `src/types/database.generated.ts` dan `generate_typescript_types` Cloud.
+  2. Mengonfirmasi kembali bahwa `supabase` CLI tidak terpasang (`npx --no-install supabase --version` -> `EXIT=1`) dan `mcp_config.json` hanya berisi `serverUrl` + `headers.Authorization` (tanpa opsi bypass konfirmasi).
+  3. Tidak mengulangi panggilan `apply_migration` yang berisi `DELETE` (mengikuti aturan `Recover from errors, don't loop` setelah kegagalan berulang `0.2 s` auto-cancel konfirmasi MCP client) dan tidak mengekstrak token `mcp_config.json` untuk menembak API langsung di luar konfirmasi MCP, sehingga `0032_delete_published_revisions_on_reset.sql` tetap menunggu eksekusi user di Supabase Dashboard SQL Editor.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code lokal, `supabase/migrations/**`, `tests/**`, `list bug.md`, `AGENTS.md`, `design/**`, `mcp_config.json`, dan data Cloud tetap utuh.
+- **Validation Performed (Verified)**:
+  - `generate_typescript_types` vs `src/types/database.generated.ts`: `TYPES_EQUAL=True`.
+  - `execute_sql` verifikasi 12 fungsi `public.*` / `private.*` & `list_edge_functions` & `get_advisors (security)`: **PASS**.
+  - `npx --no-install supabase --version` -> `EXIT=1`.
+  - `git diff --check`: **PASS** (exit `0`).
+- **Not Verified**: Eksekusi `0032_delete_published_revisions_on_reset.sql` di Cloud belum terjadi karena pembatalan otomatis konfirmasi MCP `0.2 s`.
+- **Visual Verification**: Tidak berlaku (audit paritas Cloud & blokir MCP).
+- **Current Status**: PARTIALLY SYNCED (0001–0031 + TS Types = 100% Sinkron; 0032 + pembersihan 9 baris `archived` Terblokir Auto-Cancel Konfirmasi MCP).
+- **Next Required Step**: User menjalankan isi `supabase/migrations/0032_delete_published_revisions_on_reset.sql` di Supabase Dashboard -> SQL Editor (plus opsional 2 baris pembersih 9 baris `archived` lama).
+
+## Request: Provide Single-Paste SQL Block for 0032 + Archived Cleanup + schema_migrations Recording
+- **Date**: 2026-11-10T15:48:10+07:00
+- **Mode**: Read-Only Schema Inspection & SQL Editor Guidance
+- **Scope**: Menjawab pertanyaan user apakah semua SQL dapat di-paste sekaligus di SQL Editor dan apakah pencatatan ke `supabase_migrations.schema_migrations` bisa otomatis.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `supabase/migrations/0032_delete_published_revisions_on_reset.sql`
+  - MCP `supabase` `execute_sql` baca-saja terhadap `information_schema.columns` (`supabase_migrations.schema_migrations`), `pg_constraint`, sampel baris `20261110050621`, `pg_trigger` pada `public.site_revisions`, dan `now() at time zone 'UTC'`
+- **Work Performed (Completed)**:
+  1. Memverifikasi struktur tabel `supabase_migrations.schema_migrations` di Cloud (`version` PK format UTC `YYYYMMDDHH24MISS`, `name` teks nullable seperti `0031_revoke_obsolete_test_reset`, serta `statements` nullable) dan memastikan hanya ada trigger `enforce_editor_draft_limit` pada `public.site_revisions`.
+  2. Menjelaskan kepada user bahwa SQL Editor Dashboard tidak mencatat `schema_migrations` secara otomatis dengan sendirinya, lalu menyusun satu blok SQL idempoten (`begin; ... commit;`) siap *1-kali paste* berisi: isi `0032_delete_published_revisions_on_reset.sql`, pembersihan 9 baris `archived` lama, pencatatan `0032_delete_published_revisions_on_reset` ke `supabase_migrations.schema_migrations`, dan `notify pgrst, 'reload schema'`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, `design/**`, `mcp_config.json`, dan data Cloud tetap utuh.
+- **Validation Performed (Verified)**: Pembacaan struktur `supabase_migrations.schema_migrations` & `pg_trigger` di Cloud lewat MCP `execute_sql` serta `git diff --check` (**PASS**, exit `0`).
+- **Not Verified**: Eksekusi blok SQL di Supabase Dashboard SQL Editor menunggu dijalankan oleh user.
+- **Visual Verification**: Tidak berlaku (panduan SQL Editor & pengecekan tabel migrasi).
+- **Current Status**: COMPLETED (Read-Only Guidance Ready for User Paste in SQL Editor).
+- **Next Required Step**: User menempel & menjalankan blok SQL gabungan di Supabase Dashboard -> SQL Editor lalu memberi tahu jika sudah agar dapat diverifikasi lewat `list_migrations`.
+
+## Request: Verify Cloud Migration 0032 Applied & 100% Sync Confirmed
+- **Date**: 2026-11-10T15:49:45+07:00
+- **Mode**: Read-Only Cloud Verification After SQL Editor Execution
+- **Scope**: Memverifikasi hasil eksekusi blok SQL oleh user di Supabase Dashboard SQL Editor (`media_1794300570198_f4f833bd.png`) melalui MCP `supabase`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `supabase/migrations/0032_delete_published_revisions_on_reset.sql`
+  - Screenshot hasil SQL Editor `media_1794300570198_f4f833bd.png` (`Success. No rows returned`)
+  - MCP `supabase`: `list_migrations`, `execute_sql` (`pg_get_functiondef`, jumlah baris `public.site_revisions`, `has_function_privilege`), dan `get_advisors (security)`
+- **Work Performed (Completed)**:
+  1. Mengonfirmasi lewat `list_migrations` bahwa `0032_delete_published_revisions_on_reset` (`version: 20261110084913`) sudah tercatat di `supabase_migrations.schema_migrations` Cloud.
+  2. Mengonfirmasi definisi `private.reset_site_to_default_internal()` di Cloud sudah menggunakan logika `0032` (`delete from public.site_revisions where status = 'archived'` sambil melepas `base_revision_number` pada `draft`) dengan `anon_priv = false` dan `pub_anon_priv = false`.
+  3. Mengonfirmasi `public.site_revisions` sudah bersih (`total_rows = 0`, `archived_rows = 0`, `published_rows = 0`, `draft_rows = 0`) dan `get_advisors (security)` bebas temuan baru.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, `design/**`, `mcp_config.json`, dan data Cloud tetap utuh.
+- **Validation Performed (Verified)**:
+  - MCP `supabase` `list_migrations` -> `20261110084913 / 0032_delete_published_revisions_on_reset` tercatat.
+  - MCP `supabase` `execute_sql` -> definisi fungsi `0032` aktif, `site_revisions` = `0` baris, hak akses `anon = false`.
+  - MCP `supabase` `get_advisors (security)` -> bebas warning baru.
+  - `git diff --check` -> **PASS** (exit `0`).
+- **Not Verified**: Uji end-to-end tombol Reset di browser setelah Admin men-publish Draf baru ke Cloud `0032` belum dijalankan pada sesi verifikasi read-only ini.
+- **Visual Verification**: Diinspeksi screenshot output SQL Editor user (`Success. No rows returned`).
+- **Current Status**: COMPLETED — SUPABASE CLOUD 100% SYNCED (0001–0032 + TS Types).
+- **Next Required Step**: Siap untuk instruksi berikutnya (mis. uji Publish + Reset dengan Draf di Admin, atau membahas sisa item pada `list bug.md` / commit & push Git).
+
+## Request: Confirm Live schema_migrations Rows for 0032 in Supabase Cloud
+- **Date**: 2026-11-10T15:51:00+07:00
+- **Mode**: Read-Only Confirmation
+- **Scope**: Menunjukkan baris teratas tabel `supabase_migrations.schema_migrations` kepada user setelah eksekusi SQL Editor untuk memastikan `0032_delete_published_revisions_on_reset` sudah benar-benar masuk.
+- **Specifications & Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, MCP `supabase` `execute_sql` pada `supabase_migrations.schema_migrations`.
+- **Work Performed (Completed)**: Mengonfirmasi `version = '20261110084913'` dan `name = '0032_delete_published_revisions_on_reset'` berada di urutan paling atas bersama `0028`–`0031`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh file kode, migrasi, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tetap utuh.
+- **Validation Performed (Verified)**: Query `supabase_migrations.schema_migrations` + `git diff --check` (**PASS**, exit `0`).
+- **Not Verified**: Tidak ada pengujian baru (hanya konfirmasi baris tabel migrasi).
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu instruksi user berikutnya.
+
+## Request: Confirm Readiness for Next Task
+- **Date**: 2026-11-10T15:51:40+07:00
+- **Mode**: Read-Only Status Summary
+- **Scope**: Mengonfirmasi kesiapan lanjut ke task berikutnya serta meringkas item tersisa pada `list bug.md`.
+- **Specifications & Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `list bug.md`, `git status --short`.
+- **Work Performed (Completed)**: Mengonfirmasi seluruh pekerjaan database Cloud (`0001`–`0032` + tipe TypeScript) dan perbaikan poin #2–#5 pada `list bug.md` sudah selesai; siap melanjutkan ke poin #1, poin #6, atau task baru pilihan user.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh file aplikasi, migrasi, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**: `git status --short` & `git diff --check` (**PASS**, exit `0`).
+- **Not Verified**: Tidak ada pengujian baru.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED (Ready for Next User Task).
+- **Next Required Step**: Menunggu task berikutnya dari user.
+
+## Request: Playwright + Ponytail Re-Test of All 6 Items in `list bug.md`
+- **Date**: 2026-11-10T16:07:05+07:00
+- **Mode**: Read-Only End-to-End Browser Verification (Playwright + Chrome + Live Cloud Read-Only Checks)
+- **Scope**: Melakukan uji ulang nyata menggunakan Chromium via Playwright dan metodologi Ponytail (`full`) terhadap seluruh 6 butir pada `list bug.md`, termasuk pembuktian tangkapan layar (screenshot), telemetri DOM/jaringan, dan audit item non-browser di GitHub Actions, Supabase Cloud, `.env`, dan Git.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`
+  - `.agents/skills/playwright-cli/SKILL.md`, `.agents/skills/ponytail/SKILL.md`, `.agents/skills/supabase/SKILL.md`
+  - `list bug.md`
+  - `src/pages/admin/AdminEdit.vue`, `src/stores/editor.ts`, `src/pages/admin/AdminCertificates.vue`, `src/sections/certificate/CertificateSection.vue`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminPublishedHistory.vue`, `src/repositories/editorRevisionRepository.ts`, `src/runtime/defaultRuntimeSnapshot.ts`, `src/runtime/publishedRuntime.ts`
+  - `.github/workflows/supabase-keep-alive.yml`, `vite.config.ts`, `.env` (nama key saja)
+  - MCP `supabase` (`get_advisors (security)`, `execute_sql` read-only pada `public.site_revisions` dan `public.portfolio_profile`)
+  - GitHub REST API (`https://api.github.com/repos/nanditosetyawan/portfolio-natalia-lisa/actions/runs/42763462564/jobs` + annotations)
+- **Work Performed (Completed)**:
+  1. Menjalankan suite Playwright (`C:\Users\VivoBook\.gemini\antigravity\brain\0b4608d3-4260-456b-99a3-1d6a6103c66e\scratch\verify_list_bug_playwright.py`) dengan Chromium asli terpasang (`chrome.exe`) terhadap server Vite sementara `http://127.0.0.1:5188` dan mock stateful Supabase REST/Auth/Storage untuk butir #1–#5 tanpa memodifikasi source code maupun data Cloud:
+     - **Butir #1 (`AdminEdit.vue` manual wheel scroll)**: Wheel nyata (`domScrollTop: 520`, `previewScrollTop: 520`) **tidak** memunculkan indikator `"Unsaved session"` (`.editor-save-status === ""`, `hasUnsavedChanges === false`, `publishDisabled === false`). Saat toggle accordion di Inspector diklik, barulah `.editor-save-status` berubah menjadi `"Unsaved session"` (masih tidak memblokir Publish).
+     - **Butir #2 (`AdminCertificates.vue` pada kondisi 0 Draf + warning Hapus)**: Dengan 0 draf, `.update-btn` nonaktif (`disabled: true`), sementara Tambah (`Sertifikat Uji A` & `B` dengan upload `.webp`), Edit (`Sertifikat Uji A (Edited)`), dan drag-and-drop Reorder (`order_index` 0 dan 1 ter-PATCH) berhasil. Setelah menyuntikkan `Draf #10` yang merujuk sertifikat tersebut, klik `Hapus` menampilkan dialog peringatan referensi `Draf #10` dan klik `Tetap Hapus` membersihkan referensi kartu dari `Draf #10` via `save_editor_draft` dan menghapus sertifikat.
+     - **Butir #3 (Klik thumbnail sertifikat di Editor vs Guest & Inspector Preview)**: Di Editor (`#/admin/edit?draft=draft-item3`), klik `.card-thumbnail` pada `Sertifikat DB Item 3` memilih entitas thumbnail (`selected_entity_id: "cert-img-thumb-3"`), **tidak** memperluas accordion kartu (`expanded_after_thumb_click: false`), dan `Inspector -> MEDIA -> Preview` memuat gambar WebP (`naturalWidth: 320`, `complete: true`, bukan `"No media assigned"`). Klik tombol panah (`.action-btn`) tetap memperluas kartu (`true`), sedangkan di Guest `#/` klik `.card-thumbnail` ikut memperluas kartu (`guest_expanded_after: true`).
+     - **Butir #4 (`AdminMaintenance.vue` cold load & Reset)**: Akses dingin langsung ke `#/admin/maintenance` tanpa lewat `/` menunjukkan `site.guestRuntimeSource === null`: pada 0 published tombol Reset nonaktif (`disabled: true`); pada 7 published + 2 draft + 1 favorite + 1 sertifikat tombol aktif (`disabled: false`), lalu klik Reset memanggil `rpc/reset_site_to_default`, menghapus seluruh `published` dan `archived` (0 tersisa), mempertahankan 2 draf (`base_revision_number = null`), 1 favorite, 1 sertifikat, dan menonaktifkan tombol Reset setelah reload.
+     - **Butir #5 (`AdminPublishedHistory.vue` `&limit=5` & URL `?draft=<id>`)**: Halaman Riwayat Publish menembak query `?select=*&status=eq.published&order=revision_number.desc&limit=5` dan menampilkan 5 revisi live terbaru (`#8` s.d. `#4`), sementara revisi lama dan `archived` tidak ditampilkan. Di Editor, mengubah hash URL langsung dari `#/admin/edit?draft=draft-switch-1` ke `#/admin/edit?draft=draft-switch-2` memuat ulang Draf #10 (`PORTFOLIO BETA 2`) di instance SPA yang sama (`sameSpaInstance: true`).
+  2. Menjalankan uji baca-saja Playwright terhadap server Vite + `.env` Cloud nyata pada `#/` (`C:\Users\VivoBook\.gemini\antigravity\brain\0b4608d3-4260-456b-99a3-1d6a6103c66e\scratch\verify_live_guest_readonly.py`): `guestRuntimeSource: "default"`, `publishedRuntimeStatus: "ready"`, `databaseCertificatesCount: 2`, 0 error konsol/halaman.
+  3. Memeriksa item non-browser (Butir #6):
+     - Supabase `get_advisors (security)`: `auth_leaked_password_protection` masih **WARN** (belum diaktifkan di Dashboard Auth).
+     - GitHub Actions `supabase-keep-alive.yml`: run `42763462564` pada `2026-11-10T05:39:14Z` (`ee09027`) **GAGAL** pada step `Ping Supabase Database` dengan anotasi: `Missing Supabase GitHub secrets. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY).`, sedangkan endpoint `/rest/v1/portfolio_profile?select=id&limit=1` memakai key `.env` lokal sebelumnya merespons `HTTP 200`.
+     - `.env` hanya memiliki `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY`; `VITE_SITE_URL` belum disetel dan `.env.production` belum ada (`False`).
+     - Git working tree masih menyimpan perubahan lokal belum ter-commit pada `src/**`, `tests/**`, `supabase/migrations/0028–0032`, `PROJECT-IMPLEMENTATION-LOG.md`, `list bug.md`.
+- **Files Created (Scratch & Artifacts Only)**:
+  - `C:\Users\VivoBook\.gemini\antigravity\brain\0b4608d3-4260-456b-99a3-1d6a6103c66e\scratch\verify_list_bug_playwright.py`
+  - `C:\Users\VivoBook\.gemini\antigravity\brain\0b4608d3-4260-456b-99a3-1d6a6103c66e\scratch\verify_live_guest_readonly.py`
+  - `verify-item1-scroll.png`, `verify-item1-unsaved-session.png`, `verify-item2-cert-0draft.png`, `verify-item2-cert-delete-warning.png`, `verify-item3-editor-thumb.png`, `verify-item3-guest-thumb.png`, `verify-item4-cold-0pub-disabled.png`, `verify-item4-after-reset.png`, `verify-item5-history-limit5.png`, `verify-item5-switch-draft.png`, `verify-live-cloud-guest.png`
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code aplikasi, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Validation Performed (Verified)**:
+  - `python verify_list_bug_playwright.py` -> **PASS** (exit `0`, `console_errors: []`, `page_errors: []`).
+  - `python verify_live_guest_readonly.py` -> **PASS** (exit `0`, `console_errors: []`, `page_errors: []`).
+  - `git diff --check` -> **PASS** (exit `0`).
+- **Not Verified / Limitations**: Pengujian Admin (#1–#5) di Playwright menggunakan mock stateful Supabase HTTP lokal (`mock.supabase.local`) agar tidak mengotori database produksi Cloud; audit ulang Lighthouse Mobile tidak dijalankan karena `VITE_SITE_URL` / target production belum disetel. Pada `verify-item2-cert-0draft.png`, thumbnail upload form menampilkan teks `alt="thumb"` akibat batas tangkapan `post_data_buffer` multipart di mock Python (URL public storage yang dibentuk aplikasi tetap sesuai dan gambar WebP pre-seeded pada Test #3 terbukti ter-render utuh).
+- **Visual Verification**: Seluruh 11 screenshot hasil Playwright diinspeksi langsung melalui `read_file`.
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu keputusan user atas perilaku UI/konfigurasi non-browser yang dikonfirmasi ulang (rahasia GitHub Actions keep-alive, leaked-password protection, `VITE_SITE_URL` + Lighthouse Mobile, penyesuaian `&limit=5` jika diinginkan, dan kesiapan commit & push).
+
+## Request: Direct Safety Verdict Summary ("intinya aman tidak")
+- **Date**: 2026-11-10T16:11:50+07:00
+- **Mode**: Read-Only Safety Summary
+- **Scope**: Memberikan kesimpulan langsung apakah kondisi proyek, database Supabase Cloud, dan aplikasi aman saat ini serta menyebutkan sisa risiko operasional/non-kode yang masih menunggu tindakan user.
+- **Specifications & Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md` (latest 60 lines), `AGENTS.md`, `list bug.md`.
+- **Work Performed (Completed)**: Merangkum status keamanan aplikasi & database Cloud (`0001`–`0032` sinkron + uji Playwright butir #1–#5 & Guest Cloud baca-saja lulus) serta 4 hal operasional non-browser yang masih perlu dibereskan sebelum produksi penuh.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: Seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, `design/**`, `.env`, dan data Supabase Cloud tidak dimodifikasi.
+- **Validation Performed (Verified)**: Pembacaan log pengujian Playwright terbaru + `git diff --check` (**PASS**, exit `0`).
+- **Not Verified**: Tidak ada eksekusi uji baru di luar ringkasan log terverifikasi sebelumnya.
+- **Visual Verification**: Tidak berlaku (hanya rangkuman keputusan keamanan).
+- **Current Status**: COMPLETED.
+- **Next Required Step**: Menunggu user membereskan item non-browser atau memberi instruksi commit/push/task lanjutan.
+
+## Request: Diagnose & Attempt Sanctioned Fix for GitHub Actions Keep-Alive Failure
+- **Date**: 2026-11-10T16:16:00+07:00
+- **Mode**: Diagnostics & Sanctioned Tooling Check (Blocked on External Credentials)
+- **Scope**: Memeriksa apakah kegagalan workflow `.github/workflows/supabase-keep-alive.yml` (run `42763462564`) disebabkan oleh bug workflow atau ketiadaan GitHub Secrets, serta mengecek ketersediaan jalur resmi (`gh` CLI, token lingkungan, plugin/MCP GitHub) untuk mengisi secrets di GitHub tanpa mengorbankan keamanan kredensial `.env`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (latest 200 lines), `AGENTS.md`, `README.md`, `.env.example`, `.gitignore`
+  - `.github/workflows/supabase-keep-alive.yml` & `git diff HEAD -- .github/workflows/supabase-keep-alive.yml`
+  - Inspeksi ketersediaan tool/auth (`gh`, `GITHUB_TOKEN`, `GH_TOKEN`, `list_plugin_accounts`, `search_marketplace`)
+  - `.env` (hanya pengecekan keberadaan & panjang key, tanpa mencetak nilai rahasia)
+- **Work Performed (Completed)**:
+  1. Memastikan `.github/workflows/supabase-keep-alive.yml` lokal sama persis dengan commit GitHub `ee09027`, tidak mengandung bug endpoint/header, dan telah teruji lokal menghasilkan `HTTP 200` terhadap `/rest/v1/portfolio_profile?select=id&limit=1`.
+  2. Memastikan seluruh nilai yang dibutuhkan (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY`) tersedia di `.env` lokal, tetapi tidak ada jalur resmi terautentikasi dari agen untuk menulis **GitHub Repository Secrets** (`gh` CLI tidak terpasang, `GITHUB_TOKEN`/`GH_TOKEN` tidak disetel, tidak ada plugin/MCP GitHub di sistem maupun Marketplace).
+  3. Menghindari penulisan hardcode key `.env` ke file workflow publik maupun pembacaan kredensial Git credential manager / profil browser (kepatuhan keamanan).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append log).
+- **Files Protected**: `.github/workflows/supabase-keep-alive.yml`, `.env`, seluruh source code, migrasi SQL, tests, `list bug.md`, `AGENTS.md`, dan `design/**` tidak dimodifikasi.
+- **Errors / Limitations Encountered**:
+  - **BLOCKED**: Tidak dapat mengisi `Repository secrets` GitHub dari lingkungan agen karena tidak ada `gh` CLI / token GitHub / plugin MCP GitHub yang terotorisasi.
+- **Validation Performed (Verified)**:
+  - `git diff HEAD -- .github/workflows/supabase-keep-alive.yml` -> kosong (identik dengan GitHub `ee09027`).
+  - `git diff --check PROJECT-IMPLEMENTATION-LOG.md` -> dilakukan setelah append log.
+- **Not Verified**: Eksekusi ulang GitHub Actions `workflow_dispatch` di GitHub belum dapat dijalankan hingga user mengisi GitHub Repository Secrets.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: BLOCKED BY MISSING GITHUB AUTHENTICATION / SECRETS ACCESS (Workflow YAML tidak bermasalah; menunggu user mengisi Secrets di GitHub atau memasang/login `gh` CLI).
+- **Next Required Step**: User menambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` (opsional `VITE_SUPABASE_ANON_KEY`) dari `.env` ke `GitHub Repo -> Settings -> Secrets and variables -> Actions -> Repository secrets`, lalu menekan `Run workflow` pada `Supabase Database Keep Alive`.

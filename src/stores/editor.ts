@@ -85,8 +85,24 @@ function applyCommandValue(snapshot: EditorSnapshot, command: EditorCommand, dir
   for (const change of changes) pruneEmptyEntityRecord(snapshot, change.propertyPath)
 }
 
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => [key, stableValue((value as Record<string, unknown>)[key])])
+  )
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(stableValue(value))
+}
+
 function contentSignature(snapshot: EditorSnapshot): string {
-  return JSON.stringify({
+  return stableStringify({
+    entities: snapshot.entities,
+    instances: snapshot.instances,
     content: snapshot.content,
     certificateCards: snapshot.certificateCards,
     typography: snapshot.typography,
@@ -257,6 +273,11 @@ export const useEditorStore = defineStore('editor', {
         return left.order - right.order
       }).map((object, order) => ({ ...object, order }))
       if (JSON.stringify(this.objects) !== JSON.stringify(normalizedObjects)) this.objects = normalizedObjects
+      const legacyProfileId = this.draftSnapshot.content.profile.id
+      const profileMediaId = this.draftSnapshot.content.profile.mediaUsageId
+      if (legacyProfileId && profileMediaId && legacyProfileId !== profileMediaId && objects.some((object) => object.id === profileMediaId)) {
+        currentById.delete(legacyProfileId)
+      }
       for (const object of objects) {
         if (object.ux?.dynamicInstance) continue
         const next = toSnapshotEntityReference(object)
@@ -264,7 +285,7 @@ export const useEditorStore = defineStore('editor', {
         currentById.set(object.id, existing ? { ...next, label: existing.label } : next)
       }
       const nextEntities = [...currentById.values()]
-      if (JSON.stringify(this.draftSnapshot.entities) !== JSON.stringify(nextEntities)) this.draftSnapshot.entities = nextEntities
+      if (stableStringify(this.draftSnapshot.entities) !== stableStringify(nextEntities)) this.draftSnapshot.entities = nextEntities
       const validIds = new Set(normalizedObjects.map((object) => object.id))
       this.additionalSelectedObjectIds = this.additionalSelectedObjectIds.filter((id) => validIds.has(id) && id !== this.selectedObjectId)
     },
@@ -336,9 +357,14 @@ export const useEditorStore = defineStore('editor', {
       this.draftSnapshot.session.activeAccordion = category
       this.sessionDirty = true
     },
-    setViewport(session: Partial<EditorSnapshot['session']>) {
-      this.draftSnapshot.session = { ...this.draftSnapshot.session, ...session }
-      this.sessionDirty = true
+    setViewport(session: Partial<EditorSnapshot['session']>, markSession = true): boolean {
+      const current = this.draftSnapshot.session
+      const changed = (Object.keys(session) as Array<keyof EditorSnapshot['session']>)
+        .some((key) => JSON.stringify(current[key]) !== JSON.stringify(session[key]))
+      if (!changed) return false
+      this.draftSnapshot.session = { ...current, ...session }
+      if (markSession) this.sessionDirty = true
+      return true
     },
     setObjectSearch(value: string) {
       this.objectSearch = value
@@ -480,6 +506,10 @@ export const useEditorStore = defineStore('editor', {
         ? command.metadata.objectIds.filter((value): value is string => typeof value === 'string')
         : [command.entityId]
       this.recordPreviewMutation(objectIds, commandChanges(command).map((change) => change.propertyPath))
+    },
+    syncSavedBaseline() {
+      this.savedContentSignature = contentSignature(this.draftSnapshot)
+      this.hasUnsavedChanges = false
     },
     markDraftSaved(revision: Partial<EditorRevisionState> = {}) {
       this.savedContentSignature = contentSignature(this.draftSnapshot)

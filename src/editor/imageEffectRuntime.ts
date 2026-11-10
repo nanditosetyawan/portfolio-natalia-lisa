@@ -118,7 +118,8 @@ function outlineColor(snapshot: EditorSnapshot, entityId: string, element: HTMLE
 }
 
 function alphaShadowFilters(value: string): string[] {
-  if (!value.trim()) return []
+  const normalized = value.trim()
+  if (!normalized || normalized.toLowerCase() === 'none') return []
   const filters: string[] = []
   for (const layer of splitShadowLayers(value)) {
     const parsed = parseShadowValue(layer, true)
