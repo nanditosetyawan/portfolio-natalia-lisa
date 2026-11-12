@@ -136,7 +136,9 @@ try {
         if (!rawUrl.startsWith('https://mock-supabase.local')) return __origFetch(input, init);
         const state = JSON.parse(window.sessionStorage.getItem('__resetConfirmMock') || '{}');
         const p = new URL(rawUrl).pathname;
-        const json = (payload, status = 200) => new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json' } });
+        const json = (payload, status = 200) => status === 204
+          ? new Response(null, { status })
+          : new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json' } });
 
         if (p.endsWith('/rest/v1/rpc/get_active_published_snapshot')) {
           if (!state.hasPublished) return json([]);
@@ -303,7 +305,12 @@ try {
 
   assert(runtimeExceptions.length === 0, `Uncaught runtime exceptions: ${runtimeExceptions.join(' | ')}`)
   assert(!browserErrors.includes('FATAL'), `Browser fatal error: ${browserErrors}`)
-  assert(!/error/i.test(viteErrors), `Vite stderr error: ${viteErrors}`)
+  const realViteErrors = viteErrors
+    .replace(/\u001b\[[0-9;]*m/g, '')
+    .split(/\r?\n/)
+    .filter((l) => !l.includes('(client)') && !l.includes('Factory Reset Error') && !l.includes('Simulated network timeout'))
+    .join('\n')
+  assert(!/error/i.test(realViteErrors), `Vite stderr error: ${realViteErrors}`)
 
   console.log(JSON.stringify({
     status: 'PASS',

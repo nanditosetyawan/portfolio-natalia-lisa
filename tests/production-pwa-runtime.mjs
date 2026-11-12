@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -6,7 +7,13 @@ import path from 'node:path'
 const projectRoot = process.cwd()
 const baseUrl = 'http://127.0.0.1:5188'
 const cdpPort = 9358
-const chromePath = process.env.CHROME_PATH ?? 'C:\\Users\\VivoBook\\AppData\\Local\\ms-playwright\\chromium-1234\\chrome-win64\\chrome.exe'
+const chromePath = [
+  process.env.CHROME_PATH,
+  'C:\\Users\\VivoBook\\AppData\\Local\\ms-playwright\\chromium-1234\\chrome-win64\\chrome.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+].find((candidate) => candidate && existsSync(candidate))
+if (!chromePath) throw new Error('No Chromium/Chrome/Edge executable found; set CHROME_PATH.')
 const profilePath = await mkdtemp(path.join(tmpdir(), 'portfolio-phase036-pwa-'))
 const children = []
 const wait = (milliseconds = 50) => new Promise((resolve) => setTimeout(resolve, milliseconds))

@@ -238,9 +238,18 @@ async function loadMetrics(): Promise<void> {
   }
 }
 
+let syncTimeController: AbortController | null = null
+
 async function syncTime(): Promise<void> {
+  syncTimeController?.abort()
+  const controller = new AbortController()
+  syncTimeController = controller
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+
   try {
-    const res = await fetch('https://timeapi.io/api/Time/current/zone?timezone=Asia/Jakarta')
+    const res = await fetch('https://timeapi.io/api/Time/current/zone?timezone=Asia/Jakarta', {
+      signal: controller.signal
+    })
     if (!res.ok) throw new Error('TimeAPI request failed')
     const data = await res.json() as {
       dateTime: string
@@ -265,6 +274,11 @@ async function syncTime(): Promise<void> {
     timeOffset = serverTime - Date.now()
   } catch {
     timeOffset = null
+  } finally {
+    clearTimeout(timeoutId)
+    if (syncTimeController === controller) {
+      syncTimeController = null
+    }
   }
 }
 
@@ -278,6 +292,8 @@ onMounted(() => {
 onUnmounted(() => {
   stopClock()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  syncTimeController?.abort()
+  syncTimeController = null
 })
 </script>
 

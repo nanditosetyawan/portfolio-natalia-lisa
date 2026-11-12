@@ -86,6 +86,7 @@ let downScrollAccumMs = 0        // accumulated ms while continuously scrolling 
 let lastDownScrollAt: number | null = null  // timestamp of last down-scroll tick
 let pauseTimer: ReturnType<typeof setTimeout> | null = null
 let flickTimer: ReturnType<typeof setTimeout> | null = null
+let navClickTimer: ReturnType<typeof setTimeout> | null = null
 let rafId             = 0
 let suppressHide      = false
 let isFlicking        = false    // true when a single fast-flick is detected
@@ -253,14 +254,20 @@ function initObserver() {
   if (mainEl) observer!.observe(mainEl)
 }
 
+function isReducedMotion(): boolean {
+  return typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 // ──────────────────────────────────────────
 // LENIS INITIALIZATION
 // ──────────────────────────────────────────
 function initLenis() {
+  const reduced = isReducedMotion()
   lenis = new Lenis({
-    duration: 1.2,
+    duration: reduced ? 0 : 1.2,
     easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-    smoothWheel: true,
+    smoothWheel: !reduced,
     virtualScroll: educationCollegeMagnet.handleVirtualScroll,
   })
   educationCollegeMagnet.attachLenis(lenis)
@@ -295,6 +302,8 @@ function handleNavClick(event: Event, item: NavItem) {
   }
   updatePill(item.key)
 
+  const reduced = isReducedMotion()
+
   // Lenis scroll
   const targetEl = document.getElementById(item.targetSectionId)
   if (targetEl && lenis) {
@@ -303,21 +312,27 @@ function handleNavClick(event: Event, item: NavItem) {
       ? targetEl.offsetHeight - window.innerHeight + item.offset
       : item.offset
     lenis.scrollTo(targetEl, {
-      duration: 1.3,
+      duration: reduced ? 0 : 1.3,
+      immediate: reduced,
       offset,
     })
   } else {
     // Fallback (Lenis unavailable)
-    targetEl?.scrollIntoView({ behavior: 'smooth' })
+    targetEl?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' })
   }
 
   // Release suppress after scroll animation completes (~1300ms + buffer)
-  setTimeout(() => {
+  if (navClickTimer) {
+    clearTimeout(navClickTimer)
+    navClickTimer = null
+  }
+  navClickTimer = setTimeout(() => {
     suppressHide      = false
     educationCollegeMagnet.setProgrammaticNavigation(false)
     downScrollAccumMs = 0
     lastDownScrollAt  = null
-  }, 1500)
+    navClickTimer     = null
+  }, reduced ? 50 : 1500)
 }
 
 // ──────────────────────────────────────────
@@ -355,6 +370,14 @@ onUnmounted(() => {
   cancelAnimationFrame(lenisFrameId)
   window.removeEventListener('scroll', scheduleTick)
   clearPauseTimer()
+  if (flickTimer) {
+    clearTimeout(flickTimer)
+    flickTimer = null
+  }
+  if (navClickTimer) {
+    clearTimeout(navClickTimer)
+    navClickTimer = null
+  }
   observer?.disconnect()
   educationCollegeMagnet.destroy()
   lenis?.destroy()

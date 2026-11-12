@@ -980,7 +980,6 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      test_reset: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never

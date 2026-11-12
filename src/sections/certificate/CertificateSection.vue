@@ -680,60 +680,6 @@ onBeforeUnmount(() => {
 .cards-stack {
   display: flex;
   flex-direction: column;
-}
-.title-sparkles {
-  position: absolute;
-  top: -15px;
-  right: -25px;
-  width: 35px;
-  height: 35px;
-  pointer-events: none;
-}
-.sparkle {
-  position: absolute;
-}
-.sparkle-1 {
-  top: 0;
-  left: 0;
-  animation: shine 3s ease-in-out infinite;
-}
-.sparkle-2 {
-  bottom: 2px;
-  right: -5px;
-  animation: shine 3s ease-in-out infinite 1.5s;
-}
-@keyframes shine {
-  0%, 100% {
-    transform: scale(0.85);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-}
-/* Broken thin line below title */
-.title-line-divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 240px;
-  margin: 0 auto;
-}
-.line-segment {
-  flex-grow: 1;
-  height: 1.5px;
-  background-color: #F28C38; /* Accent orange/brown */
-  opacity: 0.85;
-}
-.line-gap {
-  width: 36px;
-  flex-shrink: 0;
-}
-/* ===== Certificate Cards Stack (Layer 7) ===== */
-.cards-stack {
-  display: flex;
-  flex-direction: column;
   gap: 2.2rem; /* Relatively large visually balanced gap */
   width: 100%;
   max-width: 820px; /* Approx 60-70% of viewport width */

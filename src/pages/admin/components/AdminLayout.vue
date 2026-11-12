@@ -292,7 +292,7 @@ watch(isManageMediaPage, (active) => {
 }
 
 .tbar-btn:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: .62;
 }
 
