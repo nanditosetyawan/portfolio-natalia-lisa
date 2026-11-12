@@ -5250,3 +5250,37 @@ PASS
   - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
 - **Current Status**: FIX COMPLETE & VISUALLY VERIFIED â€” SCROLLED FLOATING PILL NAVBAR CLEAN AND SEAMLESS.
 - **Next Required Step**: Siap dilaporkan ke user.
+
+
+## Request: Fix Scrolled Navbar Phantom Vertical Line Before Main ("cek kenapa di topbar yang berubah itu, saat saya scroll terkadang ada garis horizontal diantara lisa natalia dan main. hilangkan hati hati")
+- **Date**: 2026-11-12T22:31:00+07:00
+- **Mode**: Targeted Fix & Runtime Browser Verification (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
+- **Scope**: Menyelidiki dan menghilangkan garis pembatas vertikal (2px) yang terkadang muncul di antara "LISA NATALIA" dan tautan "Main" pada saat scroll di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue).
+- **Investigation via Playwright / Chrome DevTools Protocol**:
+  1. Akses langsung browser runtime headless Chromium pada localhost membuktikan bahwa garis tersebut adalah elemen `.active-pill`.
+  2. **Akar Masalah**:
+     - Di template sebelumnya, `<div v-if="isScrolled" class="active-pill" ref="pillRef"></div>` di-unmount saat navbar berada di puncak (`isScrolled === false`).
+     - Saat pengguna menggulir sedikit ke bawah (misal Y = 30–50px), `isScrolled.value` berubah menjadi `true` sehingga Vue me-mount elemen `.active-pill` ke DOM.
+     - Namun fungsi `updatePill()` hanya dipicu oleh `IntersectionObserver`. Karena scroll awal masih berada di section pertama (Portfolio/Main), observer belum berpindah section sehingga `updatePill()` **tidak pernah dipanggil**.
+     - Akibatnya, elemen `.active-pill` memiliki `width: ""` dan `left: ""` (kosong). Elemen tersebut menciut menjadi lebar 0px + border 1px kiri + border 1px kanan = **garis vertikal selebar 2px**, tepat di `left: 0` dari `.navbar-menu` (yaitu tepat di sebelah kiri menu "Main", di antara "LISA NATALIA" dan "Main").
+- **Changes Applied**:
+  - Di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue):
+    - Mengubah elemen `.active-pill` agar selalu berada di DOM (`ref="pillRef" :class="{ 'is-visible': isScrolled && pillReady }"`) tanpa `v-if`, dan mengontrol visibilitasnya melalui kelas CSS.
+    - Menambahkan state `pillReady = ref(false)`. Saat `onMounted()`, `updatePill('main')` langsung mengukur dan menyetel koordinat `left` dan `width` yang presisi pada menu "Main" di latar belakang.
+    - Menambahkan `watch(isScrolled)` dan pemanggilan `updatePill(activeKey.value)` saat transisi ke mode scrolled di fungsi `tick()`.
+    - Menambahkan event listener `resize` agar posisi pill otomatis tersinkronisasi bila ukuran layar berubah.
+    - Menambahkan perlindungan CSS: `.active-pill { opacity: 0; visibility: hidden; }`, `.active-pill:not([style*="width"]) { opacity: 0 !important; visibility: hidden !important; }`, dan `.guest-navbar.is-scrolled .active-pill.is-visible { opacity: 1; visibility: visible; }`.
+- **Validation Performed**:
+  - Pengujian multi-stage Chromium via CDP:
+    1. Y = 0 (top): `isScrolled: false, pillOpacity: '0', pillVisibility: 'hidden'`.
+    2. Y = 50 (Main scrolled): `isScrolled: true, pillOffsetWidth: 70px` (membungkus tombol Main dengan sempurna), `pillOpacity: '1'`, selisih posisi `0px`, garis vertikal 2px **hilang 100%**.
+    3. Y = 1200 (About section): `activeItemKey: 'about', pillOffsetWidth: 77px, pillDiffX: 0` (pill berpindah mulus ke menu About).
+    4. Y = 0 (kembali ke puncak): pill kembali memudar bersih (`opacity: '0', visibility: 'hidden'`).
+  - `npx vue-tsc --noEmit`: PASS (0 type errors).
+  - `npm run build`: PASS (2.052 modul terkompilasi bersih dalam 3.60s).
+  - `npm run test:regression`: PASS (seluruh 5 suite regresi lulus).
+- **Files Modified**:
+  - [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue)
+  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
+- **Current Status**: RESOLVED & VISUALLY VERIFIED WITH CHROMIUM CDP RUNTIME.
+- **Next Required Step**: Siap dilaporkan ke user.

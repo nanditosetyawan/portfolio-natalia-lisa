@@ -16,7 +16,7 @@
  * - Smooth transition from top nav to dynamic island without layout jumps (accelerated outer shell + inner container morphing)
  */
 
-import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
+import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
 import Lenis from 'lenis'
 import { useEducationCollegeMagnet } from '../composables/useEducationCollegeMagnet'
 import { useSiteStore } from '../stores/site'
@@ -74,6 +74,7 @@ const isScrolled     = ref(false)
 const isHidden       = ref(false)
 const activeKey      = ref('main')
 const isDarkSection  = ref(true)   // default: Home is dark
+const pillReady      = ref(false)
 
 // Lenis instance
 let lenis: Lenis | null = null
@@ -122,7 +123,10 @@ function tick() {
   }
 
   // SCROLLED STATE
-  isScrolled.value = true
+  if (!isScrolled.value) {
+    isScrolled.value = true
+    updatePill(activeKey.value)
+  }
 
   const scrollingDown = currentY > lastScrollY
   const scrollingUp   = currentY < lastScrollY
@@ -212,12 +216,20 @@ function updatePill(key: string) {
       if (!link) return
       const menuRect  = menuRef.value.getBoundingClientRect()
       const linkRect  = link.getBoundingClientRect()
+      if (linkRect.width <= 0) return
       const left = linkRect.left - menuRect.left
       pillRef.value.style.left  = `${left}px`
       pillRef.value.style.width = `${linkRect.width}px`
+      pillReady.value = true
     })
   })
 }
+
+watch(isScrolled, (scrolled) => {
+  if (scrolled) {
+    updatePill(activeKey.value)
+  }
+})
 
 // ──────────────────────────────────────────
 // INTERSECTION OBSERVER — active section
@@ -348,10 +360,15 @@ const navClass = computed(() => ({
 // ──────────────────────────────────────────
 // LIFECYCLE
 // ──────────────────────────────────────────
+function handleResize() {
+  updatePill(activeKey.value)
+}
+
 onMounted(() => {
   lastScrollY = window.scrollY
   initLenis()
   window.addEventListener('scroll', scheduleTick, { passive: true })
+  window.addEventListener('resize', handleResize, { passive: true })
   scheduleTick()
   initObserver()
   // Initial pill position
@@ -369,6 +386,7 @@ onUnmounted(() => {
   cancelAnimationFrame(pillFrameId)
   cancelAnimationFrame(lenisFrameId)
   window.removeEventListener('scroll', scheduleTick)
+  window.removeEventListener('resize', handleResize)
   clearPauseTimer()
   if (flickTimer) {
     clearTimeout(flickTimer)
@@ -401,7 +419,7 @@ onUnmounted(() => {
        <!-- Nav links + active pill -->
        <div class="navbar-menu" ref="menuRef">
           <!-- Active pill (absolute, slides between items with liquid goop transition) -->
-          <div v-if="isScrolled" class="active-pill" ref="pillRef" aria-hidden="true"></div>
+          <div class="active-pill" ref="pillRef" :class="{ 'is-visible': isScrolled && pillReady }" aria-hidden="true"></div>
 
           <a
             v-for="item in navItemsData"
@@ -573,6 +591,8 @@ onUnmounted(() => {
   border-radius: 999px;
   pointer-events: none;
   z-index: 1;
+  opacity: 0;
+  visibility: hidden;
 
   /* Different timing functions creates the organic stretching liquid effect */
   transition:
@@ -580,7 +600,18 @@ onUnmounted(() => {
     width 0.32s cubic-bezier(0.25, 1, 0.35, 1.15),
     background 0.35s ease,
     border-color 0.35s ease,
-    opacity 0.3s ease;
+    opacity 0.25s ease,
+    visibility 0.25s ease;
+}
+
+.guest-navbar.is-scrolled .active-pill.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.active-pill:not([style*="width"]) {
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 /* ═══════════════════════════════════════════════════════
