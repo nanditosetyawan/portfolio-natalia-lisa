@@ -254,7 +254,14 @@ interface Certificate {
   details: CertImage[]
 }
 
+interface CertMediaMeta {
+  storage_bucket: string | null
+  storage_path: string | null
+  source_url: string | null
+}
+
 const certificates = ref<Certificate[]>([])
+const mediaAssetsById = ref<Record<string, CertMediaMeta>>({})
 const loading = ref(true)
 
 // Modal State
@@ -361,6 +368,27 @@ async function loadCertificates() {
 
     if (imagesError) throw imagesError
 
+    const assetIds = [...new Set(
+      ((imagesData || []) as Array<{ media_asset_id?: string | null }>)
+        .map((img) => img.media_asset_id)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    )]
+    const nextAssetsById: Record<string, CertMediaMeta> = {}
+    if (assetIds.length > 0) {
+      const { data: assetsData } = await supabaseClient
+        .from('media_assets')
+        .select('id, storage_bucket, storage_path, source_url')
+        .in('id', assetIds)
+      for (const asset of (assetsData ?? []) as Array<CertMediaMeta & { id: string }>) {
+        nextAssetsById[asset.id] = {
+          storage_bucket: asset.storage_bucket ?? null,
+          storage_path: asset.storage_path ?? null,
+          source_url: asset.source_url ?? null
+        }
+      }
+    }
+    mediaAssetsById.value = nextAssetsById
+
     const parsed: Certificate[] = (certsData || []).map((c: any) => {
       const images = (imagesData || []).filter((img: any) => img.certificate_id === c.id)
       return {
@@ -384,6 +412,9 @@ async function loadCertificates() {
 
 function getMediaUrl(assetId?: string) {
   if (!assetId) return ''
+  const asset = mediaAssetsById.value[assetId]
+  if (asset?.source_url) return asset.source_url
+  if (asset?.storage_path) return supabasePublicStorageUrl(asset.storage_bucket || PORTFOLIO_MEDIA_BUCKET, asset.storage_path)
   return supabasePublicStorageUrl(PORTFOLIO_MEDIA_BUCKET, `published/certificates/${assetId}.webp`)
 }
 
@@ -574,7 +605,9 @@ function isCertificateReferencedInSnapshot(snapshot: unknown, cert: Certificate)
   if (Array.isArray(record.certificateCards) && record.certificateCards.some((card) => card?.id === cert.id)) {
     return true
   }
-  return certificateAssetIds(cert).some((assetId) => isAssetReferencedInSnapshot(snapshot, assetId))
+  return certificateAssetIds(cert).some((assetId) =>
+    isAssetReferencedInSnapshot(snapshot, assetId, mediaAssetsById.value[assetId]?.storage_path || undefined)
+  )
 }
 
 async function listProtectedRevisionSnapshots(): Promise<unknown[] | null> {
@@ -910,22 +943,25 @@ function onDragOver(event: DragEvent, _index: number) {
 
 async function onDrop(_event: DragEvent, index: number) {
   if (draggedIndex.value === null || draggedIndex.value === index) return
-  
-  const newList = [...certificates.value]
+
+  const previousList = [...certificates.value]
+  const newList = [...previousList]
   const [removed] = newList.splice(draggedIndex.value, 1)
   newList.splice(index, 0, removed)
-  
+
   certificates.value = newList
   draggedIndex.value = null
-  
-  await saveNewOrder(newList)
+
+  if (!await saveNewOrder(newList)) {
+    certificates.value = previousList
+  }
 }
 
 function onDragEnd() {
   draggedIndex.value = null
 }
 
-async function saveNewOrder(list: Certificate[]) {
+async function saveNewOrder(list: Certificate[]): Promise<boolean> {
   try {
     const promises = list.map((cert, idx) => 
       supabaseClient.from('certificates').update({ order_index: idx }).eq('id', cert.id)
@@ -938,9 +974,11 @@ async function saveNewOrder(list: Certificate[]) {
     
     certificates.value = list.map((c, i) => ({ ...c, order_index: i }))
     await certificatesStore.fetchCertificates(true) // update guest store order
+    return true
   } catch (e) {
     console.error('Failed to save order', e)
-    alert('Gagal menyimpan urutan baru.')
+    productFeedback.error('Gagal menyimpan urutan baru', (e as { message?: string } | null)?.message || 'Perubahan urutan sertifikat tidak dapat disimpan.')
+    return false
   }
 }
 

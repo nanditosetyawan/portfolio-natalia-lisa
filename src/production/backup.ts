@@ -1,5 +1,6 @@
 import { designTokenRegistry } from '../editor/designSystemRegistry'
 import { serializeEditorSnapshot, validateEditorSnapshot } from '../editor/editorSnapshot'
+import { isSupabaseConfigured, supabasePublicStorageUrl } from '../lib/supabaseRest'
 import {
   editorDraftRepository,
   editorPublishRepository,
@@ -11,6 +12,12 @@ import { useDesignSystemStore } from '../stores/designSystem'
 import type { DesignSystemWorkspace, DesignTheme } from '../types/designSystem'
 import type { EditorSnapshot } from '../types/editorSnapshot'
 import { getRuntimeDiagnostics } from './monitoring'
+
+export interface BackupSnapshotChoice {
+  id: string
+  label: string
+  snapshot: EditorSnapshot
+}
 
 export const PRODUCTION_BACKUP_FORMAT = 'tali-temali-production-backup' as const
 export const PRODUCTION_BACKUP_VERSION = 1 as const
@@ -71,7 +78,8 @@ function snapshotMediaLocations(revisions: RevisionRecord[]): ProductionBackup['
 export async function createProductionBackup(): Promise<ProductionBackup> {
   const designSystem = useDesignSystemStore()
   designSystem.initialize()
-  const [published, draftResults, favoriteResults] = await Promise.all([
+  const [, published, draftResults, favoriteResults] = await Promise.all([
+    designSystem.syncFromCloud(),
     editorPublishRepository.getPublishedRevision(),
     editorDraftRepository.listDrafts(),
     favoriteRepository.listFavorites()
@@ -95,15 +103,21 @@ export async function createProductionBackup(): Promise<ProductionBackup> {
   }
 }
 
-function suspiciousKeyScan(value: unknown, path = '$', errors: string[] = []): string[] {
+function suspiciousKeyScan(value: unknown, path = '$', errors: string[] = [], depth = 0): string[] {
+  if (depth > 64) {
+    errors.push(`${path} exceeds maximum nesting depth.`)
+    return errors
+  }
   if (Array.isArray(value)) {
-    value.forEach((item, index) => suspiciousKeyScan(item, `${path}[${index}]`, errors))
+    value.forEach((item, index) => suspiciousKeyScan(item, `${path}[${index}]`, errors, depth + 1))
     return errors
   }
   if (!isRecord(value)) return errors
-  for (const [key, item] of Object.entries(value)) {
+  for (const key of Object.getOwnPropertyNames(value)) {
     if (/^(?:access_token|refresh_token|service_role|service_role_key|password|apikey|authorization)$/i.test(key)) errors.push(`${path}.${key} must not contain credentials.`)
-    suspiciousKeyScan(item, `${path}.${key}`, errors)
+    else if (/^(?:__proto__|constructor|prototype)$/i.test(key)) errors.push(`${path}.${key} contains a disallowed object key.`)
+    const item = Object.getOwnPropertyDescriptor(value, key)?.value
+    suspiciousKeyScan(item, `${path}.${key}`, errors, depth + 1)
   }
   return errors
 }
@@ -127,6 +141,8 @@ function validThemeWorkspace(value: unknown, errors: string[]): value is DesignS
     return false
   }
   if (!value.themes.some((theme) => isRecord(theme) && theme.id === value.activeThemeId)) errors.push('designSystem.activeThemeId does not reference an exported Theme.')
+  if (value.sectionTemplates !== undefined && !Array.isArray(value.sectionTemplates)) errors.push('designSystem.sectionTemplates must be an array.')
+  if (value.componentPresets !== undefined && !Array.isArray(value.componentPresets)) errors.push('designSystem.componentPresets must be an array.')
   for (const [index, theme] of value.themes.entries()) {
     if (!isRecord(theme) || typeof theme.id !== 'string' || typeof theme.name !== 'string' || !isRecord(theme.tokens)) {
       errors.push(`designSystem.themes[${index}] is invalid.`)
@@ -144,8 +160,9 @@ export function validateBackupValue(input: unknown): BackupValidationResult {
   const baseSummary = { drafts: 0, favorites: 0, published: 0, themes: 0, mediaReferences: 0 }
   if (!isRecord(input)) return { valid: false, kind: 'unknown', errors: ['Imported data must be a JSON object.'], warnings: [], summary: baseSummary }
 
+  const securityErrors = suspiciousKeyScan(input)
   if (input.format === PRODUCTION_BACKUP_FORMAT) {
-    const errors = suspiciousKeyScan(input)
+    const errors = [...securityErrors]
     const warnings: string[] = []
     if (input.version !== PRODUCTION_BACKUP_VERSION) errors.push(`Unsupported backup version: ${String(input.version)}.`)
     if (typeof input.exportedAt !== 'string' || Number.isNaN(Date.parse(input.exportedAt))) errors.push('exportedAt is invalid.')
@@ -191,17 +208,141 @@ export function validateBackupValue(input: unknown): BackupValidationResult {
     return { valid: errors.length === 0, kind: 'production-backup', errors, warnings, summary, value: errors.length ? undefined : clone(input as unknown as ProductionBackup) }
   }
 
-  const snapshotErrors: string[] = []
-  if (validateSnapshot(input, 'snapshot', snapshotErrors)) {
+  const snapshotErrors: string[] = [...securityErrors]
+  if (validateSnapshot(input, 'snapshot', snapshotErrors) && snapshotErrors.length === 0) {
     return { valid: true, kind: 'editor-snapshot', errors: [], warnings: ['Snapshot validated only; no data was imported.'], summary: { ...baseSummary, mediaReferences: input.media.references.length }, value: clone(input) }
   }
 
-  const designErrors: string[] = []
-  if (validThemeWorkspace(input, designErrors)) {
+  const designErrors: string[] = [...securityErrors]
+  if (validThemeWorkspace(input, designErrors) && designErrors.length === 0) {
     return { valid: true, kind: 'design-system', errors: [], warnings: ['Design System backup validated only; no data was imported.'], summary: { ...baseSummary, themes: input.themes.length }, value: clone(input) }
   }
 
   return { valid: false, kind: 'unknown', errors: ['File is not a supported Production Backup, EditorSnapshot, or Design System workspace.', ...snapshotErrors.slice(0, 3), ...designErrors.slice(0, 3)], warnings: [], summary: baseSummary }
+}
+
+export function extractBackupDesignSystem(result: BackupValidationResult): DesignSystemWorkspace | null {
+  if (!result.valid || !result.value) return null
+  if (result.kind === 'production-backup') return clone((result.value as ProductionBackup).designSystem)
+  if (result.kind === 'design-system') return clone(result.value as DesignSystemWorkspace)
+  return null
+}
+
+function formatBackupDate(value: unknown): string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value))
+    ? new Date(value).toLocaleDateString()
+    : 'Saved'
+}
+
+export function listBackupSnapshots(result: BackupValidationResult): BackupSnapshotChoice[] {
+  if (!result.valid || !result.value) return []
+  if (result.kind === 'editor-snapshot') {
+    return [{ id: 'snapshot', label: 'Standalone EditorSnapshot', snapshot: clone(result.value as EditorSnapshot) }]
+  }
+  if (result.kind !== 'production-backup') return []
+  const backup = result.value as ProductionBackup
+  const choices: BackupSnapshotChoice[] = []
+  if (backup.published) {
+    choices.push({
+      id: `published-${backup.published.id || backup.published.revision_number}`,
+      label: `Published #${backup.published.revision_number} · ${formatBackupDate(backup.published.published_at ?? backup.published.updated_at)}`,
+      snapshot: clone(backup.published.snapshot)
+    })
+  }
+  for (const draft of backup.drafts) {
+    choices.push({
+      id: `draft-${draft.id}`,
+      label: `Draft #${draft.revision_number} · ${formatBackupDate(draft.updated_at || draft.created_at)}`,
+      snapshot: clone(draft.snapshot)
+    })
+  }
+  return choices
+}
+
+async function verifyBackupStorageAsset(bucket: string, storagePath: string, assetId: string): Promise<void> {
+  const url = supabasePublicStorageUrl(bucket, storagePath)
+  const controller = new AbortController()
+  const timer = globalThis.setTimeout(() => controller.abort(), 8000)
+  try {
+    let response = await fetch(url, { method: 'HEAD', cache: 'no-store', signal: controller.signal })
+    if (response.status === 405) {
+      await response.body?.cancel?.().catch(() => undefined)
+      response = await fetch(url, { method: 'GET', cache: 'no-store', headers: { Range: 'bytes=0-0' }, signal: controller.signal })
+    }
+    await response.body?.cancel?.().catch(() => undefined)
+    if (!response.ok) {
+      throw new Error(`Referenced Storage media ${assetId} (${storagePath}) was not found (${response.status}).`)
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Referenced Storage media')) throw error
+    throw new Error(`Could not verify referenced Storage media ${assetId} (${storagePath}). Check network or Storage access and retry.`)
+  } finally {
+    globalThis.clearTimeout(timer)
+  }
+}
+
+export async function importBackupSnapshotAsDraft(snapshot: EditorSnapshot): Promise<{ revisionId: string; revisionNumber: number }> {
+  const validation = validateEditorSnapshot(snapshot)
+  if (!validation.valid || !validation.value) {
+    throw new Error(validation.errors[0] || 'Snapshot failed validation.')
+  }
+  const candidate = clone(validation.value)
+  const seenAssets = new Set<string>()
+  const storageChecks = new Map<string, () => Promise<void>>()
+
+  for (const reference of candidate.media.references) {
+    if (seenAssets.has(reference.assetId)) {
+      throw new Error(`Duplicate media reference ${reference.assetId} in snapshot.`)
+    }
+    seenAssets.add(reference.assetId)
+    if (/^(?:data|blob):/i.test(reference.uri)) {
+      throw new Error(`Media ${reference.assetId} contains an unsupported embedded or browser-local URL.`)
+    }
+    if (reference.storagePath) {
+      if (reference.bucket !== 'portfolio-media' || reference.storagePath.startsWith('/') || reference.storagePath.includes('..') || reference.storagePath.includes('\\')) {
+        throw new Error(`Media ${reference.assetId} points to an invalid Storage path.`)
+      }
+      if (isSupabaseConfigured()) {
+        const cacheKey = `${reference.bucket}:${reference.storagePath}`
+        if (!storageChecks.has(cacheKey)) {
+          storageChecks.set(cacheKey, () => verifyBackupStorageAsset(reference.bucket as string, reference.storagePath as string, reference.assetId))
+        }
+      }
+    }
+  }
+
+  const currentDraftCount = await editorDraftRepository.countDrafts()
+  if (currentDraftCount >= 10) {
+    throw new Error('Maximum 10 Drafts reached. Delete an existing Draft in Draft Library before importing.')
+  }
+
+  if (storageChecks.size) {
+    await Promise.all([...storageChecks.values()].map((check) => check()))
+  }
+
+  const published = await editorPublishRepository.getPublishedRevision().catch(() => null)
+  candidate.revision = {
+    baseRevisionNumber: published?.revision_number ?? null,
+    draftRevisionNumber: null
+  }
+  const mediaReferences = candidate.media.references
+    .filter((reference) => Boolean(reference.bucket && reference.storagePath))
+    .map((reference) => ({
+      assetId: reference.assetId,
+      bucket: reference.bucket as string,
+      storagePath: reference.storagePath as string,
+      mimeType: reference.mimeType ?? '',
+      width: reference.width ?? 0,
+      height: reference.height ?? 0
+    }))
+
+  const saved = await editorDraftRepository.saveDraft({
+    snapshot: candidate,
+    mediaReferences,
+    expectedBaseRevision: published?.revision_number ?? null,
+    createNew: true
+  })
+  return { revisionId: saved.revision.id, revisionNumber: saved.revision.revision_number }
 }
 
 function u16(value: number): Uint8Array {

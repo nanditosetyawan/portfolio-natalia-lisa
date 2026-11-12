@@ -192,6 +192,12 @@ import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
 import { defaultContact } from '../../data/default/contact'
 import { responsiveBreakpointForWidth, responsiveSnapshotEntityId, type ResponsiveBreakpoint } from '../../editor/responsiveLayout'
+import {
+  contactLinksRepository,
+  sanitizeContactHref,
+  subscribeContactLinksInvalidation,
+  type ContactSocialLinks
+} from '../../repositories/contactLinksRepository'
 import { messageRepository } from '../../repositories/messageRepository'
 import {
   activeGuestEditorSnapshot,
@@ -206,26 +212,30 @@ const props = defineProps<{ editorPreview?: boolean }>()
 const site = useSiteStore()
 const photoRegistry = usePhotoAreaRegistry()
 const runtimeRoot = ref<HTMLElement | null>(null)
+const liveContactLinks = ref<ContactSocialLinks | null>(null)
 let unsubscribeRuntimeInvalidation: (() => void) | null = null
+let unsubscribeContactLinks: (() => void) | null = null
+let liveLinksRequestId = 0
 let appliedRuntimeBreakpoint: ResponsiveBreakpoint | null = null
 let appliedStackedViewport: boolean | null = null
 let clickResetTimer: ReturnType<typeof setTimeout> | null = null
 let successAlertTimer: ReturnType<typeof setTimeout> | null = null
 const guestRuntimeReady = props.editorPreview ? null : initializePublishedRuntime()
 
-function sanitizeContactHref(raw: string): string {
-  const trimmed = raw.trim()
-  if (!trimmed || trimmed.startsWith('#') || /^https?:\/\/(?:www\.)?(?:wa\.me|linkedin\.com\/in)\/?(?:#.*)?$/i.test(trimmed)) {
-    return ''
+async function refreshLiveContactLinks(): Promise<void> {
+  const requestId = ++liveLinksRequestId
+  try {
+    const configured = await contactLinksRepository.loadConfigured()
+    if (requestId === liveLinksRequestId) liveContactLinks.value = configured
+  } catch {
+    // Keep snapshot fallback or last loaded contact links if live fetch fails.
   }
-  if (/^(?:https?:\/\/|mailto:|tel:|\/(?!\/))/i.test(trimmed)) return trimmed
-  return ''
 }
 
 const detail = computed(() => site.current.content.contact.detail ?? defaultContact.detail)
-const waHref = computed(() => sanitizeContactHref(detail.value.socialLinks.whatsapp.href))
-const linkedinHref = computed(() => sanitizeContactHref(detail.value.socialLinks.linkedin.href))
-const cvHref = computed(() => sanitizeContactHref(detail.value.socialLinks.cv.href))
+const waHref = computed(() => sanitizeContactHref(liveContactLinks.value ? liveContactLinks.value.whatsapp : detail.value.socialLinks.whatsapp.href))
+const linkedinHref = computed(() => sanitizeContactHref(liveContactLinks.value ? liveContactLinks.value.linkedin : detail.value.socialLinks.linkedin.href))
+const cvHref = computed(() => sanitizeContactHref(liveContactLinks.value ? liveContactLinks.value.cv : detail.value.socialLinks.cv.href))
 const mainPhoto = computed(() => photoRegistry.find(detail.value.mainPhotoId))
 const messagePhoto = computed(() => photoRegistry.find(detail.value.messagePhotoId))
 const mainPhotoFit = computed(() => site.contactDetailMedia[detail.value.mainPhotoId]?.objectFit)
@@ -262,7 +272,12 @@ function handleRuntimeResize(): void {
 }
 
 onMounted(async () => {
+  unsubscribeContactLinks = subscribeContactLinksInvalidation(() => {
+    void refreshLiveContactLinks()
+  })
+  const liveLinksTask = refreshLiveContactLinks()
   if (guestRuntimeReady) await guestRuntimeReady
+  await liveLinksTask
   await applyPublishedStyles()
   if (!props.editorPreview) {
     unsubscribeRuntimeInvalidation = subscribePublishedRuntimeInvalidation()
@@ -271,6 +286,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  liveLinksRequestId += 1
+  unsubscribeContactLinks?.()
+  unsubscribeContactLinks = null
   unsubscribeRuntimeInvalidation?.()
   unsubscribeRuntimeInvalidation = null
   window.removeEventListener('resize', handleRuntimeResize)

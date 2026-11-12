@@ -2,9 +2,21 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
-function normalizeSiteUrl(value: string): string {
-  try { return new URL(value).origin }
-  catch { return 'http://localhost' }
+function resolveSiteUrl(value: string, warnOnEmptyBuild: boolean): string {
+  const raw = value.trim()
+  if (!raw) {
+    if (warnOnEmptyBuild) {
+      console.warn('[build] VITE_SITE_URL is not set; canonical, og:url, robots.txt, and sitemap.xml will use http://localhost.')
+    }
+    return 'http://localhost'
+  }
+  let parsed: URL
+  try { parsed = new URL(raw) }
+  catch { throw new Error(`Invalid VITE_SITE_URL "${raw}": must be a valid http:// or https:// URL.`) }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Invalid VITE_SITE_URL "${raw}": protocol must be http: or https:.`)
+  }
+  return parsed.origin
 }
 
 function productionArtifacts(siteUrl: string): Plugin {
@@ -29,9 +41,9 @@ function productionArtifacts(siteUrl: string): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, '.', 'VITE_')
-  const siteUrl = normalizeSiteUrl(env.VITE_SITE_URL ?? '')
+  const siteUrl = resolveSiteUrl(env.VITE_SITE_URL ?? '', command === 'build')
   const buildId = env.VITE_BUILD_ID?.trim() || new Date().toISOString().replace(/[-:.TZ]/g, '')
   const appVersion = process.env.npm_package_version ?? '1.0.0'
 

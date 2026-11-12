@@ -19,18 +19,18 @@
           <button type="button" @click="void loadMessages()">Retry</button>
         </ProductEmptyState>
         <ProductEmptyState
-          v-else-if="messages.length === 0"
+          v-else-if="filteredMessages.length === 0"
           compact
-          :title="search ? 'No matching messages' : 'No messages yet'"
-          :description="search ? `No inbox item matches “${search}”. Try a different search.` : 'New portfolio messages will appear here when they arrive.'"
-          :eyebrow="search ? 'Search results' : 'Inbox'"
-          :icon="search ? SearchX : Inbox"
+          :title="trimmedSearch ? 'No matching messages' : 'No messages yet'"
+          :description="trimmedSearch ? `No inbox item matches “${trimmedSearch}”. Try a different search.` : 'New portfolio messages will appear here when they arrive.'"
+          :eyebrow="trimmedSearch ? 'Search results' : 'Inbox'"
+          :icon="trimmedSearch ? SearchX : Inbox"
         >
-          <button type="button" @click="search ? clearSearch() : void loadMessages()">{{ search ? 'Clear search' : 'Refresh inbox' }}</button>
+          <button type="button" @click="trimmedSearch ? clearSearch() : void loadMessages()">{{ trimmedSearch ? 'Clear search' : 'Refresh inbox' }}</button>
         </ProductEmptyState>
         <div v-else class="messages-list" :class="{ 'is-refreshing': isLoading }" :aria-busy="isLoading">
           <article
-            v-for="msg in messages"
+            v-for="msg in filteredMessages"
             :key="msg.id"
             class="message-row"
             :class="{ 'message-row--selected': selectedMessageId === msg.id, 'message-row--unread': !msg.read_at }"
@@ -90,22 +90,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { CircleAlert, Heart, Inbox, MailOpen, Search, SearchX, Trash2 } from 'lucide-vue-next'
 import HighlightedText from '../../components/HighlightedText.vue'
 import ProductEmptyState from '../../components/ProductEmptyState.vue'
 import ProductSkeleton from '../../components/ProductSkeleton.vue'
 import { productFeedback } from '../../composables/useProductFeedback'
-import { messageRepository, type MessageRecord } from '../../repositories/messageRepository'
+import { filterMessages, messageRepository, type MessageRecord } from '../../repositories/messageRepository'
 
 const messages = ref<MessageRecord[]>([])
 const selectedMessageId = ref<string | null>(null)
 const search = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
-let searchTimer = 0
 let requestSequence = 0
 
+const trimmedSearch = computed(() => search.value.trim())
+const filteredMessages = computed(() => filterMessages(messages.value, search.value))
 const selectedMessage = computed(() => messages.value.find((message) => message.id === selectedMessageId.value) ?? null)
 
 function relativeTime(value: string): string {
@@ -135,7 +136,7 @@ async function loadMessages() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const nextMessages = await messageRepository.list(search.value)
+    const nextMessages = await messageRepository.list()
     if (sequence !== requestSequence) return
     messages.value = nextMessages
     if (selectedMessageId.value && !messages.value.some((message) => message.id === selectedMessageId.value)) selectedMessageId.value = null
@@ -197,17 +198,10 @@ function clearSearch(): void {
   search.value = ''
 }
 
-function scheduleSearch(): void {
-  window.clearTimeout(searchTimer)
-  searchTimer = window.setTimeout(() => void loadMessages(), 180)
-}
-
 onMounted(() => void loadMessages())
 onBeforeUnmount(() => {
-  window.clearTimeout(searchTimer)
   requestSequence += 1
 })
-watch(search, scheduleSearch)
 </script>
 
 <style scoped>

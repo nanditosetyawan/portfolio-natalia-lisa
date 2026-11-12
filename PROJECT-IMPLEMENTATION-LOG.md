@@ -5269,3 +5269,937 @@ PASS
 - **Current Status**: COMPLETED (Finding #11 + Unified `/admin/edit` ContactDetail Preview & Granular Controls Implemented, Built, E2E & Visually Verified).
 - **Next Required Step**: Tidak ada di lingkup kode lokal (opsional: bila menguji dengan Cloud Supabase aktif, jalankan uji manual Publish & submit `/contact-detail` ke proyek Supabase langsung serta tinjau atau commit perubahan di git).
 
+
+
+## Request: Full Repository, Build, Chromium E2E, & Live Cloud Re-Verification ("verifikasi ulang")
+- **Date**: 2026-11-11T21:06:02+07:00
+- **Mode**: Read-Only Re-Verification Audit (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Verifikasi ulang menyeluruh pasca commit `487be84` (`cari bug`) atas build TypeScript/Vite, seluruh suite runtime/regresi Chromium untuk temuan #1–#11 & sistem Editor/Guest/PWA, sinkronisasi Database/Storage/RPC/Advisors Cloud Supabase live, kebersihan Git & `artifacts/`, serta status backlog `list bug.md` #12–#20.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (`Get-Content -Tail 200` + `-Tail 60`), `AGENTS.md` (§4–§6, §25)
+  - [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md), `supabase/migrations/0033_fix_rollback_revision_numbering.sql`, `0035_harden_referenced_storage_paths.sql`, `0036_harden_message_rate_limit.sql`
+  - Spot-check read-only: `public/sw.js`, `public/offline.html`, `src/lib/supabaseAuth.ts`, `vite.config.ts`, `tests/production-pwa-runtime.mjs`, `src/sections/education/shs/SHSSection.vue`, `src/sections/about/AboutSection.vue`, `src/pages/admin/AdminMessages.vue`, `src/pages/admin/AdminAssetLibrary.vue`, `src/pages/admin/AdminMaintenance.vue`, `src/pages/admin/AdminEdit.vue`, `src/repositories/certificateRepository.ts`, `src/components/GuestNavbar.vue`
+- **Work Performed (Completed)**:
+  1. **TypeScript, Production Build & Kebersihan Git**:
+     - `git status` awal pada HEAD `487be84` bersih tanpa perubahan menggantung.
+     - `npx vue-tsc --noEmit` & `npm run build` (`vite v8.2.1`): **PASS** (exit code 0, 2050 modul, `3.78s`).
+     - Setelah seluruh tes selesai, file PNG/JSON `artifacts/` yang tertimpa runner tes dipulihkan via `git checkout -- artifacts/`, file tak terlacak `artifacts/phase-036-offline-fallback.png` dihapus, dan folder sementara `%TEMP%\portfolio-contact-detail-shots-*` dibersihkan (`git status -s` bersih sebelum append log ini).
+  2. **Chromium Headless E2E & Regression Suites (17/17 PASS)**:
+     - **Batch 1 (Temuan #1–#5 & #10–#11)**: `contact-detail-editor-runtime.mjs`, `message-rate-limit-runtime.mjs`, `auth-session-sync-runtime.mjs`, `admin-certificates-retention-runtime.mjs`, `guest-certificate-refresh-runtime.mjs` — seluruh 5/5 **PASS** (exit code 0).
+     - **Batch 2 (Temuan #6–#9, Guest Baseline & Production PWA/Hardening)**: `rollback-revision-numbering-runtime.mjs`, `maintenance-reset-confirmation-runtime.mjs`, `storage-cleanup-runtime.mjs`, `default-guest-runtime.mjs`, `production-pwa-runtime.mjs`, `production-hardening-runtime.mjs` — seluruh 6/6 **PASS** (exit code 0; `60.88 FPS`, `CLS 0.0047`, 0 runtime errors). Terverifikasi via `git log -p -- public/sw.js` bahwa strategi Temuan #9 pada commit `487be84` secara sengaja menghapus runtime caching navigasi dan mengganti HTML gagal jaringan offline dengan `/offline.html` sesuai asersi `production-pwa-runtime.mjs`.
+     - **Batch 3 (Regresi Inti Editor, Isolasi Objek, Media & Design System)**: `editor-professional-ux-runtime.mjs`, `inspector-object-isolation-runtime.mjs`, `human-friendly-inspector-runtime.mjs`, `media-library-runtime.mjs`, `design-system-runtime.mjs`, `editor-object-system-runtime.mjs` — seluruh 6/6 **PASS** (exit code 0).
+     - *Dilewati*: skrip warisan `tests/frame-image-runtime.mjs` (butuh CDP eksternal port 9237 & selektor lama `[data-photo-area-select]`).
+  3. **Live Cloud Supabase Database, Storage, REST, & Advisors Audit (`anyhuqqnjliepllrkebo`)**:
+     - `applied_migrations = 37` (sampai `0036`), `total_public_tables = 21`, `non_rls_public_tables = 0`.
+     - Verifikasi `pg_get_functiondef(pr.oid)` memastikan isi fungsi live `public.rollback_published_revision`, `private.prepare_message_insert`, `private.enforce_message_insert_batch_limits`, dan `private.list_referenced_storage_paths_internal` cocok identik dengan migrasi lokal `0033`, `0035`, `0036`.
+     - State live bersih: `auth.users = 1`, `public.admin_memberships = 1`, `site_revisions = 0`, `media_assets = 0`, `certificates = 0`, `messages = 0`, `storage.objects (portfolio-media) = 0 (0 B)` (33 sampah Storage lama sudah bersih), `cron.job messages-auto-delete active = true`.
+     - Uji HTTP REST anon read-only: `GET /rest/v1/portfolio_profile?select=id&limit=1` -> `200 OK`; `POST /rest/v1/rpc/get_active_published_snapshot` -> `200 OK` (`[]`); `POST /rest/v1/rpc/test_reset` -> `401` (akses dicabut, meski fungsi masih eksis `test_reset_exists = 1`).
+     - `get_advisors`: `security` hanya mencatat 2 `SECURITY DEFINER` publik yang disengaja (`get_active_published_snapshot`, `bootstrap_first_admin`) dan `auth_leaked_password_protection` (nonaktif di Auth Dashboard); `performance` hanya 6 info `unused_index` pada tabel yang masih kosong.
+  4. **Status Backlog `list bug.md` #12–#20**:
+     - Spot-check read-only mengonfirmasi item `Should fix` (`#12–#18`) dan `Nice to have` (`#19–#20`) masih berstatus terbuka/belum disentuh sesuai cakupan sebelumnya (hanya `#1–#11` `Must fix` yang diperbaiki pada commit `487be84`).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri verifikasi ulang ini saja; `artifacts/` telah dipulihkan ke baseline Git).
+- **Files Protected**: `src/**`, `public/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `design/**`, `md/**` tidak dimodifikasi.
+- **Validation Performed**: Build + `vue-tsc` + 17/17 suite Chromium headless + pemeriksaan live Cloud DB/Storage/RPC/Advisors/REST API.
+- **Visual Verification**: Tidak berlaku (audit read-only tanpa modifikasi UI).
+- **Current Status**: COMPLETED (All Finding #1–#11 & Core Editor/PWA Suites Verified PASS; Cloud DB & Storage 100% Synced & Clean).
+- **Next Required Step**: Opsional — aktifkan **Leaked Password Protection** & matikan **Allow new users to sign up** di Supabase Auth Dashboard (pengaturan non-kode); kerjakan item backlog `Should fix` `#12–#18` / `Nice to have` `#19–#20` atau isi `VITE_SITE_URL` sebelum deploy produksi jika diperlukan.
+
+
+
+## Request: Dynamic Admin Contact Links Page (/admin/contact) & Sidebar Navigation Under Messages (Finding #11 Dynamic Follow-Up)
+- **Date**: 2026-11-11T21:26:30+07:00
+- **Mode**: Incremental Implementation (`AGENTS.md` §2, §6–§8) + Ponytail (`full`)
+- **Scope**: Menambahkan menu sidebar `Contact` tepat di bawah `Messages`, halaman Admin `/admin/contact` khusus input link **WhatsApp**, **LinkedIn**, dan **CV** beserta tombol **Save** dengan tema cream (`#F6F4E8`/`#FAF9F5`) dan aksen merah (`#7B2329`/`#B85B69`), persistensi Cloud (`public.contact_profiles`) + fallback lokal, sinkronisasi langsung ke halaman Guest `/#/contact-detail`, validasi/sanitasi URL aman, serta perlindungan Storage GC untuk aset CV.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (`Get-Content -Tail 200`), `AGENTS.md` (§4–§8, §24, §29), `.agents/rules/ponytail.md` & `.agents/skills/ponytail/SKILL.md`, `.agents/skills/supabase-postgres-best-practices/SKILL.md`
+  - Existing files & migrations inspected: `src/pages/admin/components/AdminLayout.vue`, `src/pages/admin/components/AdminSidebar.vue`, `src/pages/admin/AdminMessages.vue`, `src/pages/admin/AdminDrafts.vue`, `src/pages/guest/ContactDetail.vue`, `src/router/index.ts`, `src/lib/supabaseRest.ts`, `src/components/ProductEmptyState.vue`, `src/types/database.generated.ts`, `tests/contact-detail-editor-runtime.mjs`, `tests/product-polish-runtime.mjs`, migrasi `0001`/`0005`/`0008`/`0035`.
+- **Work Performed (Completed)**:
+  1. **Skema Cloud Supabase & Perlindungan Storage (`0037_contact_social_links`)**:
+     - Membuat [`supabase/migrations/0037_contact_social_links.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0037_contact_social_links.sql) dan menerapkannya ke Cloud Supabase (`anyhuqqnjliepllrkebo`) lewat MCP `apply_migration`: menambah kolom `whatsapp_href`, `linkedin_href`, `cv_href` (`text not null default ''`), constraint panjang `<= 2048`, kolom penanda `social_links_updated_at timestamptz`, serta memperluas `private.list_referenced_storage_paths_internal()` agar `cp.cv_href` terlindung dari penghapusan Storage GC.
+     - Memperbarui [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) hasil `generate_typescript_types`.
+  2. **Validasi, Sanitasi, & Repository Kontak**:
+     - Membuat [`src/repositories/contactLinksRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/contactLinksRepository.ts) dengan `sanitizeContactHref`, `validateContactLinkInput` (menolak `#`, `wa.me/#`, `linkedin.com/in/#`, `linkedin.com/#`, `javascript:`, spasi/karakter kontrol, protokol-relatif `//`, skema `mailto:`/`tel:` kosong/rusak, maupun nama file polos seperti `cv.pdf`; otomatis menambahkan `https://` untuk domain valid seperti `wa.me/628...`), serta `contactLinksRepository` (`PATCH ?id=eq.contact` lalu fallback `POST` merge-duplicate di Cloud Supabase, atau `localStorage` saat offline) dan sinyal invalidasi lintas tab via `BroadcastChannel` + `storage`.
+  3. **Integrasi Sidebar Admin, Router, Halaman Admin Contact, & Guest `/#/contact-detail`**:
+     - [`src/pages/admin/components/AdminLayout.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/AdminLayout.vue) & [`src/pages/admin/components/AdminSidebar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/AdminSidebar.vue): menambah item `{ path: '/admin/contact', label: 'Contact', icon: 'contact' }` tepat di bawah `Messages`, ikon `Contact` (`lucide-vue-next`), dan judul header `'/admin/contact': 'Contact'`.
+     - [`src/router/index.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/router/index.ts): mendaftarkan rute anak `contact` (`AdminContact.vue`) dengan guard autentikasi admin bawaan `/admin`.
+     - [`src/pages/admin/AdminContact.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminContact.vue): halaman `/admin/contact` bertema `#F6F4E8` + `#FAF9F5` + aksen `#7B2329`/`#B85B69` dengan 3 field (`WhatsApp`, `LinkedIn`, `CV`), tombol `Save`, skeleton loading, dan error-state fail-safe (`Retry`, tanpa menimpa data jika gagal muat).
+     - [`src/pages/guest/ContactDetail.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/guest/ContactDetail.vue): memuat link live dari `contactLinksRepository.loadConfigured()` (menggunakan sentinel `social_links_updated_at` / `updatedAt` sehingga link yang dikosongkan tetap tersembunyi di Guest tanpa menimpa perilaku snapshot Editor bila `/admin/contact` belum pernah dikonfigurasi) dan mendengarkan invalidasi lintas tab.
+  4. **Uji Runtime Khusus & Penyempurnaan**:
+     - Membuat [`tests/admin-contact-links-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-contact-links-runtime.mjs) dan menyesuaikan sudut kartu (`border-radius: 16px`, strip aksen `6px`, serta `ProductEmptyState` penuh) setelah inspeksi visual putaran pertama.
+- **Files Created**:
+  - `supabase/migrations/0037_contact_social_links.sql`
+  - `src/repositories/contactLinksRepository.ts`
+  - `src/pages/admin/AdminContact.vue`
+  - `tests/admin-contact-links-runtime.mjs`
+- **Files Modified**:
+  - `src/types/database.generated.ts`
+  - `src/pages/admin/components/AdminLayout.vue`
+  - `src/pages/admin/components/AdminSidebar.vue`
+  - `src/router/index.ts`
+  - `src/pages/guest/ContactDetail.vue`
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Protected**: `md/**`, `design/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi (`artifacts/` dipulihkan via `git checkout -- artifacts/`, folder screenshot `%TEMP%` dihapus).
+- **Decisions Made**:
+  - Menyimpan link dinamis WhatsApp/LinkedIn/CV di kolom khusus `public.contact_profiles` dengan penanda `social_links_updated_at` agar langsung aktif di Guest `/#/contact-detail` setelah klik `Save` tanpa harus lewat siklus Draft/Publish `/admin/edit`, sekaligus menjaga uji snapshot Editor lama tetap pass saat `/admin/contact` belum disentuh.
+  - Tidak ada paket npm baru yang diinstal.
+- **Validation Performed (Verified)**:
+  - `npx vue-tsc --noEmit` + `npm run build` (`vite v8.2.1`): **PASS** (`4.17s`).
+  - `tests/admin-contact-links-runtime.mjs`: **PASS** (unit check validator/sanitizer, urutan sidebar `Contact` tepat di bawah `Messages` ber-ikon, blokir input invalid seperti `javascript:alert(1)`, simpan & normalisasi `wa.me/...`, persistensi reload, toggle tampil/sembunyi tombol WhatsApp/LinkedIn/CV di Guest `/#/contact-detail`, layout mobile `390x844` tanpa overflow, fail-safe `Retry`).
+  - Uji regresi Chromium headless: `tests/contact-detail-editor-runtime.mjs`, `tests/default-guest-runtime.mjs`, `tests/default-guest-runtime.mjs --cloud-smoke`, `tests/product-polish-runtime.mjs`, `tests/stabilization-runtime.mjs`, `tests/storage-cleanup-runtime.mjs`, `tests/auth-session-sync-runtime.mjs`, `tests/production-hardening-runtime.mjs` — seluruh **8/8 PASS**.
+  - Audit Cloud Supabase live (`anyhuqqnjliepllrkebo`): skema `contact_profiles` (14 kolom + CHECK `<= 2048` + `row_count = 0` + 5 RLS policy), `has_cv_ref_scan = true` pada `private.list_referenced_storage_paths_internal()`, `get_advisors` (`security` & `performance`) tidak menunjukkan temuan baru, serta uji anon REST `GET /rest/v1/contact_profiles?select=whatsapp_href,linkedin_href,cv_href,social_links_updated_at&limit=1` mengembalikan `200 []`.
+- **Visual Verification**: **Completed (`AGENTS.md` §7–§8)** melalui `read_file` pada `verify-admin-contact-sidebar.png`, `verify-admin-contact-desktop.png`, `verify-admin-contact-mobile.png`, dan `verify-admin-contact-guest-links.png` (putaran awal & ulang pasca penyempurnaan kartu); sidebar `Contact` di bawah `Messages`, palet cream + merah konsisten, sudut kartu/strip aksen rapi, layout mobile `390px` bersih tanpa clipping/overflow, dan tombol Guest `/#/contact-detail` terverifikasi tampil/sembunyi sesuai konfigurasi.
+- **Current Status**: COMPLETED (Built, Migrated on Cloud, Visually Verified, & Regression Tested).
+- **Next Required Step**: Opsional — login sebagai admin di browser nyata lalu simpan link perdana melalui `/admin/contact` untuk memverifikasi alur tulis terautentikasi ke row live `public.contact_profiles` di Cloud Supabase.
+
+
+
+## Request: Final Bug & Safety Verification Audit for /admin/contact & Dynamic Contact Links ("sudah aman? verifikasi jangan ada bug")
+- **Date**: 2026-11-11T21:30:00+07:00
+- **Mode**: Read-Only Deep Verification & Edge-Case Audit (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Audit menyeluruh pasca implementasi menu sidebar `Contact`, `/admin/contact`, repository [`contactLinksRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/contactLinksRepository.ts), migrasi `0037_contact_social_links`, dan integrasi Guest [`ContactDetail.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/guest/ContactDetail.vue) untuk memastikan tidak ada bug fungsional, keamanan RLS/XSS, kebocoran timer/listener, benturan `/admin/edit` atau `siteRepository`, maupun cacat responsif.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (tail 120), `AGENTS.md` (§4–§6, §25), `list bug.md` (status #1–#11 vs #12–#20)
+  - Pembacaan diff & pemanggil: `git diff src/ supabase/ tests/`, `src/composables/useAdminEntityRegistry.ts`, `src/pages/guest/ContactDetail.vue`, `src/pages/admin/components/AdminSidebar.vue`, `src/router/index.ts`, `src/repositories/supabaseSiteRepository.ts`, `src/lib/supabaseAuth.ts`, `src/production/backup.ts`, `src/pages/admin/AdminMediaDocuments.vue`, `supabase/migrations/0008_data_api_role_grants.sql`, `0032_delete_published_revisions_on_reset.sql`
+- **Work Performed (Completed)**:
+  1. **Dry-Run Cloud SQL & RLS Transaksional (Rollback Tanpa Mengubah Data)**:
+     - Menjalankan fungsi sementara `pg_temp.verify_contact_dryrun()` pada Cloud Supabase (`anyhuqqnjliepllrkebo`) dalam subtransaksi yang di-rollback penuh:
+       - `anon` `INSERT` ke `public.contact_profiles` ditolak (`anon_insert_blocked = true`).
+       - `authenticated` ber-claim admin aktual (`admin_uid_found = true`) berhasil melakukan `INSERT ... ON CONFLICT DO UPDATE` dan `UPDATE` (`PATCH` simulasi), memicu trigger `updated_at` (`updated_at_ticked = true`).
+       - `private.list_referenced_storage_paths_internal()` mengikutsertakan path PDF CV yang dirujuk di `contact_profiles.cv_href` (`storage_gc_protects_cv = true`).
+       - Constraint `CHECK` panjang menolak URL >2048 karakter (`length_check_enforced = true`).
+       - `post_rollback_row_count = 0` — database Cloud tetap bersih tanpa sisa data uji.
+  2. **Uji Kasus Tepi Browser Chromium Headless**:
+     - Akses `/#/admin/contact` tanpa login langsung dialihkan oleh navigation guard ke `#/admin/login?redirect=/admin/contact`.
+     - Viewport sempit `390x664`: item sidebar `Contact` aktif, container `#admin-sidebar` memakai `overflow-y: auto`, tautan `Contact` (`bottom: 561px`) dan tombol `Logout` tetap dapat diakses.
+     - Submit form via `requestSubmit()` (`Enter`), domain huruf besar (`WA.ME/...` -> `https://WA.ME/...`), dan pengosongan ketiga kolom (`"   "`) menyembunyikan kontainer `.social-circle-buttons` di Guest `/#/contact-detail` (`socialContainer = false`, `socialBtns = 0`, `emptyOverflow = false`).
+  3. **Audit Kode & Keterkaitan Lintas Modul**:
+     - Memverifikasi `supabaseSiteRepository.saveDraft` memakai `supabaseUpsert` parsial (tidak menyentuh kolom `whatsapp_href`, `linkedin_href`, `cv_href`, `social_links_updated_at`).
+     - Memverifikasi `ContactDetail.vue` membersihkan listener invalidasi, resize, `liveLinksRequestId`, serta dua timer di `onBeforeUnmount`.
+     - Catatan backlog & desain yang dikonfirmasi: (a) input URL ber-spasi literal (mis. query WA tidak ter-encode `%20`) sengaja ditolak dengan pesan error inline jelas demi mencegah `href` rusak; (b) item backlog non-kritis `#12–#20` pada `list bug.md` tetap terpisah di luar cakupan perubahan ini.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit read-only ini saja).
+- **Files Protected**: `src/**`, `supabase/**`, `tests/**`, `artifacts/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `design/**`, `md/**` tidak dimodifikasi selama verifikasi ini.
+- **Validation Performed**: Dry-run transaksi Cloud SQL/RLS/Storage-GC (`execute_sql`) + uji tepi Chromium headless + inspeksi `git grep`/`git diff`.
+- **Visual Verification**: Menggunakan hasil inspeksi screenshot dari langkah implementasi sebelumnya (tidak ada perubahan UI pada langkah read-only ini).
+- **Current Status**: COMPLETED (Verified Safe — Zero Bugs Found in `/admin/contact`, Dynamic Guest Social Links, Cloud RLS, & Storage GC Protection).
+- **Next Required Step**: Opsional — commit perubahan yang sudah siap ke Git, dan uji login admin satu kali langsung lewat browser dengan akun Admin aktif bila ingin memastikan jalur autentikasi JWT nyata terhadap row live `contact_profiles`.
+
+
+
+## Request: Live Cloud Database Sync, Conflict, & Migration Verification ("verifikasi database baru itu sudah sinkron dengan cloud dan cloud tidak ada bentrok, jangan lupa migrasi")
+- **Date**: 2026-11-11T21:31:30+07:00
+- **Mode**: Read-Only Cloud Database & Migration Audit (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Memverifikasi sinkronisasi penuh antara skema/migrasi lokal (`supabase/migrations/0001..0037` & `src/types/database.generated.ts`) dengan database Cloud Supabase live (`anyhuqqnjliepllrkebo`), status riwayat migrasi, serta ketiadaan bentrok constraint/RLS/trigger/index/PostgREST cache.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (tail 60), `AGENTS.md` (§4–§6, §25)
+  - Semua daftar file `supabase/migrations/0001..0037`, `supabase/migrations/0033_fix_rollback_revision_numbering.sql`, `0037_contact_social_links.sql`, `src/types/database.generated.ts`
+- **Work Performed (Completed)**:
+  1. **Verifikasi Daftar Migrasi Lokal vs Cloud (`list_migrations` & `supabase_migrations.schema_migrations`)**:
+     - Lokal: 37 file SQL berurutan (`0001_initial_schema.sql` s/d `0037_contact_social_links.sql`).
+     - Cloud: 38 entri migrasi aktif — seluruh 37 migrasi sudah diterapkan termasuk yang terbaru `20261111141403` (`0037_contact_social_links`); 1 entri ekstra adalah duplikat historis `0027_allow_published_draft_deletion` sejak `2026-09-24` (pre-existing, tidak berkonflik).
+  2. **Audit Skema, Constraint, Trigger, RLS, Grants, & Fungsi Cloud (`execute_sql`)**:
+     - `public_tables = 21`, `non_rls_public_tables = 0`, `invalid_indexes = 0`.
+     - `public.contact_profiles` memiliki seluruh 14 kolom (termasuk `whatsapp_href`, `linkedin_href`, `cv_href`, `social_links_updated_at`), CHECK constraint `contact_profiles_social_href_length_check`, trigger `touch_contact_profiles`, hak akses (`anon` `SELECT`; `authenticated` `SELECT/INSERT/UPDATE/DELETE`), serta 5 policy RLS terkonsolidasi.
+     - Definisi fungsi live `private.list_referenced_storage_paths_internal()`, `public.rollback_published_revision(uuid, bigint, text)`, dan `private.prepare_message_insert()` terkonfirmasi cocok identik dengan migrasi lokal `0037`, `0033`, dan `0036`.
+     - State data Cloud tetap bersih (`contact_profiles = 0`, `site_revisions = 0`, `media_assets = 0`, `certificates = 0`, `messages = 0`, `storage.objects (portfolio-media) = 0`).
+  3. **Verifikasi Kecocokan Tipe TypeScript Byte-for-Byte**:
+     - Output `generate_typescript_types` Cloud (`30,473` karakter) cocok 100% (`TYPES_EXACT_MATCH`) dengan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit sinkronisasi DB ini saja).
+- **Files Protected**: `src/**`, `supabase/**`, `tests/**`, `artifacts/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `design/**`, `md/**` tidak dimodifikasi.
+- **Validation Performed**: MCP `list_migrations`, `execute_sql`, `generate_typescript_types`, dan perbandingan exact diff tipe TS.
+- **Visual Verification**: Tidak berlaku (audit read-only basis data).
+- **Current Status**: COMPLETED (100% Synced — All 37 Migrations Applied on Cloud up to `0037_contact_social_links`, Exact Type Match, Zero Conflicts).
+- **Next Required Step**: Tidak ada tindakan DB lagi di Cloud (`0037` sudah live); jika kelak memakai Supabase CLI langsung, perhatikan bahwa migrasi diterapkan via timestamp MCP sementara nama file lokal memakai awalan angka berurutan `0001..0037`.
+
+
+
+## Request: Read-Only Technical Explanation, Risk Scenarios, & Fix Options for Finding #12 (`SHSSection` calendar `family` vs `fontFamily` & `AboutSection` `.about-container` CSS override)
+- **Date**: 2026-11-11T21:44:00+07:00
+- **Mode**: Read-Only Inspection & Analysis (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Menjelaskan sumber bukti salah baca properti `vConfig.calendar.family` di SHS (`SHSSection.vue#L183`, `shs.ts#L33,L238`) dan penimpaan CSS `v-bind` di `.about-container` (`AboutSection.vue#L352-L356`), menyusun skenario risiko nyata bila dibiarkan, serta merinci opsi perbaikan beserta dampak kompatibilitas snapshot.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (tail read), `AGENTS.md` (§2.1, §4–§6, §25), `.agents/rules/ponytail.md`
+  - `list bug.md` (item #12, `L106-L110`)
+  - [`SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue), [`src/data/default/visual/shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts)
+  - [`CollegeSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/college/CollegeSection.vue), [`src/data/default/visual/college.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/college.ts)
+  - [`AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue), [`src/data/default/visual/about.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/about.ts)
+  - [`src/composables/useAdminEntityRegistry.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/composables/useAdminEntityRegistry.ts), [`src/editor/propertyRegistry.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/propertyRegistry.ts), [`src/editor/propertyRuntime.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/propertyRuntime.ts), [`src/editor/objectDomTarget.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/objectDomTarget.ts), [`src/editor/editorSnapshot.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/editorSnapshot.ts), [`src/stores/site.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/site.ts), [`src/repositories/supabaseSiteRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/supabaseSiteRepository.ts), [`src/runtime/publishedSnapshotDom.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/runtime/publishedSnapshotDom.ts)
+- **Work Performed (Completed)**:
+  1. **Verifikasi Bukti SHS Calendar (`family` vs `fontFamily`)**:
+     - Terkonfirmasi lewat `git grep` bahwa seluruh codebase visual config & Editor snapshot (`about.ts`, `certificate.ts`, `college.ts`, `contact.ts`, `education.ts`, `experience.ts`, `navbar.ts`, `portfolio.ts`, 4 elemen lain di `shs.ts`, serta `EditorSnapshot.typography[id].fontFamily`) memakai `fontFamily`, sedangkan hanya `SHSVisualConfig.calendar.family` (`shs.ts#L33,L238`) dan `SHSSection.vue#L183` yang memakai `family`.
+     - Terkonfirmasi juga bahwa saat ini UI Inspector belum mengekspos field langsung untuk `visual.shs.calendar` (`useAdminEntityRegistry.ts#L123` hanya mendaftarkan konten `shs-1`), dan `hydrateInPlace()` (`site.ts#L23`) menghapus key pada target yang tidak ada di snapshot sumber sehingga snapshot lama tetap membawa key `.family` bila tidak dinormalisasi.
+  2. **Verifikasi Bukti CSS `.about-container` (`AboutSection.vue#L352-L356`)**:
+     - Terkonfirmasi bahwa dalam blok `.about-container` yang sama, `gap: v-bind('vConfig.container.gap')` (`L352`) dan `min-height: v-bind('vConfig.container.minHeight')` (`L353`) langsung ditimpa deklarasi statis `gap: 3.5rem` (`L355`) dan `min-height: calc(100vh - 13.5rem)` (`L356`), yang nilainya sama persis dengan default di `about.ts#L210-L211` (indikasi kuat sisa refactor).
+     - Terkonfirmasi pula `max-width: 1400px` (`L349`) selamat hanya karena inline `:style="{ maxWidth: vConfig.container.maxWidth }"` (`L50-L52`), serta saat ini UI Inspector belum membuka kontrol langsung ke `visual.about.container.gap`/`minHeight` (`useAdminEntityRegistry.ts#L89-L118`).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri analisis read-only Finding #12 ini saja).
+- **Files Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `design/**` tidak diubah (tetap menyimpan hasil kerja `/admin/contact` & Cloud `0037` dari sesi sebelumnya).
+- **Validation Performed**: Inspeksi statis kode & `git grep` lintas `src/` dan `tests/`.
+- **Visual Verification**: Tidak berlaku (analisis read-only tanpa perubahan kode/UI).
+- **Current Status**: COMPLETED (Read-Only Analysis Delivered — Awaiting User Decision on Whether & Which Fix Option to Apply).
+- **Next Required Step**: Jika user menyetujui perbaikan Finding #12, pilih salah satu opsi perbaikan yang dijabarkan (misalnya Opsi A2 + B1/B2) sebelum implementasi kode & uji regresi dijalankan.
+
+
+
+## Request: Read-Only Dependency & Element/Section Independence Audit + Ponytail Solution Advice for Finding #12 ("lalu fontFamily untuk apa, gunakan ponytail dalam thinking wajib, untuk menemukan saran solusi, agar tidak error, agar tidak merusak ke independensian setiap elemen ... jangan merusak yang sudah ada")
+- **Date**: 2026-11-11T21:48:30+07:00
+- **Mode**: Read-Only Architectural & Independence Analysis (`AGENTS.md` §11–§17, §25, §33) + Ponytail (`full`) + Mandatory Sequential Logging (§6)
+- **Scope**: Menjelaskan fungsi `fontFamily` pada lapisan visual default vs snapshot Editor, memverifikasi hubungan ketergantungan antar-section serta antar-elemen (gambar, bingkai, font, background) pada SHS & About, serta merumuskan solusi perbaikan minimal (Ponytail) yang tidak memicu error atau mengikat elemen independen.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§11–§17, §25, §33), `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - [`src/data/default/site.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/site.ts), [`src/sections/about/AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue), [`src/sections/education/shs/SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue)
+  - [`src/data/default/visual/shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts), [`src/data/default/visual/college.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/college.ts), [`src/data/default/visual/about.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/about.ts)
+  - [`src/composables/useAdminEntityRegistry.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/composables/useAdminEntityRegistry.ts), [`src/editor/propertyRegistry.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/propertyRegistry.ts), [`src/editor/objectRegistry.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/objectRegistry.ts), [`src/editor/objectDomTarget.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/objectDomTarget.ts), [`src/stores/designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts), [`src/stores/site.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/site.ts)
+- **Work Performed (Completed)**:
+  1. **Verifikasi Peran `fontFamily`**:
+     - `fontFamily` menentukan jenis huruf per elemen di dua jalur: konfigurasi visual independen per elemen/section (`site.current.visual.<section>.<element>.fontFamily`) dan override runtime Editor (`snapshot.typography[entityId].fontFamily` lewat `propertyRegistry.ts#L294`).
+  2. **Audit Independensi Antar-Section & Antar-Elemen**:
+     - Terkonfirmasi bahwa `site.current.visual` memisahkan objek per section (`site.ts#L70-L80`) dan baik `SHSSection.vue` maupun `AboutSection.vue` memakai `<style scoped>`, sehingga perbaikan key `calendar.family -> fontFamily` maupun `.about-container` tidak mengikat `SHS`, `College`, `About`, atau background antar-section.
+     - Di dalam `SHSSection.vue`, tiap teks (`decoText`, `label`, `school`, `calendar`, `description`) memegang sub-objek visual masing-masing dan polaroid (`frameBack`, `frameFront`) terpisah. Diingatkan agar tidak menggabungkan anak-anak teks SHS di bawah satu target `shs-1` karena justru akan mengikat tipografinya secara massal.
+     - Di dalam `AboutSection.vue`, `.about-container` membungkus `.about-content` + `.about-visual` (sedangkan `.about-foreground-portrait`, `.bg-decor`, `.front-decor`, `section.backgroundColor` berada di luar `.about-container`). Mempertahankan `gap` & `min-height` di `<style scoped>` (tidak dipindah ke inline `:style`) menjaga independensi override responsif `@media` tablet/mobile (`L678`, `L707`). Token global `DesignSystem` hanya berlaku bila ada `typographyAssignments` eksplisit, tidak disentuh.
+  3. **Rekomendasi Solusi Minimal (Ponytail)**:
+     - SHS: ubah `shs.ts` (`family -> fontFamily`, opsional `family?: string` sementara) + `SHSSection.vue#L183` fallback 1 baris `vConfig.calendar.fontFamily ?? legacyFamily` agar aman dari `hydrateInPlace` (`site.ts#L23`) terhadap snapshot lama tanpa perlu menambah normalizer berat atau mengubah UI Editor.
+     - About: cukup hapus dua baris statis `L355–356` dan pertahankan fallback default `|| '3.5rem'` / `|| 'calc(100vh - 13.5rem)'` di `v-bind` `L352–353` (*deletion beats addition*).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit read-only ini saja).
+- **Files Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `design/**` tidak dimodifikasi.
+- **Validation Performed**: Inspeksi statis lintas store, visual config, section SFC, property registry, dan Design System.
+- **Visual Verification**: Tidak berlaku (analisis read-only tanpa perubahan kode/UI).
+- **Current Status**: COMPLETED (Independence Verified & Ponytail Solution Recommended — Ready for User Approval if Implementation is Desired).
+- **Next Required Step**: Tunggu persetujuan user jika ingin mengeksekusi perbaikan minimal Finding #12 di `shs.ts`, `SHSSection.vue`, dan `AboutSection.vue` (dilanjutkan `npm run build` + `vue-tsc` + verifikasi visual).
+
+
+
+## Request: Execute Ponytail Fix for Finding #12 ("oke eksekusi itu")
+- **Date**: 2026-11-11T22:05:49+07:00
+- **Mode**: Incremental Implementation (`AGENTS.md` §11–§17, §33, §6–§8) + Ponytail (`full`)
+- **Scope**: Mengeksekusi perbaikan minimal Temuan #12 ([`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L106-L110)) untuk key `fontFamily` kalender SHS (dengan fallback snapshot lama `.family`) serta penghapusan deklarasi statis penimpa `v-bind` pada `.about-container` tanpa merusak independensi antar-section, antar-elemen, maupun `@media` responsif.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§8, §11–§17, §33), `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - [`src/data/default/visual/shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts), [`src/sections/education/shs/SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue), [`src/sections/about/AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue)
+  - [`tests/default-guest-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/default-guest-runtime.mjs), [`tests/inspector-object-isolation-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/inspector-object-isolation-runtime.mjs)
+- **Work Performed (Completed & Verified)**:
+  1. **SHS Calendar `fontFamily` Key + Backward-Compatible Fallback**:
+     - Mengubah tipe dan default `calendar.family` -> `calendar.fontFamily` (`'Inter', system-ui, sans-serif`) pada [`src/data/default/visual/shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts#L33).
+     - Memperbarui [`src/sections/education/shs/SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue#L178-L185) agar membaca `vConfig.calendar.fontFamily ?? (vConfig.calendar as { family?: string }).family`, disertai komentar shortcut Ponytail (`<!-- shortcut: fallback .family untuk snapshot lama, hapus setelah semua revisi terbit ulang -->`).
+     - Terverifikasi via `git grep -n "calendar\.family" src/ tests/` bahwa nol referensi `calendar.family` tertinggal.
+  2. **About `.about-container` Cascade Fix & `@media` Preservation**:
+     - Menghapus deklarasi statis `gap: 3.5rem;` dan `min-height: calc(100vh - 13.5rem);` yang menimpa `v-bind`, lalu menambahkan fallback default di `<style scoped>` pada [`src/sections/about/AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue#L352-L353) (`gap: v-bind("vConfig.container.gap || '3.5rem'")` dan `min-height: v-bind("vConfig.container.minHeight || 'calc(100vh - 13.5rem)'")`), menjaga override `@media` tablet (`L677`) dan mobile (`L708`) tetap menang.
+  3. **Targeted Runtime Contract Test & Regression Check**:
+     - Menambahkan dan menjalankan [`tests/shs-about-visual-contract-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/shs-about-visual-contract-runtime.mjs) dengan resolusi biner Chromium/Chrome/Edge otomatis (`chrome.exe`).
+     - Setelah seluruh uji regresi, dua file screenshot `artifacts/phase-037a-*.png` yang tertimpa runner regresi dipulihkan ke baseline repo dengan `git checkout -- artifacts/`.
+- **Files Created**:
+  - [`tests/shs-about-visual-contract-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/shs-about-visual-contract-runtime.mjs)
+- **Files Modified**:
+  - [`src/data/default/visual/shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts)
+  - [`src/sections/education/shs/SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue)
+  - [`src/sections/about/AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue)
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Protected**: `list bug.md`, `AGENTS.md`, `.agents/**`, `.env`, `supabase/**`, serta berkas baseline Temuan #11 (`/admin/contact`) tidak disentuh.
+- **Decisions Made**: Mempertahankan `gap` & `min-height` `.about-container` dalam `<style scoped>` via `v-bind` ber-fallback alih-alih inline `:style` agar media query responsif tetap berlaku; menjaga fallback runtime `.family` hanya pada binding template dengan tipe TS ketat pada `fontFamily`.
+- **Unresolved Decisions**: Belum ditentukan apakah `visual.shs.calendar` dan `visual.about.container` perlu didaftarkan langsung ke UI Editor (`propertyRegistry.ts`) — tidak ditambahkan karena di luar cakupan minimal Temuan #12.
+- **Validation Performed**:
+  - `npm run build` (`vue-tsc && vite build`): **PASS** (exit code 0, 2054 modul).
+  - `node tests/shs-about-visual-contract-runtime.mjs` (headless Chrome `1440x1000`, `1024x768`, `390x844`): **PASS** — default SHS `calendar` ter-render `Inter, system-ui, sans-serif`, update `fontFamily` (`Georgia, serif`) tidak bocor ke `school`/`desc`/College/`#shs-section` bg, fallback `.family` (`"Courier New", monospace`) bekerja, `.about-container` desktop `gap: 56px -> 96px` & `minHeight: 784px -> 520px` bekerja tanpa mengubah background/frame/`about-title`, fallback string kosong kembali ke `56px`/`784px`, serta `tabletGap === "32px"` dan `mobileMinHeight === "0px"`; 0 browser errors.
+  - `node tests/default-guest-runtime.mjs` (`CHROME_PATH`): **PASS** (59 entities, publish revisions 1–3, rollback & isolation).
+  - `node tests/inspector-object-isolation-runtime.mjs` (`CHROME_PATH`): **PASS** (isolasi per objek, tipe objek, responsif, dan alignment).
+  - *Dilewati*: suite unrelated (`message-rate-limit-runtime.mjs`, `production-pwa-runtime.mjs`, `admin-contact-links-runtime.mjs`, dll.) serta eksposur kontrol baru di panel Inspector Editor.
+- **Visual Verification**: **DONE** — Screenshot rendered (`finding12-about.png` dan `finding12-shs.png` pada folder scratch) diperiksa langsung:
+  - `#about`: latar `#FFF0BE`, proporsi dua kolom `.about-container`, tipografi `Lisa Natalia`, dua paragraf dengan aksen vertikal, tombol `LEARN MORE`, polaroid belakang/depan, portrait depan, tombol gulir bawah, dan dekorasi tampil seimbang tanpa clipping/overlap atau pergeseran yang tidak diinginkan.
+  - `#shs-section`: latar `#FFF0BE`, dekorasi `SHS`, dua polaroid miring kiri dengan bayangan rapi, `SHS` eyebrow + `SMAK SURABAYA` serif bold + ikon kalender & tahun `2017 - 2020` (`Inter`) + separator + deskripsi tersusun rapi tanpa kebocoran gaya antar-elemen.
+- **Current Status**: COMPLETED & VERIFIED (Finding #12 Resolved Cleanly; Working Tree Ready alongside Pre-Existing `/admin/contact` Changes).
+- **Next Required Step**: Review diff/perubahan siap commit oleh user, atau lanjut ke audit/perbaikan temuan berikutnya di `list bug.md` bila diminta.
+
+
+
+## Request: Verify Application Status & Error Check Across Uncommitted Changes ("sudah diterapkan? coba cek error ga")
+- **Date**: 2026-11-11T22:14:29+07:00
+- **Mode**: Read-Only Error & Status Audit (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Memverifikasi bahwa perubahan Temuan #12 (serta baseline perubahan lokal `/admin/contact` + Temuan #11 di working tree) benar-benar sudah diterapkan di disk dan memeriksa error TypeScript, Vite build, serta runtime Chromium lintas modul terkait.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25)
+  - [`src/data/default/visual/shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts), [`src/sections/education/shs/SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue), [`src/sections/about/AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue)
+  - [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L96-L110)
+- **Work Performed (Completed)**:
+  1. **Verifikasi File & Diff Working Tree**:
+     - Memeriksa langsung isi aktual [`shs.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/data/default/visual/shs.ts#L29-L36) (`fontFamily` di `calendar`), [`SHSSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/education/shs/SHSSection.vue#L178-L185) (`vConfig.calendar.fontFamily ?? (vConfig.calendar as { family?: string }).family`), dan [`AboutSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/about/AboutSection.vue#L352-L353) (tanpa `gap`/`min-height` statis penimpa), serta `git diff --stat` (seluruh perubahan ada di working tree, belum di-commit ke git).
+  2. **Pengecekan TypeScript, Build, & Runtime Chromium (0 Error)**:
+     - `npx vue-tsc --noEmit`: **PASS** (0 error TypeScript).
+     - `npm run build`: **PASS** (`vite build`, 2054 modul, `7.63s`).
+     - `node tests/shs-about-visual-contract-runtime.mjs`: **PASS** (0 runtime error; SHS font & About container + `@media` lulus).
+     - `node tests/admin-contact-links-runtime.mjs`: **PASS** (0 runtime error; sidebar + `/admin/contact` + link `/contact-detail`).
+     - `node tests/contact-detail-editor-runtime.mjs`: **PASS** (0 runtime error; `/#/contact-detail` + Editor preview + form).
+     - `node tests/editor-professional-ux-runtime.mjs`: **PASS** (0 runtime error; `58.07 FPS`, `1.882` trace events, UX Editor & undo/redo).
+     - Mengembalikan 2 file `artifacts/phase-031-*.png` yang tersentuh runner tes via `git checkout -- artifacts/`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit read-only ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `artifacts/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tetap bersih sesuai baseline sebelum audit.
+- **Validation Performed**: `npx vue-tsc --noEmit`, `npm run build`, dan 4 suite Chromium (`shs-about-visual-contract-runtime.mjs`, `admin-contact-links-runtime.mjs`, `contact-detail-editor-runtime.mjs`, `editor-professional-ux-runtime.mjs`) — seluruhnya **PASS** tanpa error.
+- **Errors Encountered**: Tidak ada error TypeScript, build, maupun runtime browser.
+- **Visual Verification**: Menggunakan hasil inspeksi langsung sebelumnya pada Temuan #12 (tidak ada perubahan kode/UI pada audit ini; `admin-contact-links-runtime.mjs` juga lulus cek overflow/posisi mobile & desktop).
+- **Current Status**: VERIFIED CLEAN (Changes Applied in Working Tree, Uncommitted, Zero Errors Across TS/Build/Runtime).
+- **Next Required Step**: Jika siap simpan, user dapat melakukan `git commit` pada perubahan working tree (`Temuan #11 + #12`), atau lanjut memeriksa temuan #13 dst. di `list bug.md`.
+
+
+
+## Request: Live Cloud Supabase Database Synchronization Verification ("database sudah sinkron cloud?")
+- **Date**: 2026-11-11T22:15:57+07:00
+- **Mode**: Read-Only Cloud Database, Schema, Types, & REST Verification (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Memastikan migrasi lokal (`0001`–`0037`), skema/fungsi database, tipe [`database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts), konfigurasi `.env`, RLS/Advisors, dan PostgREST live pada Cloud Supabase (`anyhuqqnjliepllrkebo`) berada dalam kondisi sinkron tanpa drift atau bentrok.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25), `.agents/skills/supabase/SKILL.md`
+  - [`supabase/migrations/0033_fix_rollback_revision_numbering.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0033_fix_rollback_revision_numbering.sql), [`0037_contact_social_links.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0037_contact_social_links.sql), [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts)
+- **Work Performed (Completed)**:
+  1. **Perbandingan Migrasi Lokal vs Cloud (`list_migrations` + `execute_sql`)**:
+     - Lokal `supabase/migrations/`: 37 berkas (`0001_initial_schema.sql` hingga `0037_contact_social_links.sql`).
+     - Cloud `supabase_migrations.schema_migrations`: 38 entri hingga `20261111141403_0037_contact_social_links` (termasuk 1 duplikasi catatan riwayat lama `0027_allow_published_draft_deletion` pada `20260924191733` & `20260924192733`). Temuan #12 tidak menambah/mengubah skema SQL (tetap JSONB di `site_revisions.snapshot`).
+  2. **Audit Skema, Fungsi, RLS, & Advisors Live**:
+     - 21/21 tabel `public` aktif RLS (`tables_without_rls = 0`).
+     - `public.contact_profiles` memiliki 14 kolom (termasuk `whatsapp_href`, `linkedin_href`, `cv_href`, `social_links_updated_at`), constraint `contact_profiles_social_href_length_check`, serta 5 kebijakan RLS (`contact_profiles_public_read`, `authenticated_read`, `admin_insert`, `admin_update`, `admin_delete`).
+     - `private.list_referenced_storage_paths_internal()` mengandung pemindaian `cp.cv_href` sesuai migrasi `0037`; `public.rollback_published_revision()` identik dengan migrasi `0033` (`coalesce(max(revision.revision_number), 0) + 1`); `private.prepare_message_insert` & `enforce_message_insert_batch_limits` aktif.
+     - State data Cloud saat ini: `auth.users = 1`, `admin_memberships = 1`, sedangkan tabel konten (`contact_profiles`, `site_revisions`, `media_assets`, `certificates`, `messages`) dan `storage.objects (portfolio-media)` berada pada `0` baris/objek.
+     - `get_advisors` (`security` & `performance`): tidak ada masalah baru (hanya 2 `SECURITY DEFINER` publik disengaja + `auth_leaked_password_protection` belum diaktifkan).
+  3. **Verifikasi Tipe TypeScript & PostgREST Live**:
+     - Perbandingan langsung hasil `generate_typescript_types` Cloud terhadap [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts): **exact match** (`TYPES_EXACT_MATCH=True`, `30474` karakter).
+     - `.env` terhubung ke `https://anyhuqqnjliepllrkebo.supabase.co` (cocok dengan `get_project_url`), dan `GET /rest/v1/contact_profiles?select=whatsapp_href,linkedin_href,cv_href,social_links_updated_at&limit=1` mengembalikan `HTTP 200 []` (schema cache PostgREST sudah ter-reload).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri verifikasi read-only ini saja).
+- **Files Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi; database Cloud hanya dikueri read-only (`SELECT`).
+- **Validation Performed**: MCP `list_migrations`, `execute_sql`, `get_advisors` (`security`/`performance`), `generate_typescript_types`, `get_project_url`, perbandingan exact string `database.generated.ts`, serta live REST check `HTTP 200`.
+- **Errors Encountered**: Tidak ada error atau drift skema.
+- **Visual Verification**: Tidak berlaku (pemeriksaan read-only database Cloud).
+- **Current Status**: SYNCED & VERIFIED (Local Migrations, Generated Types, `.env` Target, & Live Cloud DB Match 100%).
+- **Next Required Step**: Opsional — lakukan `git commit` untuk perubahan lokal yang tertunda, serta aktifkan *Leaked Password Protection* di dashboard Auth Supabase jika diinginkan.
+
+
+
+## Request: Read-Only Explanation of Finding #13 ("ini apa" — Messages Search Over-Fetching & Certificate `media_assets` Full Scan)
+- **Date**: 2026-11-11T22:25:16+07:00
+- **Mode**: Read-Only Code & Impact Explanation (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Menjelaskan secara akurat isi, penyebab, risiko/dampak, serta keterkaitan pemanggil dan uji regresi untuk Temuan #13 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L112-L116) tanpa melakukan perubahan kode.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25)
+  - [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue), [`src/repositories/messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts), [`src/repositories/certificateRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts), [`src/stores/certificates.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/certificates.ts), [`src/pages/admin/AdminCertificates.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue)
+  - [`supabase/migrations/0001_initial_schema.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0001_initial_schema.sql), [`0005_rls_policy_consolidation.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0005_rls_policy_consolidation.sql), [`0006_foreign_key_indexes.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0006_foreign_key_indexes.sql), [`0012_message_center.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0012_message_center.sql)
+  - [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs#L214-L271), [`tests/publish-pipeline-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/publish-pipeline-runtime.mjs#L202-L221), [`tests/certificate-data-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/certificate-data-runtime.mjs)
+- **Work Performed (Completed)**:
+  1. **Verifikasi Bagian 1 (AdminMessages Search)**:
+     - Mengonfirmasi [`AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue#L200-L210) memanggil `loadMessages()` setiap jeda 180 ms saat `search` berubah, yang memanggil `messageRepository.list(search)` (`?select=*&order=created_at.desc` tanpa `limit` dan tanpa filter PostgREST) lalu baru menyaring `rows` di JavaScript ([`messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts#L32-L42)).
+     - Mengonfirmasi uji eksisting [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs#L218-L271) mengecek `debouncedCalls === 1` dan [`tests/publish-pipeline-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/publish-pipeline-runtime.mjs#L211-L220) memanggil `messageRepository.list(marker)` secara langsung (faktor penting jika kelak diperbaiki).
+  2. **Verifikasi Bagian 2 (`certificateRepository.list()` Full `media_assets`)**:
+     - Mengonfirmasi [`certificateRepository.list()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts#L165-L172) menarik `media_assets` (`?select=*` tanpa filter) setiap kali daftar sertifikat dimuat (baik di Guest `#/` via `useCertificatesStore().loadInitial()`/`fetchCertificates()` maupun di Admin/Editor setelah tiap mutasi sertifikat), padahal yang dipakai hanya aset milik `certificate_images.media_asset_id`.
+     - Mengonfirmasi indeks `certificate_images_media_asset_idx` dan RLS `SELECT` publik/admin pada `media_assets` sudah tersedia di skema.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri penjelasan read-only ini saja).
+- **Files Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi.
+- **Validation Performed**: Pembacaan langsung kode sumber, migrasi DB, dan uji E2E terkait.
+- **Visual Verification**: Tidak berlaku (analisis read-only).
+- **Current Status**: COMPLETED (Read-Only Explanation Delivered; Finding #13 Unchanged in Backlog Pending User Decision).
+- **Next Required Step**: Menunggu keputusan user apakah ingin menganalisis opsi perbaikan Ponytail / mengeksekusi Temuan #13.
+
+
+
+## Request: Read-Only Ponytail Solution Design for Finding #13 ("gunakan ponytail, cari solusi paling aman dan bagus")
+- **Date**: 2026-11-11T22:28:53+07:00
+- **Mode**: Read-Only Solution & Edge-Case Analysis (`AGENTS.md` §25–§26) + Ponytail (`full`) + Mandatory Sequential Logging (§6)
+- **Scope**: Membandingkan alternatif solusi untuk Temuan #13 (`AdminMessages.vue` / `messageRepository.ts` dan `certificateRepository.ts`) terhadap seluruh pemanggil, mock tes E2E, batas URL/karakter khusus PostgREST, independensi modul/elemen, dan Cloud live (`anyhuqqnjliepllrkebo`).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§2, §11–§17, §25–§26, §33–§34), `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue), [`src/repositories/messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts), [`src/repositories/certificateRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts), [`src/lib/supabaseRest.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/supabaseRest.ts), [`src/components/HighlightedText.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/HighlightedText.vue)
+  - [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs#L214-L271), [`tests/stabilization-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/stabilization-runtime.mjs#L216-L263), [`tests/publish-pipeline-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/publish-pipeline-runtime.mjs#L202-L221), [`tests/admin-certificates-retention-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-certificates-retention-runtime.mjs#L219-L360), [`tests/guest-certificate-refresh-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/guest-certificate-refresh-runtime.mjs#L167-L181)
+- **Work Performed (Completed)**:
+  1. **Uji Kompatibilitas Sintaks PostgREST Cloud (Read-Only `GET`)**:
+     - Memverifikasi di Cloud (`anyhuqqnjliepllrkebo`) bahwa `?select=*&id=in.(...)` ber-quote URL-encoded (`IN_FILTER=200`) maupun nested join `?select=*,media_assets(*)` (`EMBED_JOIN=200`) sama-sama diterima PostgREST live.
+     - Mengidentifikasi dari inspeksi [`tests/admin-certificates-retention-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-certificates-retention-runtime.mjs#L219-L360) bahwa mock test sudah mendukung `?id=in.(...)` pada `/rest/v1/media_assets`, namun belum mendukung nested resource join di `/rest/v1/certificate_images`, sehingga pola `id=in.(...)` dua tahap jauh lebih kompatibel dengan mock & test eksisting.
+  2. **Perumusan Solusi Ponytail Paling Aman & Bersih**:
+     - **Admin Messages**: hapus `watch(search, scheduleSearch)` + `searchTimer` di [`AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue#L106-L210); ekspor & pakai ulang `filterMessages` dari [`messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts#L32) ke dalam `filteredMessages = computed(...)`; jaga kontrak `messageRepository.list(search)` tetap ada untuk kompatibilitas [`tests/publish-pipeline-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/publish-pipeline-runtime.mjs#L211-L220), dan perbarui asersi lama `debouncedCalls !== 1` -> `=== 0` di [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs#L271).
+     - **Certificate `media_assets`**: ubah [`supabaseCertificateRepository.list()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts#L165-L172) menjadi 2 tahap: tarik `certificates` & `certificate_images` paralel, kumpulkan `media_asset_id` unik milik sertifikat aktif, lompati query `media_assets` jika kosong (`0` request), atau fetch ber-chunk maks `50` ID per request dengan `id=in.(...)` yang di-quote & `encodeURIComponent` untuk mencegah `414 URI Too Long` dan error karakter spesial.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri rencana read-only ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi.
+- **Validation Performed**: Audit statis lintas caller/mock + uji HTTP `GET` read-only ke PostgREST Cloud (`IN_FILTER=200`, `EMBED_JOIN=200`).
+- **Visual Verification**: Tidak berlaku (analisis read-only sebelum persetujuan eksekusi).
+- **Current Status**: COMPLETED (Ponytail Solution Proposed & Verified Against Callers, Mocks, & Cloud PostgREST — Awaiting User Approval to Execute).
+- **Next Required Step**: Tunggu konfirmasi/persetujuan user sebelum menerapkan perubahan ke kode & memperbarui tes terkait.
+
+
+
+## Request: Plain-Language Explanation of Finding #13 & Proposed Ponytail Solution ("hah gimana jelasin gapaham bahasa teknis")
+- **Date**: 2026-11-11T22:31:39+07:00
+- **Mode**: Read-Only Non-Technical Clarification (`AGENTS.md` §25) + Mandatory Sequential Logging (§6)
+- **Scope**: Menerjemahkan maksud Temuan #13 (`list bug.md`) dan rancangan solusi Ponytail ke bahasa sehari-hari yang mudah dipahami tanpa istilah teknis pemrograman.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25), [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L112-L116)
+  - Konteks terverifikasi pada [`AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue), [`messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts), [`certificateRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts), dan [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs)
+- **Work Performed (Completed)**: Menyampaikan penjelasan non-teknis berbasis fakta kode aktual (perumpamaan sederhana + apa yang akan berubah secara nyata untuk pengguna) tanpa memodifikasi kode maupun basis data.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri klarifikasi read-only ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi.
+- **Validation Performed**: Memastikan seluruh klaim penjelasan non-teknis tetap sesuai 100% dengan analisis kode & uji Cloud sebelumnya.
+- **Visual Verification**: Tidak berlaku.
+- **Current Status**: COMPLETED (Plain-Language Explanation Delivered; Awaiting User Approval Before Any Code Edit).
+- **Next Required Step**: Tunggu persetujuan user apabila ingin mengeksekusi perbaikan Temuan #13.
+
+
+
+
+## Request: Execute Ponytail Fix for Finding #13 ("gas eksekusi dengan pony tail , hati hati")
+- **Date**: 2026-11-11T22:40:32+07:00
+- **Mode**: Incremental Bug Fix & Query Efficiency Execution (`AGENTS.md` §6–§8, §25, §27) + Ponytail (`full`)
+- **Scope**: Menerapkan perbaikan minimal Temuan #13 (`list bug.md#L112-L116`):
+  1. Memindahkan pencarian kotak `Messages` menjadi filter lokal `computed()` di [`AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue) memakai helper [`filterMessages`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts#L32) tanpa refetch ke Supabase setiap mengetik, sambil menjaga kontrak [`messageRepository.list`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts#L39).
+  2. Membatasi query `media_assets` di [`supabaseCertificateRepository.list`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts#L166-L187) agar hanya mengambil ID yang muncul di `certificate_images` (chunked 50 ID dengan `id=in.(...)` ber-quote URL-encoded, 0 request saat kosong), tanpa membuang data sertifikat non-aktif yang masih ada di `certificate_images`.
+  3. Menyelaraskan ekspektasi uji di [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs) dan menambah pengujian runtime [`tests/messages-cert-query-efficiency-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/messages-cert-query-efficiency-runtime.mjs).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (entri audit & rancangan Temuan #13 sebelumnya), `AGENTS.md` (§4–§8, §25, §27), `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L112-L116)
+  - [`AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue), [`messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts), [`certificateRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts), [`certificates.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/certificates.ts), [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs), [`tests/certificate-data-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/certificate-data-runtime.mjs), [`tests/publish-pipeline-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/publish-pipeline-runtime.mjs)
+- **Work Performed (Completed)**:
+  1. **Filter Lokal Admin Messages**:
+     - Mengekspor [`filterMessages`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts#L32) dari `messageRepository.ts`; `messageRepository.list(search)` dipertahankan utuh demi kompatibilitas pemanggil lain (`publish-pipeline-runtime.mjs`).
+     - Di [`AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue), menghapus `watch(search, scheduleSearch)`, `searchTimer`, `scheduleSearch()`, dan impor `watch` yang tidak terpakai; menambahkan `trimmedSearch` & `filteredMessages` untuk merender daftar & empty state, memanggil `messageRepository.list()` saat memuat inbox, serta menjaga `selectedMessage` membaca dari `messages` agar panel detail pesan terpilih tidak tertutup saat mengetik kata pencarian.
+  2. **Scoped Chunked Query `media_assets` di Certificate**:
+     - Mengubah [`supabaseCertificateRepository.list`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts#L166-L187) menjadi pembacaan 2 tahap: tarik `certificates` dan `certificate_images` paralel -> kumpulkan `media_asset_id` unik yang valid dari `images` -> lewati request `media_assets` jika daftar ID kosong -> tarik `media_assets` per batch maks `MEDIA_ASSET_BATCH_SIZE = 50` menggunakan `?select=*&id=in.(...)` ber-quote + `encodeURIComponent`.
+     - Menghindari filter tambahan `active !== false` pada pengumpulan `assetIds` setelah meninjau `certificateRowsToCards` & alur `put()` sehingga tidak ada risiko hilangnya URL aset pada baris sertifikat non-aktif jika suatu saat diakses atau disimpan ulang.
+  3. **Pengujian & Pembersihan**:
+     - Memperbarui [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs#L216-L271) (`debouncedCalls !== 1` -> `searchRefetches !== 0`, `matchedRows === 1`, `clearedRows === 1`).
+     - Membuat [`tests/messages-cert-query-efficiency-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/messages-cert-query-efficiency-runtime.mjs) (menguji 0 refetch saat mengetik & menghapus kata cari, karakter spesial `, (Special)*`, spasi saja, empty state + Clear search, `selectedMessage` tetap terbuka, kontrak `messageRepository.list('Beta')`, 0 call `media_assets` saat `null`, deduplikasi + karakter quote/koma/ampersand di `id`, isolasi aset library non-sertifikat, dan chunking `105` aset menjadi `3` batch `50+50+5`).
+     - Merestore 8 file `artifacts/*.png` yang tertimpa otomatis oleh `product-polish-runtime.mjs` / `stabilization-runtime.mjs` via `git checkout -- artifacts/`.
+- **Files Created**:
+  - [`tests/messages-cert-query-efficiency-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/messages-cert-query-efficiency-runtime.mjs)
+- **Files Modified**:
+  - [`src/repositories/messageRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/messageRepository.ts)
+  - [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue)
+  - [`src/repositories/certificateRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts)
+  - [`tests/product-polish-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/product-polish-runtime.mjs)
+  - `PROJECT-IMPLEMENTATION-LOG.md` (entri eksekusi ini)
+- **Files Explicitly Protected**: `list bug.md`, `AGENTS.md`, `.agents/**`, `.env`, `supabase/**`, serta seluruh komponen/konfigurasi visual section dari temuan sebelumnya (`Finding #11`, `Finding #12`, `AdminCertificates.vue`).
+- **Decisions Made**:
+  - Memilih query 2-tahap chunked `id=in.(...)` daripada nested join agar kompatibel dengan mock [`tests/admin-certificates-retention-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-certificates-retention-runtime.mjs) dan aman terhadap limit URL `414` tanpa mengubah skema DB atau menambah dependensi baru.
+  - Tetap tidak menambahkan paginasi/`limit` UI baru pada `messageRepository.list()` awal karena tidak diminta (`AGENTS.md` §2.1 & Ponytail); dicatat sebagai limit terukur apabila suatu hari jumlah pesan melebihi ribuan baris.
+- **Validation Performed (Verified)**:
+  - `npx vue-tsc --noEmit`: **PASS** (`exit 0`).
+  - `npm run build`: **PASS** (`vite v8.2.1`, 2054 modul, `4.30s`, `exit 0`).
+  - `node tests/messages-cert-query-efficiency-runtime.mjs`: **PASS** (`initialMsgGets: 1`, `finalMsgGets: 1`, `betaCount: 1`, `specialCount: 1`, `spaceCount: 3`, `detailStayed: true`, `emptyAssetsCalls: 0`, `mediaReqs2bCount: 1`, `mediaReqs2cCount: 3`, `resolved2cCount: 105`, 0 browser errors).
+  - `node tests/product-polish-runtime.mjs` (`CHROME_PATH` Chrome sistem): **PASS** (`searchRefetches: 0`, `matchedRows: 1`, `clearedRows: 1`).
+  - `node tests/stabilization-runtime.mjs`: **PASS** (`[phase-033b] Audit PASS`).
+  - `node tests/admin-certificates-retention-runtime.mjs`: **PASS**.
+  - `node tests/guest-certificate-refresh-runtime.mjs`: **PASS** (seluruh skenario A–E `true`).
+  - Catatan tes yang gagal prasyarat / dilewati:
+    - `tests/certificate-data-runtime.mjs`: gagal di koneksi awal `ECONNREFUSED 127.0.0.1:9239` (skrip lawas membutuhkan Chrome/Vite eksternal prabuka + menguji jalur IndexedDB yang tidak diubah).
+    - `tests/publish-pipeline-runtime.mjs`: tidak dijalankan karena membutuhkan `PHASE029G_SERVICE_ROLE_KEY` terhadap Cloud live.
+    - Tidak menambahkan uji langsung ke Cloud Supabase live pada entri ini selain verifikasi GET `IN_FILTER=200` yang sudah tercatat pada langkah sebelumnya.
+- **Visual Verification Results (Verified)**:
+  - Memeriksa langsung screenshot [`finding13-messages.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/scratch/finding13-shots/finding13-messages.png) dan [`finding13-messages-empty.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/scratch/finding13-shots/finding13-messages-empty.png) via `read_file`: daftar terfilter menampilkan highlight kuning pada `Beta Clinic` / `beta@example.test`, panel detail `Alpha Nurse` tetap utuh saat mengetik kata pencarian, empty state `"No matching messages"` + tombol `"Clear search"` tampil jelas tanpa clipping maupun overflow horizontal.
+- **Current Status**: COMPLETED & VERIFIED (Finding #13 Executed & Logged).
+- **Next Required Step**: Menunggu instruksi user berikutnya (mis. review temuan berikutnya di `list bug.md` seperti `#14` atau audit lanjutan).
+
+
+
+
+## Request: Read-Only Verification Safety & Cloud SQL Migration Sync Audit ("aman bverifikasi dlu? dan cek sinkronisasi migrasi sql")
+- **Date**: 2026-11-11T23:25:34+07:00
+- **Mode**: Read-Only Verification & Cloud Supabase Schema/Migration Audit (`AGENTS.md` §4–§6, §25) + `.agents/skills/supabase/SKILL.md`
+- **Scope**: Memastikan kondisi kode & verifikasi pasca-Temuan #13 aman, serta mengaudit kesesuaian penuh antara 37 file migrasi SQL lokal (`supabase/migrations/0001`–`0037`), Cloud Postgres (`anyhuqqnjliepllrkebo`), `src/types/database.generated.ts`, advisor keamanan/performa, dan endpoint PostgREST live tanpa memodifikasi kode maupun basis data.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (tail terbaru), `AGENTS.md` (§4–§6, §25, §29), `.agents/skills/supabase/SKILL.md`
+  - `.env` (verifikasi `VITE_SUPABASE_URL` saja tanpa mengekspos key), `supabase/migrations/0001`–`0037`, `src/types/database.generated.ts`
+- **Work Performed (Completed)**:
+  1. **Target Lingkungan & Ketersediaan Layanan**:
+     - Terkonfirmasi `.env` (`VITE_SUPABASE_URL`) dan Supabase MCP sama-sama mengarah ke proyek Cloud `https://anyhuqqnjliepllrkebo.supabase.co`.
+     - Pengecekan CLI `npx supabase migration list` memverifikasi stack Docker lokal (`127.0.0.1:54322`) tidak aktif (`DbConnectError` — hanya pengecekan read-only).
+  2. **Perbandingan Mendalam 37 File SQL Lokal vs Cloud `supabase_migrations.schema_migrations` (`38` entri)**:
+     - **31 file** cocok penuh / semantik (mengabaikan spasi & komentar SQL) langsung terhadap kolom `statements` di `schema_migrations`, termasuk `0037_contact_social_links.sql` (`20261111141403:0037_contact_social_links`).
+     - **6 perbedaan historis** pada kolom `statements` semuanya aman: `0010`, `0011`, `0012` hanya beda spasi tanda kurung; `0015` (grant `DELETE` `editor_favorites`) ditutup oleh `0017`; `0019` (policy `storage.buckets`) dibersihkan oleh `0020` (terverifikasi `pg_policies` `storage.buckets` saat ini `[]`); `0024` telah disupersede oleh `0025` & `0028` (`publish_editor_draft`).
+     - **Entri ganda `0027`**: Cloud menyimpan `20260924191733` (parsial awal) diikuti 10 menit kemudian oleh `20260924192733` yang cocok penuh dengan `0027_allow_published_draft_deletion.sql`.
+     - **Entri `0032` (`20261110084913`)**: `statements` tersimpan kosong di tabel riwayat, namun pembacaan definisi fungsi live via `pg_get_functiondef` membuktikan tubuh fungsi `private.reset_site_to_default_internal()` di Cloud **100% cocok** dengan `0032_delete_published_revisions_on_reset.sql`.
+     - **Fungsi live `0037`**: tubuh `private.list_referenced_storage_paths_internal()` di Cloud terbukti **100% cocok** dengan file lokal `0037_contact_social_links.sql` setelah mengabaikan komentar SQL `--`.
+     - Seluruh fungsi, trigger (`messages_enforce_batch_limits`, `messages_prepare_insert`, `messages_prepare_update`, dll.), dan kebijakan RLS di `public` & `storage` terverifikasi aktif.
+  3. **Kesesuaian Tipe TypeScript, Advisory, & Uji HTTP PostgREST Live**:
+     - Membandingkan `generate_typescript_types` Cloud vs [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts): **exact match** (`30.473` karakter).
+     - `get_advisors(security)`: 0 error kritis; 3 notice `WARN` terukur (`get_active_published_snapshot` & `bootstrap_first_admin` memang `SECURITY DEFINER` terproteksi, ditambah `auth_leaked_password_protection` yang nonaktif di pengaturan Auth).
+     - `get_advisors(performance)`: 0 error kritis; 6 `INFO` *unused index* standar.
+     - Uji baca PostgREST Cloud (`GET` & RPC read-only): `get_active_published_snapshot` **HTTP 200**, `contact_profiles` (+ `whatsapp_href,linkedin_href,cv_href,social_links_updated_at`) **HTTP 200**, `certificates` **HTTP 200**, `certificate_images` **HTTP 200**, `media_assets?select=*&id=in.(...)` **HTTP 200**, dan `messages` anon **HTTP 401** (terproteksi RLS).
+  4. **Status Kebersihan File & Working Tree**:
+     - Tidak ada file kode/skema yang berubah setelah rangkaian build & 5 uji runtime Temuan #13 lulus (`git status -s` hanya berisi working tree terencana Temuan #11, #12, #13, plus `0037` yang belum di-commit ke git).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit read-only ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi.
+- **Validation Performed**: Audit SQL read-only Cloud (`execute_sql`, `list_migrations`, `list_tables`, `generate_typescript_types`, `get_advisors`), komparasi Node SQL/types, serta HTTP GET/RPC read-only ke PostgREST Cloud.
+- **Visual Verification**: Tidak berlaku (pemeriksaan read-only tanpa perubahan UI).
+- **Current Status**: COMPLETED (Codebase Verified Safe & Cloud SQL Schema/Migrations 100% Synchronized).
+- **Next Required Step**: Menunggu keputusan user (mis. commit/rapikan working tree atau lanjut audit/eksekusi temuan berikutnya).
+
+
+
+
+## Request: Read-Only Explanation of Finding #14 ("14. Asset Library menolak upload PDF & AdminCertificates mengunci ekstensi .webp serta memakai alert() ... apa ini")
+- **Date**: 2026-11-11T23:27:19+07:00
+- **Mode**: Read-Only Code Inspection & Explanation (`AGENTS.md` §4–§6, §25)
+- **Scope**: Memverifikasi kondisi kode terkini terkait Temuan #14 di `list bug.md` dan menjelaskannya kepada user tanpa memodifikasi kode maupun basis data.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25)
+  - [`AdminAssetLibrary.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminAssetLibrary.vue), [`AssetVirtualGrid.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/AssetVirtualGrid.vue), [`mediaUploadRules.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/mediaUploadRules.ts), [`mediaRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/mediaRepository.ts), [`mediaLibrary.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/mediaLibrary.ts), [`AdminMedia.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMedia.vue)
+  - [`AdminCertificates.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue), [`certificateRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/certificateRepository.ts)
+  - Cloud SQL check `storage.buckets` (`portfolio-media`: `public: true`, `file_size_limit: null`, `allowed_mime_types: null`)
+- **Work Performed (Completed)**:
+  1. Memverifikasi gap #1 (`AdminAssetLibrary.vue#L276`): input upload masih memakai `accept="image/*"` padahal halaman yang sama sudah mendukung preview `application/pdf` (`#L339`), dan helper `uploadLibraryMedia` + `validateMediaUploadFile(file, 'library')` memang memakai aturan `MEDIA_LIBRARY_FILE_ACCEPT` (`.webp,.gif,.pdf,image/webp,image/gif,application/pdf`, sudah dipakai di `AdminMedia.vue#L64`).
+  2. Memverifikasi gap #2 (`AdminCertificates.vue`):
+     - Penghapusan aset (`removeUnreferencedAssets` di `#L599-L648`, pengganti `removeAsset` lama) **sudah** membaca `storage_bucket` dan `storage_path` dari `media_assets` (dengan fallback `published/certificates/${assetId}.webp`).
+     - Namun `loadCertificates()` (`#L347-L383`) belum membaca `media_assets`, sehingga `getMediaUrl()` (`#L385-L388`) masih mengunci format URL `published/certificates/${assetId}.webp` (dan `isAssetReferencedInSnapshot` / `isCertificateReferencedInSnapshot` `#L521,#L577` memakai fallback default yang sama).
+  3. Memverifikasi gap #3 (`AdminCertificates.vue#L943`, bergeser dari catatan `L783`): `saveNewOrder()` masih memanggil `alert('Gagal menyimpan urutan baru.')` bukannya `productFeedback.error(...)`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri penjelasan read-only ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi.
+- **Validation Performed**: Inspeksi kode sumber dan kueri `storage.buckets` read-only di Cloud.
+- **Visual Verification**: Tidak berlaku (analisis read-only).
+- **Current Status**: COMPLETED (Read-Only Explanation Ready; Awaiting User Direction).
+- **Next Required Step**: Menunggu arahan user apabila ingin merumuskan solusi Ponytail / mengeksekusi Temuan #14.
+
+
+
+
+## Request: Read-Only Ponytail Fix Recommendation for Finding #14 ("saran perbaikan, pakai ponny tail")
+- **Date**: 2026-11-11T23:51:41+07:00
+- **Mode**: Read-Only Architectural & Ponytail (`full`) Solution Design (`AGENTS.md` §4–§6, §25–§26)
+- **Scope**: Merancang opsi perbaikan paling minimal, aman, dan kompatibel untuk Temuan #14 ([`AdminAssetLibrary.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminAssetLibrary.vue) & [`AdminCertificates.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue)) tanpa mengedit file kode maupun basis data.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25–§26), `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - [`AdminAssetLibrary.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminAssetLibrary.vue#L186-L345), [`mediaUploadRules.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/mediaUploadRules.ts#L40-L82), [`mediaLibrary.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/mediaLibrary.ts#L155-L235), [`AdminMedia.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMedia.vue#L60-L68)
+  - [`AdminCertificates.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L57-L95,L160-L195,L347-L388,L521-L648,L911-L945), [`supabaseRest.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/supabaseRest.ts#L19-L24), [`tests/admin-certificates-retention-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-certificates-retention-runtime.mjs#L190-L361), [`tests/media-library-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/media-library-runtime.mjs#L150-L210)
+- **Work Performed (Completed)**:
+  1. **Verifikasi Reuse & Kompatibilitas Mock**:
+     - Memastikan [`MEDIA_LIBRARY_FILE_ACCEPT`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/mediaUploadRules.ts#L40) sudah tersedia dan mendukung `.webp,.gif,.pdf` serta dipakai oleh [`AdminMedia.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMedia.vue#L64); `useMediaLibraryStore` mengindeks file `application/pdf` dengan aman (`thumbnailUrl: ''`, preview `<iframe />`).
+     - Memastikan tidak ditemukan pemanggilan `alert()` lain di `src/` selain [`AdminCertificates.vue#L943`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L943), dan [`productFeedback`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L228) sudah terimpor di file yang sama.
+     - Memastikan [`tests/admin-certificates-retention-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-certificates-retention-runtime.mjs#L306-L361) sudah mendukung `/rest/v1/media_assets?id=in.(...)`, sedangkan nested join `/rest/v1/certificate_images?select=*,media_assets(*)` tidak dievaluasi oleh mock tersebut — sehingga query `.in('id', assetIds)` di `loadCertificates()` jauh lebih aman daripada nested embed, dan tetap mematuhi efisiensi query Temuan #13.
+     - Mengidentifikasi `onDrop()` (`#L911-L922`) memutasi `certificates.value` sebelum `saveNewOrder()`, sehingga mengembalikan `boolean` pada `saveNewOrder()` dan memulihkan urutan lama saat gagal akan mencegah daftar UI menampilkan urutan palsu setelah error.
+  2. **Rancangan Perbaikan Ponytail (`full`)**:
+     - `AdminAssetLibrary.vue#L276`: ganti `accept="image/*"` -> `:accept="MEDIA_LIBRARY_FILE_ACCEPT"` (reuse helper yang sudah ada).
+     - `AdminCertificates.vue`:
+       - Dalam `loadCertificates()`: kumpulkan `media_asset_id` unik non-kosong dari `imagesData`; jika tidak kosong, fetch `.from('media_assets').select('id, storage_bucket, storage_path, source_url').in('id', assetIds)` secara non-fatal (fallback aman ke `published/certificates/${assetId}.webp`), lalu perbarui `getMediaUrl(assetId)` agar memprioritaskan `source_url` -> `storage_path` + `storage_bucket` -> fallback `.webp` tanpa mengubah semua caller di template.
+       - Teruskan `storage_path` asli dari map tersebut ke `isAssetReferencedInSnapshot(...)` dalam `isCertificateReferencedInSnapshot()`.
+       - Ganti `alert('Gagal menyimpan urutan baru.')` (`#L943`) dengan `productFeedback.error(...)` + pulihkan `certificates.value` di `onDrop()` jika penyimpanan gagal.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri rekomendasi read-only ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**` tidak dimodifikasi.
+- **Validation Performed**: Audit statis lintas caller, store, helper upload, dan mock pengujian (`tests/admin-certificates-retention-runtime.mjs`, `tests/media-library-runtime.mjs`).
+- **Visual Verification**: Tidak berlaku (analisis/saran read-only sebelum persetujuan eksekusi).
+- **Current Status**: COMPLETED (Ponytail Fix Plan Ready; Awaiting User Approval to Execute).
+- **Next Required Step**: Tunggu persetujuan user jika ingin mengeksekusi perbaikan Temuan #14 + verifikasi runtime.
+
+
+
+## Request: Execute Ponytail Fix for Finding #14 ("gas")
+- **Date**: 2026-11-12T00:19:58+07:00
+- **Mode**: Execution (Approved Finding #14 Ponytail `full`) + Full Build, Runtime, Visual & Regression Verification + Mandatory Sequential Logging (`AGENTS.md` §4–§8)
+- **Scope**: Menyelesaikan Temuan #14 pada [`AdminAssetLibrary.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminAssetLibrary.vue) dan [`AdminCertificates.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue) sesuai rencana Ponytail yang disetujui user tanpa memperluas lingkup fitur.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§2, §4–§8, §25, §27), `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`
+  - [`src/lib/mediaUploadRules.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/mediaUploadRules.ts#L40-L82), [`src/stores/mediaLibrary.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/mediaLibrary.ts#L153-L263), [`src/composables/useProductFeedback.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/composables/useProductFeedback.ts), [`src/components/ProductFeedbackHost.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/ProductFeedbackHost.vue)
+- **Work Performed (Completed & Verified)**:
+  1. **Asset Library Upload PDF Support (`AdminAssetLibrary.vue`)**:
+     - Mengimpor [`MEDIA_LIBRARY_FILE_ACCEPT`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/mediaUploadRules.ts#L40) (`.webp,.gif,.pdf,image/webp,image/gif,application/pdf`) dan mengganti `accept="image/*"` pada input file upload ([`AdminAssetLibrary.vue#L277`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminAssetLibrary.vue#L277)) menjadi `:accept="MEDIA_LIBRARY_FILE_ACCEPT"`.
+  2. **AdminCertificates Media Path Resolution & Error Toast (`AdminCertificates.vue`)**:
+     - Menambahkan [`CertMediaMeta`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L257-L264) dan `mediaAssetsById`; memperbarui [`loadCertificates()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L371-L390) untuk mengambil metadata `media_assets` secara *scoped* via `.in('id', assetIds)` (hanya kolom `id, storage_bucket, storage_path, source_url`, non-fatal bila baris tidak ditemukan).
+     - Memperbarui [`getMediaUrl()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L413-L419) agar memprioritaskan `source_url`, lalu `storage_path` + `storage_bucket`, dengan fallback aman ke `published/certificates/${assetId}.webp`.
+     - Meneruskan `mediaAssetsById.value[assetId]?.storage_path || undefined` ke `isAssetReferencedInSnapshot(...)` di [`isCertificateReferencedInSnapshot()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L608-L610) agar pengecekan referensi snapshot hapus juga akurat untuk path non-`.webp`.
+     - Mengganti `alert('Gagal menyimpan urutan baru.')` di [`saveNewOrder()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L964-L982) menjadi [`productFeedback.error(...)`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L980), mengembalikan `Promise<boolean>`, dan memulihkan `previousList` pada [`onDrop()`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminCertificates.vue#L944-L958) bila gagal simpan.
+     - Catatan perbaikan TS saat verifikasi: `vue-tsc` awal mendeteksi `TS7006` implisit `any` pada filter `.filter((id): id is string => ...)` (`loadCertificates`), langsung diselesaikan dengan mengetik `(imagesData || []) as Array<{ media_asset_id?: string | null }>`.
+  3. **Tes Self-Check & Pemulihan Artefak**:
+     - Membuat tes runtime khusus [`tests/asset-pdf-cert-media-order-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/asset-pdf-cert-media-order-runtime.mjs) dan memulihkan kembali file PNG di `artifacts/` yang tertimpa saat regresi (`git checkout -- artifacts/`).
+- **Files Created**:
+  - `tests/asset-pdf-cert-media-order-runtime.mjs`
+- **Files Modified**:
+  - `src/pages/admin/AdminAssetLibrary.vue`
+  - `src/pages/admin/AdminCertificates.vue`
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Protected**: `list bug.md`, `AGENTS.md`, `.agents/**`, `.env`, `supabase/**`, `src/pages/admin/AdminMessages.vue`, `src/repositories/**` tidak dimodifikasi; folder `artifacts/` dipulihkan ke baseline ter-track.
+- **Validation Performed**:
+  - `npx vue-tsc --noEmit` -> EXIT 0.
+  - `npm run build` (`vue-tsc && vite build`) -> EXIT 0 (18.53s, 2054 modules).
+  - `node tests/asset-pdf-cert-media-order-runtime.mjs` -> PASS (`accept === MEDIA_LIBRARY_FILE_ACCEPT`, upload PDF `draft/library/*.pdf` berhasil & tampil `<iframe />` preview tanpa error, `getMediaUrl` sertifikat merender path `.png` & `source_url` `.gif` serta fallback `.webp`, `media_assets` hanya di-query `?id=in.(...)`, modal konfirmasi hapus mendeteksi `storage_path` non-`.webp`, gagal `saveNewOrder` memanggil `0` kali `window.alert`, menampilkan `.product-toast--error`, dan mengembalikan urutan kartu di UI).
+  - `$env:CHROME_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"; node tests/admin-certificates-retention-runtime.mjs` -> PASS.
+  - `$env:CHROME_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"; node tests/media-library-runtime.mjs` -> PASS.
+  - `$env:CHROME_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"; node tests/product-polish-runtime.mjs` -> `[phase-036a] Audit PASS`.
+- **Visual Verification**: Dilakukan via inspeksi langsung screenshot `read_file` terhadap `finding14-asset-library-pdf.png`, `finding14-admin-certs.png`, dan `finding14-cert-order-error-toast.png` (di direktori scratch artefak) — UI Asset Library PDF preview `<iframe>` tampil rapi, toast sukses/error kanan-bawah terbaca kontras penuh tanpa menutupi atau clipping, serta daftar sertifikat kembali ke urutan awal saat gagal simpan tanpa dialog `alert()`.
+- **Current Status**: COMPLETED & VERIFIED (Finding #14 Executed with Zero Errors).
+- **Next Required Step**: Menunggu instruksi user berikutnya (mis. commit/push atau lanjut ke temuan lain).
+
+
+
+## Request: Re-Verify All Fixes & Verify Cloud Database Synchronization ("verifikasi lagi, dn sinkron database cloudnya")
+- **Date**: 2026-11-12T00:33:19+07:00
+- **Mode**: Read-Only Build/Runtime Re-Verification + Live Supabase Cloud Sync Audit (`AGENTS.md` §4–§6, §25)
+- **Scope**: Memverifikasi ulang hasil build, tipe TypeScript, rangkaian tes runtime lintas Temuan #11–#14, serta memverifikasi sinkronisasi penuh antara kode/migrasi/tipe lokal dengan project Supabase Cloud live (`anyhuqqnjliepllrkebo`). Tidak mengubah skema DB maupun kode sumber aplikasi.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25), `.agents/skills/supabase/SKILL.md`
+  - `.env`, `supabase/migrations/*` (`0001`–`0037`), [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts)
+- **Work Performed (Completed)**:
+  1. **Build & Typecheck**: `npx vue-tsc --noEmit` & `npm run build` (`vite build`, 2054 modules, 4.11s) -> exit `0`.
+  2. **Runtime Verification Suite (Headless Chrome)**:
+     - [`tests/asset-pdf-cert-media-order-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/asset-pdf-cert-media-order-runtime.mjs) (Temuan #14) -> `PASS`
+     - [`tests/messages-cert-query-efficiency-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/messages-cert-query-efficiency-runtime.mjs) (Temuan #13) -> `PASS`
+     - [`tests/shs-about-visual-contract-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/shs-about-visual-contract-runtime.mjs) (Temuan #12) -> `PASS`
+     - [`tests/admin-contact-links-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-contact-links-runtime.mjs) (Temuan #11) -> `PASS` saat dijalankan terpisah (pada eksekusi beruntun sempat gagal sekali dengan `Inspected target navigated or closed`)
+     - [`tests/guest-certificate-refresh-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/guest-certificate-refresh-runtime.mjs) -> `PASS`
+     - [`tests/admin-certificates-retention-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/admin-certificates-retention-runtime.mjs) -> `PASS`
+     - Catatan dilewati: `tests/certificate-data-runtime.mjs` tidak dijalankan karena mensyaratkan dev server + CDP terpisah pada `:5173`/`9239`.
+     - Folder `artifacts/` tetap bersih (tanpa file kotor).
+  3. **Live Cloud Supabase Sync Check (`https://anyhuqqnjliepllrkebo.supabase.co`)**:
+     - `get_project_url` & `get_publishable_keys` cocok 100% dengan `.env` (`VITE_SUPABASE_URL` & `sb_publishable_...`).
+     - `list_migrations`: 38 entri di Cloud menutup seluruh 37 file lokal `0001`–`0037` termasuk [`0037_contact_social_links.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0037_contact_social_links.sql) (`20261111141403`); tidak ada migrasi lokal yang tertinggal di luar Cloud, dan tidak ada Edge Function lokal/Cloud (`[]`).
+     - `generate_typescript_types` (`30473` byte) identik 100% karakter-per-karakter (`TYPES_EQUAL=True`) dengan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts).
+     - Pemeriksaan SQL live (`execute_sql`) memastikan kolom `media_assets` (`source_url`, `storage_path`, `storage_bucket`), kolom `contact_profiles` (`whatsapp_href`, `linkedin_href`, `cv_href`), fungsi `private.list_referenced_storage_paths_internal()`, bucket `portfolio-media` (`public: true`, `allowed_mime_types: null`, `file_size_limit: null`), dan kebijakan RLS tabel/Storage sudah aktif di Cloud. Data operasional Cloud saat ini: `admin_memberships = 1`, tabel konten & `storage.objects` = `0` baris.
+     - Uji HTTP `GET` PostgREST langsung dengan publishable key `.env`: `certificates`, `certificate_images`, `media_assets?select=id,storage_bucket,storage_path,source_url&id=in.(...)`, `contact_profiles?select=id,whatsapp_href,linkedin_href,cv_href,social_links_updated_at`, dan `rpc/get_active_published_snapshot` -> semua `HTTP 200`; `messages` anon -> `HTTP 401`.
+     - `get_advisors`: 0 masalah RLS/kritis; sisa catatan normal yaitu `public.get_active_published_snapshot`, `public.bootstrap_first_admin`, Auth leaked password protection, dan fungsi non-executable `public.test_reset()` (terdaftar di Temuan #17 `list bug.md`).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri verifikasi & audit sinkronisasi Cloud ini saja).
+- **Files Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `artifacts/**` tidak dimodifikasi.
+- **Validation Performed**: Build + TypeScript + 6 tes runtime Chrome + audit SQL/PostgREST/Typegen Cloud live.
+- **Visual Verification**: Belum dijalankan ulang pada giliran ini (menggunakan hasil verifikasi visual Temuan #14 karena kode UI tidak diubah lagi setelahnya).
+- **Current Status**: COMPLETED & IN SYNC (Kode Lokal, Build, Tes, dan Database Cloud Supabase Sudah Sinkron 100%).
+- **Next Required Step**: Menunggu keputusan user untuk langkah berikutnya (commit perubahan ke Git atau lanjut ke Temuan #15–#20).
+
+
+## Request: Ponytail Improvement Plan & Multi-Scenario Failure Analysis for Finding #15 ("saran perbaikan pakai ponytail thinking dan berpikir agar error seminimin mungkin dengan 1000 skenario penyebab error. lakukan")
+- **Date**: 2026-11-12T00:39:47+07:00
+- **Mode**: Planning & Failure-Mode Analysis (Read-Only, `AGENTS.md` §4–§6, §25–§26; `.agents/skills/ponytail/SKILL.md` full mode)
+- **Scope**: Merancang rekomendasi perbaikan Temuan #15 (`AdminMaintenance.vue`, `backup.ts`, `DesignSystemPanel.vue`, `designSystem.ts`, `AdminEdit.vue`) berbasis pemetaan pemanggil, tes otomatis, skema DB/RLS Supabase, dan mitigasi skenario error, tanpa mengubah kode sumber atau DB sebelum persetujuan user.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`, `list bug.md` (Baris 124–128)
+  - [`src/pages/admin/AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue), [`src/production/backup.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts)
+  - [`src/pages/admin/components/DesignSystemPanel.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue), [`src/stores/designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts)
+  - [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L890-L955,L3697-L3719), [`src/repositories/editorRevisionRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/editorRevisionRepository.ts), [`src/editor/editorSnapshot.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/editor/editorSnapshot.ts), [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts)
+  - `supabase/migrations/0014_site_revisions.sql`, `0015_draft_library_favorites.sql`, `0028_decouple_draft_save_from_published_base.sql`, `0035_harden_referenced_storage_paths.sql`
+  - [`tests/production-hardening-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/production-hardening-runtime.mjs), [`tests/stabilization-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/stabilization-runtime.mjs), [`tests/design-system-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/design-system-runtime.mjs)
+- **Findings During Analysis (Planned / Identified Risks Only — Not Yet Executed)**:
+  1. Memakai `entity_visual_configs` untuk menyimpan Design System berisiko kebocoran data editor karena tabel tersebut memiliki policy `anon` public read dan ikut dibaca penuh oleh `supabaseSiteRepository`.
+  2. Restore DB penuh dari file backup berisiko tinggi karena `ProductionBackup` sengaja tidak menyertakan file biner Storage (`mediaManifest`), terikat trigger `max 10 drafts` & `max 8 favorites`, RLS `created_by = auth.uid()`, serta `site_revisions` melarang update langsung ke status `published` dari klien REST.
+  3. Terdeteksi celah kompatibilitas tambahan di [`exportBackupPart`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts#L353-L362): hasil export parsial (`theme`, `drafts`, `favorites`, `tokens`) saat ini ditolak oleh `validateBackupValue` karena bentuknya bukan `DesignSystemWorkspace` utuh maupun object root.
+  4. Bila Design System disinkronkan ke Cloud, cold-start di perangkat baru wajib menarik data Cloud lebih dahulu sebelum upload agar `defaultWorkspace()` tidak menimpa tema di Cloud, dan `createProductionBackup()` harus ikut menyinkronkan Cloud lebih dulu.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri rencana & analisis risiko ini saja).
+- **Files Explicitly Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `artifacts/**`.
+- **Unresolved Decisions (Menunggu Pilihan User)**:
+  - Arah Maintenance Import: **Opsi 1A** (ganti label jujur ke `Validate Backup` / read-only) vs **Opsi 1B** (validasi dulu, lalu tombol aman opsional: Restore Design System + Import 1 Snapshot sebagai Draft baru tanpa menimpa Published).
+  - Arah Persistensi Design System: **Opsi 2A** (1 tabel Cloud RLS admin-only `design_system_workspaces` via migrasi `0038` + cache `localStorage` anti-race) vs **Opsi 2B** (`localStorage` + Backup JSON/ZIP saja tanpa migrasi SQL).
+- **Validation Performed**: Tidak ada perubahan kode; hanya pembacaan & penelusuran statis.
+- **Visual Verification**: Tidak berlaku (tahap perencanaan).
+- **Current Status**: AWAITING APPROVAL (Saran & Pilihan Opsi Disiapkan untuk User).
+- **Next Required Step**: Menunggu pilihan user atas Opsi 1A/1B dan 2A/2B serta perintah eksekusi sebelum menulis kode atau migrasi SQL.
+
+
+## Request: Visual Preview of Component Presets Screen & Option Confirmation ("ini apa yang mana halamannya liat, lalu pilih Opsi 1B ... dan Opsi 2A")
+- **Date**: 2026-11-12T00:45:51+07:00
+- **Mode**: Read-Only Visual Inspection & Decision Recording (`AGENTS.md` §4–§6, §25–§26)
+- **Scope**: Menjalankan pratinjau headless lokal (tanpa mengubah kode atau DB) untuk menangkap dan menunjukkan posisi nyata UI tombol Design System dan tab Templates (`Section templates` vs `Component presets`), serta mencatat pilihan user (**Komponen 1 / Tombol Hapus Component Presets + Opsi 1B + Opsi 2A**).
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (200 baris terakhir), `AGENTS.md` (§4–§6, §25–§26)
+  - [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L3635,L3697-L3719)
+  - [`src/pages/admin/components/DesignSystemPanel.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue#L257-L269)
+- **Work Performed (Completed)**:
+  - Menjalankan skrip inspeksi sementara di direktori scratch artefak untuk memotret `/admin/edit` dan drawer `Design System -> Templates` dengan contoh 1 `Section template` + 1 `Component preset` in-memory.
+  - Memverifikasi langsung dua tangkapan layar (`finding15-admin-edit-design-btn.png` & `finding15-design-templates-presets.png`): ikon palet cat (🎨) berada di bilah atas area pratinjau Editor; tab `Templates` memperlihatkan `Section templates` sudah memiliki `[Apply]` + `[Trash2]`, sedangkan `Component presets` hanya memiliki `[Apply]`.
+- **Files Created**: Skrip sementara dan 2 screenshot pratinjau di direktori artefak/scratch percakapan (di luar repositori kerja).
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri inspeksi & konfirmasi pilihan ini saja).
+- **Files Explicitly Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `artifacts/**` tidak dimodifikasi.
+- **Decisions Recorded from User**: User memilih **Paket Lengkap**: (1) Hapus Component Presets di `DesignSystemPanel.vue` + `AdminEdit.vue`, **Opsi 1B** (Validasi dulu lalu Restore Design System / Import Snapshot sebagai Draft baru yang aman di Maintenance), dan **Opsi 2A** (Sinkron Otomatis `DesignSystemWorkspace` ke tabel admin-only `0038_design_system_workspaces.sql` + cache `localStorage` dengan pengaman anti-overwrite).
+- **Validation Performed**: Render pratinjau `/admin/edit` & inspeksi visual screenshot UI saat ini (read-only; belum ada perubahan kode).
+- **Visual Verification**: Screenshot `finding15-admin-edit-design-btn.png` & `finding15-design-templates-presets.png` diperiksa langsung dan ditunjukkan ke user.
+- **Current Status**: AWAITING FINAL GO-AHEAD (User Sudah Memilih Opsi 1B + 2A + 1, Menunggu Persetujuan Eksekusi Setelah Melihat Gambar).
+- **Next Required Step**: Menunggu user mengetik persetujuan eksekusi (mis. `"gas"`) untuk mengimplementasikan bagian 1 + Opsi 1B + Opsi 2A beserta migrasi `0038` & pengujian penuh.
+
+
+## Request: Quick Recap of Pending Execution Scope ("mau diapakan tadi, lupa")
+- **Date**: 2026-11-12T00:47:20+07:00
+- **Mode**: Read-Only Recap (`AGENTS.md` §4–§6, §25)
+- **Scope**: Merangkum ulang dengan bahasa paling ringkas tiga hal yang rencananya akan dikerjakan pada Temuan #15 berdasarkan keputusan user sebelumnya (`1 + Opsi 1B + Opsi 2A`), tanpa mengubah kode atau database.
+- **Specifications & Sources Consulted**: `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6, §25).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri rekap ini saja).
+- **Files Explicitly Protected**: `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `artifacts/**`.
+- **Validation Performed**: Tidak ada perubahan kode (hanya rekap riwayat rencana & keputusan).
+- **Current Status**: AWAITING FINAL GO-AHEAD (`"gas"`).
+- **Next Required Step**: Menunggu perintah eksekusi user untuk menjalankan Paket Lengkap Temuan #15.
+
+
+## Request: Execute Finding #15 Complete Package with Ponytail & Multi-Scenario Guards ("eksekusi dengan ponytail")
+- **Date**: 2026-11-12T01:14:18+07:00
+- **Mode**: Incremental Implementation, Multi-Scenario Hardening, Testing & Visual Verification (`AGENTS.md` §4–§8, §25–§33; `.agents/skills/ponytail/SKILL.md` `full` mode)
+- **Scope**: Eksekusi paket Temuan #15 (`list bug.md#L124-L128`) sesuai keputusan user (`1 + Opsi 1B + Opsi 2A`): (1) tombol hapus Component Presets + pelindung tanggal/teks panjang, (2) validasi read-only & restore bertahap di Maintenance, dan (3) sinkronisasi lintas browser/perangkat `DesignSystemWorkspace` ke tabel admin-only Cloud + cache `localStorage`.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (200 baris terakhir), `AGENTS.md`, `.agents/skills/ponytail/SKILL.md`, `list bug.md` (Baris 124–128)
+  - [`src/stores/designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts), [`src/production/backup.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts), [`src/pages/admin/AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue), [`src/pages/admin/components/DesignSystemPanel.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue), [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue)
+- **Work Actually Performed (Completed Locally & Verified)**:
+  1. **Bagian 1 — Component Presets Delete & UI Guards ([`DesignSystemPanel.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue), [`AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue))**:
+     - Memasang tombol `<Trash2 :size="14" />` pada daftar `Component presets` dengan `:aria-label` aksesibel serta event `componentPresetDelete` yang tersambung ke [`deleteSavedComponentPreset`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L949-L952) -> `designSystem.deleteComponentPreset(...)`.
+     - Menambahkan [`formatLibraryDate`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue#L149-L153) (`'Saved'` fallback bila tanggal rusak/`Invalid Date`) dan `min-width: 0` + `overflow-wrap: anywhere` pada `.template-list strong` agar nama preset panjang membungkus rapi.
+     - Memicu [`syncFromCloud`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts#L314-L370) saat panel dibuka / auth admin aktif, serta [`flushCloudSync`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts#L371-L425) saat panel ditutup, event `pagehide`, dan `onBeforeUnmount`.
+  2. **Opsi 1B — Validasi Read-Only + Restore Bertahap Aman ([`backup.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts), [`AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue))**:
+     - Memperketat `suspiciousKeyScan` (batas kedalaman `64`, tolak `__proto__`/`constructor`/`prototype` lewat `Object.getOwnPropertyNames` pada seluruh 3 format backup) serta validasi array `sectionTemplates` / `componentPresets` di `validThemeWorkspace`.
+     - Mengubah `createProductionBackup` agar ikut menjalankan `await designSystem.syncFromCloud()` saat ekspor dari Maintenance.
+     - Menambahkan `extractBackupDesignSystem`, `listBackupSnapshots`, dan [`importBackupSnapshotAsDraft`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts#L284-L346): cek duplikat `assetId`, tolak URL `data:`/`blob:`, cek batas `< 10` Draft sebelum menjalankan thunk pengecekan aset Storage (`HEAD` + fallback `GET Range` timeout 8s secara lazy agar tidak memicu `unhandledrejection`), reset `revision`, dan simpan 1 Draft baru via `createNew: true` tanpa menyentuh `Published`.
+     - Memperbarui kartu `Validate & Restore` dengan `busyAction` anti double-click, `validationRunId` anti race kondisi unggah beruntun, pemilih snapshot, tombol `Restore Design System` & `Import Snapshot as New Draft`, status inline, dan `Open Draft in Editor` (`/admin/edit?draft=...`).
+  3. **Opsi 2A — Sinkronisasi Cloud + Cache `localStorage` ([`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql), [`designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts))**:
+     - Membuat migrasi [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql): tabel `public.design_system_workspaces` ber-RLS ketat admin pemilik (`(select private.is_admin()) and user_id = (select auth.uid())`), batasan JSON objek (`version = '1'`, `themes` array, `<= 2097152` byte), trigger `touch_updated_at()`, dan `notify pgrst, 'reload schema'`.
+     - Menambahkan `syncFromCloud()`, debounce 700ms (`scheduleCloudFlush`), `flushCloudSync()`, `replaceWorkspace()`, `mutationSeq` guard, dirty flag `localStorage` + listener antar-tab (`storage`), penjaga anti-overwrite tema kosong (`hasCustomWorkspaceContent`), serta fallback non-blokir `'local-only'` bila tabel Cloud belum dimigrasi (`404` / `PGRST205`).
+- **Work Attempted & Blocked (Cloud Deployment)**:
+  - Penerapan SQL [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) ke database Cloud gagal otomatis karena klien MCP membatalkan konfirmasi `apply_migration` secara otomatis dan CLI `npx supabase` lokal belum tertaut/terautentikasi. Oleh karena itu [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) tidak diubah sebelum Cloud tersinkron.
+- **Files Created**:
+  - [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql)
+  - [`tests/finding15-maintenance-design-sync-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding15-maintenance-design-sync-runtime.mjs)
+- **Files Modified**:
+  - [`src/stores/designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts)
+  - [`src/production/backup.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts)
+  - [`src/pages/admin/components/DesignSystemPanel.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue)
+  - [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue)
+  - [`src/pages/admin/AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue)
+- **Files Explicitly Protected**: `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`, dan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) (sebelum migrasi Cloud diterapkan).
+- **Validation Performed (Post-Final-Edit)**:
+  - `npx vue-tsc --noEmit` + `npm run build` -> `PASS` (`exit code 0`, `2054 modules`, built in `3.73s`).
+  - [`tests/finding15-maintenance-design-sync-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding15-maintenance-design-sync-runtime.mjs) -> `PASS` (skenario Lokal + Mocked Cloud: hapus preset, fallback `Saved`, wrap nama panjang, prototype-pollution reject, validasi read-only, `Restore Design System`, `Import Snapshot as New Draft`, blokir `>= 10` Draft, tarik laptop baru, coalesce debounce 10 edit jadi 1 POST, preflight Storage `404`/`200`, dan fallback `404`/`PGRST205` tanpa error konsol/unhandledrejection).
+  - [`tests/design-system-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/design-system-runtime.mjs) -> `PASS` (`60.006 FPS`, `nameless: 0`, `unlabeled: 0`).
+  - [`tests/production-hardening-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/production-hardening-runtime.mjs) -> `PASS` (`60.77 FPS`).
+  - [`tests/stabilization-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/stabilization-runtime.mjs) -> `PASS` (`0px` horizontal overflow desktop & mobile di rute publik & admin).
+- **Visual Verification Results**:
+  - Screenshot [`finding15-after-design-presets.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/finding15-after-design-presets.png), [`finding15-after-maintenance-desktop.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/finding15-after-maintenance-desktop.png), dan [`finding15-after-maintenance-mobile.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/finding15-after-maintenance-mobile.png) diperiksa langsung: UI Component Presets (`Trash2` + wrap + `'Saved'`) dan UI `Validate & Restore` desktop/mobile (390px) terverifikasi bersih tanpa overflow.
+- **Current Status**: COMPLETED & VERIFIED LOCALLY (Live Cloud Migration `0038` Pending User Manual Apply).
+- **Next Required Step**: User menjalankan isi [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) di Supabase Dashboard -> SQL Editor untuk mengaktifkan sinkronisasi Cloud lintas perangkat, lalu opsional lanjut ke Temuan #16–#20.
+
+
+## Request: Read-Only Anti-Bug Review & Live Cloud DB Sync Check for Finding #15 ("sudah? verifikasi anti bug dan cek database cloud apa sinkron dengan ponytail")
+- **Date**: 2026-11-12T08:20:02+07:00
+- **Mode**: Read-Only Anti-Bug Review & Live Cloud DB Audit (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail-review/SKILL.md`, `.agents/skills/supabase/SKILL.md`)
+- **Scope**: Memeriksa kembali seluruh perubahan Temuan #15 beserta pemanggilnya (*callers*), skema/fungsi RPC terkait, dan status sinkronisasi database Supabase Cloud live tanpa mengubah kode aplikasi atau skema DB.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (200 baris terakhir), `AGENTS.md` (§4–§6, §25), `.agents/skills/ponytail-review/SKILL.md`, `.agents/skills/supabase/SKILL.md`, `.agents/skills/supabase-postgres-best-practices/SKILL.md`
+  - [`src/stores/designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts), [`src/production/backup.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/backup.ts), [`src/pages/admin/AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue), [`src/pages/admin/components/DesignSystemPanel.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/DesignSystemPanel.vue), [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue), [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql)
+  - Pemanggil & fondasi terkait: [`src/repositories/editorRevisionRepository.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/repositories/editorRevisionRepository.ts), [`src/lib/supabaseRest.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/supabaseRest.ts), [`src/stores/auth.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/auth.ts), [`src/router/index.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/router/index.ts), [`supabase/migrations/0028_decouple_draft_save_from_published_base.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0028_decouple_draft_save_from_published_base.sql), [`tests/finding15-maintenance-design-sync-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding15-maintenance-design-sync-runtime.mjs)
+- **Work Performed (Completed Read-Only Audit)**:
+  1. **Verifikasi Anti-Bug Lintas Pemanggil (`ponytail-review`)**:
+     - Memastikan tidak ada bug kritis, celah keamanan (*prototype pollution*, kebocoran kredensial, akses anonim), race condition timpa-menimpa (`mutationSeq` + dirty flag `localStorage` + debounce flush + `validationRunId` + kunci `busyAction`), atau kehilangan data.
+     - Memastikan kontrak `importBackupSnapshotAsDraft` kompatibel penuh dengan RPC live Cloud `public.save_editor_draft` (`0028`) dan constraint `site_revisions`, serta prasyarat SQL `private.is_admin()` (`security_definer: true`) dan `private.touch_updated_at()` tersedia di Cloud untuk migrasi `0038`.
+     - Temuan minor non-blokir (Nice to have): di [`AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue#L295-L328), saat admin mengklik ulang `Restore Design System` atau `Import Snapshot as New Draft` lalu klik ke-2 gagal (mis. batas 10 Draft tercapai), pesan sukses klik pertama (`designRestoredMessage` / `importedDraftInfo`) belum dikosongkan sebelum percobaan ke-2 sehingga banner sukses lama & error baru tampil bersamaan.
+  2. **Audit Sinkronisasi Database Cloud Supabase (`https://anyhuqqnjliepllrkebo.supabase.co`)**:
+     - `list_migrations`: tetap 38 entri terakhir `20261111141403` (`0037_contact_social_links`); **`0038_design_system_workspaces.sql` belum masuk Cloud**.
+     - `list_tables` & `execute_sql`: tabel `public.design_system_workspaces` belum ada di Cloud (0 baris hasil `to_regclass('public.design_system_workspaces')`).
+     - Probe HTTP `GET /rest/v1/design_system_workspaces`: `HTTP 404` (`PGRST205: Could not find the table 'public.design_system_workspaces' in the schema cache`).
+     - `generate_typescript_types`: `30474` karakter identik 100% (`EXACT_MATCH=True`) dengan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) (artinya tipe lokal tetap sinkron dengan skema Cloud saat ini `0001`–`0037`).
+     - `get_advisors` (`security` & `performance`): tidak ada temuan RLS/kritis baru.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit read-only ini saja).
+- **Files Explicitly Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Validation Performed**: Audit statis lintas file/pemanggil + pemeriksaan live Cloud Supabase (MCP `list_migrations`, `list_tables`, `execute_sql`, `generate_typescript_types`, `get_advisors`, & HTTP PostgREST probe). Tidak menjalankan ulang runtime suite karena berkas kode & uji tidak berubah sejak eksekusi Temuan #15.
+- **Current Status**: CODE CLEAN (ZERO CRITICAL BUGS) — LIVE CLOUD DB STILL AT `0037` (PENDING MANUAL APPLY OF `0038_design_system_workspaces.sql`).
+- **Next Required Step**: User menjalankan [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) di Supabase Dashboard -> SQL Editor (lalu opsional regenerasi [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) dan verifikasi ulang).
+
+
+## Request: Apply Migration 0038 to Cloud & Fix Minor Banner Reset Bug ("migrasikan ke cloud dan fix minor bugnya dulu sebelum lanjut")
+- **Date**: 2026-11-12T08:25:43+07:00
+- **Mode**: Targeted Bug Fix + Cloud Migration Attempt + Verification (`AGENTS.md` §4–§8, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
+- **Scope**: Mereset status banner sukses lama sebelum percobaan aksi ulang di [`AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue#L295-L330), memperbarui asersi uji di [`tests/finding15-maintenance-design-sync-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding15-maintenance-design-sync-runtime.mjs#L370-L405), serta berupaya menerapkan [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) ke database Supabase Cloud.
+- **Work Actually Performed (Completed & Verified)**:
+  1. **Perbaikan Minor Bug ([`AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue#L299,L318))**:
+     - Mengosongkan `designRestoredMessage.value = ''` pada awal `restoreDesignSystemFromBackup()` dan `importedDraftInfo.value = null` pada awal `restoreSnapshotAsDraft()`, sehingga saat klik ulang gagal (mis. terbentur batas 10 Draft), banner hijau sukses dari klik sebelumnya tidak lagi tampil bersamaan di atas pesan error baru.
+  2. **Pembaruan Uji Regresi ([`finding15-maintenance-design-sync-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding15-maintenance-design-sync-runtime.mjs#L370-L405))**:
+     - Memastikan saat impor ke-11 gagal karena `Maximum 10 Drafts`, `staleDraftBanner` bernilai `false`, lalu setelah menghapus 1 Draft dan mengimpor ulang berhasil lagi (`recoveredErrorCleared === true`, `recoveredDraftBanner === true`) sebelum lanjut mengeklik `Open Draft in Editor`.
+     - Mengembalikan folder `artifacts/` bersih ke baseline Git (`git restore -- artifacts/`).
+- **Work Attempted & Blocked (Cloud Migration)**:
+  - **MCP `apply_migration` (`0038_design_system_workspaces`)**: Gagal tanpa eksekusi — klien MCP membatalkan konfirmasi secara otomatis dalam `0.2 s` (`"The client cancelled this confirmation 0.2 s after it was sent. Nothing was run."`).
+  - **CLI `npx supabase migration list --linked`**: Gagal dengan `ProjectRefNotLinkedError` (`Cannot find project ref. Have you run supabase link?`), dan tidak ada pengubahan paksa DDL lewat `execute_sql` demi mematuhi batas kontrol akses proyek.
+- **Files Modified**:
+  - [`src/pages/admin/AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue)
+  - [`tests/finding15-maintenance-design-sync-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding15-maintenance-design-sync-runtime.mjs)
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Explicitly Protected**: [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql), [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) (tetap sinkron ke `0037` sampai Cloud dimigrasi), `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Validation Performed**:
+  - `npx vue-tsc --noEmit` + `npm run build` -> `PASS` (`exit code 0`, `2054 modules`, built in `4.15s`).
+  - `node tests/finding15-maintenance-design-sync-runtime.mjs` -> `PASS` (`staleDraftBanner: false`, `recoveredErrorCleared: true`, `recoveredDraftBanner: true`, `0` console/unhandledrejection error).
+  - `node tests/production-hardening-runtime.mjs` -> `PASS` (`[phase-036] Audit PASS`, `60.99 FPS`, `failures: []`).
+- **Visual Verification Results**:
+  - Screenshot [`finding15-after-maintenance-desktop.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/finding15-after-maintenance-desktop.png) dan [`finding15-after-maintenance-mobile.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/finding15-after-maintenance-mobile.png) diperiksa ulang dan bersih.
+- **Current Status**: MINOR BUG FIXED & VERIFIED — CLOUD MIGRATION `0038` BLOCKED BY CLIENT MCP CONFIRMATION & UNLINKED CLI (REQUIRES USER SQL EDITOR RUN).
+- **Next Required Step**: User menjalankan isi SQL [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) di **Supabase Dashboard -> SQL Editor**, lalu memberi tahu agen bila ingin dicek sinkronisasinya kembali atau lanjut ke Temuan #16–#20.
+
+
+## Request: Confirm Complete Single Copy-Paste SQL Block for Cloud SQL Editor ("apa yang saya paste ke sql editor supabase? ... ini saja? outputkan semua agar 1x copas lengkap")
+- **Date**: 2026-11-12T08:27:25+07:00
+- **Mode**: Read-Only SQL Completeness Check (`AGENTS.md` §4–§6, §25)
+- **Scope**: Memverifikasi ulang seluruh file `supabase/migrations/*.sql` terhadap riwayat migrasi Cloud untuk memastikan tidak ada migrasi lain di luar [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) yang tertinggal, lalu menampilkan ulang blok SQL lengkap siap 1x salin-tempel.
+- **Work Performed (Completed)**: Membandingkan daftar 38 berkas `0001`–`0038` di `supabase/migrations/` dengan hasil live Cloud `supabase_migrations.schema_migrations`: seluruh `0001`–`0037` sudah aktif di Cloud, dan hanya [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) yang perlu ditempel dan dijalankan di SQL Editor Supabase.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri konfirmasi read-only ini).
+- **Files Explicitly Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: AWAITING USER MANUAL SQL EDITOR RUN FOR `0038_design_system_workspaces.sql`.
+- **Next Required Step**: Setelah user menjalankan SQL di Supabase Dashboard, verifikasi tabel & regenerasi `src/types/database.generated.ts`.
+
+
+## Request: Verify Live Cloud Migration 0038 & Sync Generated Types ("success. No rows returned, cek")
+- **Date**: 2026-11-12T08:33:24+07:00
+- **Mode**: Cloud Verification & Type Sync (`AGENTS.md` §4–§6, Ponytail `full`)
+- **Scope**: Memverifikasi hasil eksekusi manual [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) di database Cloud Supabase (`public.design_system_workspaces`, RLS, constraint, trigger, grant, PostgREST schema cache, security/performance advisors) serta menyinkronkan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts).
+- **Specifications & Files Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6), `.agents/rules/ponytail.md`
+  - [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql), [`src/stores/designSystem.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/designSystem.ts), [`src/lib/supabaseRest.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/supabaseRest.ts), [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts)
+- **Work Actually Performed (Completed & Verified)**:
+  1. **Live Cloud Schema & RLS Check (`execute_sql`)**: Memastikan tabel `public.design_system_workspaces` sudah aktif di Cloud dengan `rls_enabled = true`, policy `"Admins can manage own design system workspace"` (`cmd: ALL`, `roles: [authenticated]`, `qual`/`with_check`: `(( SELECT private.is_admin() AS is_admin) AND (user_id = ( SELECT auth.uid() AS uid)))`), trigger `touch_design_system_workspaces`, constraint (`design_system_workspace_object_check`, `design_system_workspaces_pkey`, `design_system_workspaces_user_id_fkey`), serta hak akses hanya untuk `authenticated` (`DELETE, INSERT, SELECT, UPDATE`; nol akses untuk `anon`/`public`).
+  2. **PostgREST Data API & Advisor Check**:
+     - `GET /rest/v1/design_system_workspaces?select=user_id&limit=1` dengan `VITE_SUPABASE_PUBLISHABLE_KEY` menghasilkan `HTTP 401` (`code: "42501"`, `"permission denied for table design_system_workspaces"`), membuktikan cache schema PostgREST sudah ter-reload (`notify pgrst, 'reload schema'`) dan akses anon diblokir; sementara `contact_profiles` publik mengembalikan `HTTP 200`.
+     - `get_advisors` (`security` dan `performance`): 0 temuan/peringatan baru pada `public.design_system_workspaces`.
+     - `list_migrations`: ledger `supabase_migrations.schema_migrations` tetap mencatat sampai `0037_contact_social_links` (`20261111141403`) karena `0038` dijalankan langsung via SQL Editor (wajar, tabel Cloud tetap aktif).
+  3. **Regenerasi Tipe TypeScript Lokal**:
+     - Memperbarui [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) dengan definisi tabel `design_system_workspaces` dari output `generate_typescript_types` Cloud (`TYPES_EXACT_MATCH=true`, `30960` karakter).
+     - Memvalidasi ulang dengan `npm run build` (`vue-tsc && vite build` -> exit `0`, `2054 modules`, `3.54s`).
+- **Files Created**: Tidak ada.
+- **Files Modified**:
+  - [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) (`+33` baris untuk `design_system_workspaces`)
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- **Files Explicitly Protected**: [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql), `src/stores/**`, `src/pages/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Validation Performed**:
+  - `npm run build` (`vue-tsc && vite build`) -> `PASS` (`exit code 0`, `3.54s`).
+  - Uji live PostgREST anon denial (`401` pada `design_system_workspaces`, `200` pada `contact_profiles`) -> `PASS`.
+  - `TYPES_EXACT_MATCH=true` antara `generate_typescript_types` Cloud dan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) -> `PASS`.
+  - Belum dicek live: uji tulis/baca (`POST`/`GET`) dengan JWT sesi admin login betulan langsung ke `design_system_workspaces` di Cloud (uji runtime browser memakai route mock; skrip uji runtime tidak dijalankan ulang karena hanya file tipe compile-time yang berubah sejak lulusnya build + uji sebelumnya).
+- **Current Status**: COMPLETED & IN SYNC — Temuan #15 Selesai Sepenuhnya di Lokal & Database Cloud Supabase.
+- **Next Required Step**: Menunggu arahan user untuk lanjut ke Temuan #16–#20 atau audit/commit.
+
+
+## Request: Full Cross-Check of All 38 Migrations & Cloud Sync ("pastikan lagi semua sudah migrasi sinkron cloud")
+- **Date**: 2026-11-12T08:35:21+07:00
+- **Mode**: Read-Only Full Cloud Migration & API Sync Audit (`AGENTS.md` §4–§6, §25; Ponytail `full`)
+- **Scope**: Memastikan 100% file migrasi lokal (`0001`–`0038`), `.env`, tipe [`database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts), tabel/kolom/fungsi RPC/trigger/Storage bucket/Edge Function di Cloud Supabase benar-benar sinkron dengan kode aplikasi di `src/`.
+- **Work Performed (Completed)**:
+  1. **Inventarisasi Lokal vs Cloud Project**:
+     - Direktori `supabase/migrations/` berisi 38 berkas (`0001_initial_schema.sql` s.d. `0038_design_system_workspaces.sql`), dan tidak ada folder Edge Functions lokal (`list_edge_functions` Cloud juga `[]`).
+     - `.env` (`VITE_SUPABASE_URL` & `VITE_SUPABASE_PUBLISHABLE_KEY`) dan `supabase/.temp/linked-project.json` cocok 100% (`ENV_URL_EXACT=true`, `ENV_KEY_EXACT=true`) dengan project Cloud `anyhuqqnjliepllrkebo` (`portfolio-natalia`).
+  2. **Audit Skema, Fungsi RPC, Trigger & Storage Live (`execute_sql`, `list_tables`)**:
+     - Seluruh 22 tabel `public` aktif dengan `rls_enabled = true` (termasuk `design_system_workspaces` dari `0038` dan kolom tautan sosial `whatsapp_href`, `linkedin_href`, `cv_href`, `social_links_updated_at` pada `contact_profiles` dari `0037`).
+     - Seluruh fungsi RPC yang dipanggil `src/` (`bootstrap_first_admin`, `get_active_published_snapshot`, `save_editor_draft`, `publish_editor_draft`, `discard_editor_draft`, `rollback_published_revision`, `reset_site_to_default`, `add_editor_favorite`, `remove_editor_favorite`, `list_referenced_storage_paths`) serta fungsi internal (`private.is_admin`, `private.touch_updated_at`, `private.reset_site_to_default_internal`, `private.list_referenced_storage_paths_internal`, `private.enforce_message_insert_batch_limits`) sesuai versi `0028`–`0038`; `public.test_reset` hanya dapat dieksekusi oleh `postgres` (`0031`).
+     - Bucket `portfolio-media` (`public: true`) beserta 6 policy `storage.objects` aktif.
+  3. **Audit API Live PostgREST, Advisors & Typegen**:
+     - 16 uji HTTP endpoint PostgREST memakai `.env`: 9 endpoint publik + `rpc/get_active_published_snapshot` -> `HTTP 200`; 7 endpoint terproteksi/admin (`admin_memberships`, `site_revisions`, `editor_favorites`, `messages`, `design_system_workspaces`, `rpc/list_referenced_storage_paths`, `rpc/test_reset`) -> `HTTP 401`.
+     - `generate_typescript_types` Cloud (`30960` byte) cocok 100% karakter-per-karakter (`EXACT_MATCH=true`) dengan [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts).
+     - `get_advisors` (`security` & `performance`): tidak ada masalah RLS/kritis baru; ledger `supabase_migrations.schema_migrations` mencatat `0001`–`0037` (`0038` berjalan sukses via SQL Editor tanpa baris ledger).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit sinkronisasi Cloud penuh ini saja).
+- **Files Explicitly Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: VERIFIED IN SYNC (Cloud DB, Schema/RPC/Storage/RLS, `.env`, dan `database.generated.ts` Lokal Sudah Sinkron).
+- **Next Required Step**: Menunggu arahan user (mis. lanjut ke Temuan #16 atau operasi berikutnya).
+
+
+## Request: Diagnose & Attempt Repair of `schema_migrations` Ledger Gap for 0038 ("supabase_migrations.schema_migrations berhenti di 0037 karena 0038 dijalankan lewat SQL Editor ... kenapa ini sekalian di fix")
+- **Date**: 2026-11-12T08:46:02+07:00
+- **Mode**: Read-Only Diagnosis + Sanctioned Migration Ledger Sync Attempt (`AGENTS.md` §4–§6, §25; Ponytail `full`)
+- **Scope**: Menjelaskan penyebab `supabase_migrations.schema_migrations` masih berhenti pada `0037_contact_social_links`, mencoba jalur resmi untuk mencatat [`0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql) ke ledger Cloud, dan memberi perintah aman bila diblokir lingkungan.
+- **Specifications & Files Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md`, `AGENTS.md` (§4–§6), `.agents/skills/supabase/SKILL.md`
+  - Supabase Docs (`search_docs`: *Database Migrations*, *Diagnosing and fixing sync errors*)
+  - [`supabase/migrations/0038_design_system_workspaces.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0038_design_system_workspaces.sql)
+- **Work Actually Performed (Completed)**:
+  - Memeriksa struktur, constraint (`PRIMARY KEY (version)`, `UNIQUE (idempotency_key)`), dan 5 entri terakhir `supabase_migrations.schema_migrations` di Cloud (`has_0038 = 0`, entri terakhir `20261111141403` `0037_contact_social_links` dengan format timestamp MCP 14 digit, berbeda dari awalan angka file lokal `0001`–`0038`).
+  - Mengonfirmasi lewat dokumentasi resmi Supabase bahwa menjalankan SQL langsung lewat **Dashboard → SQL Editor** memang tidak menulis ke `supabase_migrations.schema_migrations`.
+- **Work Attempted & Blocked**:
+  1. **MCP `apply_migration` (`0038_design_system_workspaces`, SQL idempoten)**: Dibatalkan otomatis oleh klien dalam `0.2 s` (`"The client cancelled this confirmation 0.2 s after it was sent. Nothing was run."`).
+  2. **CLI `npx supabase migration list --remote=anyhuqqnjliepllrkebo` (CLI v3.1.0)**: Gagal dengan `DbConfigIpv6Error` (`"IPv6 is not supported on your current network"`; membutuhkan `--remote=<pooler db-url>` IPv4 beserta password DB).
+  3. **Batas Akses**: Sesuai pedoman proyek, agen tidak mengakali penolakan konfirmasi `apply_migration` dengan menjalankan `INSERT` langsung lewat `execute_sql`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri diagnosis & blokir ini saja).
+- **Files Explicitly Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: BLOCKED ON SANCTIONED REMOTE LEDGER WRITE — `public.design_system_workspaces` Live & Sinkron, Ledger `schema_migrations` Menunggu Jalur User (SQL Editor / Pooler CLI).
+- **Next Required Step**: Opsional: user menjalankan `insert into supabase_migrations.schema_migrations ... on conflict (version) do nothing;` di SQL Editor Dashboard agar `0038` tercatat di ledger Cloud, atau membiarkannya karena objek `0038` sudah aktif dan idempoten.
+
+
+## Request: Confirm `0038_design_system_workspaces` Entry in Cloud `schema_migrations` ("sudah, cek lagi")
+- **Date**: 2026-11-12T08:55:26+07:00
+- **Mode**: Read-Only Ledger Verification (`AGENTS.md` §4–§6, §25; Ponytail `full`)
+- **Scope**: Memastikan entri `0038_design_system_workspaces` sudah masuk ke `supabase_migrations.schema_migrations` setelah user menjalankan query di SQL Editor Supabase.
+- **Work Performed (Completed)**:
+  - `list_migrations` Cloud sekarang mengembalikan `{"version":"20261112084500","name":"0038_design_system_workspaces"}` sebagai entri paling akhir tepat setelah `20261111141403` (`0037_contact_social_links`), sehingga seluruh `0001`–`0038` kini tercatat lengkap di ledger migrasi Cloud.
+  - `execute_sql` mengonfirmasi isi kolom `version = '20261112084500'`, `name = '0038_design_system_workspaces'`, `statements = ['-- Applied via Dashboard SQL Editor from 0038_design_system_workspaces.sql']`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri verifikasi ledger ini saja).
+- **Files Explicitly Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: 100% VERIFIED IN SYNC — Skema, RLS/RPC/Storage, Tipe `database.generated.ts`, dan Ledger `supabase_migrations.schema_migrations` Cloud Lengkap sampai `0038_design_system_workspaces`.
+- **Next Required Step**: Menunggu arahan user (mis. lanjut ke Temuan #16 atau operasi berikutnya).
+
+
+## Request: Deep Database Completeness Audit Across Triggers, Indexes, Cron, Policies, Extensions & Backlog ("cek ulang, apakah ada yang ketinggalan untuk database")
+- **Date**: 2026-11-12T09:00:03+07:00
+- **Mode**: Read-Only Deep Database Completeness Audit (`AGENTS.md` §4–§6, §25; Ponytail `full`)
+- **Scope**: Memeriksa ulang apakah ada objek database (`0001`–`0038`: tabel, kolom, index, trigger, fungsi, ekstensi, cron job, storage, RLS policy, maupun item DB terbuka di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md)) yang masih ketinggalan di Cloud Supabase.
+- **Work Performed (Completed)**:
+  1. **Verifikasi Katalog Postgres Cloud vs Migrasi `0001`–`0038`**:
+     - **22/22 tabel `public`** aktif dengan `rls_enabled = true`, seluruh policy per tabel lengkap (`5` per tabel konten/media, `4` pada `messages`, `4` pada `site_revisions`, `3` pada `editor_favorites`, `1` pada `admin_memberships`, `1` pada `design_system_workspaces`), serta grant `service_role` aktif pada seluruh `22` tabel (`0021`).
+     - **24/24 custom index** + primary keys/unique constraints lengkap di `pg_indexes`.
+     - **Seluruh trigger `public`** (`touch_*`, `messages_prepare_insert`, `messages_prepare_update`, `messages_enforce_batch_limits`, `enforce_editor_draft_limit`, `enforce_editor_favorite_limit`, `touch_design_system_workspaces`) aktif (`enabled = 'O'`).
+     - **Ekstensi & Cron Job**: `pg_cron@1.6.4` & `pgcrypto@1.3` aktif; job `messages-auto-delete` (`*/15 * * * *`, `select private.purge_expired_messages();`) berstatus `active = true`.
+     - **Data & Storage**: `auth.users = 1`, `admin_memberships = 1`, seluruh tabel konten & `storage.objects` = `0` baris.
+  2. **Identifikasi Sisa Item Database Terbuka (`list bug.md`)**:
+     - `test_reset_exists = true`: fungsi usang [`public.test_reset()`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0031_revoke_obsolete_test_reset.sql) (hak eksekusi hanya `postgres`, aman dari `anon`/`authenticated`) belum di-`DROP FUNCTION`, karena merupakan cakupan **Temuan #17** yang belum dikerjakan.
+     - `auth_leaked_password_protection`: masih `WARN` di `get_advisors` (**Temuan #10** bagian toggle Dashboard Auth, bukan migrasi SQL).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit kelengkapan DB ini saja).
+- **Files Explicitly Protected**: `src/**`, `supabase/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: ZERO MISSING MIGRATION OBJECTS — Semua `0001`–`0038` Lengkap di Cloud; Sisa Terbuka Hanya `DROP FUNCTION public.test_reset()` (Temuan #17) & Toggle Dashboard *Leaked Password Protection* (Temuan #10 / Pro).
+- **Next Required Step**: Menunggu instruksi user apakah ingin lanjut mengerjakan Temuan #16–#20.
+
+
+## Request: Explain & Propose Ponytail Solution for Finding #16 ("16. Build produksi diam-diam menghasilkan URL http://localhost saat VITE_SITE_URL kosong & query ?object= Editor tidak bereaksi ... ini apa jelaskan detail dan solusi, pakai ponytail")
+- **Date**: 2026-11-12T09:13:47+07:00
+- **Mode**: Read-Only Analysis & Ponytail Solution Design (`AGENTS.md` §4–§6, §25–§26; `.agents/skills/ponytail/SKILL.md` `full` mode)
+- **Scope**: Memeriksa [`vite.config.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/vite.config.ts), [`index.html`](file:///d:/DITO/portfolio_natalia/portfolio-project/index.html), `dist/index.html`, `dist/robots.txt`, `dist/sitemap.xml`, [`src/production/seo.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/production/seo.ts), [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue), [`src/pages/admin/AdminAssetLibrary.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminAssetLibrary.vue), [`src/pages/admin/components/AdminLayout.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/AdminLayout.vue), serta pemanggil build/test untuk merumuskan penjelasan detail dan opsi perbaikan paling ringkas serta aman terhadap edge case.
+- **Work Performed (Completed)**:
+  - Mengonfirmasi di `dist/` hasil build saat ini (karena `.env` belum mengisi `VITE_SITE_URL`) bahwa `canonical`, `og:url`, `robots.txt`, dan `sitemap.xml` benar tertulis `http://localhost` tanpa peringatan apa pun saat `npm run build`, serta memetakan celah `normalizeSiteUrl` yang tidak memvalidasi skema `http:`/`https:` (`new URL(...)` untuk skema non-http menghasilkan `'null'`).
+  - Mengonfirmasi di [`AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1140-L1206) bahwa `route.query.object` hanya dibaca sekali di akhir `initializeEditor()`, sedangkan `watch(() => route.query.draft, ...)` melewati pembaruan saat `draft` tetap sama (atau sama dengan `editor.draftRevisionId`), dan mengidentifikasi kebutuhan guard `!editorReady.value` + `cancelInlineTextEdit()` agar watcher `route.query.object` tidak balapan dengan `initializeEditor()`.
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri analisis & rancangan solusi Temuan #16 ini saja).
+- **Files Explicitly Protected**: `vite.config.ts`, `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: ANALYSIS & SOLUTION PRESENTED — AWAITING USER APPROVAL TO EXECUTE FINDING #16.
+- **Next Required Step**: Menunggu persetujuan user untuk mengeksekusi solusi Temuan #16.
+
+
+## Request: Recommend Safest Lowest-Error Approach for Finding #16 ("paling aman minim error apa")
+- **Date**: 2026-11-12T09:18:06+07:00
+- **Mode**: Read-Only Risk & Trade-Off Evaluation (`AGENTS.md` §4–§6, §25–§26; `.agents/skills/ponytail/SKILL.md` `full` mode)
+- **Scope**: Memeriksa [`DEPLOYMENT-GUIDE.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/DEPLOYMENT-GUIDE.md) dan [`DEPLOYMENT-CHECKLIST.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/DEPLOYMENT-CHECKLIST.md) serta merumuskan pilihan perbaikan Temuan #16 yang paling kecil risikonya terhadap build lokal, tes runtime, CI, dan siklus inisialisasi [`AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue).
+- **Work Performed (Completed)**: Merekomendasikan pendekatan `vite.config.ts` (`throw` hanya bila `VITE_SITE_URL` diisi tapi format/skema bukan `http(s)`, `console.warn` saat kosong di `command === 'build'`) dan pendekatan [`AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1140-L1206) (`watch(() => route.query.object)` dengan guard `!editorReady.value`, `cancelInlineTextEdit()`, serta pemusatan fokus objek di akhir `initializeEditor()` tanpa tertimpa `previewScrollTop` lama).
+- **Files Created**: Tidak ada.
+- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri rekomendasi ini saja).
+- **Files Explicitly Protected**: `vite.config.ts`, `src/**`, `tests/**`, `supabase/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+- **Current Status**: SAFEST PLAN RECOMMENDED — AWAITING USER GO-AHEAD TO IMPLEMENT FINDING #16.
+- **Next Required Step**: Jika user menyetujui, terapkan perbaikan Temuan #16 di [`vite.config.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/vite.config.ts) dan [`AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue), tambah uji regresi ringkas, lalu build & verifikasi.
+
+
+
+## Request: Execute Safest Implementation for Finding #16 ("eksekusi")
+- **Date**: 2026-11-12T09:26:46+07:00
+- **Mode**: Execution & Verification (`AGENTS.md` §4–§6, §27, §29; `.agents/skills/ponytail/SKILL.md` `full` mode)
+- **Scope**: Menerapkan perbaikan Temuan #16 (peringatan build `VITE_SITE_URL` kosong + fail-fast format/skema non-HTTP(S) di [`vite.config.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/vite.config.ts), serta reaktivitas live query `?object=` dan pembersihan timer/scroll di [`AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue)) berikut uji regresi otomatisnya.
+- **Specifications & Sources Consulted**:
+  - `PROJECT-IMPLEMENTATION-LOG.md` (200 baris terakhir), `AGENTS.md` (§4–§6, §27, §29), `.agents/skills/ponytail/SKILL.md`
+  - [`vite.config.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/vite.config.ts), [`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue), [`src/router/index.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/router/index.ts), [`tests/production-hardening-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/production-hardening-runtime.mjs)
+- **Work Performed (Completed & Verified)**:
+  1. **[`vite.config.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/vite.config.ts#L5-L46)**:
+     - Mengganti `normalizeSiteUrl` menjadi `resolveSiteUrl(value, warnOnEmptyBuild)` yang dijalankan pada `defineConfig(({ command, mode }) => ...)`:
+       - Saat `VITE_SITE_URL` kosong pada `command === 'build'`, mencetak `[build] VITE_SITE_URL is not set; canonical, og:url, robots.txt, and sitemap.xml will use http://localhost.` lewat `console.warn` dan tetap fallback ke `http://localhost` (mode dev `serve` tidak mengeluarkan warning build).
+       - Saat `VITE_SITE_URL` terisi namun format tidak valid atau skema bukan `http:`/`https:`, melempar error `Invalid VITE_SITE_URL ...` agar kesalahan konfigurasi domain gagal langsung saat build/boot.
+       - Saat valid, menormalkan ke `parsed.origin`.
+  2. **[`src/pages/admin/AdminEdit.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue)**:
+     - Menambahkan pelacakan `selectObjectRetryTimer` ([`L276`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L276)) yang dibersihkan di awal `initializeEditor()` ([`L1095-L1098`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1095-L1098)) dan `onBeforeUnmount()` ([`L1231-L1234`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1231-L1234)).
+     - Memperbaiki urutan inisialisasi deep-link `?object=` di `initializeEditor()`: melewati pemulihan `previewScrollTop`/`previewScrollLeft` saat `requestedObjectId` ada ([`L1148-L1151`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1148-L1151)) dan memanggil `selectRegisteredObject(requestedObjectId, 0, true)` sesudah `editorReady.value = true` dan `applyEditorPreviewStyles()` ([`L1173`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1173)).
+     - Menambahkan `watch(() => route.query.object, ...)` ([`L1210-L1214`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L1210-L1214)) dengan guard `!editorReady.value`, `typeof nextObject !== 'string' || !nextObject || nextObject === prevObject`, pembatalan `cancelInlineTextEdit()` bila edit teks inline sedang aktif, lalu `selectRegisteredObject(nextObject, 0, true)` ([`L3005-L3017`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminEdit.vue#L3005-L3017)).
+  3. **[`tests/finding16-site-url-editor-object-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/finding16-site-url-editor-object-runtime.mjs)**:
+     - Menambahkan uji regresi otomatis untuk build Vite (`VITE_SITE_URL` kosong, tidak valid, `ftp://`, dan URL `https://` valid) serta browser CDP Editor (`?object=contact-cta` saat mount awal, perpindahan live ke `?object=about-paragraph-intro`, serta pembatalan edit teks inline + perubahan `?object=contact-detail-title` saat query `draft` sama).
+- **Files Created**: `tests/finding16-site-url-editor-object-runtime.mjs`.
+- **Files Modified**: `vite.config.ts`, `src/pages/admin/AdminEdit.vue`, `PROJECT-IMPLEMENTATION-LOG.md`.
+- **Files Deleted**: Tidak ada.
+- **Files Explicitly Protected**: `list bug.md`, `md/**`, `design/**`, `.env`, `AGENTS.md`, `.agents/**`, `artifacts/**` (file `artifacts/phase-036-maintenance-backup.png` yang tersentuh oleh run `production-hardening-runtime.mjs` telah dipulihkan via `git restore -- artifacts/`).
+- **Validation Performed (Verified)**:
+  - `npx vue-tsc --noEmit`: exit code `0`.
+  - `npm run build`: exit code `0`, output menampilkan `[build] VITE_SITE_URL is not set; canonical, og:url, robots.txt, and sitemap.xml will use http://localhost.`, `dist/` ter-build bersih (`18.04s`).
+  - `node tests/finding16-site-url-editor-object-runtime.mjs`: exit code `0` (`ok: true`; `contact-cta` awal `scrollTop: 5693`, live switch `sameMount: true` -> `contact-detail-title`, inline edit dibatalkan bersih, `unhandled: []`).
+  - `$env:CHROME_PATH='C:\Program Files\Google\Chrome\Application\chrome.exe'; node tests/production-hardening-runtime.mjs`: exit code `0`, `status: PASS`, `failures: []`, `runtimeErrors: []`, `consoleWarnings: []`, `networkFailures: []`.
+- **Current Status**: FINDING #16 COMPLETED & VERIFIED — READY FOR NEXT STEP (#17 dst.).
+- **Next Required Step**: Menunggu instruksi user (mis. lanjut ke Temuan #17 di `list bug.md` atau menyiapkan `VITE_SITE_URL` untuk build deploy produksi).

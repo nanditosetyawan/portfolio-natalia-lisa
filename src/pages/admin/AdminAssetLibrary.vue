@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Download, ExternalLink, FolderInput, Grid3X3, Heart, Pencil, Search, Trash2, Upload, X } from 'lucide-vue-next'
 import AssetVirtualGrid from './components/AssetVirtualGrid.vue'
 import { productFeedback } from '../../composables/useProductFeedback'
+import { MEDIA_LIBRARY_FILE_ACCEPT } from '../../lib/mediaUploadRules'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import type { MediaAssetUsage, MediaLibraryAsset, MediaLibraryFilter, MediaLibrarySort } from '../../types/mediaLibrary'
 
@@ -273,7 +274,7 @@ onMounted(() => void refreshLibrary(false))
       <div class="header-actions">
         <button type="button" class="secondary" :disabled="library.loading" :aria-busy="library.loading" @click="void refreshLibrary()">Refresh</button>
         <button type="button" class="primary" :disabled="library.mutating" :aria-busy="library.mutating" @click="uploadInput?.click()"><Upload :size="16" />Upload</button>
-        <input ref="uploadInput" class="sr-only" type="file" accept="image/*" multiple aria-label="Upload media files" @change="uploadFiles" />
+        <input ref="uploadInput" class="sr-only" type="file" :accept="MEDIA_LIBRARY_FILE_ACCEPT" multiple aria-label="Upload media files" @change="uploadFiles" />
       </div>
     </header>
 

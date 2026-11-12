@@ -349,11 +349,9 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
-  gap: v-bind('vConfig.container.gap');
-  min-height: v-bind('vConfig.container.minHeight');
+  gap: v-bind("vConfig.container.gap || '3.5rem'");
+  min-height: v-bind("vConfig.container.minHeight || 'calc(100vh - 13.5rem)'");
   align-items: center;
-  gap: 3.5rem;
-  min-height: calc(100vh - 13.5rem);
 }
 
 /* ===== Left content ===== */

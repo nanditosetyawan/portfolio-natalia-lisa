@@ -29,7 +29,7 @@ export interface MessageRepository {
   delete(id: string): Promise<void>
 }
 
-function filterMessages(rows: MessageRecord[], search: string): MessageRecord[] {
+export function filterMessages(rows: MessageRecord[], search: string): MessageRecord[] {
   const normalized = search.trim().toLocaleLowerCase()
   if (!normalized) return rows
   return rows.filter((row) => [row.name, row.email ?? '', row.message].some((value) => value.toLocaleLowerCase().includes(normalized)))

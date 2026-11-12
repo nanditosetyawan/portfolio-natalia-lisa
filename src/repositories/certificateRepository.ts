@@ -161,13 +161,28 @@ function cardRows(card: CertificateCard): { certificate: CertificateRow; images:
   return { certificate, images, assets }
 }
 
+const MEDIA_ASSET_BATCH_SIZE = 50
+
 const supabaseCertificateRepository: CertificateRepository = {
   async list() {
-    const [certificates, images, assets] = await Promise.all([
+    const [certificates, images] = await Promise.all([
       supabaseTableRows<CertificateRow>('certificates'),
-      supabaseTableRows<CertificateImageRow>('certificate_images'),
-      supabaseTableRows<MediaAssetRow>('media_assets')
+      supabaseTableRows<CertificateImageRow>('certificate_images')
     ])
+    const assetIds = [...new Set(
+      images
+        .map((image) => image.media_asset_id)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    )]
+    // Chunked id=in.(...) avoids full media_assets scan and 414 URI limits while staying mock-compatible.
+    const assets: MediaAssetRow[] = []
+    for (let offset = 0; offset < assetIds.length; offset += MEDIA_ASSET_BATCH_SIZE) {
+      const encoded = assetIds
+        .slice(offset, offset + MEDIA_ASSET_BATCH_SIZE)
+        .map((id) => encodeURIComponent(`"${id.replaceAll('"', '\\"')}"`))
+        .join(',')
+      assets.push(...await supabaseTableRows<MediaAssetRow>('media_assets', `?select=*&id=in.(${encoded})`))
+    }
     return certificateRowsToCards(certificates, images, assets)
   },
   async put(certificate) {

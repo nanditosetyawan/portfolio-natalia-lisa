@@ -33,6 +33,7 @@ import DesignSystemPanel from './components/DesignSystemPanel.vue'
 import { useEditorStore } from '../../stores/editor'
 import { useMediaLibraryStore } from '../../stores/mediaLibrary'
 import { useDesignSystemStore } from '../../stores/designSystem'
+import { useAuthStore } from '../../stores/auth'
 import { loadDefaultRuntimeTemplate } from '../../runtime/defaultRuntimeSnapshot'
 import {
   editorPublishErrors,
@@ -222,6 +223,7 @@ const site = useSiteStore()
 const route = useRoute()
 const router = useRouter()
 const editor = useEditorStore()
+const auth = useAuthStore()
 const certificates = useCertificatesStore()
 const editorEntities = useEditorObjectRegistry(computed(() => editor.draftSnapshot))
 const photoRegistry = usePhotoAreaRegistry()
@@ -271,6 +273,7 @@ let previewMetricsFrameRequest = 0
 let previewFrameRequest = 0
 let previewHeightTimer: number | null = null
 let previewHeightFrameRequest = 0
+let selectObjectRetryTimer: number | null = null
 let panPointerId: number | null = null
 let panStartX = 0
 let panStartY = 0
@@ -944,6 +947,11 @@ function applyComponentPreset(presetId: string): void {
   applyCanonicalStyleValues([object], preset.styleValues, `Preset ${preset.name}`, false)
 }
 
+function deleteSavedComponentPreset(presetId: string): void {
+  designSystem.deleteComponentPreset(presetId)
+  saveStatus.value = 'Component preset deleted.'
+}
+
 function selectDesignSection(section: string): void {
   const object = editor.objects.find((candidate) => candidate.section === section)
   if (!object) return
@@ -1084,6 +1092,10 @@ async function initializeEditor(): Promise<void> {
   previewObserver?.disconnect()
   if (previewMetricsFrameRequest) cancelAnimationFrame(previewMetricsFrameRequest)
   previewMetricsFrameRequest = 0
+  if (selectObjectRetryTimer !== null) {
+    window.clearTimeout(selectObjectRetryTimer)
+    selectObjectRetryTimer = null
+  }
   unregisterSave?.()
   unregisterPublish?.()
   previewObserver = null
@@ -1131,13 +1143,9 @@ async function initializeEditor(): Promise<void> {
     }
     restoreSelectionFromSession()
     const requestedObjectId = typeof route.query.object === 'string' ? route.query.object : ''
-    if (requestedObjectId) void nextTick(() => {
-      selectRegisteredObject(requestedObjectId)
-      focusPreviewObject(requestedObjectId)
-    })
     userZoom.value = editor.draftSnapshot.session.userZoom ?? null
     await nextTick()
-    if (canvasScroll.value) {
+    if (!requestedObjectId && canvasScroll.value) {
       canvasScroll.value.scrollTop = editor.draftSnapshot.session.previewScrollTop
       canvasScroll.value.scrollLeft = editor.draftSnapshot.session.previewScrollLeft
     }
@@ -1162,6 +1170,7 @@ async function initializeEditor(): Promise<void> {
     schedulePreviewHeightMeasurement(0)
     decoratePreviewEntities()
     applyEditorPreviewStyles()
+    if (requestedObjectId) selectRegisteredObject(requestedObjectId, 0, true)
   } catch (error) {
     initializationError.value = error instanceof Error ? error.message : 'Editor data could not be loaded.'
     editorSaveStatus.value = 'Error'
@@ -1169,8 +1178,21 @@ async function initializeEditor(): Promise<void> {
   }
 }
 
+function handleDesignSystemPageHide(): void {
+  if (designSystem.hasPendingCloudSave) void designSystem.flushCloudSync()
+}
+
+watch(
+  [() => auth.isAdmin, () => auth.session?.user?.id],
+  ([isAdmin]) => {
+    if (isAdmin) void designSystem.syncFromCloud()
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   window.addEventListener('keydown', handleEditorKeydown)
+  window.addEventListener('pagehide', handleDesignSystemPageHide)
   document.addEventListener('pointerdown', closeContextMenuOnOutside)
   reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   reducedMotionActive.value = prefersReducedMotion()
@@ -1185,8 +1207,16 @@ watch(() => route.query.draft, (nextDraft, prevDraft) => {
   void initializeEditor()
 })
 
+watch(() => route.query.object, (nextObject, prevObject) => {
+  if (!editorReady.value || typeof nextObject !== 'string' || !nextObject || nextObject === prevObject) return
+  if (inlineTextEdit.value) cancelInlineTextEdit()
+  selectRegisteredObject(nextObject, 0, true)
+})
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleEditorKeydown)
+  window.removeEventListener('pagehide', handleDesignSystemPageHide)
+  void designSystem.flushCloudSync()
   document.removeEventListener('pointerdown', closeContextMenuOnOutside)
   reducedMotionQuery?.removeEventListener('change', handleReducedMotionChange)
   reducedMotionQuery = null
@@ -1198,6 +1228,10 @@ onBeforeUnmount(() => {
   if (previewMetricsFrameRequest) cancelAnimationFrame(previewMetricsFrameRequest)
   if (previewHeightFrameRequest) cancelAnimationFrame(previewHeightFrameRequest)
   if (previewHeightTimer !== null) window.clearTimeout(previewHeightTimer)
+  if (selectObjectRetryTimer !== null) {
+    window.clearTimeout(selectObjectRetryTimer)
+    selectObjectRetryTimer = null
+  }
   if (inlineTextEdit.value) cancelInlineTextEdit()
   previewObserver?.disconnect()
   unregisterSave?.()
@@ -2968,13 +3002,18 @@ function uniqueCopyId(sourceId: string, reserved: Set<string>): string {
   return candidate
 }
 
-function selectRegisteredObject(objectId: string, attempt = 0): void {
+function selectRegisteredObject(objectId: string, attempt = 0, focusPreview = false): void {
+  if (selectObjectRetryTimer !== null) {
+    window.clearTimeout(selectObjectRetryTimer)
+    selectObjectRetryTimer = null
+  }
   const object = editorEntities.value.find((candidate) => candidate.id === objectId)
   if (object) {
     setSelection(object)
+    if (focusPreview) focusPreviewObject(objectId)
     return
   }
-  if (attempt < 40) setTimeout(() => selectRegisteredObject(objectId, attempt + 1), 25)
+  if (attempt < 40) selectObjectRetryTimer = window.setTimeout(() => selectRegisteredObject(objectId, attempt + 1, focusPreview), 25)
 }
 
 function selectAfterObjectRemoval(removedIds: string[], attempt = 0): void {
@@ -3715,6 +3754,7 @@ function cancelLibrarySwitch(): void {
       @section-template-delete="designSystem.deleteSectionTemplate($event)"
       @component-preset-save="saveSelectedComponentPreset"
       @component-preset-apply="applyComponentPreset"
+      @component-preset-delete="deleteSavedComponentPreset"
     />
 
     <div v-if="showOpenModal" class="modal-backdrop" role="presentation" @click.self="showOpenModal = false">

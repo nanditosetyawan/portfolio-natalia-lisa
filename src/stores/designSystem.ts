@@ -5,6 +5,8 @@ import {
   designTokenRegistry,
   typographyRoleRegistry
 } from '../editor/designSystemRegistry'
+import { isSupabaseConfigured, supabaseRestRequest, supabaseTableRows } from '../lib/supabaseRest'
+import { useAuthStore } from './auth'
 import type { EditorValue } from '../types/editor'
 import type {
   ButtonAssignment,
@@ -24,6 +26,18 @@ import type {
 } from '../types/designSystem'
 
 const STORAGE_KEY = 'portfolio-editor-design-system-v1'
+const DIRTY_STORAGE_KEY = 'portfolio-editor-design-system-dirty-v1'
+const CLOUD_TABLE = 'design_system_workspaces'
+const CLOUD_SYNC_DEBOUNCE_MS = 700
+const MAX_WORKSPACE_BYTES = 2 * 1024 * 1024
+
+let mutationSeq = 0
+let cloudSyncPromise: Promise<void> | null = null
+let cloudFlushPromise: Promise<boolean> | null = null
+let cloudDebounceTimer: number | null = null
+let cloudTableUnavailable = false
+let hadLocalStorageOnInit = false
+let storageListenerBound = false
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -94,7 +108,60 @@ function normalizeReferences(value: unknown): DesignReferenceState {
   }
 }
 
-function normalizeWorkspace(value: unknown): DesignSystemWorkspace {
+interface CloudDesignWorkspaceRow {
+  user_id?: string
+  workspace: unknown
+  updated_at?: string
+}
+
+function safeIsoDate(value: unknown, fallback: string): string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : fallback
+}
+
+function normalizeSectionTemplates(value: unknown): SavedSectionTemplate[] {
+  if (!Array.isArray(value)) return []
+  const now = new Date().toISOString()
+  const seen = new Set<string>()
+  const templates: SavedSectionTemplate[] = []
+  for (const item of value) {
+    if (!validRecord(item) || typeof item.id !== 'string' || !item.id.trim() || seen.has(item.id)) continue
+    if (typeof item.name !== 'string' || typeof item.sourceSection !== 'string' || !validRecord(item.styleValues)) continue
+    const styleValues = Object.fromEntries(
+      Object.entries(item.styleValues).filter(([, entry]) => validRecord(entry))
+    ) as SavedSectionTemplate['styleValues']
+    seen.add(item.id)
+    templates.push({
+      id: item.id.trim(),
+      name: item.name.trim() || `${item.sourceSection} Style`,
+      sourceSection: item.sourceSection,
+      createdAt: safeIsoDate(item.createdAt, now),
+      styleValues: clone(styleValues)
+    })
+  }
+  return templates
+}
+
+function normalizeComponentPresets(value: unknown): SavedComponentPreset[] {
+  if (!Array.isArray(value)) return []
+  const now = new Date().toISOString()
+  const seen = new Set<string>()
+  const presets: SavedComponentPreset[] = []
+  for (const item of value) {
+    if (!validRecord(item) || typeof item.id !== 'string' || !item.id.trim() || seen.has(item.id)) continue
+    if (typeof item.name !== 'string' || typeof item.sourceType !== 'string' || !validRecord(item.styleValues)) continue
+    seen.add(item.id)
+    presets.push({
+      id: item.id.trim(),
+      name: item.name.trim() || `${item.sourceType} Style`,
+      sourceType: item.sourceType as SavedComponentPreset['sourceType'],
+      createdAt: safeIsoDate(item.createdAt, now),
+      styleValues: clone(item.styleValues) as SavedComponentPreset['styleValues']
+    })
+  }
+  return presets
+}
+
+export function normalizeDesignSystemWorkspace(value: unknown): DesignSystemWorkspace {
   const fallback = defaultWorkspace()
   if (!validRecord(value) || value.version !== 1) return fallback
   const themes = Array.isArray(value.themes)
@@ -115,9 +182,71 @@ function normalizeWorkspace(value: unknown): DesignSystemWorkspace {
     references: normalizeReferences(value.references),
     typographyAssignments: validRecord(value.typographyAssignments) ? clone(value.typographyAssignments) as Record<string, TypographyAssignment> : {},
     buttonAssignments: validRecord(value.buttonAssignments) ? clone(value.buttonAssignments) as Record<string, ButtonAssignment> : {},
-    sectionTemplates: Array.isArray(value.sectionTemplates) ? clone(value.sectionTemplates) as SavedSectionTemplate[] : [],
-    componentPresets: Array.isArray(value.componentPresets) ? clone(value.componentPresets) as SavedComponentPreset[] : []
+    sectionTemplates: normalizeSectionTemplates(value.sectionTemplates),
+    componentPresets: normalizeComponentPresets(value.componentPresets)
   }
+}
+
+function readDirtyFlag(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return window.localStorage.getItem(DIRTY_STORAGE_KEY) === '1' } catch { return false }
+}
+
+function writeDirtyFlag(dirty: boolean): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (dirty) window.localStorage.setItem(DIRTY_STORAGE_KEY, '1')
+    else window.localStorage.removeItem(DIRTY_STORAGE_KEY)
+  } catch { /* Ignore quota/private-mode storage locks cleanly. */ }
+}
+
+function writeWorkspaceToLocalStorage(workspace: DesignSystemWorkspace): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace))
+    return ''
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Design System state could not be saved.'
+  }
+}
+
+function hasCustomWorkspaceContent(workspace: DesignSystemWorkspace): boolean {
+  if (workspace.themes.length > 1 || workspace.sectionTemplates.length > 0 || workspace.componentPresets.length > 0) return true
+  if (Object.keys(workspace.typographyAssignments).length > 0 || Object.keys(workspace.buttonAssignments).length > 0) return true
+  if (
+    Object.keys(workspace.references.theme).length > 0
+    || Object.keys(workspace.references.sections).length > 0
+    || Object.keys(workspace.references.components).length > 0
+    || Object.keys(workspace.references.objects).length > 0
+  ) return true
+  const baseline = createDefaultDesignTheme()
+  const active = workspace.themes[0]
+  if (!active) return false
+  return active.name !== baseline.name
+    || JSON.stringify(active.tokens) !== JSON.stringify(baseline.tokens)
+    || JSON.stringify(active.typography) !== JSON.stringify(baseline.typography)
+}
+
+function isMissingCloudTableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.message.includes('(404)') || error.message.includes('PGRST205') || error.message.includes(`Could not find the table 'public.${CLOUD_TABLE}'`)
+}
+
+let syncedUserId: string | null = null
+
+async function resolveCloudAdminUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null
+  const auth = useAuthStore()
+  if (!auth.isInitialized && !auth.isLoading) {
+    try { await auth.initialize() } catch { return null }
+  }
+  const userId = auth.session?.user?.id ?? null
+  if (!auth.isAdmin || !userId || !auth.session?.access_token) return null
+  if (syncedUserId !== userId) {
+    syncedUserId = userId
+    cloudTableUnavailable = false
+  }
+  return cloudTableUnavailable ? null : userId
 }
 
 function scopeId(scope: DesignScope, context: DesignReferenceContext): string {
@@ -131,7 +260,11 @@ export const useDesignSystemStore = defineStore('designSystem', {
   state: () => ({
     workspace: defaultWorkspace(),
     initialized: false,
-    persistenceError: ''
+    persistenceError: '',
+    syncState: 'idle' as 'idle' | 'syncing' | 'ready' | 'local-only' | 'error',
+    cloudSynced: false,
+    cloudUpdatedAt: null as string | null,
+    hasPendingCloudSave: false
   }),
   getters: {
     activeTheme(state): DesignTheme {
@@ -150,21 +283,168 @@ export const useDesignSystemStore = defineStore('designSystem', {
       if (this.initialized) return
       this.initialized = true
       if (typeof window === 'undefined') return
+      this.hasPendingCloudSave = readDirtyFlag()
+      if (!storageListenerBound) {
+        storageListenerBound = true
+        window.addEventListener('storage', (event) => {
+          if (event.key !== STORAGE_KEY || !event.newValue || this.hasPendingCloudSave || cloudFlushPromise) return
+          try {
+            this.workspace = normalizeDesignSystemWorkspace(JSON.parse(event.newValue))
+          } catch { /* Keep current workspace on malformed sibling-tab value. */ }
+        })
+      }
       try {
         const saved = window.localStorage.getItem(STORAGE_KEY)
-        if (saved) this.workspace = normalizeWorkspace(JSON.parse(saved))
+        if (saved) {
+          hadLocalStorageOnInit = true
+          this.workspace = normalizeDesignSystemWorkspace(JSON.parse(saved))
+        }
       } catch (error) {
         this.persistenceError = error instanceof Error ? error.message : 'Design System state could not be restored.'
       }
     },
-    persist() {
-      if (typeof window === 'undefined') return
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.workspace))
-        this.persistenceError = ''
-      } catch (error) {
-        this.persistenceError = error instanceof Error ? error.message : 'Design System state could not be saved.'
+    scheduleCloudFlush() {
+      if (typeof window === 'undefined' || !isSupabaseConfigured() || cloudTableUnavailable) return
+      if (cloudDebounceTimer !== null) window.clearTimeout(cloudDebounceTimer)
+      cloudDebounceTimer = window.setTimeout(() => {
+        cloudDebounceTimer = null
+        void this.flushCloudSync()
+      }, CLOUD_SYNC_DEBOUNCE_MS)
+    },
+    async syncFromCloud(): Promise<void> {
+      this.initialize()
+      if (cloudSyncPromise) return cloudSyncPromise
+      cloudSyncPromise = (async () => {
+        const userId = await resolveCloudAdminUserId()
+        if (!userId) return
+        const startSeq = mutationSeq
+        const pendingDirty = readDirtyFlag() || this.hasPendingCloudSave
+        this.syncState = 'syncing'
+        try {
+          const rows = await supabaseTableRows<CloudDesignWorkspaceRow>(
+            CLOUD_TABLE,
+            `?select=workspace,updated_at&user_id=eq.${encodeURIComponent(userId)}&limit=1`
+          )
+          if (mutationSeq !== startSeq) {
+            this.scheduleCloudFlush()
+            return
+          }
+          const cloudRow = rows[0]
+          if (cloudRow) {
+            if (pendingDirty) {
+              await this.flushCloudSync()
+              return
+            }
+            const normalized = normalizeDesignSystemWorkspace(cloudRow.workspace)
+            this.workspace = normalized
+            const storageError = writeWorkspaceToLocalStorage(normalized)
+            writeDirtyFlag(false)
+            this.hasPendingCloudSave = false
+            this.cloudUpdatedAt = typeof cloudRow.updated_at === 'string' ? cloudRow.updated_at : null
+            this.cloudSynced = true
+            this.syncState = 'ready'
+            this.persistenceError = storageError
+            return
+          }
+
+          if ((hadLocalStorageOnInit || pendingDirty) && hasCustomWorkspaceContent(this.workspace)) {
+            await this.flushCloudSync()
+          } else {
+            this.cloudSynced = true
+            this.syncState = 'ready'
+            this.persistenceError = ''
+          }
+        } catch (error) {
+          if (isMissingCloudTableError(error)) {
+            cloudTableUnavailable = true
+            this.syncState = 'local-only'
+            return
+          }
+          this.syncState = 'error'
+          this.persistenceError = 'Cloud Design System sync failed; local changes were kept.'
+        }
+      })().finally(() => {
+        cloudSyncPromise = null
+      })
+      return cloudSyncPromise
+    },
+    async flushCloudSync(): Promise<boolean> {
+      this.initialize()
+      if (typeof window !== 'undefined' && cloudDebounceTimer !== null) {
+        window.clearTimeout(cloudDebounceTimer)
+        cloudDebounceTimer = null
       }
+      if (cloudFlushPromise) {
+        const prev = await cloudFlushPromise
+        if (!this.hasPendingCloudSave && !readDirtyFlag()) return prev
+      }
+      const task = (async (): Promise<boolean> => {
+        const userId = await resolveCloudAdminUserId()
+        if (!userId) return false
+        const targetSeq = mutationSeq
+        const serialized = JSON.stringify(this.workspace)
+        if (new TextEncoder().encode(serialized).byteLength > MAX_WORKSPACE_BYTES) {
+          this.syncState = 'error'
+          this.persistenceError = 'Design System workspace exceeds the 2 MB Cloud storage limit; saved locally only.'
+          return false
+        }
+        const payload = JSON.parse(serialized) as DesignSystemWorkspace
+        this.syncState = 'syncing'
+        try {
+          await supabaseRestRequest<void>(`${CLOUD_TABLE}?on_conflict=user_id`, {
+            method: 'POST',
+            body: { user_id: userId, workspace: payload },
+            prefer: 'resolution=merge-duplicates,return=minimal'
+          })
+          if (mutationSeq === targetSeq) {
+            writeDirtyFlag(false)
+            this.hasPendingCloudSave = false
+            this.cloudSynced = true
+            this.cloudUpdatedAt = new Date().toISOString()
+            this.syncState = 'ready'
+            this.persistenceError = ''
+          } else {
+            this.scheduleCloudFlush()
+          }
+          return true
+        } catch (error) {
+          if (isMissingCloudTableError(error)) {
+            cloudTableUnavailable = true
+            this.syncState = 'local-only'
+            return false
+          }
+          this.syncState = 'error'
+          this.persistenceError = 'Cloud Design System save failed; changes remain saved in this browser.'
+          return false
+        }
+      })()
+      cloudFlushPromise = task.finally(() => {
+        if (cloudFlushPromise === task) cloudFlushPromise = null
+      })
+      return cloudFlushPromise
+    },
+    async replaceWorkspace(workspace: unknown): Promise<{ localSaved: boolean; cloudSynced: boolean; message: string }> {
+      this.initialize()
+      const normalized = normalizeDesignSystemWorkspace(workspace)
+      this.workspace = normalized
+      this.persist(true)
+      const localSaved = !this.persistenceError
+      if (!isSupabaseConfigured()) {
+        return { localSaved, cloudSynced: false, message: localSaved ? 'Design System restored locally.' : this.persistenceError }
+      }
+      const synced = await this.flushCloudSync()
+      if (synced) return { localSaved, cloudSynced: true, message: 'Design System restored and synced to Cloud.' }
+      if (cloudTableUnavailable) return { localSaved, cloudSynced: false, message: 'Design System restored in browser (Cloud table pending migration).' }
+      return { localSaved, cloudSynced: false, message: this.persistenceError || 'Design System restored locally; Cloud sync skipped.' }
+    },
+    persist(skipDebounce = false) {
+      mutationSeq += 1
+      const cloudEnabled = isSupabaseConfigured()
+      this.hasPendingCloudSave = cloudEnabled
+      writeDirtyFlag(cloudEnabled)
+      const storageError = writeWorkspaceToLocalStorage(this.workspace)
+      this.persistenceError = storageError
+      if (cloudEnabled && !skipDebounce) this.scheduleCloudFlush()
     },
     createTheme(name = 'Untitled Theme'): DesignTheme {
       const base = this.previewTheme
@@ -323,7 +603,9 @@ export const useDesignSystemStore = defineStore('designSystem', {
       this.persist()
     },
     deleteSectionTemplate(templateId: string) {
-      this.workspace.sectionTemplates = this.workspace.sectionTemplates.filter((template) => template.id !== templateId)
+      const next = this.workspace.sectionTemplates.filter((template) => template.id !== templateId)
+      if (next.length === this.workspace.sectionTemplates.length) return
+      this.workspace.sectionTemplates = next
       this.persist()
     },
     saveComponentPreset(preset: SavedComponentPreset) {
@@ -331,7 +613,9 @@ export const useDesignSystemStore = defineStore('designSystem', {
       this.persist()
     },
     deleteComponentPreset(presetId: string) {
-      this.workspace.componentPresets = this.workspace.componentPresets.filter((preset) => preset.id !== presetId)
+      const next = this.workspace.componentPresets.filter((preset) => preset.id !== presetId)
+      if (next.length === this.workspace.componentPresets.length) return
+      this.workspace.componentPresets = next
       this.persist()
     }
   }

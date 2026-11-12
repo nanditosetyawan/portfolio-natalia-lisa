@@ -215,15 +215,15 @@ try {
   await waitFor("document.querySelectorAll('.message-row').length===1")
   const messageFeedback = await evaluate(`(async()=>{
     const sleep=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));const input=document.querySelector('.search-box input');const before=globalThis.__phase036aListCalls;
-    for(const value of ['P','Po','Polish']){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}))}await sleep(320);const debouncedCalls=globalThis.__phase036aListCalls-before;
-    input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));await sleep(260);
+    for(const value of ['P','Po','Polish']){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}))}await sleep(320);const searchRefetches=globalThis.__phase036aListCalls-before;const matchedRows=document.querySelectorAll('.message-row').length;
+    input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));await sleep(40);const clearedRows=document.querySelectorAll('.message-row').length;
     document.querySelector('.message-row')?.click();await sleep(30);document.querySelector('.detail-save')?.click();await sleep(30);
     const successToast=Boolean(document.querySelector('.product-toast--success[role="status"]'));
     const deleteButton=document.querySelector('.message-delete-btn');deleteButton?.focus();deleteButton?.click();await sleep(30);
     const dialog=document.querySelector('.product-confirmation');const cancelFocused=document.activeElement?.classList.contains('confirm-cancel');
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));for(let attempt=0;attempt<50&&document.querySelector('.product-confirmation');attempt+=1)await sleep(20);const escapeDismissed=!document.querySelector('.product-confirmation');const focusRestored=document.activeElement===deleteButton;
     deleteButton?.click();await sleep(30);document.querySelector('.product-confirmation__confirm')?.click();await sleep(30);
-    return {debouncedCalls,successToast,cancelFocused,escapeDismissed,focusRestored,remaining:globalThis.__phase036aMessages.length,empty:Boolean(document.querySelector('.product-empty-state'))};
+    return {searchRefetches,matchedRows,clearedRows,successToast,cancelFocused,escapeDismissed,focusRestored,remaining:globalThis.__phase036aMessages.length,empty:Boolean(document.querySelector('.product-empty-state'))};
   })()`)
   await capture('phase-036a-messages-feedback.png')
 
@@ -268,7 +268,7 @@ try {
   if (allAudits.some((entry) => entry.horizontalOverflow || entry.nameless.length || entry.nested.length || entry.duplicateIds.length || entry.brokenImages)) failures.push('A route accessibility/layout audit failed')
   if (!dashboard.clock || dashboard.clock.includes('--') || dashboard.skeletons || dashboard.cards.some((card) => card.role !== 'button' || card.tabIndex !== 0)) failures.push('Dashboard startup/card polish failed')
   if (Object.values(emptyStates).some((state) => !state.title || !state.description || state.actions < 1 || !state.illustration)) failures.push('A required complete empty state is incomplete')
-  if (messageFeedback.debouncedCalls !== 1 || !messageFeedback.successToast || !messageFeedback.cancelFocused || !messageFeedback.escapeDismissed || !messageFeedback.focusRestored || messageFeedback.remaining !== 0 || !messageFeedback.empty) failures.push(`Message feedback/focus/debounce failed: ${JSON.stringify(messageFeedback)}`)
+  if (messageFeedback.searchRefetches !== 0 || messageFeedback.matchedRows !== 1 || messageFeedback.clearedRows !== 1 || !messageFeedback.successToast || !messageFeedback.cancelFocused || !messageFeedback.escapeDismissed || !messageFeedback.focusRestored || messageFeedback.remaining !== 0 || !messageFeedback.empty) failures.push(`Message feedback/focus/filter failed: ${JSON.stringify(messageFeedback)}`)
   if (!networkFeedback.offline || !networkFeedback.restored || !guestFeedbackIsolated) failures.push('Unified feedback or Admin-to-Guest feedback isolation failed')
   if (!editor.persistentHeader || !editor.stableScrollbars.includes('stable') || !editor.statusBar || !editor.selectionOutline) failures.push(`Editor polish evidence failed: ${JSON.stringify(editor)}`)
   if (editorFrames.fps < 50 || guestFrames.fps < 50 || editorFrames.p95 > 25 || guestFrames.p95 > 25) failures.push('Frame pacing fell below the Phase 036A target')

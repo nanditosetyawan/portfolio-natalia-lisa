@@ -124,6 +124,7 @@ const sidebarItems = [
   { path: '/admin/media', label: 'Manage Media', icon: 'image' },
   { path: '/admin/maintenance', label: 'Maintenance', icon: 'wrench' },
   { path: '/admin/messages', label: 'Messages', icon: 'mail' },
+  { path: '/admin/contact', label: 'Contact', icon: 'contact' },
 ]
 
 const handleLogout = async () => {
@@ -227,6 +228,7 @@ const pageTitle = computed(() => {
     '/admin/media/documents': 'Document Gallery',
     '/admin/maintenance': 'Maintenance',
     '/admin/messages': 'Messages',
+    '/admin/contact': 'Contact',
   }
   return titles[route.path] || 'Admin'
 })

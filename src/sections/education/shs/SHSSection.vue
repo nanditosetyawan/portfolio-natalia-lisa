@@ -175,12 +175,13 @@ const vConfig = computed(() => site.current.visual.shs)
             marginBottom: vConfig.calendar.marginBottom
           }">
             <Calendar :size="22" :stroke-width="1.8" />
+            <!-- shortcut: fallback .family untuk snapshot lama, hapus setelah semua revisi terbit ulang -->
             <span
               :style="{
                 color: vConfig.calendar.color,
                 fontSize: vConfig.calendar.fontSize,
                 fontWeight: vConfig.calendar.fontWeight,
-                fontFamily: vConfig.calendar.family
+                fontFamily: vConfig.calendar.fontFamily ?? (vConfig.calendar as { family?: string }).family
               }"
             >{{ item.period }}</span>
           </div>

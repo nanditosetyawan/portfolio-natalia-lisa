@@ -269,11 +269,15 @@ export type Database = {
           cta_href: string | null
           cta_id: string | null
           cta_text: string | null
+          cv_href: string
           id: string
           line1: string
           line2: string
+          linkedin_href: string
           person_media_usage_id: string | null
+          social_links_updated_at: string | null
           updated_at: string
+          whatsapp_href: string
         }
         Insert: {
           active?: boolean
@@ -281,11 +285,15 @@ export type Database = {
           cta_href?: string | null
           cta_id?: string | null
           cta_text?: string | null
+          cv_href?: string
           id: string
           line1: string
           line2: string
+          linkedin_href?: string
           person_media_usage_id?: string | null
+          social_links_updated_at?: string | null
           updated_at?: string
+          whatsapp_href?: string
         }
         Update: {
           active?: boolean
@@ -293,11 +301,36 @@ export type Database = {
           cta_href?: string | null
           cta_id?: string | null
           cta_text?: string | null
+          cv_href?: string
           id?: string
           line1?: string
           line2?: string
+          linkedin_href?: string
           person_media_usage_id?: string | null
+          social_links_updated_at?: string | null
           updated_at?: string
+          whatsapp_href?: string
+        }
+        Relationships: []
+      }
+      design_system_workspaces: {
+        Row: {
+          created_at: string
+          updated_at: string
+          user_id: string
+          workspace: Json
+        }
+        Insert: {
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+          workspace: Json
+        }
+        Update: {
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+          workspace?: Json
         }
         Relationships: []
       }

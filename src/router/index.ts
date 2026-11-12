@@ -91,6 +91,11 @@ const router = createRouter({
           path: 'messages',
           name: 'admin-messages',
           component: () => import('../pages/admin/AdminMessages.vue')
+        },
+        {
+          path: 'contact',
+          name: 'admin-contact',
+          component: () => import('../pages/admin/AdminContact.vue')
         }
       ]
     },

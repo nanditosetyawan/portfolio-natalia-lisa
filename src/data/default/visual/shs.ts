@@ -30,7 +30,7 @@ export interface SHSVisualConfig {
     color: string;
     fontSize: string;
     fontWeight: number;
-    family: string;
+    fontFamily: string;
     gap: string;
     marginBottom: string;
   };
@@ -235,7 +235,7 @@ export const defaultSHSConfig: SHSVisualConfig = {
     color: '#9A4738',
     fontSize: '1.05rem',
     fontWeight: 600,
-    family: "'Inter', system-ui, sans-serif",
+    fontFamily: "'Inter', system-ui, sans-serif",
     gap: '0.6rem',
     marginBottom: '1.25rem'
   },
