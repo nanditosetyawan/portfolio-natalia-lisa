@@ -5223,3 +5223,30 @@ PASS
 
 
 
+
+
+## Request: Remove Scrolled Navbar Rectangular Outer Shadow & Outline ("header bar di guest view kan awalnya kotak, saat scroll berubah bentuk, nah ternyata setelah berubah bentuk dia ada shadow diluar bentuknya dan shadoownya kotak, ga naymbung,, bisa hilangkan shadownnya?")
+- **Date**: 2026-11-12T22:12:00+07:00
+- **Mode**: Targeted Fix & Verification (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
+- **Scope**: Menghilangkan shadow kotak luar yang tidak serasi pada navbar saat berubah bentuk menjadi pill (scrolled state) di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue#L634-L646).
+- **Investigation & Usage Elsewhere Check**:
+  1. Dilakukan audit pencarian regex pada seluruh file CSS dan Vue. Dikonfirmasi bahwa aturan `box-shadow` pada `.guest-navbar.is-scrolled .navbar-inner` berada dalam blok `<style scoped>` dan **TIDAK dipakai di tempat lain**.
+  2. Dikonfirmasi akar penyebab shadow berbentuk kotak (kotak/rectangle halo):
+     - Aturan `outline: 1px solid rgba(255, 255, 255, 0.15);` pada Chromium/WebKit tidak mengikuti `border-radius: 999px`, melainkan menggambar kotak bersudut 90 derajat di luar kapsul.
+     - Tumpukan `box-shadow` berlapis `0 2px 60px rgba(60, 20, 10, 0.08)` memiliki blur lebar 60px yang terpotong secara kaku (clipping) oleh `contain: layout paint;` pada elemen `.guest-navbar`, menghasilkan batas halo persegi panjang yang tajam.
+  3. `text-shadow` untuk keterbacaan teks putih dipertahankan utuh dan tidak tersentuh.
+- **Changes Applied**:
+  - Di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue):
+    - Menghapus baris `outline: 1px solid rgba(255, 255, 255, 0.15);`.
+    - Mengganti tumpukan outer `box-shadow` menjadi `box-shadow: none;`.
+- **Validation Performed**:
+  - `npx vue-tsc --noEmit`: PASS (0 type errors).
+  - `npm run build`: PASS (2.052 modul terkompilasi, 0 errors).
+  - Headless Chromium inspection via CDP: Tangkapan layar saat scroll mendalam ke Section About membuktikan kapsul navbar melayang mulus tanpa artefak kotak halo di sekelilingnya.
+  - `npm run test:regression`: PASS (seluruh 5 suite regresi kritis).
+  - `tests/stabilization-runtime.mjs`: PASS (seluruh rute desktop & mobile, 60.2 FPS, 0 overflow).
+- **Files Modified**:
+  - [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue)
+  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
+- **Current Status**: FIX COMPLETE & VISUALLY VERIFIED â€” SCROLLED FLOATING PILL NAVBAR CLEAN AND SEAMLESS.
+- **Next Required Step**: Siap dilaporkan ke user.

@@ -634,15 +634,7 @@ onUnmounted(() => {
 
   /* Crisp white borders — bright top edge = ice surface highlight */
   border: 1.5px solid rgba(255, 255, 255, 0.65);
-  outline: 1px solid rgba(255, 255, 255, 0.15);
-
-  /* Deep layered shadow stack for frosted slab look */
-  box-shadow:
-    0 2px 60px rgba(60, 20, 10, 0.08),        /* warm ambient glow */
-    0 8px 28px rgba(0,   0,  0, 0.06),        /* depth shadow */
-    0 -1.5px 0 rgba(200, 185, 165, 0.18) inset, /* bottom crease */
-    inset  1.5px 0 0 rgba(255, 255, 255, 0.30), /* left facet */
-    inset -1.5px 0 0 rgba(255, 255, 255, 0.20); /* right facet */
+  box-shadow: none;
 }
 
 /* Spacing and text sizing inside Dynamic Island */
