@@ -68,20 +68,38 @@
 
       <div class="messages-detail-panel">
         <div v-if="selectedMessage" class="message-detail">
-          <div class="detail-topline">
-            <span v-if="!selectedMessage.read_at" class="new-badge">NEW</span>
-            <span v-else class="detail-status" :class="{ 'detail-status--saved': selectedMessage.is_saved }">
-              {{ selectedMessage.is_saved ? 'Saved' : `Expires in ${expiresIn(selectedMessage.expires_at)}` }}
-            </span>
-            <button type="button" class="detail-save" @click="toggleSaved(selectedMessage)">
-              <Heart :size="16" :fill="selectedMessage.is_saved ? 'currentColor' : 'none'" />
-              {{ selectedMessage.is_saved ? 'Unsave' : 'Save' }}
-            </button>
+          <div class="detail-header">
+            <div class="detail-topline">
+              <span v-if="!selectedMessage.read_at" class="new-badge">NEW</span>
+              <span v-else class="detail-status" :class="{ 'detail-status--saved': selectedMessage.is_saved }">
+                {{ selectedMessage.is_saved ? 'Saved' : `Expires in ${expiresIn(selectedMessage.expires_at)}` }}
+              </span>
+              <button type="button" class="detail-save" @click="toggleSaved(selectedMessage)">
+                <Heart :size="16" :fill="selectedMessage.is_saved ? 'currentColor' : 'none'" />
+                {{ selectedMessage.is_saved ? 'Unsave' : 'Save' }}
+              </button>
+            </div>
+            <div class="detail-divider-solid" aria-hidden="true"></div>
+            <div class="detail-meta-row">
+              <div class="detail-field detail-field--from">
+                <label class="detail-label">From</label>
+                <HighlightedText class="detail-value" :text="selectedMessage.name" :query="search" />
+              </div>
+              <div v-if="selectedMessage.email" class="detail-field detail-field--email">
+                <label class="detail-label">Email</label>
+                <HighlightedText class="detail-value" :text="selectedMessage.email" :query="search" />
+              </div>
+            </div>
           </div>
-          <div class="detail-field"><label class="detail-label">From</label><HighlightedText class="detail-value" :text="selectedMessage.name" :query="search" /></div>
-          <div v-if="selectedMessage.email" class="detail-field"><label class="detail-label">Email</label><HighlightedText class="detail-value" :text="selectedMessage.email" :query="search" /></div>
-          <div class="detail-field detail-field--message"><label class="detail-label">Message</label><p class="detail-message"><HighlightedText :text="selectedMessage.message" :query="search" /></p></div>
-          <div class="detail-footnote">Received {{ relativeTime(selectedMessage.created_at) }}</div>
+          <div class="detail-field detail-field--message">
+            <label class="detail-label">Message</label>
+            <div class="detail-message-scroll">
+              <p class="detail-message"><HighlightedText :text="selectedMessage.message" :query="search" /></p>
+            </div>
+          </div>
+          <div class="detail-footer">
+            <div class="detail-footnote">Received {{ relativeTime(selectedMessage.created_at) }}</div>
+          </div>
         </div>
         <ProductEmptyState v-else compact title="Select a message" description="Choose a message from the inbox to read its complete content." eyebrow="Message details" :icon="MailOpen" />
       </div>
@@ -176,10 +194,15 @@ async function toggleSaved(message: MessageRecord) {
 }
 
 async function requestDelete(message: MessageRecord): Promise<void> {
+  const warningMessage = message.is_saved
+    ? `Pesan dari "${message.name}" ditandai sebagai favorit (love). Tetap hapus permanen dari database?`
+    : `Hapus pesan dari "${message.name}" secara permanen dari database?`
+
   const accepted = await productFeedback.confirm({
-    title: 'Delete this message?',
-    message: `The message from ${message.name} will be removed permanently.`,
-    confirmLabel: 'Delete message',
+    title: 'Hapus Pesan',
+    message: warningMessage,
+    confirmLabel: 'Ya',
+    cancelLabel: 'Tidak',
     tone: 'danger'
   })
   if (!accepted) return
@@ -187,10 +210,10 @@ async function requestDelete(message: MessageRecord): Promise<void> {
     await messageRepository.delete(message.id)
     messages.value = messages.value.filter((candidate) => candidate.id !== message.id)
     if (selectedMessageId.value === message.id) selectedMessageId.value = null
-    productFeedback.success('Message deleted')
+    productFeedback.success('Pesan berhasil dihapus')
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Message could not be deleted.'
-    productFeedback.error('Message deletion failed', errorMessage.value)
+    productFeedback.error('Gagal menghapus pesan', errorMessage.value)
   }
 }
 
@@ -205,14 +228,39 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.messages-page { min-height: 100vh; background: #f6f4e8; color: #5a3e35; font-family: Inter, system-ui, sans-serif; }
-.messages-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: 1.5rem 2rem 1rem; }
+.messages-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f6f4e8;
+  color: #5a3e35;
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+}
+.messages-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 1.5rem; padding: 0 0 1rem; flex-shrink: 0; }
 .toolbar-eyebrow { margin: 0 0 .25rem; color: #b8746f; font-size: .7rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
 .messages-toolbar h1 { margin: 0; font-family: Georgia, serif; font-size: 2rem; font-weight: 500; }
-.search-box { display: flex; align-items: center; gap: .5rem; min-width: 15rem; padding: .6rem .75rem; border: 1px solid #e8ded0; border-radius: .7rem; color: #a08b7c; background: #fffdf9; }
-.search-box input { min-width: 0; width: 100%; border: 0; outline: 0; color: #5a3e35; background: transparent; font: inherit; font-size: .8rem; }
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  width: min(32rem, 100%);
+  min-width: 20rem;
+  padding: .65rem .85rem;
+  border: 1px solid #e8ded0;
+  border-radius: .75rem;
+  color: #a08b7c;
+  background: #fffdf9;
+  box-shadow: 0 2px 8px rgba(90, 62, 53, 0.04);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.search-box:focus-within {
+  border-color: #b8746f;
+  box-shadow: 0 0 0 3px rgba(184, 116, 111, 0.15);
+}
+.search-box input { min-width: 0; width: 100%; border: 0; outline: 0; color: #5a3e35; background: transparent; font: inherit; font-size: .82rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-.messages-workspace { display: flex; height: calc(100vh - 132px); overflow: hidden; border-top: 1px solid #e8ded0; }
+.messages-workspace { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; border-top: 1px solid #e8ded0; }
 .messages-list-panel { width: 40%; min-width: 320px; max-width: 460px; overflow: hidden; border-right: 1px solid #e8ded0; }
 .messages-list { height: 100%; overflow-y: auto; padding: .8rem 1rem; display: flex; flex-direction: column; gap: .45rem; transition: opacity .16s ease; }
 .messages-list.is-refreshing { opacity: .68; }
@@ -239,18 +287,122 @@ onBeforeUnmount(() => {
 .message-save-btn, .message-delete-btn { width: 2rem; height: 2rem; }
 .message-save-btn:hover, .message-save-btn--active { color: #c05c70; background: #f9e2e5; transform: scale(1.08); }
 .message-delete-btn:hover { color: #b44e2a; background: #ffeeec; transform: scale(1.05); }
-.messages-detail-panel { min-width: 0; flex: 1; overflow: auto; background: #f6f4e8; }
-.message-detail { max-width: 44rem; padding: 2rem; display: flex; flex-direction: column; gap: 1.35rem; }
+.messages-detail-panel {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background: #f6f4e8;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.messages-detail-panel :deep(.product-empty-state) {
+  flex: 1;
+  height: 100%;
+}
+.message-detail {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  padding: 1.75rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: #ffffff;
+  border: 1px solid #ead8ce;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 24px rgba(90, 62, 53, 0.05);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  flex-shrink: 0;
+}
 .detail-topline { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.detail-divider-solid {
+  width: calc(100% + 4rem);
+  margin-left: -2rem;
+  margin-right: -2rem;
+  height: 1px;
+  background-color: #7B2329;
+  flex-shrink: 0;
+}
 .detail-save { display: inline-flex; gap: .35rem; padding: .45rem .65rem; color: #a34e5d; font: inherit; font-size: .75rem; font-weight: 700; }
 .detail-save:hover { background: #f9e2e5; transform: translateY(-1px); }
 .detail-field { display: flex; flex-direction: column; gap: .35rem; }
+.detail-meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.25rem;
+  flex-wrap: wrap;
+}
+.detail-field--from {
+  min-width: 10.5rem;
+  max-width: 65%;
+}
+.detail-field--email {
+  min-width: 0;
+  flex: 0 1 auto;
+}
 .detail-label { color: #9a8b73; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .detail-value, .detail-message { color: #5a3e35; font-size: .95rem; line-height: 1.7; }
-.detail-message { margin: 0; white-space: pre-wrap; }
+.detail-field--message {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.detail-message-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: .6rem;
+}
+.detail-message-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.detail-message-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.detail-message-scroll::-webkit-scrollbar-thumb {
+  background: #e6dacd;
+  border-radius: 999px;
+}
+.detail-message-scroll::-webkit-scrollbar-thumb:hover {
+  background: #cbb9a9;
+}
+.detail-message { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.detail-footer {
+  flex-shrink: 0;
+  padding-top: .75rem;
+  border-top: 1px solid #f6f0ea;
+}
 .detail-footnote { color: #b8a88a; font-size: .72rem; }
 .messages-empty, .detail-empty { height: 100%; display: grid; place-items: center; align-content: center; gap: .45rem; padding: 2rem; color: #b8a88a; font-size: .9rem; text-align: center; }
 mark { padding: 0 .08em; border-radius: .18em; color: #7b3f48; background: #f4d29a; }
-@media (max-width: 1024px) { .messages-workspace { height: auto; min-height: calc(100vh - 132px); flex-direction: column; } .messages-list-panel { width: 100%; max-width: none; min-width: 0; max-height: 45vh; border-right: 0; border-bottom: 1px solid #e8ded0; } .messages-detail-panel { min-height: 45vh; } }
-@media (max-width: 600px) { .messages-toolbar { align-items: stretch; flex-direction: column; padding: 1.25rem 1rem .8rem; } .search-box { min-width: 0; } .message-row { gap: .6rem; } .message-avatar { flex-basis: 2.55rem; } .message-timestamp { font-size: .65rem; } .message-detail { padding: 1.25rem 1rem; } }
+@media (max-width: 1024px) {
+  .messages-workspace { height: auto; min-height: calc(100vh - 132px); flex-direction: column; }
+  .messages-list-panel { width: 100%; max-width: none; min-width: 0; max-height: 45vh; border-right: 0; border-bottom: 1px solid #e8ded0; }
+  .messages-detail-panel { min-height: 50vh; height: 55vh; padding: 1rem; }
+  .message-detail { padding: 1.25rem 1.5rem; }
+  .detail-divider-solid { width: calc(100% + 3rem); margin-left: -1.5rem; margin-right: -1.5rem; }
+}
+@media (max-width: 600px) {
+  .messages-toolbar { align-items: stretch; flex-direction: column; padding: 1.25rem 1rem .8rem; }
+  .search-box { min-width: 0; }
+  .message-row { gap: .6rem; }
+  .message-avatar { flex-basis: 2.55rem; }
+  .message-timestamp { font-size: .65rem; }
+  .messages-detail-panel { padding: .75rem; }
+  .message-detail { padding: 1rem; border-radius: 1rem; }
+  .detail-divider-solid { width: calc(100% + 2rem); margin-left: -1rem; margin-right: -1rem; }
+}
 </style>

@@ -275,6 +275,7 @@ export type Database = {
           line2: string
           linkedin_href: string
           person_media_usage_id: string | null
+          recipient_email: string
           social_links_updated_at: string | null
           updated_at: string
           whatsapp_href: string
@@ -291,6 +292,7 @@ export type Database = {
           line2: string
           linkedin_href?: string
           person_media_usage_id?: string | null
+          recipient_email?: string
           social_links_updated_at?: string | null
           updated_at?: string
           whatsapp_href?: string
@@ -307,6 +309,7 @@ export type Database = {
           line2?: string
           linkedin_href?: string
           person_media_usage_id?: string | null
+          recipient_email?: string
           social_links_updated_at?: string | null
           updated_at?: string
           whatsapp_href?: string

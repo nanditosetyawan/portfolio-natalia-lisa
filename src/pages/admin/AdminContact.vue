@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { CircleAlert, FileText, Linkedin, LoaderCircle, MessageCircle, Save } from 'lucide-vue-next'
+import { CircleAlert, FileText, Linkedin, LoaderCircle, Mail, MessageCircle, Save } from 'lucide-vue-next'
 import ProductEmptyState from '../../components/ProductEmptyState.vue'
 import ProductSkeleton from '../../components/ProductSkeleton.vue'
 import { productFeedback } from '../../composables/useProductFeedback'
 import {
   contactLinksRepository,
   validateContactLinkInput,
+  validateEmailInput,
   type ContactSocialLinks
 } from '../../repositories/contactLinksRepository'
 
@@ -15,13 +16,15 @@ type LinkKey = keyof ContactSocialLinks
 const form = reactive<ContactSocialLinks>({
   whatsapp: '',
   linkedin: '',
-  cv: ''
+  cv: '',
+  recipientEmail: ''
 })
 
 const fieldErrors = reactive<ContactSocialLinks>({
   whatsapp: '',
   linkedin: '',
-  cv: ''
+  cv: '',
+  recipientEmail: ''
 })
 
 const isLoading = ref(true)
@@ -35,21 +38,32 @@ const fields = [
     id: 'contact-whatsapp-link',
     label: 'WhatsApp',
     placeholder: 'https://wa.me/6281234567890',
-    icon: MessageCircle
+    icon: MessageCircle,
+    type: 'url'
   },
   {
     key: 'linkedin' as const,
     id: 'contact-linkedin-link',
     label: 'LinkedIn',
     placeholder: 'https://www.linkedin.com/in/username',
-    icon: Linkedin
+    icon: Linkedin,
+    type: 'url'
   },
   {
     key: 'cv' as const,
     id: 'contact-cv-link',
     label: 'CV',
     placeholder: 'https://example.com/cv.pdf',
-    icon: FileText
+    icon: FileText,
+    type: 'url'
+  },
+  {
+    key: 'recipientEmail' as const,
+    id: 'contact-recipient-email',
+    label: 'Email Tujuan (Salinan Pesan)',
+    placeholder: 'lisa.natalia@example.com',
+    icon: Mail,
+    type: 'email'
   }
 ]
 
@@ -66,9 +80,11 @@ async function loadLinks(): Promise<void> {
     form.whatsapp = saved.whatsapp
     form.linkedin = saved.linkedin
     form.cv = saved.cv
+    form.recipientEmail = saved.recipientEmail
     fieldErrors.whatsapp = ''
     fieldErrors.linkedin = ''
     fieldErrors.cv = ''
+    fieldErrors.recipientEmail = ''
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'Contact links could not be loaded.'
     productFeedback.error('Contact unavailable', loadError.value)
@@ -82,10 +98,12 @@ async function handleSave(): Promise<void> {
   saveError.value = ''
 
   let hasValidationError = false
-  const validated: ContactSocialLinks = { whatsapp: '', linkedin: '', cv: '' }
+  const validated: ContactSocialLinks = { whatsapp: '', linkedin: '', cv: '', recipientEmail: '' }
 
   for (const field of fields) {
-    const result = validateContactLinkInput(form[field.key], field.label)
+    const result = field.key === 'recipientEmail'
+      ? validateEmailInput(form.recipientEmail)
+      : validateContactLinkInput(form[field.key], field.label)
     fieldErrors[field.key] = result.error ?? ''
     validated[field.key] = result.value
     if (result.error) hasValidationError = true
@@ -99,7 +117,8 @@ async function handleSave(): Promise<void> {
     form.whatsapp = persisted.whatsapp
     form.linkedin = persisted.linkedin
     form.cv = persisted.cv
-    productFeedback.success('Contact links saved', 'WhatsApp, LinkedIn, and CV links are now updated.')
+    form.recipientEmail = persisted.recipientEmail
+    productFeedback.success('Pengaturan kontak tersimpan', 'Link WhatsApp, LinkedIn, CV, dan email tujuan berhasil diperbarui.')
   } catch (error) {
     saveError.value = error instanceof Error ? error.message : 'Contact links could not be saved.'
     productFeedback.error('Save failed', saveError.value)
@@ -120,12 +139,12 @@ onMounted(() => {
         <p class="contact-eyebrow">Contact Settings</p>
         <h1>Contact</h1>
         <p class="contact-subtitle">
-          Atur link WhatsApp, LinkedIn, dan CV untuk tombol di halaman detail kontak.
+          Atur link WhatsApp, LinkedIn, CV, serta email tujuan untuk menerima salinan pesan dari pengunjung.
         </p>
       </header>
 
       <div v-if="isLoading" class="contact-card contact-card--padded">
-        <ProductSkeleton variant="list" :count="3" label="Loading contact links" />
+        <ProductSkeleton variant="list" :count="4" label="Loading contact links" />
       </div>
 
       <ProductEmptyState
@@ -152,9 +171,9 @@ onMounted(() => {
             <input
               :id="field.id"
               v-model="form[field.key]"
-              type="text"
-              inputmode="url"
-              autocomplete="url"
+              :type="field.type === 'email' ? 'email' : 'text'"
+              :inputmode="field.type === 'email' ? 'email' : 'url'"
+              :autocomplete="field.type === 'email' ? 'email' : 'url'"
               autocapitalize="off"
               spellcheck="false"
               class="contact-field-input"

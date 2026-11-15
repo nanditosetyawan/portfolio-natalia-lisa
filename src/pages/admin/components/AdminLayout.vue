@@ -58,8 +58,35 @@
             <span>Clean Storage</span>
           </button>
         </template>
+        <template v-else-if="isMessagesPage">
+          <div ref="retentionWrapRef" class="messages-retention-wrap">
+            <button
+              type="button"
+              class="messages-retention-btn"
+              aria-label="Informasi penyimpanan pesan"
+              :aria-expanded="showRetentionTooltip"
+              @click="showRetentionTooltip = !showRetentionTooltip"
+              @mouseenter="showRetentionTooltip = true"
+              @mouseleave="showRetentionTooltip = false"
+            >
+              <Info :size="20" aria-hidden="true" />
+            </button>
+            <Transition name="retention-bubble">
+              <div
+                v-if="showRetentionTooltip"
+                class="messages-retention-bubble"
+                role="tooltip"
+                @mouseenter="showRetentionTooltip = true"
+                @mouseleave="showRetentionTooltip = false"
+              >
+                <span class="bubble-arrow" aria-hidden="true"></span>
+                Pesan anda akan dihapus dalam 30 Hari  kecuali anda menyimpannya
+              </div>
+            </Transition>
+          </div>
+        </template>
       </AdminHeader>
-      <main class="admin-content" :class="{ 'admin-content--editor': isEditPage }">
+      <main class="admin-content" :class="{ 'admin-content--editor': isEditPage, 'admin-content--messages': isMessagesPage }">
         <router-view />
       </main>
     </div>
@@ -93,7 +120,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LoaderCircle, Undo, Redo, Save, Trash2 } from 'lucide-vue-next'
+import { LoaderCircle, Undo, Redo, Save, Trash2, Info } from 'lucide-vue-next'
 import { useAuthStore } from '../../../stores/auth'
 import AdminSidebar from './AdminSidebar.vue'
 import AdminHeader from './AdminHeader.vue'
@@ -110,9 +137,33 @@ const sidebarOpen = ref(false)
 const isSaving = ref(false)
 const showPublishDialog = ref(false)
 const showStorageCleanup = ref(false)
+const showRetentionTooltip = ref(false)
+const retentionWrapRef = ref<HTMLElement | null>(null)
 const publishNote = ref('')
 const publishCancelButton = ref<HTMLButtonElement | null>(null)
 const editor = useEditorStore()
+
+function handleDocumentClick(event: MouseEvent) {
+  if (retentionWrapRef.value && !retentionWrapRef.value.contains(event.target as Node)) {
+    showRetentionTooltip.value = false
+  }
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && showRetentionTooltip.value) {
+    showRetentionTooltip.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('keydown', handleDocumentKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('keydown', handleDocumentKeydown)
+})
 
 const sidebarItems = [
   { path: '/admin', label: 'Dashboard', icon: 'layout-dashboard' },
@@ -234,6 +285,7 @@ const pageTitle = computed(() => {
 })
 
 const isEditPage = computed(() => route.path === '/admin/edit')
+const isMessagesPage = computed(() => route.path === '/admin/messages')
 const isManageMediaPage = computed(() => route.path === '/admin/media')
 watch(isManageMediaPage, (active) => {
   if (!active) showStorageCleanup.value = false
@@ -275,6 +327,15 @@ watch(isManageMediaPage, (active) => {
   min-height: 0;
   padding: 0;
   overflow: hidden;
+}
+
+.admin-content--messages {
+  flex: 0 0 auto;
+  height: calc(100dvh - var(--admin-header-height));
+  min-height: 0;
+  padding: 1.5rem 2rem;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .tbar-btn {
@@ -380,6 +441,72 @@ watch(isManageMediaPage, (active) => {
 .publish-cancel { border: 1px solid #ddc9bf; color: #5a3e35; background: transparent; }
 .publish-confirm { border: 1px solid #ff9a86; color: #fff; background: #ff8d79; }
 .publish-modal-actions button:disabled { cursor: wait; opacity: .65; }
+.messages-retention-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.messages-retention-btn {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #7b5f3b;
+  background: transparent;
+  cursor: pointer;
+  box-shadow: none;
+  transition: color .18s ease, transform .18s ease;
+}
+.messages-retention-btn:hover {
+  background: transparent;
+  color: #5a3e35;
+  transform: scale(1.08);
+}
+.messages-retention-btn:focus-visible {
+  outline: 2px solid #b8746f;
+  outline-offset: 2px;
+}
+.messages-retention-bubble {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  width: max-content;
+  max-width: 22rem;
+  padding: .75rem 1rem;
+  border: 1px solid #ead8ce;
+  border-radius: 14px;
+  color: #5a3e35;
+  background: #ffffff;
+  box-shadow: 0 8px 30px rgba(90, 62, 53, 0.14);
+  font-size: .84rem;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: normal;
+  pointer-events: auto;
+}
+.messages-retention-bubble .bubble-arrow {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-right: 1px solid #ead8ce;
+  border-top: 1px solid #ead8ce;
+}
+.retention-bubble-enter-active, .retention-bubble-leave-active {
+  transition: opacity .18s ease, transform .18s ease;
+}
+.retention-bubble-enter-from, .retention-bubble-leave-to {
+  opacity: 0;
+  transform: translateY(-50%) translateX(8px);
+}
 .spin{animation:admin-layout-spin .8s linear infinite}@keyframes admin-layout-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.spin{animation:none}}
 </style>

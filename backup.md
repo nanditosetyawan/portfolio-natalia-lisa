@@ -2,8 +2,8 @@
 
 Dokumen ini adalah panduan operasional **gaya Ponytail** (langkah seminimal mungkin yang lengkap, deterministik, bebas *bloat*) untuk merekonstruksi ulang seluruh skema database PostgreSQL dan Storage proyek ini secara **100% identik (1:1)** pada akun/proyek Supabase Cloud baru **tanpa fitur backup berbayar Supabase**, termasuk saat jumlah file migrasi terus bertambah (`0040`, `0041`, dst.).
 
-> **Status Repo Saat Ini (2026-11-12):**
-> - DB Cloud aktif saat ini dan [`supabase/migrations/`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations) sinkron di **`0001`–`0039`** (`39` file lokal; [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) cocok byte-for-byte `30.909` byte).
+> **Status Repo Saat Ini (2026-11-15):**
+> - DB Cloud aktif saat ini dan [`supabase/migrations/`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations) sinkron di **`0001`–`0040`** (`40` file lokal; [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) sinkron dengan skema Cloud).
 > - **Belum aman dijalankan langsung di proyek kosong baru hari ini** sebelum 3 penyesuaian pra-migrasi di [Bagian 3](#3-celah-replay-saat-ini--solusi-ponytail-wajib-sebelum-migrasi-pertama) diterapkan (disarankan dilakukan 1x saat semua item di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md) selesai).
 
 ---
@@ -34,7 +34,7 @@ Menjalankan migrasi berurutan pada proyek Supabase baru membentuk ulang secara p
 
 ---
 
-## 2. Spesifikasi Target 1:1 (Baseline `0001`–`0039`)
+## 2. Spesifikasi Target 1:1 (Baseline `0001`–`0040`)
 
 Struktur berikut sudah diverifikasi langsung terhadap katalog PostgreSQL Cloud aktif (`list_tables`, `pg_constraint`, `pg_policies`, `pg_proc`, `storage.buckets`, `cron.job`).
 
@@ -43,7 +43,7 @@ Struktur berikut sudah diverifikasi langsung terhadap katalog PostgreSQL Cloud a
 |---|---|---|
 | Tabel `public` (`rls_enabled = true`) | **22** | Semua tabel wajib `relrowsecurity = true` |
 | Foreign Key (`contype = 'f'`) | **13** | Integritas relasi lintas tabel & `auth.users` |
-| Total Constraint Tabel `public` | **62** | PK, FK, UNIQUE, CHECK (sudah `VALIDATE` di `0023`) |
+| Total Constraint Tabel `public` | **63** | PK, FK, UNIQUE, CHECK (termasuk `contact_profiles_recipient_email_check` di `0040`) |
 | Index `public` | **52** | Termasuk PK, Unique, FK indexes (`0003`, `0006`, `0018`, dll.) |
 | Trigger `public` (non-internal) | **23** | `touch_*`, limit Draft/Favorite, sanitasi & rate-limit Messages |
 | RLS Policy (`public` + `private`) | **98** | Akses minimal `anon` vs admin `private.is_admin()` |
@@ -66,7 +66,7 @@ Struktur berikut sudah diverifikasi langsung terhadap katalog PostgreSQL Cloud a
    - `experiences` (`9` col)
    - `certificate_sections` (`7` col: `0001` + `0007`)
    - `certificates` (`8` col)
-   - `contact_profiles` (`14` col: `0001` + `0037` sosial WhatsApp/LinkedIn/CV)
+   - `contact_profiles` (`15` col: `0001` + `0037` sosial WhatsApp/LinkedIn/CV + `0040` recipient_email)
    - `navigation_items` (`10` col, `unique(item_key)`)
    - `navigation_config` (`5` col, [`0007`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0007_canonical_persistence_gaps.sql))
 3. **Media, Frame & Visual Konfigurasi**

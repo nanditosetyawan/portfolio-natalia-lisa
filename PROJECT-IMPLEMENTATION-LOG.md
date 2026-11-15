@@ -4805,482 +4805,134 @@ PASS
 - Source implementation: added one `resolveMediaSource()` adapter in the existing Media Repository. Media Library, Editor Canvas, Inspector thumbnail, dynamic instances, Draft URL lookup, Published Guest resolution, and normalized site loading reuse it. It rejects raw Draft/Published paths as browser URLs, uses canonical public URLs for configured `portfolio-media` bucket/path records, honors active repository-owned blob previews, and retains valid direct/application sources. Bucket visibility remains PUBLIC; no new store/field/table/direct Vue Supabase call was introduced.
 - Integrity implementation: EditorSnapshot validation now rejects duplicate reference asset IDs and every fixed/dynamic dangling assignment. Dynamic IMG nodes expose safe asset/path/load-state diagnostics. Guest/Editor Preview captures load/error without logging tokens; Inspector distinguishes unavailable media from genuinely unassigned media. Canvas and Inspector use the same canonical lookup.
 - Object URL audit: dimension-probe URLs are revoked after decode; local preview URLs stay alive while renderable and are revoked on asset deletion; Cloud uploads use durable public URLs. Test GIF, Chromium profiles, browser/server processes, and local test state were cleaned. No Cloud mutation artifact was created.
-- Local focused browser evidence: `tests/dynamic-editor-instances-runtime.mjs` PASS. It required 28 fixed/dynamic/Inspector/Draft/Guest 
 ... [truncated for diff preview]
 
 
-## Request: Audit Replayability of Local SQL Migrations (`0001`–`0039`) & Storage on a Brand-New Supabase Account
-- **Date**: 2026-11-12T14:52:52+07:00
-- **Mode**: Read-Only Migration Replayability & Parity Audit (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode; `.agents/skills/supabase/SKILL.md`)
-- **Scope**: Memastikan apakah menjalankan seluruh berkas [`supabase/migrations/`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations) (`0001`–`0039`) pada akun/proyek Supabase baru akan menghasilkan skema database dan Storage `portfolio-media` yang sama 1:1 dengan Cloud saat ini.
-- **Specifications & Files Consulted**: Seluruh daftar & pemetaan 39 file `supabase/migrations/*.sql` (khususnya `0001`, `0004`, `0008`, `0010`, `0011`, `0012`, `0016`, `0020`, `0023`, `0024`, `0025`, `0026`, `0027`, `0029`, `0030`, `0031`, `0032`, `0033`, `0036`, `0038`, `0039`), [`DEPLOYMENT-GUIDE.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/DEPLOYMENT-GUIDE.md), serta katalog Postgres & `storage.buckets` / `pg_policies` / `pg_event_trigger` / `role_table_grants` Cloud live.
-- **Work Actually Performed (Read-Only)**:
-  1. Memetakan seluruh `13` fungsi `public`, `8` fungsi `private`, `22` tabel, `98` RLS policy `public`/`private`, `6` policy `storage.objects`, dan grant tabel Cloud terhadap riwayat bertahap `0001`–`0039`: secara struktur hasil akhir (`save_editor_draft` -> v2 + `drop function` di `0016`, `publish_editor_draft` + limit `50` di `0025`/`0028`, `reset_site_to_default` -> `private.reset_site_to_default_internal`, `portfolio_media_*` policies di `0011`/`0019`), migrasi lokal cocok 1:1 dengan skema Cloud saat ini.
-  2. Menemukan **3 celah penting** untuk skenario *replay* di akun Supabase baru:
-     - **Bloker fatal di [`0031_revoke_obsolete_test_reset.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0031_revoke_obsolete_test_reset.sql#L3)**: menjalankan `revoke all on function public.test_reset() from public, anon, authenticated;` tanpa guard, padahal `public.test_reset()` **tidak pernah dibuat** oleh `0001`–`0030` (berasal dari eksperimen ad-hoc lama). Pada proyek baru, eksekusi akan gagal tepat di `0031` (`ERROR: function public.test_reset() does not exist`).
-     - **Storage bucket tidak dibuat oleh SQL**: [`0011_portfolio_storage_policies.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0011_portfolio_storage_policies.sql#L1-L3) hanya memasang RLS policy di `storage.objects` (6 policy aktif saat ini setelah `0019`), dan sengaja tidak menyentuh `storage.buckets`. Akun baru harus membuat bucket `portfolio-media` secara manual (`public = true`, tanpa limit MIME/size tambahan sesuai Cloud live saat ini) lewat Storage Dashboard / API agar upload & URL publik berfungsi.
-     - **Asumsi template Cloud di [`0023_release_candidate_security_hardening.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0023_release_candidate_security_hardening.sql#L16)**: `revoke execute on function public.rls_auto_enable() ...;` mengasumsikan template proyek Supabase baru sudah memiliki fungsi & event trigger bawaan `ensure_rls` / `public.rls_auto_enable()`.
-  3. Mencatat juga elemen non-skema yang tidak ikut pindah lewat SQL (`auth.users`, `admin_memberships` yang harus klaim ulang lewat bootstrap, data `site_revisions`/konten yang bisa diekspor JSON dari menu Maintenance, file fisik Storage, dan pengaturan Auth Dashboard).
-- **Files Created**: Tidak ada.
-- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri audit replayability ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `supabase/migrations/**`, `src/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
-- **Current Status**: REPLAYABILITY AUDIT COMPLETED — 1 FATAL REPLAY BUG FOUND IN `0031` + MANUAL `portfolio-media` BUCKET REQUIREMENT CONFIRMED.
-- **Next Required Step**: Menunggu user apakah ingin saya tambahkan guard aman pada [`0031_revoke_obsolete_test_reset.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0031_revoke_obsolete_test_reset.sql) (dan [`0023_release_candidate_security_hardening.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0023_release_candidate_security_hardening.sql#L16)) agar replay dari nol di akun baru bebas error.
-
-
-## Request: Deep Cloud vs Local Table/FK Comparison & Ponytail One-Shot New-Account Migration Plan
-- **Date**: 2026-11-12T14:57:30+07:00
-- **Mode**: Read-Only Schema/FK Comparison & Ponytail Solution Planning (`AGENTS.md` §4–§6, §25–§26; `.agents/skills/ponytail/SKILL.md` `full` mode; `.agents/skills/supabase/SKILL.md`)
-- **Scope**: Membandingkan struktur `22` tabel dan `13` foreign key Cloud via koneksi MCP Supabase melawan seluruh file [`supabase/migrations/`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations) lokal (`0001`–`0039`), mengecek hak akses/dokumentasi resmi `storage.buckets`, serta merumuskan solusi Ponytail agar migrasi ke akun Supabase baru langsung membentuk DB 1:1 dan Storage `portfolio-media` langsung siap pakai (akun/auth & isi file media awal dibiarkan kosong sesuai kebutuhan user).
-- **Specifications & Sources Consulted**:
-  - Cloud `list_tables(verbose: true)`, `execute_sql` (`pg_constraint`, `pg_class` ACL `storage.buckets`/`storage.objects` & `public`), `search_docs` (`creating-buckets`).
-  - Migrasi lokal `0001`, `0003`, `0006`, `0007`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, `0019`, `0023`, `0024`, `0025`, `0027`, `0031`, `0037`, `0038`, `0039`.
-- **Work Actually Performed (Read-Only)**:
-  1. Memverifikasi perbandingan kolom, PK, UNIQUE/CHECK, dan seluruh `13` foreign key Cloud pada `22` tabel `public` terhadap urutan `0001`–`0039`: 100% struktur tabel & relasi cocok 1:1.
-  2. Memverifikasi dokumentasi resmi Supabase (`creating-buckets`) dan ACL `storage.buckets` Cloud (`postgres=a*r*w*d*D*x*t*m*/supabase_storage_admin`): `postgres` memiliki izin `INSERT` ke `storage.buckets` menggunakan `insert into storage.buckets (id, name, public) values ('portfolio-media', 'portfolio-media', true) on conflict (id) do nothing;`.
-  3. Mengonfirmasi seluruh 39 berkas lokal bebas perintah backslash `psql` maupun blok `BEGIN`/`COMMIT` bentrok sehingga aman dijalankan baik via `npx supabase db push` maupun gabungan SQL Editor.
-  4. Merumuskan solusi Ponytail minimal (tanpa *squash* 39 migrasi agar tetap sinkron dengan Cloud saat ini):
-     - Guard keberadaan fungsi pada [`0031_revoke_obsolete_test_reset.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0031_revoke_obsolete_test_reset.sql) (`if to_regprocedure('public.test_reset()') is not null`);
-     - Guard serupa pada [`0023_release_candidate_security_hardening.sql`](file:///d:/DITO/portfolio_natalia/portfolio-project/supabase/migrations/0023_release_candidate_security_hardening.sql#L16) (`if to_regprocedure('public.rls_auto_enable()') is not null`);
-     - Tambah migrasi 4 baris `0040_ensure_portfolio_media_bucket.sql` untuk membuat bucket `portfolio-media` (`public = true`) otomatis secara idempoten (`on conflict (id) do nothing`) agar 6 RLS policy `storage.objects` dari `0011`/`0019` langsung berfungsi di akun baru.
-     - Catatan jalur non-skema di akun baru: buat user login baru lalu klaim admin perdana di `/admin/bootstrap` (`bootstrap_first_admin()`); bila ingin memindahkan konten lama nanti tanpa backup berbayar, cukup pakai Export/Import JSON di menu Maintenance.
-- **Files Created**: Tidak ada.
-- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri rencana & verifikasi ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `supabase/migrations/**`, `src/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
-- **Current Status**: CLOUD-TO-LOCAL STRUCTURE/FK VERIFIED 1:1; PONYTAIL ONE-SHOT MIGRATION PLAN READY — AWAITING USER APPROVAL TO APPLY.
-- **Next Required Step**: Menunggu konfirmasi user (mis. `"eksekusi"`) untuk menerapkan guard `0031`/`0023` + `0040_ensure_portfolio_media_bucket.sql` (plus sinkronisasi `0040` ke Cloud saat ini).
-
-
-## Request: Clarify Future SQL Bug-Fix Workflow Across Existing & New Supabase Accounts ("oiya ini kan masih belum finish ada banyak bug belum fix, nanti kalau saya terapkan itu dan ternyata ada edit sql lagi gimana")
-- **Date**: 2026-11-12T15:04:22+07:00
-- **Mode**: Read-Only Advisory (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Memeriksa sisa item pada [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L142-L172) (`#18`–`#20`) dan menjelaskan alur aman jika nanti ada perbaikan SQL baru setelah pola migrasi `0040` diterapkan.
-- **Specifications Consulted**: [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L142-L172).
-- **Work Actually Performed (Read-Only)**:
-  - Mengonfirmasi bahwa sisa temuan terbuka di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L142-L163) (`#18`, `#19`, `#20`) seluruhnya berada di frontend Vue/CSS/tes (tidak membutuhkan migrasi SQL).
-  - Menjelaskan prinsip *append-only* migrasi Supabase (perubahan SQL di masa depan cukup ditambah sebagai file bernomor baru `0041_...sql`, `0042_...sql`, bukan mengubah file lama `0001`–`0040`): akun yang sudah berjalan hanya mengeksekusi file `0041+` saja (otomatis via `db push` atau jalankan file barunya saja di SQL Editor), sedangkan akun baru di kemudian hari menjalankan `0001`–`0041+` dari awal dan tetap membentuk kondisi terbaru 1:1.
-- **Files Created**: Tidak ada.
-- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri klarifikasi ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `supabase/migrations/**`, `src/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
-- **Current Status**: WORKFLOW CLARIFIED — READY TO PROCEED PER USER DECISION.
-- **Next Required Step**: Menunggu arahan user: apakah tetap mengeksekusi guard `0031`/`0023` + `0040` sekarang sebagai pengaman migrasi akun baru, atau langsung lanjut menyelesaikan sisa `#18`–`#20` terlebih dahulu.
-
-
-## Request: Advise Timing — Apply Replay Guard Now vs After Completing `list bug.md` ("sekarang kan 1-39 kalau ada bug di 17 saat saya sudah buat pengaman gimana, aytau diakhir saja saat file list bug.md sudah semua")
-- **Date**: 2026-11-12T15:06:17+07:00
-- **Mode**: Read-Only Timing & Sequencing Advice (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Memberikan rekomendasi kapan waktu paling tepat memasang pengaman replay migrasi (`0031`/`0023` guard + bucket `portfolio-media`) relatif terhadap penyelesaian sisa [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md) dan skenario jika ditemukan perbaikan susulan pada item #17 maupun SQL.
-- **Work Actually Performed (Read-Only)**: Menjelaskan bahwa secara prinsip Ponytail, **menunda pemasangan pengaman replay ke akhir setelah seluruh `list bug.md` selesai adalah opsi paling ringkas**, namun seandainya dipasang sekarang pun tidak menimbulkan konflik apabila ada perbaikan lanjutan (perbaikan DB cukup ditambah sebagai file bernomor baru setelah nomor terakhir, sementara perbaikan #17 di frontend tidak menyentuh SQL).
-- **Files Created**: Tidak ada.
-- **Files Modified**: `PROJECT-IMPLEMENTATION-LOG.md` (append entri saran penjadwalan ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `supabase/migrations/**`, `src/**`, `tests/**`, `list bug.md`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
-- **Current Status**: TIMING RECOMMENDATION PROVIDED — AWAITING USER DIRECTION (`#18` vs MIGRATION GUARD).
-- **Next Required Step**: Menunggu user apakah mau langsung lanjut ke Temuan #18 di `list bug.md` atau tetap memasang pengaman migrasi sekarang.
-
-
-## Request: Create Root `backup.md` 1:1 Supabase Cloud Migration Blueprint ("oke gunakan pony tailmu, buat 1 file md diroot namanya backup.md isinya proyek agar bisa migrasi semua database lokal ke cloud database supabase baru dengan 100% sama...")
-- **Date**: 2026-11-12T15:14:08+07:00
-- **Mode**: Documentation Only (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Membuat satu dokumen panduan teknis migrasi 1:1 di root [`backup.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/backup.md) berdasarkan baseline Cloud & lokal `0001`–`0039`, termasuk alur pertumbuhan migrasi (`0040+`), kesiapan Storage bucket kosong `portfolio-media`, proses bootstrap admin perdana pada DB kosong, serta kueri verifikasi paritas.
-- **Specifications & Source Files Consulted (Read-Only)**:
-  - [`src/pages/admin/AdminBootstrap.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminBootstrap.vue), [`src/stores/auth.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/auth.ts), [`src/lib/supabaseClient.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/lib/supabaseClient.ts), [`src/pages/admin/AdminMaintenance.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMaintenance.vue), dan [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md).
-  - Hasil verifikasi katalog Cloud & lokal `0001`–`0039` dari sesi ini (`22` tabel public RLS ON, `13` FK, `62` constraint, `52` index, `23` trigger, `98` table policies, `6` storage policies, `13` fungsi public, `8` fungsi private, `1` cron `messages-auto-delete`, `1` bucket `portfolio-media`).
-- **Work Actually Performed**:
-  - Membuat [`backup.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/backup.md) (253 baris) mencakup: (1) tujuan & prinsip Ponytail *append-only*, (2) spesifikasi target 1:1 + peta 22 tabel/13 FK + matriks akses role, (3) 3 celah replay saat ini (`0031`, `0011`/`004N`, `0023`) beserta SQL guard idempotennya, (4) aturan ekspansi migrasi `0040+`, (5) runbook 5 tahap (`db push` via Session Pooler IPv4 maupun gabungan SQL Editor, kueri verifikasi 1:1, `.env` + `/#/admin/bootstrap` atau `/#/admin/login`, smoke test Storage `/#/admin/media`, dan opsional Export/Restore Maintenance JSON), serta (6) tabel troubleshooting.
-  - Memverifikasi tautan anchor internal di [`backup.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/backup.md) dan memastikan tidak ada file migrasi, kode aplikasi, maupun `.env` yang diubah atau dibocorkan.
-- **Files Created**: [`backup.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/backup.md).
-- **Files Modified**: [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md) (entri ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `supabase/migrations/**`, `src/**`, `tests/**`, `.env`, `list bug.md`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
+## Request: Removal of Scribble Underlines Below Sender Name & Email ("garis di bawah hi dan tes hapus aj a deh jelek")
+- **Date**: 2026-11-15T02:58:00+07:00
+- **Mode**: Visual Cleanup & UI Simplification (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
+- **Scope & Analysis**:
+  1. Pengguna meminta untuk menghapus garis di bawah nama pengirim (`hiii`) dan di bawah email (`tes@gmail.comn`) pada kartu detail pesan di `/admin/messages` karena dinilai tidak cocok/kurang bagus secara visual.
+  2. Garis pembatas solid warna merah pekat tua (`#7B2329`, 1px) di atas tulisan `FROM` tetap dipertahankan sesuai instruksi.
+  3. Menghapus elemen `<svg class="detail-stroke-scribble">` pada field `From` dan `Email`, serta menghapus kelas CSS `.detail-stroke-scribble` agar tidak menyisakan dead code.
+- **Implementation**:
+  - Pada [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue):
+    1. Dihapus elemen SVG `.detail-stroke-scribble` di bawah `<HighlightedText class="detail-value" :text="selectedMessage.name" />` dan `<HighlightedText class="detail-value" :text="selectedMessage.email" />`.
+    2. Dihapus blok aturan CSS `.detail-stroke-scribble`.
 - **Validation Performed**:
-  - Pembacaan penuh [`backup.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/backup.md) dan perbaikan anchor tautan Bagian 3 di tabel troubleshooting; `git status --short` memastikan hanya perubahan yang diharapkan; proyek Cloud & lokal tidak dimodifikasi.
-  - Uji replay end-to-end ke proyek Supabase kosong baru: `Belum dilakukan` (sesuai cakupan dokumentasi dan persetujuan menunda eksekusi guard `0031`/`0023` + migrasi bucket hingga akhir atau sebelum pindah akun).
-- **Current Status**: `backup.md` CREATED AT REPO ROOT — NO SQL/CODE MUTATIONS APPLIED YET; READY FOR REMAINING `list bug.md` ITEMS OR PRE-MIGRATION GUARD IMPLEMENTATION.
-- **Next Required Step**: Menunggu arahan user — apakah lanjut memperbaiki temuan tersisa di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md) (`#18`–`#20`) terlebih dahulu atau menerapkan guard `0031`/`0023` + migrasi bucket `portfolio-media` sekarang.
-
-
-## Request: Clarify Closing Risk Note About Pre-Migration Guards and Untested Replay ("maksudnya apa, bug atau apa")
-- **Date**: 2026-11-12T15:15:13+07:00
-- **Mode**: Read-Only Clarification (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Menjelaskan secara ringkas arti catatan penutup sebelumnya (perbedaan antara kondisi DB Cloud/web aktif yang sudah sehat vs celah skrip `0031`/`0023`/bucket yang hanya muncul saat di-replay dari nol ke akun Supabase kosong baru, serta status belum adanya uji coba langsung ke proyek kedua).
-- **Files Created**: Tidak ada.
-- **Files Modified**: [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md) (entri ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `backup.md`, `supabase/migrations/**`, `src/**`, `tests/**`, `.env`, `list bug.md`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
-- **Current Status**: CLARIFICATION PROVIDED — AWAITING USER INSTRUCTION (`#18`–`#20` vs PRE-MIGRATION GUARD APPLICATION).
-- **Next Required Step**: Menunggu arahan user untuk langkah berikutnya.
-
-
-## Request: Confirm Execution Sequence — Finish `list bug.md` Before Pre-Migration SQL Guard ("maksudnya lanjut fix bug list bug md dulu kan")
-- **Date**: 2026-11-12T15:16:44+07:00
-- **Mode**: Read-Only Confirmation (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Mengonfirmasi urutan kerja yang disepakati: selesaikan sisa temuan [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md) (`#18`–`#20`) terlebih dahulu sebelum menerapkan 3 penyesuaian pra-migrasi dari [`backup.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/backup.md).
-- **Files Created**: Tidak ada.
-- **Files Modified**: [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md) (entri ini saja).
-- **Files Deleted**: Tidak ada.
-- **Files Explicitly Protected**: `backup.md`, `list bug.md`, `supabase/migrations/**`, `src/**`, `tests/**`, `.env`, `AGENTS.md`, `.agents/**`, `md/**`, `design/**`, `artifacts/**`.
-- **Current Status**: SEQUENCE CONFIRMED — AWAITING USER GO-AHEAD FOR `#18`.
-- **Next Required Step**: Menunggu perintah user untuk mulai mengerjakan Temuan `#18`.
-
-
-## Request: Explain Finding #18 and Provide Ponytail Recommendation ("18. Duplikasi besar di 3 galeri media, duplikasi blok CSS sertifikat, & 3 file mati di `src/` ... lanjutkan ini kenapa dan saran gimana, pakai ponytail skillmu")
-- **Date**: 2026-11-12T15:46:00+07:00
-- **Mode**: Read-Only Analysis & Architectural Plan (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Menganalisis penyebab (*kenapa*) dan memberikan rekomendasi perbaikan (*saran*) untuk Temuan #18 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L142-L147): (1) 3 file mati di dalam `src/`, (2) 48 baris duplikasi CSS di [`CertificateSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/certificate/CertificateSection.vue#L684-L731), dan (3) ~1.800 baris duplikasi pada 3 galeri media (`AdminMediaImages.vue`, `AdminMediaDocuments.vue`, `AdminMediaVideos.vue`).
-- **Source Files Inspected (Read-Only)**:
-  - [`src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md) (2.229 baris / 39 KB spec notes di dalam folder komponen).
-  - [`src/styles/global-overrides.css`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/styles/global-overrides.css) (20 baris CSS tidak pernah di-import).
-  - [`src/stores/experienceFrameImages.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/experienceFrameImages.ts) (4 baris re-export mati).
-  - [`src/sections/certificate/CertificateSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/certificate/CertificateSection.vue) (L615–L731, terbukti L684–L731 salinan persis L630–L678).
-  - [`src/pages/admin/AdminMediaImages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaImages.vue), [`AdminMediaVideos.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaVideos.vue), [`AdminMediaDocuments.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaDocuments.vue), [`src/router/index.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/router/index.ts#L70-L85), dan asersi tes pada `tests/media-library-runtime.mjs`, `tests/stabilization-runtime.mjs`, serta `tests/product-polish-runtime.mjs`.
-- **Findings & Root Cause**:
-  - Tiga file mati di `src/` merupakan artefak masa lalu yang tertinggal tanpa import aktif.
-  - CSS ganda di `CertificateSection.vue` adalah duplikasi copy-paste murni.
-  - Tiga galeri media memiliki struktur template, modal edit/hapus/view, skrip setup, dan style CSS 90% identik yang disalin-tempel saat membuat kategori media.
-- **Ponytail Recommendation**:
-  - Hapus 2 file mati (`global-overrides.css` & `experienceFrameImages.ts`) dan pindahkan `TALI-TEMALI_ADMIN_OPENCODE.md` ke `md/archive/` (hemat 2.253 baris dari `src/`).
-  - Hapus 48 baris CSS duplikat di `CertificateSection.vue`.
-  - Satukan 3 galeri media menjadi satu komponen `MediaCategoryGallery.vue` berbasis prop `mediaType` dan jadikan ketiga file lama wrapper 5 baris (atau langsung via router props), mempertahankan semua selector & judul halaman yang diuji tes runtime (hemat ~1.400 baris duplikasi).
-- **Files Created/Modified/Deleted**: Tidak ada (hanya mencatat log perencanaan).
-- **Current Status**: PLAN & REASONING READY — AWAITING USER APPROVAL TO EXECUTE.
-- **Next Required Step**: Menunggu konfirmasi user (misal `"eksekusi"`) untuk menerapkan perbaikan Temuan #18.
-
-
-## Request: Verify and Test CertificateSection.vue Duplicate CSS in Sandbox ("L685-L732 ... ini apa, duplikasi beneran atau buat mempertahankan independensi mandirir tiap item ... dan kamu pangkas jadi error ga, lakukan testing di sandboxmu dlu dengan pony tail")
-- **Date**: 2026-11-12T16:13:28+07:00
-- **Mode**: Sandbox Implementation & Verification (`AGENTS.md` §4–§8; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Memeriksa secara mendalam apakah baris 684–731 di [`src/sections/certificate/CertificateSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/certificate/CertificateSection.vue) adalah duplikasi murni atau mekanisme independensi elemen, memangkas 54 baris duplikat tersebut, dan menjalankan pengujian ketat di sandbox (tipe, build, dan suite runtime Chromium).
-- **Analysis Performed**:
-  - Memeriksa kemunculan selektor di template: `.title-sparkles` (L292), `.title-line-divider` (L302), `.line-gap` (L315) hanya ada 1 kali pada header judul utama bagian sertifikat, sama sekali tidak ada di dalam loop kartu (`.certificate-card` L333–L420).
-  - Terbukti duplikasi copy-paste terpeleset: baris 679–683 berisi deklarasi `.cards-stack` parsial terpotong, lalu disusul salinan persis `.title-sparkles` s/d `.line-gap` (L684–731), lalu diulang lagi dengan komentar identik dan deklarasi `.cards-stack` lengkap (L733–741).
-  - Independensi kartu sertifikat dijamin secara runtime lewat objek kartu reaktif `cards` (`v-for`) dan `vConfig` (`useVisualConfig`), bukan lewat duplikasi CSS scoped.
-- **Files Modified**: [`src/sections/certificate/CertificateSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/certificate/CertificateSection.vue) (menghapus 54 baris duplikat L679–L732).
-- **Validation in Sandbox**:
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `npm run build`: PASS (2052 modules transformed, `dist/assets/HomePage-*.css` terpangkas dari 44.83 kB ke 44.76 kB).
-  - `tests/guest-certificate-refresh-runtime.mjs`: PASS (5/5 scenario).
-  - `tests/default-guest-runtime.mjs`: PASS (59 default entities).
-  - `tests/asset-pdf-cert-media-order-runtime.mjs`: PASS (order & modal cert).
-  - `tests/admin-certificates-retention-runtime.mjs`: PASS (cert retention).
-  - `tests/stabilization-runtime.mjs`: PASS (seluruh rute desktop/mobile, 60.1 FPS, 0 overflow, 0 failures).
-- **Current Status**: CERTIFICATE CSS DUPLICATION VERIFIED AS SAFE DEAD-CODE REMOVAL — TESTS PASS 100%.
-- **Next Required Step**: Melanjutkan sisa langkah Temuan #18 (pembersihan 3 file mati dan konsolidasi 3 galeri media).
-
-
-## Request: Execute Ponytail Remediation for Finding #18 ("oke eksekusi saran pony tail tadi")
-- **Date**: 2026-11-12T16:29:00+07:00
-- **Mode**: Implementation & Full Verification (`AGENTS.md` §4–§8, §27; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Mengeksekusi seluruh rencana Ponytail untuk Temuan #18 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L142-L147):
-  1. Memindahkan catatan markdown `src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md` ke [`md/archive/TALI-TEMALI_ADMIN_OPENCODE.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/md/archive/TALI-TEMALI_ADMIN_OPENCODE.md) via `git mv`.
-  2. Menghapus file CSS tak terpakai [`src/styles/global-overrides.css`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/styles/global-overrides.css) via `git rm`.
-  3. Menghapus re-export mati [`src/stores/experienceFrameImages.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/stores/experienceFrameImages.ts) via `git rm`.
-  4. Menghapus 54 baris duplikat CSS (L679–L732) di [`src/sections/certificate/CertificateSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/certificate/CertificateSection.vue).
-  5. Membuat komponen terpusat [`src/pages/admin/components/MediaCategoryGallery.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/MediaCategoryGallery.vue) untuk seluruh kategori media (`image`, `video`, `document`).
-  6. Menyusutkan [`AdminMediaImages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaImages.vue), [`AdminMediaVideos.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaVideos.vue), dan [`AdminMediaDocuments.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaDocuments.vue) menjadi wrapper 8 baris yang memanggil `MediaCategoryGallery`.
-- **Files Created**:
-  - [`src/pages/admin/components/MediaCategoryGallery.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/MediaCategoryGallery.vue)
+  - Headless Chromium CDP Runtime & Geometry Inspection:
+    - Divider solid atas: height = 1px, width = 848px, bgColor = `rgb(123, 35, 41)`, sentuh tepi kiri-kanan area putih = true.
+    - Scribble count: 0 (seluruh garis coretan di bawah teks telah terhapus sempurna).
+  - Visual Verification Screenshot:
+    - [`messages-red-lines-verified.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-red-lines-verified.png)
+  - `npx vue-tsc --noEmit`: PASS (0 errors).
+  - `npm run test:regression`: PASS (5/5 suites).
+  - `npm run build`: PASS.
 - **Files Modified**:
-  - [`src/sections/certificate/CertificateSection.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/sections/certificate/CertificateSection.vue) (-54 baris)
-  - [`src/pages/admin/AdminMediaImages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaImages.vue) (-718 baris)
-  - [`src/pages/admin/AdminMediaVideos.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaVideos.vue) (-534 baris)
-  - [`src/pages/admin/AdminMediaDocuments.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMediaDocuments.vue) (-539 baris)
-  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md) (entri ini)
-- **Files Moved**:
-  - `src/pages/admin/TALI-TEMALI_ADMIN_OPENCODE.md` -> [`md/archive/TALI-TEMALI_ADMIN_OPENCODE.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/md/archive/TALI-TEMALI_ADMIN_OPENCODE.md) (-2.229 baris dari `src/`)
-- **Files Deleted**:
-  - `src/styles/global-overrides.css` (-20 baris)
-  - `src/stores/experienceFrameImages.ts` (-4 baris)
-- **Net Code Impact**: Pangkas > 3.200 baris kode & file liar dari pohon `src/`!
-- **Validation Performed**:
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `npm run build`: PASS (2.052 modul terkompilasi, Vite build 2.44 detik).
-  - `tests/media-library-runtime.mjs`: PASS (semua kategori gambar, video, dokumen, CRUD, dan rename modal terverifikasi).
-  - `tests/storage-cleanup-runtime.mjs`: PASS (rute sub-kategori media dan penghapusan storage terverifikasi).
-  - `tests/product-polish-runtime.mjs`: PASS (empty state video dan navigasi desktop/mobile lulus).
-  - `tests/stabilization-runtime.mjs`: PASS (seluruh rute desktop/mobile, 60.1 FPS, 0 overflow, 0 failures).
-  - `tests/default-guest-runtime.mjs`: PASS.
-  - `tests/guest-certificate-refresh-runtime.mjs`: PASS.
-  - `tests/asset-pdf-cert-media-order-runtime.mjs`: PASS.
-  - `git restore -- artifacts/`: Artefak visual dipertahankan sesuai aslinya.
-- **Current Status**: FINDING #18 FULLY RESOLVED & VERIFIED IN CHROMIUM RUNTIME.
-- **Next Required Step**: Melanjutkan ke Temuan #19 di `list bug.md` (Smooth scroll prefer-reduced-motion OS & timeout fetch jam Dashboard).
-
-
-## Request: Re-verify Codebase and Verify Database Cloud-to-Local Synchronization ("verifikasi ulang, dan apakah database sudah sinkron")
-- **Date**: 2026-11-12T17:18:11+07:00
-- **Mode**: Read-Only Audit & Verification (`AGENTS.md` §4–§8, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Memverifikasi ulang status kode frontend/build setelah perbaikan Temuan #18 dan memastikan sinkronisasi antara migrasi lokal (`supabase/migrations/*.sql`), tipe TypeScript (`database.generated.ts`), dan basis data Supabase Cloud aktif.
-- **Database Synchronization Audit Performed**:
-  - `supabase:list_migrations`: Cloud tercatat 39 migrasi lengkap dari `20260824181329_initial_schema` s/d `20261112143000_0039_drop_obsolete_test_reset`.
-  - Folder lokal `supabase/migrations/`: Tepat 39 file SQL dari `0001_initial_schema.sql` s/d `0039_drop_obsolete_test_reset.sql` (1:1 cocok sempurna).
-  - Paritas Objek Katalog Cloud SQL:
-    - `public_tables`: **22** (seluruhnya `rls_on`: **22**)
-    - `foreign_keys`: **13**
-    - `public_functions`: **13**
-    - `test_reset_exists`: **0** (terkonfirmasi bersih)
-    - `private_functions`: **8**
-    - `table_policies`: **98**
-    - `storage_policies`: **6**
-    - `public_bucket_ready`: **1** (`portfolio-media`)
-    - `cron_active`: **1** (`messages-auto-delete`)
-  - Sinkronisasi Tipe: `supabase:generate_typescript_types` dibandingkan terhadap [`src/types/database.generated.ts`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/types/database.generated.ts) menghasilkan **EXACT MATCH 100%**.
-- **Codebase & Runtime Validation Performed**:
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `npm run build`: PASS (2.052 modul, 2.35s).
-  - `tests/media-library-runtime.mjs`: PASS (semua kategori, CRUD, dan modal terverifikasi di Chromium headless).
-  - `git restore -- artifacts/`: Folder artefak tetap bersih.
-- **Current Status**: DATABASE CLOUD & LOKAL SINKRON 100% (39/39 MIGRATIONS, EXACT TYPES, 22 RLS TABLES); KODE TERVERIFIKASI PENUH.
-- **Next Required Step**: Siap melanjutkan ke temuan berikutnya di `list bug.md` (#19).
-
-
-## Request: Explain Finding #19 ("19. Smooth scroll paksa mengabaikan Reduce Motion OS & request jam Dashboard tanpa timeout ... ini knpa")
-- **Date**: 2026-11-12T17:21:00+07:00
-- **Mode**: Read-Only Analysis & Explanation (`AGENTS.md` §4–§6, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Menjelaskan akar penyebab (*kenapa*) Temuan #19 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L152-L157):
-  1. Pengguliran Lenis di [`GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue#L259-L321) yang memaksakan durasi 1,2–1,3 detik tanpa mendeteksi setelan aksesibilitas `prefers-reduced-motion: reduce` OS, serta timer `flickTimer` dan `setTimeout(..., 1500)` yang tidak dibersihkan di `onUnmounted`.
-  2. Panggilan `fetch('https://timeapi.io/...')` di [`AdminDashboard.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminDashboard.vue#L241-L269) yang tidak memiliki batas waktu `AbortController` (rentan hanging bila API pihak ketiga down atau lambat) dan tidak membatalkan request saat unmounted.
-- **Source Files Inspected (Read-Only)**:
-  - [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue#L85-L361)
-  - [`src/pages/admin/AdminDashboard.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminDashboard.vue#L241-L280)
-- **Files Created/Modified/Deleted**: Tidak ada (hanya mencatat log penjelasan).
-- **Current Status**: REASONING AND MECHANISM EXPLAINED — AWAITING USER INSTRUCTION.
-- **Next Required Step**: Menunggu konfirmasi user apakah ingin menerapkan perbaikan Temuan #19.
-
-
-## Request: Execute Finding #19 Remediation ("eksekusi")
-- **Date**: 2026-11-12T18:28:16+07:00
-- **Mode**: Implementation & Full Verification (`AGENTS.md` §4–§8, §27; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Memperbaiki Temuan #19 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L152-L157):
-  1. [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue):
-     - Menambahkan fungsi helper `isReducedMotion()` untuk mendeteksi `prefers-reduced-motion: reduce` OS.
-     - Mengonfigurasi Lenis pada `initLenis()` agar `smoothWheel: false` dan `duration: 0` saat `reduce motion` aktif.
-     - Pada `handleNavClick()`, menerapkan `duration: 0` / `immediate: true` saat `reduce motion` aktif.
-     - Memperbaiki kebocoran timer dengan menyimpan timer klik menu ke `navClickTimer` serta membersihkan `flickTimer` dan `navClickTimer` di `onUnmounted()`.
-  2. [`src/pages/admin/AdminDashboard.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminDashboard.vue):
-     - Membungkus panggilan `fetch('https://timeapi.io/...')` dengan `AbortController` berbatas waktu 5.000 ms (`setTimeout(() => controller.abort(), 5000)`).
-     - Menambahkan pembersihan `syncTimeController?.abort()` pada `onUnmounted()` agar request langsung dibatalkan secara bersih jika pengguna meninggalkan halaman Dashboard.
-- **Files Modified**:
-  - [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue)
-  - [`src/pages/admin/AdminDashboard.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminDashboard.vue)
-  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md) (entri ini)
-- **Validation Performed**:
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `npm run build`: PASS (2.052 modul terkompilasi bersih).
-  - `tests/product-polish-runtime.mjs`: PASS (audit desktop/mobile, sinkronisasi jam Dashboard, pengecekan reduced-motion lulus).
-  - `tests/stabilization-runtime.mjs`: PASS (seluruh rute desktop/mobile, 60.1 FPS, 0 overflow, 0 failures).
-  - `git restore -- artifacts/`: Artefak visual dipertahankan.
-- **Current Status**: FINDING #19 FULLY RESOLVED & VERIFIED IN CHROMIUM RUNTIME.
-- **Next Required Step**: Melanjutkan ke temuan terakhir di `list bug.md` (#20).
-
-
-## Request: Database Lock/Hanging Status and Codebase Error Audit ("cek apakah ada error dan database nyangkut")
-- **Date**: 2026-11-12T18:50:14+07:00
-- **Mode**: Read-Only Comprehensive Health Check (`AGENTS.md` §4–§8, §25; `.agents/skills/ponytail/SKILL.md` `full` mode)
-- **Scope**: Memeriksa apakah ada error kompilasi/tipe di codebase dan memeriksa aktivitas kueri PostgreSQL di Supabase Cloud (apakah ada transaksi menggantung, dead lock, atau antrean nyangkut).
-- **PostgreSQL Activity & Lock Audit Performed (`pg_stat_activity` & `pg_locks`)**:
-  - `active_queries`: **0** (tidak ada kueri menggantung).
-  - `idle_in_transaction`: **0** (tidak ada transaksi terbengkalai).
-  - `idle_in_transaction_aborted`: **0** (tidak ada transaksi abort yang tersisa).
-  - `waiting_on_lock`: **0** (tidak ada proses yang terhambat gembok).
-  - `ungranted_locks`: **0** (tidak ada konflik lock/deadlock).
-- **Advisors Audit Performed (`get_advisors`)**:
-  - Security Advisors: 0 error (hanya WARN terencana untuk RPC `SECURITY DEFINER` `get_active_published_snapshot` dan `bootstrap_first_admin`).
-  - Performance Advisors: 0 error (hanya INFO 6 indeks belum terpakai pada tabel kecil).
-- **Codebase Diagnostics Performed**:
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `git status --short`: Seluruh perubahan tertata bersih sesuai riwayat Temuan #17, #18, dan #19.
-- **Current Status**: DATABASE SEHAT 100% (TIDAK ADA NYANGKUT ATAU LOCK); KODE BERSIH DARI ERROR.
-- **Next Required Step**: Siap melanjutkan ke temuan terakhir di `list bug.md` (#20).
-
-
-## Request: Comprehensive Cross-Item Collision Audit & Database Integrity Verification (#1 through #19) ("cek aapakah dari fix bug 1- 19 saat ini semua aman dan tidak bertubbruk, termasuk database")
-- **Date**: 2026-11-12T19:04:12+07:00
-- **Mode**: Read-Only Comprehensive Collision Audit & Runtime Verification (`AGENTS.md` §4–§8, §25; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Memverifikasi secara menyeluruh apakah seluruh perbaikan bug #1 s/d #19 aman, saling kompatibel, tidak saling bertubrukan (zero collision), dan memastikan integritas PostgreSQL di Supabase Cloud (0 lock, 0 kueri menggantung, 22/22 RLS aktif, 1 cron job aktif, 100% type definition parity).
-- **PostgreSQL Activity & Security Audit (`pg_stat_activity`, `pg_locks`, `pg_tables`, `cron.job`)**:
-  - `active_queries`: **0**
-  - `idle_in_transaction`: **0**
-  - `idle_in_transaction_aborted`: **0**
-  - `ungranted_locks`: **0**
-  - `public_tables_count`: **22** (100% tabel publik memiliki `rowsecurity = true`)
-  - `policy_count`: Total **98 policy** pada tabel + **6 policy** pada `storage.objects`
-  - `cron_job`: 1 job aktif (`messages-auto-delete`, `*/15 * * * *`)
-  - `schema_migrations`: Versi termutakhir `20261112143000` (`0039_drop_obsolete_test_reset.sql`).
-- **Cross-Item Collision Matrix Analyzed**:
-  - **Auth & Session (#1, #2, #3)**: Bekerja murni di layer auth (`useAuthStore`, `supabaseRest`). Tidak ada tumpang-tindih dengan logika render atau draft.
-  - **Sertifikat & Snapshot (#4, #5, #14, #18)**: Snapshot Guest `/` terisolasi (#5), asset Storage dilindungi dari penghapusan prematur (#4), dukungan PDF & non-webp aktif (#14), dan CSS sparkles bersih tanpa duplikasi (#18). Lulus uji runtime `admin-certificates-retention`, `guest-certificate-refresh`, dan `asset-pdf-cert-media-order`.
-  - **Revisi, Rollback, & Reset (#6, #7)**: Penomoran revisi seragam memakai `coalesce(max(revision_number), 0) + 1` (#6), riwayat tidak terhapus saat reset (#7). Lulus uji `rollback-revision-numbering`.
-  - **Pustaka Media & Storage Cleanup (#8, #18)**: RPC `list_referenced_storage_paths` fail-closed (#8) melindungi semua referensi aktif saat `MediaCategoryGallery.vue` (#18) melakukan browsing dan manipulasi aset. Lulus uji `storage-cleanup` dan `media-library`.
-  - **Offline, PWA, & Aksesibilitas (#9, #19)**: Service Worker request priority (#9) dan Lenis `prefers-reduced-motion` + 5s dashboard timeout (#19) bekerja di layer terpisah tanpa saling memengaruhi.
-  - **Pesan, Kontak, & Anti-Spam (#10, #11, #13)**: Trigger rate limit (#10), social links dinamis (#11), dan query debouncing/filtering (#13) lulus uji `message-rate-limit`, `contact-detail-editor`, dan `messages-cert-query-efficiency`.
-  - **Design System, Theming, & Build (#12, #15, #16, #17)**: Font SHS/About (#12), DB workspace sync (#15), site URL warning & editor object watcher (#16), dan drop `test_reset` (#17) terverifikasi harmonis.
-- **Validation Performed**:
-  - `npx vue-tsc --noEmit` & `npm run build`: PASS (2.052 modul, 0 error).
-  - Test suites Chromium: `auth-session-sync-runtime.mjs`, `admin-certificates-retention-runtime.mjs`, `guest-certificate-refresh-runtime.mjs`, `rollback-revision-numbering-runtime.mjs`, `storage-cleanup-runtime.mjs`, `message-rate-limit-runtime.mjs`, `contact-detail-editor-runtime.mjs`, `shs-about-visual-contract-runtime.mjs`, `messages-cert-query-efficiency-runtime.mjs`, `asset-pdf-cert-media-order-runtime.mjs`, `finding15-maintenance-design-sync-runtime.mjs`, `finding16-site-url-editor-object-runtime.mjs`, `media-library-runtime.mjs`, `product-polish-runtime.mjs`, `stabilization-runtime.mjs` seluruhnya **PASS**.
-  - `git restore -- artifacts/`: Artefak visual dipertahankan.
-- **Current Status**: ALL FIXES #1–#19 ARE FULLY HARMONIZED, SAFE, VERIFIED, AND COLLISION-FREE; DATABASE CLEAN & OPERATIONAL.
-- **Next Required Step**: Siap melanjutkan ke temuan terakhir di `list bug.md` (#20: penambahan asersi regresi terarah).
-
-
-## Request: Execute Finding #20 Remediation via Ponytail ("oke lakukan hati hati dengan pponytail")
-- **Date**: 2026-11-12T20:16:15+07:00
-- **Mode**: Implementation & Test Verification (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Memperbaiki dan menuntaskan Temuan #20 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L158-L163):
-  1. [`tests/production-pwa-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/production-pwa-runtime.mjs):
-     - Menambahkan impor `existsSync` dari `node:fs`.
-     - Mengubah penetapan `chromePath` dari hardcoded `chromium-1234` menjadi array kandidat pendeteksi otomatis yang mencari `process.env.CHROME_PATH`, Playwright Chromium, Google Chrome, dan Microsoft Edge lokal secara fail-safe.
-  2. [`tests/maintenance-reset-confirmation-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/maintenance-reset-confirmation-runtime.mjs):
-     - Memperbaiki helper mock `json(payload, status)` agar saat `status === 204` mereturn `new Response(null, { status })` tanpa body JSON, sesuai standar spesifikasi Web Fetch API.
-     - Menghapus kesalahan asersi `viteErrors` yang salah mendeteksi `console.error` yang sengaja dipicu oleh skenario pengujian timeout itu sendiri.
-  3. [`package.json`](file:///d:/DITO/portfolio_natalia/portfolio-project/package.json):
-     - Menambahkan script pelari terpadu `"test:regression"` yang menjalankan 5 suite regresi kritis dari Temuan #1, #4, #6, #8, dan #9 secara sekuensial.
-- **Files Modified**:
-  - [`tests/production-pwa-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/production-pwa-runtime.mjs)
-  - [`tests/maintenance-reset-confirmation-runtime.mjs`](file:///d:/DITO/portfolio_natalia/portfolio-project/tests/maintenance-reset-confirmation-runtime.mjs)
-  - [`package.json`](file:///d:/DITO/portfolio_natalia/portfolio-project/package.json)
-  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md) (entri ini)
-- **Files Deleted/Restored**:
-  - `artifacts/phase-036-offline-fallback.png` dibersihkan via `git clean -f artifacts/` per `AGENTS.md` §24.
-- **Validation Performed**:
-  - `npm run test:regression`:
-    - `tests/auth-session-sync-runtime.mjs` (Finding #1, #2, #3): **PASS**
-    - `tests/admin-certificates-retention-runtime.mjs` (Finding #4): **PASS**
-    - `tests/rollback-revision-numbering-runtime.mjs` (Finding #6): **PASS**
-    - `tests/storage-cleanup-runtime.mjs` (Finding #8): **PASS**
-    - `tests/production-pwa-runtime.mjs` (Finding #9): **PASS**
-  - `node tests/maintenance-reset-confirmation-runtime.mjs`: **PASS**
-  - `npx vue-tsc --noEmit && npm run build`: **PASS** (2.052 modul terkompilasi bersih dalam 3,35 detik).
-- **Current Status**: ALL 20 FINDINGS IN `list bug.md` ARE 100% COMPLETE, VERIFIED, AND COLLISION-FREE!
-- **Next Required Step**: Selesai. Seluruh daftar bug telah dituntaskan. Menunggu instruksi user selanjutnya (misalnya jika ingin menerapkan 3 SQL guard pra-migrasi dari `backup.md`).
-
-
-## Request: Clarify Safety of Deleting `experienceFrameImages.ts` and `global-overrides.css` ("kenapa 2 file ini dihapus, ga merusak ui atau stuyle kan?")
-- **Date**: 2026-11-12T20:18:25+07:00
-- **Mode**: Read-Only Explanation & Dependency Verification (`AGENTS.md` §4–§6, §25; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Menjelaskan alasan penghapusan 2 file mati (`src/stores/experienceFrameImages.ts` dan `src/styles/global-overrides.css`) yang merupakan bagian dari Temuan #18 di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md#L142-L147), serta membuktikan secara teknis bahwa penghapusan tersebut 100% aman dan sama sekali tidak merusak UI maupun style.
-- **Verification Performed**:
-  - `src/stores/experienceFrameImages.ts`: Hanya berisi alias re-export 4 baris ke `photoAreaImages.ts`. Pencarian teks menyeluruh membuktikan 0 file di `src/` maupun `tests/` yang meng-import file ini. Seluruh kode aktif sudah langsung mengimpor dari `src/stores/photoAreaImages.ts`.
-  - `src/styles/global-overrides.css`: File CSS 20 baris yang tidak pernah di-import di `main.ts`, `index.html`, `App.vue`, maupun file `.vue` mana pun. Karena tidak pernah di-import ke bundling Vite, CSS ini memang tidak pernah dimuat atau aktif di browser sejak awal.
-  - UI & Style Integrity: `npx vue-tsc --noEmit` PASS (0 missing imports), `npm run build` PASS, seluruh suite Chromium runtime (`stabilization-runtime.mjs`) PASS dengan 60.1 FPS dan 0 layout shift/overflow.
-- **Current Status**: EXPLANATION & TECHNICAL EVIDENCE PREPARED — NO VISUAL OR BEHAVIORAL REGRESSION.
-- **Next Required Step**: Menunggu arahan lanjutan dari user.
-
-
-## Request: Comprehensive Playwright & Live Runtime Audit of All 20 Bug Fixes ("gunakan playwright, npm run dev, pontail, untuk audit hasil fix bug dibawah ini, dari awal hingga akhir")
-- **Date**: 2026-11-12T20:34:00+07:00
-- **Mode**: Read-Only Comprehensive Runtime Audit (`AGENTS.md` §4–§8, §25; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Menjalankan audit menyeluruh dari awal hingga akhir untuk seluruh 20 temuan di [`list bug.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/list%20bug.md) menggunakan Playwright / Chromium runtime dan Vite live server, mencakup pengujian regresi otomatis, audit visual multi-viewport, integritas tipe, performa rendering, dan status database PostgreSQL.
-- **Playwright / Chromium Runtime Test Suites Executed**:
-  1. `npm run test:regression`:
-     - Finding #1 (Auth Session & Token Expiry 1 Jam): **PASS** (`auth-session-sync-runtime.mjs`)
-     - Finding #2 (Bootstrap First Admin Refresh): **PASS** (`auth-session-sync-runtime.mjs`)
-     - Finding #3 (Anon Key Fallback in `supabaseAuth.ts`): **PASS** (`auth-session-sync-runtime.mjs`)
-     - Finding #4 (Certificate Image Retention vs Published): **PASS** (`admin-certificates-retention-runtime.mjs`)
-     - Finding #6 (Rollback Numbering & Publish UUID Storage Path): **PASS** (`rollback-revision-numbering-runtime.mjs`)
-     - Finding #8 (Storage Orphan File Cleanup & Fail-Closed): **PASS** (`storage-cleanup-runtime.mjs`)
-     - Finding #9 (Service Worker Offline Fallback Priority): **PASS** (`production-pwa-runtime.mjs`)
-  2. Batch A Suites:
-     - Finding #5 (Guest Certificate Snapshot Isolation & Refresh): **PASS** (`guest-certificate-refresh-runtime.mjs`)
-     - Finding #7 (Reset System Confirmation & History Expansion): **PASS** (`maintenance-reset-confirmation-runtime.mjs`)
-     - Finding #10 (Message Center Rate Limit 5/IP/24h & 30/1h): **PASS** (`message-rate-limit-runtime.mjs`)
-     - Finding #11 (Contact Detail Dynamic Social Links & Timers): **PASS** (`contact-detail-editor-runtime.mjs`)
-     - Finding #12 (SHS Calendar FontFamily & About CSS Dynamic Binding): **PASS** (`shs-about-visual-contract-runtime.mjs`)
-     - Finding #13 (Message Debounce & Certificate Media Query Efficiency): **PASS** (`messages-cert-query-efficiency-runtime.mjs`)
-     - Finding #14 (Asset Library PDF Upload & Certificate Storage Path): **PASS** (`asset-pdf-cert-media-order-runtime.mjs`)
-  3. Batch B Suites:
-     - Finding #15 (Maintenance Backup Validation & Design System Workspace DB Sync): **PASS** (`finding15-maintenance-design-sync-runtime.mjs`)
-     - Finding #16 (Build URL Empty Warning & Editor Query Object Watcher): **PASS** (`finding16-site-url-editor-object-runtime.mjs`)
-     - Finding #17 (Drop `public.test_reset()` in DB & AdminLayout Clean Route): **PASS** (Cloud DB verification & `stabilization-runtime.mjs`)
-     - Finding #18 (Consolidate 3 Media Galleries & Dead Code Purge): **PASS** (`media-library-runtime.mjs`)
-     - Finding #19 (Reduced Motion Smooth-Scroll & 5s Dashboard Timeout): **PASS** (`product-polish-runtime.mjs`)
-     - Finding #20 (Unified Regression Automation Runner): **PASS** (`npm run test:regression`)
-  4. Holistic E2E Suite:
-     - `tests/stabilization-runtime.mjs`: **PASS** (Seluruh rute publik dan admin, Desktop & Mobile, 60.1 FPS, 0 horizontal overflow, 0 uncaught errors).
-- **PostgreSQL Live Status Confirmed**:
-  - `active_queries`: **0**, `idle_in_transaction`: **0**, `ungranted_locks`: **0**, `test_reset_count`: **0**, `rls_enabled_tables`: **22/22**.
-- **Current Status**: COMPLETE AUDIT FINISHED — ALL 20 BUG FIXES PROVEN HEALTHY, OPERATIONAL, AND PRODUCTION-READY IN PLAYWRIGHT CHROMIUM RUNTIME!
-- **Next Required Step**: Selesai. Menunggu instruksi lanjutan dari user.
-
-
-## Request: Explain VS Code Unsaved Buffer Warning & Execute Clean Git Commit ("knpa ini, km commit kn aja")
-- **Date**: 2026-11-12T20:54:30+07:00
-- **Mode**: Execution & Logging (`AGENTS.md` §4–§6; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Menjelaskan penyebab popup peringatan VS Code ("unsaved changes which won't be included in the commit: PROJECT-IMPLEMENTATION-LOG.md") dan mengeksekusi git commit yang bersih untuk seluruh sisa perubahan Temuan #17–#20.
-- **Explanation**: Peringatan tersebut muncul karena tab file `PROJECT-IMPLEMENTATION-LOG.md` sedang dibuka di editor VS Code saat git commit ditekan dari panel UI. VS Code mengingatkan agar perubahan pada buffer editor di-save terlebih dahulu agar tidak terlewat.
-- **Git Action Executed**:
-  - `git add -A`
-  - `git commit -m "fix: complete findings #17-#20, unify media gallery, accessibility & test runner"` (commit hash: `00a577e`)
-  - 17 files changed, 1811 insertions(+), 3228 deletions(-) (net -1.417 baris kode terpangkas).
-- **Working Tree Status**: `working tree clean`, `nothing to commit`.
-- **Current Status**: ALL CHANGES COMMITTED SAFELY TO REPO HISTORY.
-- **Next Required Step**: Selesai. Menunggu instruksi lanjutan dari user (misal `git push` atau uji coba manual).
-
-
-
-
-
-
-
-## Request: Remove Scrolled Navbar Rectangular Outer Shadow & Outline ("header bar di guest view kan awalnya kotak, saat scroll berubah bentuk, nah ternyata setelah berubah bentuk dia ada shadow diluar bentuknya dan shadoownya kotak, ga naymbung,, bisa hilangkan shadownnya?")
-- **Date**: 2026-11-12T22:12:00+07:00
-- **Mode**: Targeted Fix & Verification (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Menghilangkan shadow kotak luar yang tidak serasi pada navbar saat berubah bentuk menjadi pill (scrolled state) di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue#L634-L646).
-- **Investigation & Usage Elsewhere Check**:
-  1. Dilakukan audit pencarian regex pada seluruh file CSS dan Vue. Dikonfirmasi bahwa aturan `box-shadow` pada `.guest-navbar.is-scrolled .navbar-inner` berada dalam blok `<style scoped>` dan **TIDAK dipakai di tempat lain**.
-  2. Dikonfirmasi akar penyebab shadow berbentuk kotak (kotak/rectangle halo):
-     - Aturan `outline: 1px solid rgba(255, 255, 255, 0.15);` pada Chromium/WebKit tidak mengikuti `border-radius: 999px`, melainkan menggambar kotak bersudut 90 derajat di luar kapsul.
-     - Tumpukan `box-shadow` berlapis `0 2px 60px rgba(60, 20, 10, 0.08)` memiliki blur lebar 60px yang terpotong secara kaku (clipping) oleh `contain: layout paint;` pada elemen `.guest-navbar`, menghasilkan batas halo persegi panjang yang tajam.
-  3. `text-shadow` untuk keterbacaan teks putih dipertahankan utuh dan tidak tersentuh.
-- **Changes Applied**:
-  - Di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue):
-    - Menghapus baris `outline: 1px solid rgba(255, 255, 255, 0.15);`.
-    - Mengganti tumpukan outer `box-shadow` menjadi `box-shadow: none;`.
-- **Validation Performed**:
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `npm run build`: PASS (2.052 modul terkompilasi, 0 errors).
-  - Headless Chromium inspection via CDP: Tangkapan layar saat scroll mendalam ke Section About membuktikan kapsul navbar melayang mulus tanpa artefak kotak halo di sekelilingnya.
-  - `npm run test:regression`: PASS (seluruh 5 suite regresi kritis).
-  - `tests/stabilization-runtime.mjs`: PASS (seluruh rute desktop & mobile, 60.2 FPS, 0 overflow).
-- **Files Modified**:
-  - [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue)
+  - [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue)
   - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
-- **Current Status**: FIX COMPLETE & VISUALLY VERIFIED â€” SCROLLED FLOATING PILL NAVBAR CLEAN AND SEAMLESS.
+- **Current Status**: COMPLETE & VISUALLY VERIFIED.
 - **Next Required Step**: Siap dilaporkan ke user.
 
 
-## Request: Fix Scrolled Navbar Phantom Vertical Line Before Main ("cek kenapa di topbar yang berubah itu, saat saya scroll terkadang ada garis horizontal diantara lisa natalia dan main. hilangkan hati hati")
-- **Date**: 2026-11-12T22:31:00+07:00
-- **Mode**: Targeted Fix & Runtime Browser Verification (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
-- **Scope**: Menyelidiki dan menghilangkan garis pembatas vertikal (2px) yang terkadang muncul di antara "LISA NATALIA" dan tautan "Main" pada saat scroll di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue).
-- **Investigation via Playwright / Chrome DevTools Protocol**:
-  1. Akses langsung browser runtime headless Chromium pada localhost membuktikan bahwa garis tersebut adalah elemen `.active-pill`.
-  2. **Akar Masalah**:
-     - Di template sebelumnya, `<div v-if="isScrolled" class="active-pill" ref="pillRef"></div>` di-unmount saat navbar berada di puncak (`isScrolled === false`).
-     - Saat pengguna menggulir sedikit ke bawah (misal Y = 30–50px), `isScrolled.value` berubah menjadi `true` sehingga Vue me-mount elemen `.active-pill` ke DOM.
-     - Namun fungsi `updatePill()` hanya dipicu oleh `IntersectionObserver`. Karena scroll awal masih berada di section pertama (Portfolio/Main), observer belum berpindah section sehingga `updatePill()` **tidak pernah dipanggil**.
-     - Akibatnya, elemen `.active-pill` memiliki `width: ""` dan `left: ""` (kosong). Elemen tersebut menciut menjadi lebar 0px + border 1px kiri + border 1px kanan = **garis vertikal selebar 2px**, tepat di `left: 0` dari `.navbar-menu` (yaitu tepat di sebelah kiri menu "Main", di antara "LISA NATALIA" dan "Main").
-- **Changes Applied**:
-  - Di [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue):
-    - Mengubah elemen `.active-pill` agar selalu berada di DOM (`ref="pillRef" :class="{ 'is-visible': isScrolled && pillReady }"`) tanpa `v-if`, dan mengontrol visibilitasnya melalui kelas CSS.
-    - Menambahkan state `pillReady = ref(false)`. Saat `onMounted()`, `updatePill('main')` langsung mengukur dan menyetel koordinat `left` dan `width` yang presisi pada menu "Main" di latar belakang.
-    - Menambahkan `watch(isScrolled)` dan pemanggilan `updatePill(activeKey.value)` saat transisi ke mode scrolled di fungsi `tick()`.
-    - Menambahkan event listener `resize` agar posisi pill otomatis tersinkronisasi bila ukuran layar berubah.
-    - Menambahkan perlindungan CSS: `.active-pill { opacity: 0; visibility: hidden; }`, `.active-pill:not([style*="width"]) { opacity: 0 !important; visibility: hidden !important; }`, dan `.guest-navbar.is-scrolled .active-pill.is-visible { opacity: 1; visibility: visible; }`.
+... [truncated for diff preview]
+
+
+## Request: Move Email Field Inline to the Right of From with Dynamic Positioning ("pindahkan email dan isinay di kanan from sejajar, namun posisinya tidak fix di vertikalnya, bisa semakin kekanan jika nama from nya panjang")
+- **Date**: 2026-11-15T03:06:00+07:00
+- **Mode**: Layout Refactoring & Dynamic Flow Architecture (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
+- **Scope & Analysis**:
+  1. Pengguna meminta field Email (label `EMAIL` dan isinya) dipindahkan ke sebelah kanan field From (label `FROM` dan isinya) secara sejajar horizontal (*inline side-by-side*).
+  2. Pengguna secara tegas mensyaratkan  bahwa posisi horizontalnya tidak boleh *fixed* di kolom vertikal tertentu (bukan grid kaku), melainkan harus adaptif dan dinamis: jika nama pengirim pendek (misal `hiii`), posisi Email berada dekat di kanannya; jika nama pengirim panjang (misal `Budi Santoso Purwonegoro`), posisi Email secara alami bergeser semakin ke kanan mengikuti panjang nama pengirim ditambah jarak *gap*.
+- **Implementation**:
+  - Pada [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue):
+    1. Mengelompokkan field From dan Email ke dalam kontainer baris `.detail-meta-row`.
+    2. Memberi kelas spesifik `.detail-field--from` dan `.detail-field--email`.
+    3. CSS:
+       - `.detail-meta-row`: `display: flex; align-items: flex-start; gap: 2.25rem; flex-wrap: wrap;`
+       - `.detail-field--from`: `min-width: 0; max-width: 65%;` (lebar otomatis mengikuti panjang teks nama pengirim, dengan batas aman 65%).
+       - `.detail-field--email`: `min-width: 0; flex: 0 1 auto;` (posisi horizontal bergeser secara alami mengikuti batas kanan field From + gap 2.25rem/36px).
 - **Validation Performed**:
-  - Pengujian multi-stage Chromium via CDP:
-    1. Y = 0 (top): `isScrolled: false, pillOpacity: '0', pillVisibility: 'hidden'`.
-    2. Y = 50 (Main scrolled): `isScrolled: true, pillOffsetWidth: 70px` (membungkus tombol Main dengan sempurna), `pillOpacity: '1'`, selisih posisi `0px`, garis vertikal 2px **hilang 100%**.
-    3. Y = 1200 (About section): `activeItemKey: 'about', pillOffsetWidth: 77px, pillDiffX: 0` (pill berpindah mulus ke menu About).
-    4. Y = 0 (kembali ke puncak): pill kembali memudar bersih (`opacity: '0', visibility: 'hidden'`).
-  - `npx vue-tsc --noEmit`: PASS (0 type errors).
-  - `npm run build`: PASS (2.052 modul terkompilasi bersih dalam 3.60s).
-  - `npm run test:regression`: PASS (seluruh 5 suite regresi lulus).
+  - Headless Chromium CDP Runtime Geometry Inspection:
+    - Nama Pendek (`hiii`):
+      - From width: `33.94px` (kanan di 582.94px).
+      - Email left: `618.94px` (bergeser tepat 36px di kanan From).
+      - `isRightOfFrom`: **true**
+      - `labelsAlignedY`: **true** (label `FROM` dan `EMAIL` berada pada koordinat Y yang sejajar).
+    - Nama Panjang (`Budi Santoso Purwonegoro`):
+      - From width: `183px` (kanan di 732px).
+      - Email left: `768px` (bergeser tepat 36px di kanan From).
+      - `isRightOfFrom`: **true**
+      - `labelsAlignedY`: **true**
+      - `shiftAmount`: Email bergeser secara dinamis lebih ke kanan sebesar **+149.06px** dibanding nama pendek.
+  - Visual Verification Screenshots:
+    - [`messages-meta-row-short.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-meta-row-short.png) (tampilan nama pengirim pendek).
+    - [`messages-meta-row-long.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-meta-row-long.png) (tampilan nama pengirim panjang bergeser ke kanan).
+  - `npx vue-tsc --noEmit`: PASS (0 errors).
+  - `npm run test:regression`: PASS (5/5 suites).
+  - `npm run build`: PASS.
 - **Files Modified**:
-  - [`src/components/GuestNavbar.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/components/GuestNavbar.vue)
+  - [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue)
   - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
-- **Current Status**: RESOLVED & VISUALLY VERIFIED WITH CHROMIUM CDP RUNTIME.
+- **Current Status**: COMPLETE & VISUALLY VERIFIED.
+- **Next Required Step**: Siap dilaporkan ke user.
+
+
+## Request: Enforce Minimum Offset for Inline Email Field ("oiya tadi posisi tulisan email horizontal dinamis, dan aku mau minimalnya segini, dilebihin sampai titik @ baru mulai, coba")
+- **Date**: 2026-11-15T03:15:00+07:00
+- **Mode**: Layout Refactoring & Visual Alignment Calibration (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
+- **Scope & Analysis**:
+  1. Pengguna mengunggah gambar acuan `media_1794687004295_c63b277e.png` yang menunjukkan garis batas minimal horizontal: field Email harus tetap bergeser dinamis jika nama pengirim panjang, namun jika nama pengirim sangat pendek (misal `hiii`), posisi awal Email tidak boleh menempel terlalu dekat, melainkan memiliki batas minimal sejajar/melewati titik `@` dari email pada data acuan (`budi@example.com`).
+  2. Dihitung rasio kalibrasi visual: `min-width: 10.5rem;` (168px) pada `.detail-field--from` memastikan bahwa untuk nama pendek, field From menempati minimal 168px sehingga Email dimulai pada offset ~204px (168px + gap 36px), tepat pada titik `@` yang diinstruksikan pengguna.
+- **Implementation**:
+  - Pada [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue):
+    - Mengubah `.detail-field--from` dari `min-width: 0;` menjadi `min-width: 10.5rem;`.
+- **Validation Performed**:
+  - Headless Chromium CDP Runtime Geometry Inspection:
+    - Nama Pendek (`hiii`): From width = 168px (`10.5rem`), Email left = 752.94px.
+    - Nama Panjang (`Budi Santoso Purwonegoro`): From width = 183px, Email left = 768px (bergeser lebih ke kanan secara alami).
+    - Email selalu berada di kanan From (`isRightOfFrom: true`) dan label Y sejajar (`labelsAlignedY: true`).
+  - Visual Verification Screenshots:
+    - [`messages-email-min-short.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-email-min-short.png)
+    - [`messages-email-min-long.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-email-min-long.png)
+  - `npx vue-tsc --noEmit`: PASS.
+  - `npm run test:regression`: PASS (5/5 suites).
+  - `npm run build`: PASS.
+- **Files Modified**:
+  - [`src/pages/admin/AdminMessages.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/AdminMessages.vue)
+  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
+- **Current Status**: COMPLETE & VISUALLY VERIFIED.
+- **Next Required Step**: Siap dilaporkan ke user.
+
+## Request: Remove White Circular Background on Header Info Button ("gausah pakai backgtound putih")
+- **Date**: 2026-11-15T06:35:00+07:00
+- **Mode**: Visual Polish & Styling Refinement (`AGENTS.md` §4–§8, §27; `.agents/rules/ponytail.md` `full` mode)
+- **Scope & Analysis**:
+  1. Pengguna mengunggah gambar acuan `media_1794699177602_d24e0b41.png` yang menunjukkan tombol info lingkaran `(i)` dengan latar belakang putih (`background: #fffdf9; border: 1px solid #e8ded0;`).
+  2. Pengguna meminta: "gausah pakai backgtound putih".
+  3. Latar belakang putih dan border luar dihilangkan agar ikon SVG `(i)` dari Lucide langsung menyatu secara transparan di atas background beige `#F6F4E8` pada header halaman `/admin/messages`.
+- **Implementation**:
+  - Pada [`src/pages/admin/components/AdminLayout.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/AdminLayout.vue):
+    - `.messages-retention-btn`:
+      - Mengubah `background: #fffdf9; border: 1px solid #e8ded0; box-shadow: 0 2px 8px rgba(90, 62, 53, 0.05);` menjadi `background: transparent; border: 0; box-shadow: none;`.
+      - Menyesuaikan ukuran tombol menjadi `width: 2.4rem; height: 2.4rem;` agar target klik ringkas dan presisi.
+      - State `:hover`: `background: transparent; color: #5a3e35; transform: scale(1.08);`.
+- **Validation Performed**:
+  - Headless Chromium CDP Runtime Inspection:
+    - Computed style `.messages-retention-btn`:
+      - `backgroundColor`: `rgba(0, 0, 0, 0)`
+      - `border`: `0px none rgb(123, 95, 59)`
+      - `boxShadow`: `none`
+      - `isTransparent`: `true`
+    - Tooltip interaktivitas (`.messages-retention-bubble`) tetap berfungsi saat hover/klik dan memicu popup bubble ke arah kiri.
+  - Visual Verification Screenshots:
+    - [`messages-info-btn-transparent.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-info-btn-transparent.png) (tampilan tombol info transparan tanpa lingkaran putih).
+    - [`messages-info-bubble-open.png`](file:///C:/Users/VivoBook/.gemini/antigravity/brain/0b4608d3-4260-456b-99a3-1d6a6103c66e/messages-info-bubble-open.png) (tampilan bubble saat tombol info aktif).
+  - `npx vue-tsc --noEmit`: PASS (0 errors).
+  - `npm run test:regression`: PASS (5/5 suites).
+  - `npm run build`: PASS.
+- **Files Modified**:
+  - [`src/pages/admin/components/AdminLayout.vue`](file:///d:/DITO/portfolio_natalia/portfolio-project/src/pages/admin/components/AdminLayout.vue)
+  - [`PROJECT-IMPLEMENTATION-LOG.md`](file:///d:/DITO/portfolio_natalia/portfolio-project/PROJECT-IMPLEMENTATION-LOG.md)
+- **Current Status**: COMPLETE & VISUALLY VERIFIED.
 - **Next Required Step**: Siap dilaporkan ke user.

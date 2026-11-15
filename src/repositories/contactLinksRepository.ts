@@ -6,6 +6,7 @@ export interface ContactSocialLinks {
   whatsapp: string
   linkedin: string
   cv: string
+  recipientEmail: string
 }
 
 export interface ContactLinkValidationResult {
@@ -15,7 +16,7 @@ export interface ContactLinkValidationResult {
 
 type ContactLinksRow = Pick<
   Tables<'contact_profiles'>,
-  'whatsapp_href' | 'linkedin_href' | 'cv_href' | 'social_links_updated_at'
+  'whatsapp_href' | 'linkedin_href' | 'cv_href' | 'recipient_email' | 'social_links_updated_at'
 >
 
 const CONTACT_PROFILE_ID = defaultContact.id
@@ -28,6 +29,17 @@ const BARE_DOMAIN_RE = /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/?#].*)?$/i
 const BARE_FILENAME_RE = /^[^/?#]+\.(?:pdf|docx?|xlsx?|pptx?|png|jpe?g|webp|svg|txt|zip)$/i
 // eslint-disable-next-line no-control-regex
 const CONTROL_OR_SPACE_RE = /[\u0000-\u001F\u007F\s]/
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
+
+export function validateEmailInput(raw: string): ContactLinkValidationResult {
+  const trimmed = raw.trim()
+  if (!trimmed) return { value: '', error: null }
+  if (trimmed.length > 320) return { value: trimmed, error: 'Email tujuan maksimal 320 karakter.' }
+  if (CONTROL_OR_SPACE_RE.test(trimmed) || !EMAIL_RE.test(trimmed)) {
+    return { value: trimmed, error: 'Format email tidak valid (contoh: lisa.natalia@example.com).' }
+  }
+  return { value: trimmed, error: null }
+}
 
 export function sanitizeContactHref(raw: string): string {
   const trimmed = raw.trim()
@@ -82,7 +94,8 @@ function readLocalContactLinks(): ContactSocialLinks | null {
     return {
       whatsapp: typeof parsed.whatsapp === 'string' ? parsed.whatsapp : '',
       linkedin: typeof parsed.linkedin === 'string' ? parsed.linkedin : '',
-      cv: typeof parsed.cv === 'string' ? parsed.cv : ''
+      cv: typeof parsed.cv === 'string' ? parsed.cv : '',
+      recipientEmail: typeof parsed.recipientEmail === 'string' ? parsed.recipientEmail : ''
     }
   } catch {
     return null
@@ -126,32 +139,35 @@ export const contactLinksRepository: ContactLinksRepository = {
     if (!isSupabaseConfigured()) return readLocalContactLinks()
     const rows = await supabaseTableRows<ContactLinksRow>(
       'contact_profiles',
-      `?id=eq.${encodeURIComponent(CONTACT_PROFILE_ID)}&select=whatsapp_href,linkedin_href,cv_href,social_links_updated_at&limit=1`
+      `?id=eq.${encodeURIComponent(CONTACT_PROFILE_ID)}&select=whatsapp_href,linkedin_href,cv_href,recipient_email,social_links_updated_at&limit=1`
     )
     const row = rows[0]
-    if (!row || !row.social_links_updated_at) return null
+    if (!row || (!row.social_links_updated_at && !row.recipient_email)) return null
     return {
       whatsapp: row.whatsapp_href ?? '',
       linkedin: row.linkedin_href ?? '',
-      cv: row.cv_href ?? ''
+      cv: row.cv_href ?? '',
+      recipientEmail: row.recipient_email ?? ''
     }
   },
 
   async load() {
-    return (await this.loadConfigured()) ?? { whatsapp: '', linkedin: '', cv: '' }
+    return (await this.loadConfigured()) ?? { whatsapp: '', linkedin: '', cv: '', recipientEmail: '' }
   },
 
   async save(input) {
     const wa = validateContactLinkInput(input.whatsapp, 'WhatsApp')
     const li = validateContactLinkInput(input.linkedin, 'LinkedIn')
     const cv = validateContactLinkInput(input.cv, 'CV')
-    const firstError = wa.error ?? li.error ?? cv.error
+    const em = validateEmailInput(input.recipientEmail ?? '')
+    const firstError = wa.error ?? li.error ?? cv.error ?? em.error
     if (firstError) throw new Error(firstError)
 
     const normalized: ContactSocialLinks = {
       whatsapp: wa.value,
       linkedin: li.value,
-      cv: cv.value
+      cv: cv.value,
+      recipientEmail: em.value
     }
     const now = new Date().toISOString()
 
@@ -166,12 +182,13 @@ export const contactLinksRepository: ContactLinksRepository = {
       whatsapp_href: normalized.whatsapp,
       linkedin_href: normalized.linkedin,
       cv_href: normalized.cv,
+      recipient_email: normalized.recipientEmail,
       social_links_updated_at: now
     }
 
     const updatedRows = await supabaseRestRequest<ContactLinksRow[]>('contact_profiles', {
       method: 'PATCH',
-      query: `?id=eq.${encodeURIComponent(CONTACT_PROFILE_ID)}&select=whatsapp_href,linkedin_href,cv_href,social_links_updated_at`,
+      query: `?id=eq.${encodeURIComponent(CONTACT_PROFILE_ID)}&select=whatsapp_href,linkedin_href,cv_href,recipient_email,social_links_updated_at`,
       body,
       prefer: 'return=representation'
     })
@@ -180,7 +197,7 @@ export const contactLinksRepository: ContactLinksRepository = {
     if (!persisted) {
       const insertedRows = await supabaseRestRequest<ContactLinksRow[]>('contact_profiles', {
         method: 'POST',
-        query: '?select=whatsapp_href,linkedin_href,cv_href,social_links_updated_at',
+        query: '?select=whatsapp_href,linkedin_href,cv_href,recipient_email,social_links_updated_at',
         body: [{
           id: CONTACT_PROFILE_ID,
           line1: defaultContact.line1,
@@ -202,7 +219,8 @@ export const contactLinksRepository: ContactLinksRepository = {
     return {
       whatsapp: persisted.whatsapp_href ?? '',
       linkedin: persisted.linkedin_href ?? '',
-      cv: persisted.cv_href ?? ''
+      cv: persisted.cv_href ?? '',
+      recipientEmail: persisted.recipient_email ?? ''
     }
   }
 }

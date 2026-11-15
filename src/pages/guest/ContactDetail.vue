@@ -182,12 +182,112 @@
         </div>
       </div>
     </section>
+
+    <!-- MODAL DIALOG: KONFIRMASI KIRIM SALINAN VIA EMAIL (MAILTO) -->
+    <Teleport to="body">
+      <Transition name="mailto-modal-fade">
+        <div
+          v-if="showMailtoModal"
+          class="mailto-modal-backdrop"
+          role="presentation"
+          @click.self="closeMailtoModal"
+        >
+          <div
+            class="mailto-modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mailto-modal-title"
+            tabindex="-1"
+            @keydown.esc="closeMailtoModal"
+          >
+            <button
+              type="button"
+              class="mailto-modal-close"
+              aria-label="Tutup dialog"
+              @click="closeMailtoModal"
+            >
+              <X :size="18" aria-hidden="true" />
+            </button>
+
+            <div class="mailto-modal-icon-badge" aria-hidden="true">
+              <CheckCircle2 :size="28" />
+            </div>
+
+            <div class="mailto-modal-content">
+              <h3 id="mailto-modal-title" class="mailto-modal-title">Pesan Berhasil Dikirim!</h3>
+              <p class="mailto-modal-desc">
+                Pesan Anda sudah berhasil dikirim. Apakah Anda juga ingin mengirim via mail juga?
+              </p>
+
+              <!-- Option buttons for sending email -->
+              <div class="mailto-provider-list">
+                <!-- 1. Buka via Gmail Web -->
+                <button
+                  type="button"
+                  class="btn-provider btn-provider--gmail"
+                  @click="openGmailWeb"
+                >
+                  <span class="provider-badge provider-badge--gmail">
+                    <Mail :size="16" />
+                  </span>
+                  <span class="provider-info">
+                    <strong>Buka di Gmail (Web)</strong>
+                    <small>Langsung di browser &amp; otomatis terisi</small>
+                  </span>
+                  <ExternalLink :size="15" class="provider-arrow" />
+                </button>
+
+                <!-- 2. Aplikasi Email di Perangkat -->
+                <button
+                  type="button"
+                  class="btn-provider btn-provider--default"
+                  @click="openDefaultMailto"
+                >
+                  <span class="provider-badge provider-badge--default">
+                    <Send :size="15" />
+                  </span>
+                  <span class="provider-info">
+                    <strong>Aplikasi Email di Perangkat</strong>
+                    <small>Outlook, Apple Mail, atau default OS</small>
+                  </span>
+                  <ExternalLink :size="15" class="provider-arrow" />
+                </button>
+              </div>
+
+              <!-- Extra actions: Outlook Web & Copy fallback -->
+              <div class="mailto-secondary-row">
+                <button type="button" class="btn-subtle-action" @click="openOutlookWeb">
+                  <span>Outlook Web</span>
+                  <ExternalLink :size="12" />
+                </button>
+                <span class="subtle-divider" aria-hidden="true">•</span>
+                <button type="button" class="btn-subtle-action" @click="copyMessageToClipboard">
+                  <Check v-if="isCopied" :size="13" class="text-success" />
+                  <Copy v-else :size="13" />
+                  <span>{{ isCopied ? 'Tersalin ke Clipboard!' : 'Salin Pesan' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="mailto-modal-actions">
+              <button
+                type="button"
+                class="btn-modal-dismiss"
+                @click="closeMailtoModal"
+              >
+                Tidak, Cukup Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { ArrowLeft, Send } from 'lucide-vue-next'
+import { ArrowLeft, Check, CheckCircle2, Copy, ExternalLink, Mail, Send, X } from 'lucide-vue-next'
 import PhotoArea from '../../components/PhotoArea.vue'
 import { usePhotoAreaRegistry } from '../../composables/usePhotoAreaRegistry'
 import { defaultContact } from '../../data/default/contact'
@@ -236,6 +336,7 @@ const detail = computed(() => site.current.content.contact.detail ?? defaultCont
 const waHref = computed(() => sanitizeContactHref(liveContactLinks.value ? liveContactLinks.value.whatsapp : detail.value.socialLinks.whatsapp.href))
 const linkedinHref = computed(() => sanitizeContactHref(liveContactLinks.value ? liveContactLinks.value.linkedin : detail.value.socialLinks.linkedin.href))
 const cvHref = computed(() => sanitizeContactHref(liveContactLinks.value ? liveContactLinks.value.cv : detail.value.socialLinks.cv.href))
+const targetEmail = computed(() => liveContactLinks.value?.recipientEmail?.trim() || '')
 const mainPhoto = computed(() => photoRegistry.find(detail.value.mainPhotoId))
 const messagePhoto = computed(() => photoRegistry.find(detail.value.messagePhotoId))
 const mainPhotoFit = computed(() => site.contactDetailMedia[detail.value.mainPhotoId]?.objectFit)
@@ -300,6 +401,10 @@ onBeforeUnmount(() => {
     clearTimeout(successAlertTimer)
     successAlertTimer = null
   }
+  if (copyTimer) {
+    clearTimeout(copyTimer)
+    copyTimer = null
+  }
 })
 
 watch(activeGuestEditorSnapshot, () => {
@@ -317,6 +422,98 @@ const isClicked = ref(false)
 const showSuccessAlert = ref(false)
 const isSubmitting = ref(false)
 const submitError = ref('')
+const showMailtoModal = ref(false)
+const pendingMailto = reactive({
+  name: '',
+  email: '',
+  message: ''
+})
+
+const closeMailtoModal = () => {
+  showMailtoModal.value = false
+}
+
+const isCopied = ref(false)
+let copyTimer: ReturnType<typeof setTimeout> | null = null
+
+function buildEmailPayload() {
+  const subject = `Pesan dari ${pendingMailto.name || 'Pengunjung Web'} - Portfolio Lisa Natalia`
+  const senderInfo = pendingMailto.email ? `Email Pengirim: ${pendingMailto.email}\n` : ''
+  const body =
+    `Halo Lisa Natalia,\n\n` +
+    `Nama Pengirim: ${pendingMailto.name || '-'}\n` +
+    `${senderInfo}\n` +
+    `Pesan:\n${pendingMailto.message || '-'}\n\n` +
+    `---\n` +
+    `Pesan ini dikirimkan melalui formulir kontak web portfolio Lisa Natalia.`
+  return { subject, body }
+}
+
+const openGmailWeb = () => {
+  if (!targetEmail.value) {
+    showMailtoModal.value = false
+    return
+  }
+  const { subject, body } = buildEmailPayload()
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(targetEmail.value)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  showMailtoModal.value = false
+  window.open(gmailUrl, '_blank', 'noopener,noreferrer')
+}
+
+const openOutlookWeb = () => {
+  if (!targetEmail.value) {
+    showMailtoModal.value = false
+    return
+  }
+  const { subject, body } = buildEmailPayload()
+  const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(targetEmail.value)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  showMailtoModal.value = false
+  window.open(outlookUrl, '_blank', 'noopener,noreferrer')
+}
+
+const openDefaultMailto = () => {
+  if (!targetEmail.value) {
+    showMailtoModal.value = false
+    return
+  }
+  const { subject, body } = buildEmailPayload()
+  const mailtoUrl = `mailto:${targetEmail.value}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  showMailtoModal.value = false
+
+  const mailtoLink = document.createElement('a')
+  mailtoLink.href = mailtoUrl
+  mailtoLink.style.display = 'none'
+  document.body.appendChild(mailtoLink)
+  mailtoLink.click()
+  document.body.removeChild(mailtoLink)
+}
+
+const copyMessageToClipboard = async () => {
+  const { subject, body } = buildEmailPayload()
+  const textToCopy = `Tujuan: ${targetEmail.value}\nSubjek: ${subject}\n\n${body}`
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(textToCopy)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = textToCopy
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    isCopied.value = true
+    if (copyTimer) clearTimeout(copyTimer)
+    copyTimer = setTimeout(() => {
+      isCopied.value = false
+      copyTimer = null
+    }, 2500)
+  } catch {
+    // copy fallback
+  }
+}
 
 // Inline SVGs as data URIs matching the theme's red (#7B2329) and gold (#D4C4B4 / #E8DED0) tones
 const waLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B2329' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'></path></svg>"
@@ -348,16 +545,30 @@ const handleSubmit = async () => {
   submitError.value = ''
   showSuccessAlert.value = false
   try {
-    await messageRepository.create({ name: form.name, email: form.email, message: form.message })
+    const nameVal = form.name.trim()
+    const emailVal = form.email.trim()
+    const messageVal = form.message.trim()
+
+    await messageRepository.create({ name: nameVal, email: emailVal, message: messageVal })
     showSuccessAlert.value = true
+
+    pendingMailto.name = nameVal
+    pendingMailto.email = emailVal
+    pendingMailto.message = messageVal
+
     form.name = ''
     form.email = ''
     form.message = ''
+
     if (successAlertTimer) clearTimeout(successAlertTimer)
     successAlertTimer = setTimeout(() => {
       showSuccessAlert.value = false
       successAlertTimer = null
     }, 4000)
+
+    if (targetEmail.value) {
+      showMailtoModal.value = true
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Pesan belum dapat dikirim.'
     submitError.value = message.includes("You have reached today's message limit")
@@ -900,6 +1111,285 @@ const handleSubmit = async () => {
 
   .btn-submit {
     width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Mailto Confirmation Modal Dialog (Warm Luxury / Cream & Burgundy Style)
+   ========================================================================== */
+.mailto-modal-backdrop {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(45, 36, 34, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.mailto-modal-dialog {
+  position: relative;
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 2.25rem 2rem 1.85rem;
+  border: 1px solid #ead8ce;
+  border-radius: 28px;
+  background: #fffaf4;
+  color: #5a3e35;
+  box-shadow: 0 1.5rem 4rem rgba(55, 38, 32, 0.22);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  outline: none;
+}
+
+.mailto-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  color: #8c7a70;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mailto-modal-close:hover {
+  background: #f0e6dc;
+  color: #5a3e35;
+}
+
+.mailto-modal-icon-badge {
+  display: grid;
+  place-items: center;
+  width: 3.8rem;
+  height: 3.8rem;
+  margin-bottom: 1.15rem;
+  border-radius: 20px;
+  background: #eef5f0;
+  color: #2e734c;
+  box-shadow: 0 4px 12px rgba(46, 115, 76, 0.12);
+}
+
+.mailto-modal-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mailto-modal-title {
+  margin: 0 0 0.5rem;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #5a3e35;
+  line-height: 1.25;
+}
+
+.mailto-modal-desc {
+  margin: 0 0 1.25rem;
+  max-width: 24rem;
+  font-size: 0.88rem;
+  color: #7d675e;
+  line-height: 1.55;
+}
+
+.mailto-provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  margin-bottom: 0.85rem;
+}
+
+.btn-provider {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: 16px;
+  border: 1px solid #ead8ce;
+  background: #ffffff;
+  color: #5a3e35;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  box-shadow: 0 2px 6px rgba(90, 62, 53, 0.04);
+}
+
+.btn-provider:hover {
+  background: #fdf8f2;
+  border-color: #d8c2b5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(90, 62, 53, 0.08);
+}
+
+.btn-provider:active {
+  transform: translateY(0);
+}
+
+.btn-provider--gmail {
+  border-color: #e5cbbf;
+  background: #fffcf9;
+}
+
+.btn-provider--gmail:hover {
+  border-color: #7B2329;
+  background: #fff8f6;
+}
+
+.provider-badge {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.provider-badge--gmail {
+  background: #fbeee9;
+  color: #c93b2b;
+}
+
+.provider-badge--default {
+  background: #efe9e2;
+  color: #5a3e35;
+}
+
+.provider-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.provider-info strong {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #5a3e35;
+  line-height: 1.25;
+}
+
+.provider-info small {
+  font-size: 0.73rem;
+  color: #8c7a70;
+  line-height: 1.35;
+  margin-top: 0.15rem;
+}
+
+.provider-arrow {
+  color: #a49187;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.btn-provider:hover .provider-arrow {
+  color: #5a3e35;
+  transform: translate(1px, -1px);
+}
+
+.mailto-secondary-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  margin-bottom: 1.25rem;
+}
+
+.btn-subtle-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: #8c7a70;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-subtle-action:hover {
+  color: #5a3e35;
+  background: #f4ecdf;
+}
+
+.subtle-divider {
+  color: #cfbeaf;
+  font-size: 0.75rem;
+}
+
+.text-success {
+  color: #2e734c;
+}
+
+.mailto-modal-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.btn-modal-dismiss {
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.65rem 1.35rem;
+  border-radius: 999px;
+  border: 1px solid #d8c7bc;
+  background: #ffffff;
+  color: #684e45;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-modal-dismiss:hover {
+  background: #f5eee6;
+  border-color: #cbbaa8;
+}
+
+.mailto-modal-fade-enter-active,
+.mailto-modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.mailto-modal-fade-enter-active .mailto-modal-dialog,
+.mailto-modal-fade-leave-active .mailto-modal-dialog {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.mailto-modal-fade-enter-from,
+.mailto-modal-fade-leave-to {
+  opacity: 0;
+}
+
+.mailto-modal-fade-enter-from .mailto-modal-dialog,
+.mailto-modal-fade-leave-to .mailto-modal-dialog {
+  opacity: 0;
+  transform: scale(0.96) translateY(0.5rem);
+}
+
+@media (max-width: 640px) {
+  .mailto-modal-dialog {
+    padding: 1.85rem 1.35rem 1.5rem;
+  }
+
+  .btn-modal-dismiss {
+    width: 100%;
+    min-height: 3rem;
   }
 }
 </style>
