@@ -338,6 +338,8 @@ export const useEditorStore = defineStore('editor', {
       if (!primary) {
         this.selectedObjectId = ''
         this.additionalSelectedObjectIds = []
+        this.draftSnapshot.session.selectedEntityId = ''
+        if (markSession) this.sessionDirty = true
         return
       }
       const object = this.objects.find((candidate) => candidate.id === primary)
@@ -348,6 +350,9 @@ export const useEditorStore = defineStore('editor', {
       this.draftSnapshot.session.selectedEntityId = primary
       this.draftSnapshot.session.selectedSection = object.section
       if (markSession) this.sessionDirty = true
+    },
+    clearSelection(markSession = true) {
+      this.setObjectSelection([], undefined, markSession)
     },
     selectEntity(entity: EntityDescriptor) {
       this.selectObject(entity)

@@ -30,9 +30,8 @@
           <p class="card-description">{{ category.description }}</p>
           <div v-if="category.id !== 'upload'" class="card-actions">
             <button class="card-action-btn" @click.stop="handleCardAction(category)">
-              <component :is="category.actionIcon" class="action-left-icon" />
               <span class="action-label">{{ category.buttonLabel }}</span>
-              <ChevronRight class="action-chevron" />
+              <ArrowRight class="action-arrow" />
             </button>
           </div>
         </div>
@@ -162,8 +161,8 @@ import {
   FileText,
   Video,
   Upload,
-  ChevronRight,
   Eye,
+  ArrowRight,
   Plus,
   AlertTriangle,
   X,
@@ -392,9 +391,10 @@ async function submitUploads(): Promise<void> {
 
 .media-card {
   background: #FAF9F5;
+  border: 1px solid rgba(123, 35, 41, 0.16);
   border-radius: 24px;
   padding: 20px;
-  box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.05);
+  box-shadow: 0 14px 36px -14px rgba(123, 35, 41, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.04);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -406,7 +406,8 @@ async function submitUploads(): Promise<void> {
 
 .media-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px -8px rgba(90, 62, 53, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.06);
+  border-color: rgba(123, 35, 41, 0.32);
+  box-shadow: 0 18px 40px -12px rgba(123, 35, 41, 0.16);
 }
 
 .card-illustration {
@@ -417,16 +418,23 @@ async function submitUploads(): Promise<void> {
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: linear-gradient(150deg, #FFF5EB 0%, #FFE4B5 100%);
+  background: #FDF0F0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
   margin-bottom: 0.75rem;
-  box-shadow: inset 0 2px 6px rgba(90, 62, 53, 0.06);
+  box-shadow: 0 2px 6px rgba(123, 35, 41, 0.06);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.media-card:hover .card-illustration {
+  background: #FCE6E8;
+  border-color: rgba(123, 35, 41, 0.28);
 }
 
 .illustration-icon {
   width: 32px;
   height: 32px;
-  color: #7B5F3B;
-  opacity: 0.85;
+  color: #7B2329;
+  opacity: 1;
 }
 
 .media-badge {
@@ -436,15 +444,15 @@ async function submitUploads(): Promise<void> {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  background: #FF8F5A;
+  background: linear-gradient(135deg, #7B2329 0%, #98323B 100%);
   color: #FFFFFF;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(255, 143, 90, 0.3);
+  box-shadow: 0 2px 6px rgba(123, 35, 41, 0.3);
 }
 
 .card-title {
@@ -465,72 +473,100 @@ async function submitUploads(): Promise<void> {
 .card-actions {
   width: 100%;
   margin-top: auto;
+  display: flex;
+  justify-content: center;
 }
 
 .card-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: #FFF5EB;
-  color: #5A3E35;
-  border: 1px solid #E8DED0;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  width: 100%;
   justify-content: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1.6rem;
+  min-width: 160px;
+  background: linear-gradient(135deg, #7B2329 0%, #98323B 100%);
+  color: #FFFFFF;
+  border: 1px solid #681B20;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px -3px rgba(123, 35, 41, 0.4);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.2s ease;
+  text-decoration: none;
+  user-select: none;
 }
 
 .card-action-btn:hover {
-  background: #FFDE9E;
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -4px rgba(123, 35, 41, 0.55);
 }
 
-.action-left-icon {
-  width: 14px;
-  height: 14px;
+.card-action-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px -2px rgba(123, 35, 41, 0.45);
+}
+
+.card-action-btn:focus-visible {
+  outline: 3px solid rgba(184, 91, 105, 0.45);
+  outline-offset: 2px;
+}
+
+.media-card:hover .card-action-btn {
+  box-shadow: 0 8px 22px -4px rgba(123, 35, 41, 0.48);
 }
 
 .action-label {
-  flex: 1;
-  text-align: center;
+  display: inline-block;
+  line-height: 1;
 }
 
-.action-chevron {
-  width: 14px;
-  height: 14px;
+.action-arrow {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.media-card:hover .action-arrow,
+.card-action-btn:hover .action-arrow {
+  transform: translateX(4px);
 }
 
 .media-card-upload {
   grid-column: 1 / -1;
-  background: #E8EFE8;
-  border: 1px solid #D4DFD4;
+  background: #FAF9F5;
+  border: 1px solid rgba(123, 35, 41, 0.18);
   cursor: pointer;
   padding: 30px 20px;
 }
 
 .media-card-upload:hover {
-  background: #E2EAE2;
-  box-shadow: 0 12px 30px -8px rgba(76, 106, 76, 0.15), 0 0 0 1px rgba(76, 106, 76, 0.08);
+  background: #FFF5F5;
+  border-color: rgba(123, 35, 41, 0.36);
+  box-shadow: 0 18px 40px -12px rgba(123, 35, 41, 0.16), 0 0 0 1px rgba(123, 35, 41, 0.08);
 }
 
 .media-card-upload .card-illustration {
-  background: linear-gradient(150deg, #F3F7F3 0%, #D8E5D8 100%);
-  box-shadow: inset 0 2px 6px rgba(76, 106, 76, 0.06);
+  background: #FDF0F0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
+  box-shadow: 0 2px 6px rgba(123, 35, 41, 0.08);
 }
 
 .media-card-upload .illustration-icon {
-  color: #4C6A4C;
+  color: #7B2329;
 }
 
 .media-card-upload .card-title {
-  color: #2D442D;
+  color: #5A3E35;
 }
 
 .media-card-upload .card-description {
-  color: #4C6A4C;
+  color: #7B5F3B;
   max-width: 320px;
 }
 
@@ -573,10 +609,10 @@ async function submitUploads(): Promise<void> {
 
 .dropzone-card:hover,
 .dropzone-card.drag-active {
-  border-color: #4C6A4C;
-  background: #F4F8F4;
+  border-color: #7B2329;
+  background: #FDF4F4;
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px -8px rgba(76, 106, 76, 0.1);
+  box-shadow: 0 18px 40px -12px rgba(123, 35, 41, 0.14);
 }
 
 .hidden-file-input {
@@ -587,18 +623,19 @@ async function submitUploads(): Promise<void> {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: linear-gradient(150deg, #F3F7F3 0%, #D8E5D8 100%);
+  background: #FDF0F0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
-  box-shadow: inset 0 2px 6px rgba(76, 106, 76, 0.08);
+  box-shadow: 0 4px 12px rgba(123, 35, 41, 0.1);
 }
 
 .plus-icon {
   width: 32px;
   height: 32px;
-  color: #4C6A4C;
+  color: #7B2329;
 }
 
 .dropzone-text {
@@ -616,13 +653,13 @@ async function submitUploads(): Promise<void> {
 
 .dropzone-limits {
   font-size: 0.72rem;
-  color: #8C755E;
+  color: #7B2329;
   margin: 0;
   line-height: 1.5;
-  background: #FFF9F3;
+  background: #FDF0F0;
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid #F3EDE6;
+  border: 1px solid rgba(123, 35, 41, 0.12);
 }
 
 .error-banner {
@@ -674,12 +711,12 @@ async function submitUploads(): Promise<void> {
 
 .queue-count {
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #7B5F3B;
-  background: #FFF5EB;
+  font-weight: 700;
+  color: #7B2329;
+  background: #FDF0F0;
   padding: 4px 10px;
   border-radius: 20px;
-  border: 1px solid #E8DED0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
 }
 
 .queue-count.queue-full {
@@ -839,9 +876,9 @@ async function submitUploads(): Promise<void> {
   justify-content: center;
   gap: 8px;
   padding: 10px 24px;
-  background: #4C6A4C;
+  background: linear-gradient(135deg, #7B2329 0%, #98323B 100%);
   color: #FFFFFF;
-  border: none;
+  border: 1px solid #681B20;
   border-radius: 9999px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -850,8 +887,8 @@ async function submitUploads(): Promise<void> {
 }
 
 .submit-upload-btn:hover:not(:disabled) {
-  background: #3E543E;
-  box-shadow: 0 4px 12px rgba(76, 106, 76, 0.25);
+  background: linear-gradient(135deg, #681B20 0%, #83272F 100%);
+  box-shadow: 0 4px 14px rgba(123, 35, 41, 0.28);
 }
 
 .submit-upload-btn:disabled {
@@ -887,19 +924,19 @@ async function submitUploads(): Promise<void> {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #FFF5EB;
+  background: #FDF0F0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
-  border: 1px solid #E8DED0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
 }
 
 .empty-icon {
   width: 24px;
   height: 24px;
-  color: #7B5F3B;
-  opacity: 0.8;
+  color: #7B2329;
+  opacity: 0.9;
 }
 
 .empty-text {
@@ -969,14 +1006,13 @@ async function submitUploads(): Promise<void> {
   }
 
   .card-action-btn {
-    font-size: 0.75rem;
-    padding: 0.45rem 0.65rem;
+    font-size: 0.78rem;
+    padding: 0.58rem 1rem;
   }
 
-  .action-left-icon,
-  .action-chevron {
-    width: 13px;
-    height: 13px;
+  .action-arrow {
+    width: 14px;
+    height: 14px;
   }
 }
 </style>

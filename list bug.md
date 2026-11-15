@@ -173,4 +173,6 @@ Klik TEST RUN → pastikan statusnya 200 OK (kalau 401, cek lagi header apikey),
 
 
 
-
+anomali editor:
+-weight
+-

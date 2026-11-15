@@ -309,6 +309,24 @@ const selectedEntityId = computed({
   set: (entityId: string) => { selectEntity(entityId) }
 })
 const selectedEntity = computed(() => editorEntities.value.find((entity) => entity.id === editor.selectedObjectId))
+const isFontSelected = computed(() => {
+  const entity = selectedEntity.value
+  if (!entity) return false
+  return entity.type === 'Text' || entity.kind === 'text' || Boolean(entity.capabilities?.includes('typography'))
+})
+const CATEGORY_DISABLED_NOTICE = 'Deselect Font to Use Media Feature'
+function isCategoryDisabled(category: string): boolean {
+  return category === 'media' && isFontSelected.value
+}
+watch(
+  [isFontSelected, () => editor.activeAccordion],
+  ([isFont, currentAccordion]) => {
+    if (isFont && currentAccordion === 'media') {
+      editor.setAccordion('font')
+    }
+  },
+  { immediate: true }
+)
 function photoAreaForEntity(entity: EditorRuntimeObject | undefined) {
   if (!entity?.photoAreaId) return undefined
   const fixed = photoRegistry.find(entity.photoAreaId)
@@ -558,7 +576,65 @@ const inspectorPanelProperties = computed<InspectorPanelProperty[]>(() => {
   ))
 })
 
+const INDONESIAN_SYNONYMS: Record<string, string[]> = {
+  warna: ['color', 'hex', 'rgb'],
+  bayangan: ['shadow'],
+  ukuran: ['size', 'width', 'height', 'w', 'h'],
+  jarak: ['spacing', 'letter spacing', 'gap'],
+  huruf: ['font', 'typography', 'family'],
+  tulisan: ['font', 'typography', 'text'],
+  teks: ['font', 'typography', 'text'],
+  posisi: ['position', 'x', 'y'],
+  lebar: ['width', 'w'],
+  tinggi: ['height', 'h'],
+  putar: ['rotate', 'rotation'],
+  buram: ['blur', 'opacity'],
+  transparan: ['opacity', 'transparent'],
+  tebal: ['weight', 'bold'],
+  miring: ['italic', 'style'],
+  box: ['width', 'height', 'box paragraf'],
+  paragraf: ['width', 'height', 'box paragraf', 'text']
+}
+
+function propertyMatchesQuery(property: InspectorPanelProperty, rawQuery: string): boolean {
+  if (!rawQuery) return true
+  const q = rawQuery.trim().toLowerCase()
+  if (!q) return true
+  const label = property.metadata.label.toLowerCase()
+  if (label.includes(q)) return true
+  const category = (property.metadata.categoryLabel ?? property.metadata.category).toLowerCase()
+  if (category.includes(q)) return true
+  const propKey = property.metadata.propertyKey.toLowerCase()
+  const key = property.key.toLowerCase()
+  if (propKey.includes(q) || key.includes(q)) return true
+  if (property.metadata.searchTerms?.some((term) => term.toLowerCase().includes(q))) return true
+  for (const [synonym, targets] of Object.entries(INDONESIAN_SYNONYMS)) {
+    if (q.includes(synonym) || synonym.includes(q)) {
+      if (targets.some((target) => label.includes(target) || category.includes(target) || propKey.includes(target))) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function isPropertySearchMatch(property: InspectorPanelProperty): boolean {
+  return Boolean(propertySearch.value.trim()) && propertyMatchesQuery(property, propertySearch.value)
+}
+
+const searchMatchCount = computed(() => {
+  const query = propertySearch.value.trim().toLowerCase()
+  if (!query) return 0
+  return inspectorPanelProperties.value.filter((property) => propertyMatchesQuery(property, query)).length
+})
+
+const searchMatchBadge = computed(() => {
+  if (!propertySearch.value.trim()) return ''
+  return `${searchMatchCount.value} found`
+})
+
 const selectedPanelGroups = computed<PanelGroup[]>(() => {
+  const query = propertySearch.value.trim().toLowerCase()
   const groups = new Map<string, { label: string; order: number; presentation: 'inline' | 'accordion'; properties: InspectorPanelProperty[] }>()
   for (const property of inspectorPanelProperties.value) {
     const category = property.metadata.category
@@ -568,7 +644,9 @@ const selectedPanelGroups = computed<PanelGroup[]>(() => {
       presentation: property.metadata.presentation ?? 'accordion',
       properties: []
     }
-    current.properties.push(property)
+    if (!query || propertyMatchesQuery(property, query)) {
+      current.properties.push(property)
+    }
     groups.set(category, current)
   }
   return [...groups.entries()]
@@ -1804,6 +1882,12 @@ function panelResponsiveLabel(property: PanelProperty): string {
   return state.overridden ? 'Tablet value' : 'Using Desktop value'
 }
 
+function panelResponsiveVisibleLabel(property: PanelProperty): string {
+  const label = panelResponsiveLabel(property)
+  if (label === 'Desktop value' || label === 'Using Desktop value') return ''
+  return label
+}
+
 function resetPanelOverrideLabel(): string {
   return activeBreakpoint.value === 'desktop' ? 'Reset' : 'Use Desktop value'
 }
@@ -2726,17 +2810,35 @@ function markSessionChanged(): void {
   }
 }
 
+function clearSelection(): void {
+  if (inlineTextEdit.value) void commitInlineTextEdit()
+  if (!editor.selectedObjectId && !editor.selectedObjectIds.length) return
+  editor.clearSelection()
+  selectedPreviewElement = null
+  updateSelectedOutline()
+  markSessionChanged()
+}
+
 function selectPreviewEntity(event: MouseEvent): void {
-  if (selectionBoxMoved) {
-    selectionBoxMoved = false
-    return
-  }
+  if (selectionBoxMoved) return
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
   const entityId = target?.dataset.editorObjectId
-  if (!entityId || !target) return
+  if (!entityId || !target) {
+    clearSelection()
+    return
+  }
   event.preventDefault()
   if ((event.target as HTMLElement).closest('a')) event.stopPropagation()
   selectEntity(entityId, target, event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'additive' : 'replace')
+}
+
+function handleCanvasScrollClick(event: MouseEvent): void {
+  if (selectionBoxMoved || isPanning.value || event.button !== 0) return
+  if (canvasScroll.value && event.target === canvasScroll.value) {
+    if (event.offsetX > canvasScroll.value.clientWidth || event.offsetY > canvasScroll.value.clientHeight) return
+  }
+  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-object-id]')
+  if (!target) clearSelection()
 }
 
 function decoratePreviewEntities(): void {
@@ -3317,12 +3419,15 @@ function searchInspector(value: string): void {
     const exactSearchTerm = property.metadata.searchTerms?.some((term) => term.toLocaleLowerCase() === query)
     const label = property.metadata.label.toLocaleLowerCase()
     const category = (property.metadata.categoryLabel ?? property.metadata.category).toLocaleLowerCase()
-    const score = exactSearchTerm ? 0 : label === query ? 1 : label.includes(query) ? 2 : category.includes(query) ? 3 : 99
+    const matches = propertyMatchesQuery(property, query)
+    const score = exactSearchTerm ? 0 : label === query ? 1 : label.includes(query) ? 2 : matches ? 3 : category.includes(query) ? 4 : 99
     return { property, score }
   }).filter((item) => item.score < 99).sort((left, right) => left.score - right.score || left.property.metadata.order - right.property.metadata.order)
   const match = ranked[0]?.property
   if (!match) return
-  if (match.metadata.presentation !== 'inline') editor.setAccordion(match.metadata.category)
+  if (match.metadata.presentation !== 'inline' && !isCategoryDisabled(match.metadata.category)) {
+    editor.setAccordion(match.metadata.category)
+  }
   void nextTick(() => scrollInspectorToActive(match.inspectorKey))
 }
 
@@ -3391,11 +3496,13 @@ function endSelectionBox(): void {
 }
 
 function toggleAccordion(category: string): void {
+  if (isCategoryDisabled(category)) return
   editor.setAccordion(editor.activeAccordion === category ? '' : category)
   markSessionChanged()
 }
 
 function focusInspectorCategory(category: string): void {
+  if (isCategoryDisabled(category)) return
   editor.setAccordion(category)
   markSessionChanged()
   void nextTick(() => scrollInspectorToActive())
@@ -3503,26 +3610,53 @@ function cancelLibrarySwitch(): void {
         <span>{{ selectedEntity.section }}</span>
       </p>
 
-      <div class="responsive-inspector-context" data-responsive-inspector>
-        <span>Editing</span>
-        <strong>{{ activeViewportLabel }}</strong>
-        <small>{{ activeBreakpoint === 'desktop' ? 'Set the main design for larger screens.' : 'Using Desktop values until you make a Tablet change.' }}</small>
+      <div class="property-search-wrap">
+        <label class="property-search" for="property-search-input">
+          <div class="property-search-label">
+            <span>Search settings</span>
+            <span v-if="searchMatchBadge" class="search-match-badge">{{ searchMatchBadge }}</span>
+          </div>
+          <div class="property-search-input-shell">
+            <input
+              id="property-search-input"
+              v-model="propertySearch"
+              type="search"
+              placeholder="Color, shadow, spacing…"
+              data-property-search
+            />
+            <button
+              v-if="propertySearch.trim()"
+              type="button"
+              class="search-clear-button"
+              aria-label="Clear search"
+              title="Clear search"
+              @click="propertySearch = ''"
+            >✕</button>
+          </div>
+        </label>
       </div>
 
-      <label class="property-search" for="property-search-input">
-        <span>Search settings</span>
-        <input id="property-search-input" v-model="propertySearch" type="search" placeholder="Color, shadow, spacing…" data-property-search />
-      </label>
-
       <nav v-if="inspectorCategoryGroups.length" class="inspector-category-nav" aria-label="Design setting categories">
-        <button
+        <div
           v-for="group in inspectorCategoryGroups"
           :key="group.key"
-          type="button"
-          :class="{ active: editor.activeAccordion === group.key }"
-          :aria-pressed="editor.activeAccordion === group.key"
-          @click="focusInspectorCategory(group.key)"
-        >{{ group.label }}</button>
+          class="inspector-nav-item"
+          :class="{ 'inspector-nav-item--disabled': isCategoryDisabled(group.key) }"
+        >
+          <button
+            type="button"
+            :class="{ active: editor.activeAccordion === group.key, 'nav-btn--disabled': isCategoryDisabled(group.key) }"
+            :aria-pressed="editor.activeAccordion === group.key"
+            :aria-disabled="isCategoryDisabled(group.key) ? 'true' : undefined"
+            :title="isCategoryDisabled(group.key) ? CATEGORY_DISABLED_NOTICE : undefined"
+            @click="focusInspectorCategory(group.key)"
+          >{{ group.label }}</button>
+          <span
+            v-if="isCategoryDisabled(group.key)"
+            class="category-disabled-tooltip"
+            role="tooltip"
+          >{{ CATEGORY_DISABLED_NOTICE }}</span>
+        </div>
       </nav>
 
       <div v-if="selectedEntity" class="object-actions" aria-label="Selected element actions">
@@ -3544,19 +3678,38 @@ function cancelLibrarySwitch(): void {
       <p v-if="selectedObjectHidden" class="object-state-notice">Hidden only in the editor preview. Your live site is unchanged.</p>
 
       <section v-if="selectedEntity" class="property-editor">
-        <div v-for="group in selectedPanelGroups" :key="group.key" class="property-group" :class="{ 'property-group--inline': group.presentation === 'inline' }" :data-property-category="group.key">
-          <button
-            v-if="group.presentation === 'accordion'"
-            type="button"
-            class="accordion-toggle"
-            :aria-expanded="editor.activeAccordion === group.key"
-            @click="toggleAccordion(group.key)"
-          >
-            <span>{{ group.label }}</span>
-            <span aria-hidden="true">{{ editor.activeAccordion === group.key ? '-' : '+' }}</span>
-          </button>
+        <div
+          v-for="group in selectedPanelGroups"
+          :key="group.key"
+          class="property-group"
+          :class="{
+            'property-group--inline': group.presentation === 'inline',
+            'property-group--disabled': isCategoryDisabled(group.key)
+          }"
+          :data-property-category="group.key"
+        >
+          <div v-if="group.presentation === 'accordion'" class="accordion-header-wrap">
+            <button
+              type="button"
+              class="accordion-toggle"
+              :class="{ 'accordion-toggle--disabled': isCategoryDisabled(group.key) }"
+              :aria-expanded="editor.activeAccordion === group.key"
+              :aria-disabled="isCategoryDisabled(group.key) ? 'true' : undefined"
+              :title="isCategoryDisabled(group.key) ? CATEGORY_DISABLED_NOTICE : undefined"
+              @click="toggleAccordion(group.key)"
+            >
+              <span>{{ group.label }}</span>
+              <span aria-hidden="true">{{ editor.activeAccordion === group.key ? '-' : '+' }}</span>
+            </button>
+            <span
+              v-if="isCategoryDisabled(group.key)"
+              class="category-disabled-tooltip"
+              role="tooltip"
+            >{{ CATEGORY_DISABLED_NOTICE }}</span>
+          </div>
           <Transition name="accordion-panel">
-          <div v-if="group.presentation === 'inline' || editor.activeAccordion === group.key" class="accordion-content">
+          <div v-if="(group.presentation === 'inline' || editor.activeAccordion === group.key) && !isCategoryDisabled(group.key)" class="accordion-content">
+            <p v-if="propertySearch.trim() && !group.rows.length" class="empty-group-search">Tidak ada pengaturan di kategori ini yang cocok.</p>
             <div
               v-for="row in group.rows"
               :key="row.key"
@@ -3567,13 +3720,17 @@ function cancelLibrarySwitch(): void {
                 v-for="property in row.properties"
                 :key="property.inspectorKey"
                 class="property-field"
-                :class="{ 'property-field--disabled': !isPanelPropertyEnabled(property), 'property-field--error': Boolean(panelPropertyError(property)) }"
+                :class="{
+                  'property-field--disabled': !isPanelPropertyEnabled(property),
+                  'property-field--error': Boolean(panelPropertyError(property)),
+                  'property-field--match': isPropertySearchMatch(property)
+                }"
                 :title="!isPanelPropertyEnabled(property) ? panelPropertyHelperText(property) : undefined"
                 :data-responsive-source="panelResponsiveLabel(property) || undefined"
               >
                 <span>{{ property.metadata.label }}</span>
-                <div v-if="panelResponsiveLabel(property) || canResetPanelOverride(property)" class="property-field-meta">
-                  <span v-if="panelResponsiveLabel(property)" class="responsive-property-state" :class="{ 'is-override': panelResponsiveState(property)?.overridden }">{{ panelResponsiveLabel(property) }}</span>
+                <div v-if="panelResponsiveVisibleLabel(property) || canResetPanelOverride(property)" class="property-field-meta">
+                  <span v-if="panelResponsiveVisibleLabel(property)" class="responsive-property-state" :class="{ 'is-override': panelResponsiveState(property)?.overridden }">{{ panelResponsiveVisibleLabel(property) }}</span>
                   <button
                     v-if="canResetPanelOverride(property)"
                     type="button"
@@ -3620,7 +3777,11 @@ function cancelLibrarySwitch(): void {
           </div>
           </Transition>
         </div>
-        <p v-if="!selectedPanelGroups.length" class="empty-properties">No design settings are available for this element.</p>
+        <div v-if="!selectedPanelGroups.length" class="empty-properties">
+          <p v-if="propertySearch.trim()">Tidak ada pengaturan yang cocok dengan "<strong>{{ propertySearch }}</strong>".</p>
+          <p v-else>No design settings are available for this element.</p>
+          <button v-if="propertySearch.trim()" type="button" class="reset-search-btn" @click="propertySearch = ''">Tampilkan Semua Pengaturan</button>
+        </div>
       </section>
 
       <div v-if="editor.selectedPropertyErrors.length" class="validation-summary" role="status">
@@ -3693,7 +3854,7 @@ function cancelLibrarySwitch(): void {
         <button type="button" @click="void initializeEditor()">Retry</button>
       </div>
       <div class="canvas-label">LIVE EDITOR PREVIEW</div>
-      <div ref="canvasScroll" class="canvas-scroll" data-lenis-prevent :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan">
+      <div ref="canvasScroll" class="canvas-scroll" data-lenis-prevent :class="{ 'is-panning': isPanning }" @scroll="persistPreviewScroll" @wheel="handleCanvasWheel" @pointerdown="beginCanvasPan" @click="handleCanvasScrollClick">
         <div class="preview-frame" :style="previewFrameStyle">
           <div ref="previewStage" class="preview-stage" :style="previewStageStyle" :data-canvas-width="activeCanvasWidth" :data-responsive-breakpoint="activeBreakpoint">
             <div ref="previewRuntime" class="editor-preview-runtime" data-editor-mode="true" :data-responsive-breakpoint="activeBreakpoint" @dragstart.prevent @pointerdown.capture="beginPreviewPointer" @click.capture="selectPreviewEntity" @dblclick.capture="beginInlineTextEdit">
@@ -3813,9 +3974,33 @@ function cancelLibrarySwitch(): void {
 .property-field small { color: #9a806f; font-size: .65rem; font-weight: 500; line-height: 1.35; }
 .property-field :deep(.property-readonly) { display: block; width: 100%; overflow-wrap: anywhere; padding: .62rem; border: 1px dashed rgba(73,54,47,.18); border-radius: 8px; background: rgba(246,244,232,.75); color: #78645b; font: 500 .7rem/1.45 system-ui; }
 .selection-summary { display: grid; gap: .18rem; margin: .9rem 0 0; padding: .65rem .75rem; border-radius: 10px; background: rgba(255,245,235,.8); color: #7b5f3b; font-size: .72rem; }.selection-summary span { color: #a18b80; font-size: .58rem; overflow-wrap: anywhere; }.selection-summary em { color: #a44955; font-size: .66rem; font-style: normal; font-weight: 800; }
-.responsive-inspector-context { display: grid; grid-template-columns: 1fr auto; gap: .18rem .65rem; margin-top: .65rem; padding: .65rem .72rem; border: 1px solid rgba(184,91,105,.2); border-radius: 11px; background: linear-gradient(135deg,rgba(255,245,235,.92),rgba(255,253,247,.86)); color: #80675d; font-size: .62rem; }.responsive-inspector-context > span { font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.responsive-inspector-context strong { color: #9b4f5b; }.responsive-inspector-context small { grid-column: 1 / -1; color: #92796d; line-height: 1.4; }
-.property-search { display: grid; gap: .35rem; margin-top: .85rem; color: #765f55; font-size: .7rem; font-weight: 800; }.property-search input { width: 100%; box-sizing: border-box; border: 1px solid rgba(73,54,47,.19); border-radius: 10px; padding: .62rem .7rem; background: #fffdf7; color: inherit; font: 500 .74rem/1.2 system-ui; }.property-search input:focus { border-color: #b85b69; outline: 2px solid rgba(184,91,105,.18); outline-offset: 1px; }
-.inspector-category-nav { display: flex; gap: .35rem; margin-top: .7rem; padding-bottom: .15rem; overflow-x: auto; scrollbar-width: thin; }.inspector-category-nav button { flex: 0 0 auto; min-height: 30px; border: 1px solid rgba(73,54,47,.13); border-radius: 999px; padding: .36rem .55rem; background: #fffaf4; color: #80675d; font: 800 .55rem/1 system-ui; letter-spacing: .035em; cursor: pointer; transition: border-color .18s ease,background-color .18s ease,color .18s ease; }.inspector-category-nav button:hover,.inspector-category-nav button.active { border-color: rgba(184,91,105,.42); background: #fff0ea; color: #944853; }
+
+.property-search-wrap { margin-top: .85rem; }
+.property-search { display: grid; gap: .35rem; color: #765f55; font-size: .7rem; font-weight: 800; }
+.property-search-label { display: flex; align-items: center; justify-content: space-between; }
+.search-match-badge { font-size: .62rem; font-weight: 700; color: #8d363a; background: #fdf0f0; border: 1px solid rgba(123, 35, 41, 0.18); border-radius: 999px; padding: .1rem .45rem; }
+.property-search-input-shell { position: relative; display: flex; align-items: center; width: 100%; }
+.property-search-input-shell input { width: 100%; box-sizing: border-box; border: 1px solid rgba(73,54,47,.19); border-radius: 10px; padding: .62rem 2.2rem .62rem .7rem; background: #fffdf7; color: inherit; font: 500 .74rem/1.2 system-ui; }
+.property-search-input-shell input:focus { border-color: #b85b69; outline: 2px solid rgba(184,91,105,.18); outline-offset: 1px; }
+.search-clear-button { position: absolute; right: .55rem; width: 1.25rem; height: 1.25rem; display: flex; align-items: center; justify-content: center; border: none; background: rgba(123, 35, 41, 0.1); color: #7b2329; border-radius: 999px; font-size: .65rem; font-weight: 800; cursor: pointer; transition: background-color .18s; }
+.search-clear-button:hover { background: rgba(123, 35, 41, 0.22); color: #5a191e; }
+.property-field--match { background: rgba(184, 91, 105, 0.07); border-radius: 8px; padding: 0.35rem 0.5rem; margin: -0.35rem -0.5rem; box-shadow: 0 0 0 1.5px rgba(184, 91, 105, 0.45); transition: box-shadow .2s ease, background-color .2s ease; }
+.reset-search-btn { margin-top: .6rem; padding: .4rem .8rem; font-size: .68rem; font-weight: 700; color: #7b2329; background: #fdf0f0; border: 1px solid rgba(123, 35, 41, 0.2); border-radius: 8px; cursor: pointer; }
+.reset-search-btn:hover { background: #fce6e8; }
+.empty-group-search { padding: .75rem; color: #92796d; font-size: .68rem; font-style: italic; }
+.inspector-category-nav { display: flex; gap: .35rem; margin-top: .7rem; padding-bottom: .15rem; overflow-x: auto; scrollbar-width: thin; }
+.inspector-nav-item { position: relative; display: flex; flex: 0 0 auto; }
+.inspector-category-nav button { flex: 0 0 auto; min-height: 30px; border: 1px solid rgba(73,54,47,.13); border-radius: 999px; padding: .36rem .55rem; background: #fffaf4; color: #80675d; font: 800 .55rem/1 system-ui; letter-spacing: .035em; cursor: pointer; transition: border-color .18s ease,background-color .18s ease,color .18s ease; }
+.inspector-category-nav button:hover,.inspector-category-nav button.active { border-color: rgba(184,91,105,.42); background: #fff0ea; color: #944853; }
+.inspector-nav-item--disabled button, .nav-btn--disabled { opacity: .45; cursor: not-allowed; border-color: rgba(73,54,47,.1); background: #f5efe8; color: #a48c82; }
+.inspector-nav-item--disabled button:hover { border-color: rgba(73,54,47,.1); background: #f5efe8; color: #a48c82; }
+.accordion-header-wrap { position: relative; width: 100%; }
+.accordion-toggle--disabled { opacity: .55; cursor: not-allowed !important; }
+.category-disabled-tooltip { position: absolute; z-index: 1200; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .15s ease, transform .15s ease; white-space: nowrap; font-size: .65rem; font-weight: 600; line-height: 1.25; color: #fff; background: rgba(45, 32, 28, 0.94); padding: .35rem .65rem; border-radius: 6px; border: none; box-shadow: none; }
+.inspector-nav-item .category-disabled-tooltip { bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(2px); }
+.inspector-nav-item--disabled:hover .category-disabled-tooltip { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+.accordion-header-wrap .category-disabled-tooltip { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.accordion-header-wrap:hover .category-disabled-tooltip, .property-group--disabled:hover .category-disabled-tooltip { opacity: 1; visibility: visible; }
 .object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
 .object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
 .property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); box-shadow: 0 4px 14px rgba(73,54,47,.025); }

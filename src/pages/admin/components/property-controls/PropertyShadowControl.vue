@@ -15,7 +15,11 @@ const props = withDefaults(defineProps<{
   label?: string
   allowSpread?: boolean
   themeColors?: string[]
-}>(), { allowSpread: true, themeColors: () => [] })
+  maxBlur?: number
+  maximum?: number
+}>(), { allowSpread: true, themeColors: () => [], maxBlur: 100 })
+
+const effectiveMaxBlur = computed(() => props.maxBlur ?? props.maximum ?? 100)
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
@@ -24,14 +28,27 @@ const enabled = computed(() => {
   const normalized = rawValue.value.trim().toLowerCase()
   return Boolean(normalized && normalized !== 'none')
 })
-const parts = computed(() => parseShadowValue(rawValue.value, props.allowSpread))
+const parts = computed(() => {
+  const parsed = parseShadowValue(rawValue.value, props.allowSpread)
+  if (!parsed.custom && parsed.blur > effectiveMaxBlur.value) {
+    return { ...parsed, blur: effectiveMaxBlur.value }
+  }
+  return parsed
+})
 
 function serialize(next: ShadowValueParts): string {
   return serializeShadowValue(next, props.allowSpread)
 }
 
 function update(patch: Partial<ShadowValueParts>): void {
-  emit('update:modelValue', serialize({ ...parts.value, custom: false, ...patch }))
+  const next = { ...parts.value, custom: false, ...patch }
+  if (patch.blur !== undefined) {
+    const rawBlur = Number(patch.blur)
+    next.blur = Number.isFinite(rawBlur)
+      ? Math.min(effectiveMaxBlur.value, Math.max(0, rawBlur))
+      : parts.value.blur
+  }
+  emit('update:modelValue', serialize(next))
 }
 
 function toggle(event: Event): void {
@@ -53,7 +70,7 @@ function toggle(event: Event): void {
         <div class="shadow-grid">
           <label><span>X</span><PropertyInputControl control="number" :model-value="parts.x" :disabled="disabled" label="Shadow X" @update:model-value="update({ x: Number($event) })" /></label>
           <label><span>Y</span><PropertyInputControl control="number" :model-value="parts.y" :disabled="disabled" label="Shadow Y" @update:model-value="update({ y: Number($event) })" /></label>
-          <label><span>Blur</span><PropertyInputControl control="number" :model-value="parts.blur" :disabled="disabled" :minimum="0" label="Shadow blur" @update:model-value="update({ blur: Number($event) })" /></label>
+          <label><span>Blur</span><PropertyInputControl control="number" :model-value="parts.blur" :disabled="disabled" :minimum="0" :maximum="effectiveMaxBlur" label="Shadow blur" @update:model-value="update({ blur: Number($event) })" /></label>
           <label v-if="allowSpread"><span>Spread</span><PropertyInputControl control="number" :model-value="parts.spread" :disabled="disabled" label="Shadow spread" @update:model-value="update({ spread: Number($event) })" /></label>
         </div>
         <label class="shadow-color"><span>Color</span><PropertyColorControl :model-value="parts.color" :disabled="disabled" label="Shadow color" :theme-colors="themeColors" @update:model-value="update({ color: $event })" /></label>

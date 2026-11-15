@@ -4,62 +4,42 @@
       <p v-if="metricsError" class="dashboard-error" role="alert">Dashboard counts are temporarily unavailable. <button type="button" @click.stop="void loadMetrics()">Retry</button></p>
       <div class="dashboard-row1">
         <div class="card card-draft card-link" role="button" tabindex="0" aria-label="Open Draft Library" @click="goToDrafts" @keydown.enter="goToDrafts" @keydown.space.prevent="goToDrafts">
-          <div class="card-image">
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
-              <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 12H8C7.44772 12 7 12.4477 7 13V39C7 39.5523 7.44772 40 8 40H16C16.5523 40 17 39.5523 17 39V13C17 12.4477 16.5523 12 16 12Z"/>
-                <path d="M24 16H8"/>
-                <path d="M20 24H8"/>
-                <path d="M16 32H8"/>
-                <path d="M16 12V20"/>
-              </g>
-            </svg>
+          <div class="card-image" aria-hidden="true">
+            <FileText :size="26" stroke-width="1.75" class="illustration" />
           </div>
           <div class="card-content">
             <div class="card-header">
-              <span class="card-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 19H20C21.1046 19 22 18.1046 22 17V7C22 5.89543 21.1046 5 20 5H13.41C13.149 5 12.9011 5.10557 12.7071 5.29359L11 7H8C6.89543 7 6 7.89543 6 9V17C6 18.1046 6.89543 19 8 19H10M14 19L14 15C14 14.4477 14.4477 14 15 14H17C17.5523 14 18 14.4477 18 15V19M14 19H14.01M12 8V11C12 11.5523 12 12 12.5 12.5C13 13 13.55 13 14.06 12.95C14.55 12.9 14.89 12.44 14.89 11.89C14.89 11.42 14.55 11 14 10.5C13.49 10 12.99 9.97 12.5 9.97" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                </svg>
-              </span>
               <h2 class="card-draft-title">Draf</h2>
             </div>
             <ProductSkeleton v-if="metricsLoading" variant="inline" label="Loading Draft count" />
             <p v-else class="card-draft-desc">{{ draftCount }} / 10 drafts</p>
-            <div class="capacity-track" aria-hidden="true"><span :style="{ width: `${Math.min(100, draftCount * 10)}%` }"></span></div>
+            <div class="draft-segments" aria-hidden="true">
+              <span
+                v-for="index in 10"
+                :key="index"
+                class="draft-segment"
+                :class="{ 'draft-segment--active': index <= draftCount }"
+              ></span>
+            </div>
           </div>
         </div>
 
         <div class="card card-published card-link" role="button" tabindex="0" aria-label="Open Publish History" @click="goToPublished" @keydown.enter="goToPublished" @keydown.space.prevent="goToPublished">
-          <div class="card-image">
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
-              <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="12" y="12" width="24" height="24" rx="2"/>
-                <path d="M16 20H32"/>
-                <path d="M16 16H32"/>
-                <path d="M16 24H32"/>
-                <path d="M20 32V28H28V32"/>
-              </g>
-            </svg>
+          <div class="card-image" aria-hidden="true">
+            <Globe :size="26" stroke-width="1.75" class="illustration" />
           </div>
           <div class="card-content">
             <div class="card-header">
-              <span class="card-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3Z"/>
-                  <path d="M9 8L15 12L9 16V8Z"/>
-                </svg>
-              </span>
               <h2 class="card-published-title">Published</h2>
             </div>
             <ProductSkeleton v-if="metricsLoading" variant="inline" label="Loading Published revision" />
-            <template v-else><p class="card-published-desc">{{ publishedRevision === null ? 'No active Published Snapshot' : `Live revision #${publishedRevision}` }}</p><p class="card-published-date">{{ publishedAt ? `Published ${formatPublishedDate(publishedAt)}` : 'Open Publish History' }}</p></template>
+            <template v-else>
+              <p class="card-published-desc">{{ publishedRevision === null ? 'No active Published Snapshot' : `Live revision #${publishedRevision}` }}</p>
+              <p class="card-published-date">{{ publishedAt ? `Published ${formatPublishedDate(publishedAt)}` : 'Open Publish History' }}</p>
+            </template>
             <div class="card-bottom">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 22L12 6L9 9L12 12L15 9L12 6"/>
-                  <circle cx="12" cy="10" r="2" fill="currentColor"/>
-                </svg>
-                <span>{{ publishedRevision ?? '-' }}</span>
+              <History :size="11" stroke-width="2" aria-hidden="true" />
+              <span>{{ publishedRevision ?? '-' }}</span>
             </div>
           </div>
         </div>
@@ -67,21 +47,8 @@
 
       <div class="dashboard-row2">
         <div class="card card-clock">
-          <div class="card-image">
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
-              <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="24" cy="24" r="22"/>
-                <polyline points="24 12 24 28 18 34 42 34"/>
-                <polyline points="12 24 18 28 18 42 24 42"/>
-                <polyline points="24 36 24 48 30 46 42 46"/>
-                <polyline points="42 24 46 28 46 42 42 42"/>
-                <text x="24" y="31" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="currentColor">01</text>
-                <text x="24" y="39" font-family="system-ui, sans-serif" font-size="8" fill="currentColor">23</text>
-                <text x="38" y="36" font-family="system-ui, sans-serif" font-size="6" fill="currentColor">:</text>
-                <text x="24" y="44" font-family="system-ui, sans-serif" font-size="8" fill="currentColor">45</text>
-                <text x="34" y="37" font-family="system-ui, sans-serif" font-size="6" fill="currentColor">JAM</text>
-              </g>
-            </svg>
+          <div class="card-image" aria-hidden="true">
+            <Clock :size="26" stroke-width="1.75" class="illustration" />
           </div>
           <div class="card-content">
             <div class="card-header">
@@ -97,23 +64,11 @@
         </div>
 
         <div class="card card-favorite card-link" role="button" tabindex="0" aria-label="Open Favorite Drafts" @click="goToFavorites" @keydown.enter="goToFavorites" @keydown.space.prevent="goToFavorites">
-          <div class="card-image">
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="illustration">
-              <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M40 18L36 26L24 22L20 34L32 38L36 46L44 38L48 34L40 18Z"/>
-                <path d="M24 30L16 38L16 46L24 50L24 38Z"/>
-                <path d="M24 38L32 46L40 38L32 30L24 38Z"/>
-              </g>
-            </svg>
+          <div class="card-image" aria-hidden="true">
+            <Heart :size="26" stroke-width="1.75" class="illustration" />
           </div>
           <div class="card-content">
             <div class="card-header">
-              <span class="card-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"></path>
-                </svg>
-              </span>
               <h3 class="card-favorite-title">Favorite</h3>
             </div>
             <ProductSkeleton v-if="metricsLoading" variant="inline" label="Loading Favorite count" />
@@ -124,13 +79,13 @@
 
         <!-- Message Card -->
         <div class="card card-message card-link" role="button" tabindex="0" aria-label="Open Messages" @click="goToMessages" @keydown.enter="goToMessages" @keydown.space.prevent="goToMessages">
-          <div class="card-image card-image-message">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="illustration-message" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+          <div class="card-image" aria-hidden="true">
+            <Mail :size="26" stroke-width="1.75" class="illustration" />
           </div>
           <div class="card-content">
-            <h3 class="card-message-title">Pesan</h3>
+            <div class="card-header">
+              <h3 class="card-message-title">Pesan</h3>
+            </div>
             <p class="card-message-desc">Lihat pesan masuk</p>
           </div>
         </div>
@@ -142,6 +97,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Clock, FileText, Globe, Heart, History, Mail } from 'lucide-vue-next'
 import ProductSkeleton from '../../components/ProductSkeleton.vue'
 import { productFeedback } from '../../composables/useProductFeedback'
 import { editorDraftRepository, favoriteRepository, guestPublishedRepository } from '../../repositories/editorRevisionRepository'
@@ -312,7 +268,7 @@ onUnmounted(() => {
 
 .dashboard-row1 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.4fr 0.6fr;
   gap: 20px;
   margin-bottom: 20px;
 }
@@ -322,51 +278,101 @@ onUnmounted(() => {
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
-.dashboard-error{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 1rem;padding:.75rem 1rem;border:1px solid #e2b9b9;border-radius:16px;color:#963f47;background:#fff3ef;font-size:.78rem}.dashboard-error button{border:0;color:inherit;background:transparent;font-weight:900;text-decoration:underline;cursor:pointer}
+
+.dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: .75rem 1rem;
+  border: 1px solid #e2b9b9;
+  border-radius: 16px;
+  color: #963f47;
+  background: #fff3ef;
+  font-size: .78rem;
+}
+.dashboard-error button {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-weight: 900;
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .card {
-  background-color: #FFFFFF;
-  border-radius: 28px;
-  padding: 24px;
+  background-color: #FAF9F5;
+  border: 1px solid rgba(123, 35, 41, 0.16);
+  border-radius: 24px;
+  padding: 24px 28px;
   position: relative;
-  box-shadow: 0 8px 25px -12px rgba(90, 62, 53, 0.1), 0 0 0 1px rgba(90, 62, 53, 0.05);
+  box-shadow: 0 14px 36px -14px rgba(123, 35, 41, 0.12), 0 0 0 1px rgba(90, 62, 53, 0.04);
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+  box-sizing: border-box;
 }
-.card-link { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; }
-.card-link:hover, .card-link:focus-visible { transform: translateY(-3px); box-shadow: 0 14px 28px -12px rgba(90,62,53,.24), 0 0 0 2px rgba(184,91,105,.18); outline: none; }
-.capacity-track { width: min(180px, 100%); height: 6px; margin-top: .75rem; overflow: hidden; border-radius: 999px; background: #f1e8dd; }
-.capacity-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d47a82, #ff9a86); transition: width .25s ease; }
+
+.card-link {
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.card-link:hover,
+.card-link:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(123, 35, 41, 0.32);
+  box-shadow: 0 18px 40px -12px rgba(123, 35, 41, 0.18), 0 0 0 1px rgba(123, 35, 41, 0.08);
+  outline: none;
+}
 
 .card-draft,
 .card-published {
-  min-height: 240px;
-  padding-top: 64px;
-  padding-bottom: 64px;
+  min-height: 210px;
+  padding: 2rem 2.25rem;
+}
+
+.card-draft .capacity-track {
+  width: min(320px, 100%);
+}
+
+.card-clock,
+.card-favorite,
+.card-message {
+  min-height: 185px;
+  padding: 1.75rem 2rem;
 }
 
 .card-image {
   width: 56px;
   height: 56px;
   flex-shrink: 0;
-  border-radius: 12px;
-  overflow: hidden;
-  background-color: #FFF5EB;
+  border-radius: 16px;
+  background-color: #FDF0F0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #7B2329;
+  transition: transform .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
 }
 
-.card-image .illustration {
-  opacity: 0.7;
-  width: 40px;
-  height: 40px;
+.card-link:hover .card-image {
+  background-color: #FCE6E8;
+  color: #5A191E;
+  border-color: rgba(123, 35, 41, 0.3);
+  transform: scale(1.05);
+}
+
+.illustration {
+  width: 26px;
+  height: 26px;
 }
 
 .card-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -375,101 +381,113 @@ onUnmounted(() => {
 .card-header {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-}
-
-.card-icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
 }
 
 .card-draft-title,
 .card-published-title,
 .card-clock-heading,
-.card-favorite-title {
+.card-favorite-title,
+.card-message-title {
   margin: 0;
   font-weight: 700;
   color: #5A3E35;
   font-size: 1.125rem;
+  letter-spacing: -0.01em;
 }
 
 .card-draft-desc,
 .card-published-desc,
 .card-clock-desc,
-.card-favorite-desc {
+.card-favorite-desc,
+.card-message-desc {
   margin: 0;
   font-size: 0.875rem;
   color: #7B5F3B;
+  line-height: 1.45;
+}
+
+.capacity-track {
+  width: min(180px, 100%);
+  height: 6px;
+  margin-top: .5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #F2EAE9;
+}
+.capacity-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7B2329, #B85B69);
+  transition: width .25s ease;
+}
+
+.draft-segments {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 8px;
+  width: min(425px, 100%);
+  margin-top: 0.75rem;
+  box-sizing: border-box;
+}
+
+.draft-segment {
+  height: 6px;
+  border-radius: 999px;
+  background-color: #E2E4E8;
+  transition: background-color 0.25s ease, box-shadow 0.2s ease;
+}
+
+.draft-segment--active {
+  background: linear-gradient(135deg, #7B2329, #B85B69);
+  box-shadow: 0 1px 3px rgba(123, 35, 41, 0.25);
+}
+
+.card-published-date {
+  margin: 0;
+  color: #9a7d70;
+  font-size: .75rem;
 }
 
 .card-bottom {
+  align-self: flex-start;
+  width: fit-content;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.15rem 0.5rem;
-  background-color: #FFE4B5;
-  border-radius: 12px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: #B45F04;
-}
-
-.card-bottom svg {
-  width: 10px;
-  height: 10px;
-}
-
-.card-clock,
-.card-favorite,
-.card-message {
-  min-height: 200px;
-  padding-top: 36px;
-  padding-bottom: 36px;
-}
-
-.card-published-date { margin: 0; color: #9a7d70; font-size: .75rem; }
-
-.card-clock {
-  flex-direction: row;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  background-color: #FDF0F0;
+  border: 1px solid rgba(123, 35, 41, 0.16);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #7B2329;
+  margin-top: 0.25rem;
 }
 
 .card-clock-desc {
-  font-size: 1.125rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: #5A3E35;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
 }
 
 .card-clock-labels {
   display: flex;
-  gap: 0.75rem;
-  font-size: 0.75rem;
-  color: #7B5F3B;
+  gap: 1.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #B85B69;
 }
-
 .card-clock-labels span {
-  opacity: 0.6;
+  opacity: 0.75;
 }
 
 .card-favorite {
-  flex-direction: row;
-  gap: 1rem;
-  align-items: center;
   text-align: left;
-}
-
-.card-favorite-title {
-  margin: 0;
-  font-weight: 700;
-  color: #5A3E35;
-  font-size: 1.125rem;
-}
-
-.card-favorite-desc {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #7B5F3B;
 }
 
 @media (max-width: 1024px) {
@@ -477,14 +495,14 @@ onUnmounted(() => {
     padding: 1.5rem;
   }
 
-  .dashboard-row1,
-  .dashboard-row2 {
+  .dashboard-row1 {
     grid-template-columns: 1fr;
     margin-bottom: 1rem;
   }
 
   .dashboard-row2 {
     grid-template-columns: 1fr 1fr;
+    margin-bottom: 1rem;
   }
 }
 
@@ -492,47 +510,27 @@ onUnmounted(() => {
   .dashboard-row2 {
     grid-template-columns: 1fr;
   }
+  .card {
+    padding: 20px;
+    border-radius: 20px;
+  }
+  .card-draft,
+  .card-published {
+    min-height: 180px;
+    padding: 1.5rem;
+  }
+  .card-clock,
+  .card-favorite,
+  .card-message {
+    min-height: 160px;
+    padding: 1.5rem;
+  }
+  .draft-segments {
+    gap: 4px;
+    margin-top: 0.5rem;
+  }
+  .draft-segment {
+    height: 5px;
+  }
 }
-
-/* Message Card */
-.card-message {
-  flex-direction: row;
-  align-items: center;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  background: linear-gradient(135deg, #FFF5EB 0%, #FFFDF8 100%);
-  border: 1px solid #E8DED0;
-}
-
-.card-message:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 28px -10px rgba(90, 62, 53, 0.2), 0 0 0 1px rgba(184, 91, 105, 0.12);
-}
-
-.card-image-message {
-  background-color: #FFE4B5;
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  border-radius: 14px;
-}
-
-.illustration-message {
-  color: #8D363A;
-  opacity: 0.85;
-}
-
-.card-message-title {
-  margin: 0 0 2px 0;
-  font-weight: 700;
-  color: #8D363A;
-  font-size: 1.125rem;
-}
-
-.card-message-desc {
-  margin: 0 0 6px 0;
-  font-size: 0.875rem;
-  color: #7B5F3B;
-}
-
 </style>

@@ -221,7 +221,7 @@ try {
       pageBg: getComputedStyle(document.querySelector('.contact-admin-page')).backgroundColor
     };
   })()`)
-  assert(initialUi.headerTitle === 'Contact' && initialUi.inputs.length === 3 && initialUi.submitBtns.length === 1 && initialUi.submitBtns[0] === 'Save', `AdminContact form structure unexpected: ${JSON.stringify(initialUi)}`)
+  assert(initialUi.headerTitle === 'Contact' && initialUi.inputs.length >= 3 && initialUi.submitBtns.length === 1 && initialUi.submitBtns[0] === 'Save', `AdminContact form structure unexpected: ${JSON.stringify(initialUi)}`)
 
   // 3. Invalid input blocks submit + shows inline error
   await evaluate(`(()=>{

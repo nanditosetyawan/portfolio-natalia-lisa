@@ -82,9 +82,9 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
   content: { category: 'content', categoryLabel: 'CONTENT', categoryOrder: 0 },
   font: { category: 'font', categoryLabel: 'TYPOGRAPHY', categoryOrder: 10 },
   media: { category: 'media', categoryLabel: 'MEDIA', categoryOrder: 20 },
-  layout: { category: 'layout', categoryLabel: 'LAYOUT', categoryOrder: 30 },
-  position: { category: 'layout', categoryLabel: 'LAYOUT', categoryOrder: 30 },
-  responsive: { category: 'layout', categoryLabel: 'LAYOUT', categoryOrder: 30 },
+  layout: { category: 'layout', categoryLabel: 'BOX PARAGRAF', categoryOrder: 30 },
+  position: { category: 'layout', categoryLabel: 'BOX PARAGRAF', categoryOrder: 30 },
+  responsive: { category: 'layout', categoryLabel: 'BOX PARAGRAF', categoryOrder: 30 },
   effects: { category: 'effects', categoryLabel: 'EFFECTS', categoryOrder: 40 },
   animation: { category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 50 },
   visibility: { category: 'visibility', categoryLabel: 'VISIBILITY', categoryOrder: 60 },
@@ -140,7 +140,7 @@ registerMany([
   ['font.color', { friendlyUi: 'Color swatch, global colors, recent colors, custom picker, and opacity.' }],
   ['font.shadow', {
     label: 'Shadow', control: 'shadow', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
-    controlOptions: { allowSpread: false }, problem: 'A raw CSS text-shadow string is exposed.', friendlyUi: 'On/off with X, Y, Blur, Color, and Opacity.'
+    controlOptions: { allowSpread: false, maxBlur: 100 }, problem: 'A raw CSS text-shadow string is exposed.', friendlyUi: 'On/off with X, Y, Blur, Color, and Opacity.'
   }],
   ['font.hover', { label: 'Hover style', hideWhenUnavailable: true }],
   ['font.positionX', { label: 'X', unit: 'px', rowKey: 'font-position', hideWhenUnavailable: true }],

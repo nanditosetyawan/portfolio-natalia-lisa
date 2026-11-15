@@ -50,8 +50,35 @@ function nudge(direction: number, event: KeyboardEvent | WheelEvent): void {
 }
 
 function update(event: Event): void {
-  const value = (event.target as HTMLInputElement).value
+  const target = event.target as HTMLInputElement
+  const value = target.value
+  if (props.control === 'number') {
+    const num = Number(value)
+    if (Number.isFinite(num)) {
+      if (props.maximum !== undefined && num > props.maximum) {
+        target.value = String(props.maximum)
+        emit('update:modelValue', props.maximum)
+        return
+      }
+      emit('update:modelValue', num)
+      return
+    }
+  }
   emit('update:modelValue', props.control === 'number' ? Number(value) : value)
+}
+
+function handleBlur(event: Event): void {
+  if (props.control === 'number') {
+    const target = event.target as HTMLInputElement
+    const num = Number(target.value)
+    if (Number.isFinite(num)) {
+      const clamped = normalizedNumber(num)
+      if (clamped !== num || target.value !== String(clamped)) {
+        target.value = String(clamped)
+        emit('update:modelValue', clamped)
+      }
+    }
+  }
 }
 
 function handleWheel(event: WheelEvent): void {
@@ -216,6 +243,7 @@ onBeforeUnmount(() => endDrag(true))
       :min="control === 'number' ? minimum : undefined"
       :max="control === 'number' ? maximum : undefined"
       @input="update"
+      @blur="handleBlur"
       @wheel="handleWheel"
       @keydown="handleKeydown"
     />
