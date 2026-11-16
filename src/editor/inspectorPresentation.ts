@@ -142,7 +142,7 @@ registerMany([
     label: 'Shadow', control: 'shadow', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
     controlOptions: { allowSpread: false, maxBlur: 100 }, problem: 'A raw CSS text-shadow string is exposed.', friendlyUi: 'On/off with X, Y, Blur, Color, and Opacity.'
   }],
-  ['font.hover', { label: 'Hover style', hideWhenUnavailable: true }],
+  ['font.hover', { category: 'interaction', categoryLabel: 'INTERACTION', categoryOrder: 70, label: 'Hover style', order: 105, hideWhenUnavailable: true }],
   ['font.positionX', { label: 'X', unit: 'px', rowKey: 'font-position', hideWhenUnavailable: true }],
   ['font.positionY', { label: 'Y', unit: 'px', rowKey: 'font-position', hideWhenUnavailable: true }],
   ['font.rotate', { label: 'Rotate', unit: '°' }],
@@ -210,7 +210,7 @@ registerMany([
       friendlyUi: 'On/off with X, Y, Blur, Color, and Opacity; rendered against image alpha.'
     }]
   }],
-  ['effects.blur', { unit: 'px' }],
+  ['effects.blur', { unit: 'px', minimum: 0, maximum: 100, step: 1 }],
   ['effects.border', {
     control: 'border', classification: 'NEEDS FRIENDLY ADAPTER', advancedRaw: true, advancedEditable: true,
     hiddenForTypes: ['Image'], problem: 'A raw CSS border shorthand is exposed.', friendlyUi: 'On/off with Thickness, Style, and Color.',

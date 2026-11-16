@@ -55,6 +55,11 @@ function update(event: Event): void {
   if (props.control === 'number') {
     const num = Number(value)
     if (Number.isFinite(num)) {
+      if (props.minimum !== undefined && num < props.minimum) {
+        target.value = String(props.minimum)
+        emit('update:modelValue', props.minimum)
+        return
+      }
       if (props.maximum !== undefined && num > props.maximum) {
         target.value = String(props.maximum)
         emit('update:modelValue', props.maximum)
