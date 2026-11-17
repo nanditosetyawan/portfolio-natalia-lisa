@@ -352,6 +352,54 @@ function previewTracks(
   return tracks
 }
 
+function triggerEntranceWhenVisible(
+  scope: AnimationObjectScope,
+  element: HTMLElement,
+  snapshot: EditorSnapshot,
+  objectId: string,
+  settings: AnimationSettings | undefined,
+  configuration: AnimationConfiguration
+): void {
+  const trigger = () => {
+    if (configuration.timelineMode === 'sequential') {
+      playEntrance(scope, element, snapshot, objectId, settings ?? {}, configuration)
+      if (configuration.text !== 'none') {
+        playText(scope, element, snapshot, objectId, settings ?? {}, configuration, (settings?.durationMs ?? 300) + configuration.timelineDelay)
+      }
+    } else {
+      playEntrance(scope, element, snapshot, objectId, settings ?? {}, configuration, configuration.timelineDelay)
+      playText(scope, element, snapshot, objectId, settings ?? {}, configuration, configuration.timelineDelay)
+    }
+  }
+
+  if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
+    trigger()
+    return
+  }
+
+  const rect = element.getBoundingClientRect()
+  const windowHeight = window.innerHeight || document.documentElement.clientHeight
+  if ((rect.top < windowHeight && rect.bottom > 0) || (rect.width === 0 && rect.height === 0) || rect.left < -1000) {
+    trigger()
+    return
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting || entry.intersectionRatio > 0) {
+        observer.unobserve(element)
+        const cleanupIndex = scope.cleanups.indexOf(cleanup)
+        if (cleanupIndex >= 0) scope.cleanups.splice(cleanupIndex, 1)
+        trigger()
+      }
+    }
+  }, { threshold: 0.1 })
+
+  const cleanup = () => observer.disconnect()
+  scope.cleanups.push(cleanup)
+  observer.observe(element)
+}
+
 export function applyAnimationObject(
   root: HTMLElement,
   snapshot: EditorSnapshot,
@@ -379,13 +427,7 @@ export function applyAnimationObject(
     if (configuration.click !== 'none') attachClick(scope, element, snapshot, objectId, settings ?? {}, configuration)
     if (configuration.scroll !== 'none') attachScroll(scope, element, snapshot, objectId, settings ?? {}, configuration)
     if (options.autoplayEntrance !== false) {
-      if (configuration.timelineMode === 'sequential') {
-        playEntrance(scope, element, snapshot, objectId, settings ?? {}, configuration)
-        if (configuration.text !== 'none') playText(scope, element, snapshot, objectId, settings ?? {}, configuration, (settings?.durationMs ?? 300) + configuration.timelineDelay)
-      } else {
-        playEntrance(scope, element, snapshot, objectId, settings ?? {}, configuration, configuration.timelineDelay)
-        playText(scope, element, snapshot, objectId, settings ?? {}, configuration, configuration.timelineDelay)
-      }
+      triggerEntranceWhenVisible(scope, element, snapshot, objectId, settings ?? {}, configuration)
     }
   }
 }

@@ -55,6 +55,7 @@ const wrapperTransform = computed(() => {
   <div
     class="portfolio-section"
     data-editor-section-id="portfolio"
+    data-entity-id="portfolio-section-bg"
     :style="{
       minHeight: vConfig.section.minHeight,
       backgroundColor: vConfig.section.backgroundColor,

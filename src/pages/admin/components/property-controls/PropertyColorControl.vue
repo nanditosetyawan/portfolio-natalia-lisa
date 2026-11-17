@@ -142,7 +142,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutside
 </script>
 
 <template>
-  <div ref="root" class="color-control" @keydown.esc="open = false">
+  <div ref="root" class="color-control" :class="{ 'is-open': open }" @keydown.esc="open = false">
     <button
       type="button"
       class="color-summary"
@@ -162,8 +162,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutside
       </div>
       <span class="custom-heading">Custom</span>
       <div class="picker-head">
-        <input type="color" :value="colorValue().slice(0, 7)" aria-label="Visual color" @input="chooseNative" />
-        <label><span>HEX</span><input :value="hexText" spellcheck="false" @change="updateHex" /></label>
+        <input type="color" :value="colorValue().slice(0, 7)" aria-label="Visual color" @input="chooseNative" @change="chooseNative" />
+        <label><span>HEX</span><input :value="hexText" spellcheck="false" @input="updateHex" @change="updateHex" /></label>
       </div>
       <div class="rgb-grid">
         <label><span>R</span><PropertyInputControl control="number" :model-value="red" :step="1" :minimum="0" :maximum="255" @update:model-value="updateChannel('red', $event)" /></label>
@@ -182,10 +182,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutside
 
 <style scoped>
 .color-control { position: relative; }
+.color-control.is-open { z-index: 1400; }
 .color-summary { width: 100%; display: grid !important; grid-template-columns: 1.45rem minmax(0,1fr); align-items: center; gap: .5rem; text-align: left; }
 .color-summary > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 .68rem/1.2 ui-monospace,monospace; }
 .color-swatch { width: 1.35rem; height: 1.35rem; border: 1px solid rgba(73,54,47,.22); border-radius: 5px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.55); }
-.color-popover { position: absolute; z-index: 1300; top: calc(100% + .45rem); left: 0; width: min(268px, calc(100vw - 2rem)); padding: .75rem; border: 1px solid rgba(73,54,47,.18); border-radius: 14px; background: #fffaf4; box-shadow: 0 16px 40px rgba(73,54,47,.22); }
+.color-popover { position: absolute; z-index: 1500; top: calc(100% + .45rem); left: 0; width: min(268px, calc(100vw - 2rem)); padding: .75rem; border: 1px solid rgba(73,54,47,.18); border-radius: 14px; background: #fffaf4; box-shadow: 0 16px 40px rgba(73,54,47,.22); }
 .picker-head { display: grid; grid-template-columns: 2.7rem minmax(0,1fr); gap: .55rem; align-items: end; }
 .picker-head > input[type='color'] { width: 2.7rem !important; height: 2.55rem; padding: .12rem !important; }
 .picker-head label,.rgb-grid label { display: grid; gap: .2rem; margin: 0; }

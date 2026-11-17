@@ -43,6 +43,7 @@ function entityReferences(snapshot: SiteSnapshot): SnapshotEntityReference[] {
     const row = value as { id: string; title?: string; label?: string; name?: string; school?: string }
     references.push({ entityId: row.id, section, kind, label: row.title ?? row.label ?? row.name ?? row.school ?? fallback })
   }
+  references.push({ entityId: 'portfolio-section-bg', section: 'Portfolio', kind: 'background', label: 'Portfolio Background' })
   add(snapshot.content.portfolio, 'Portfolio', 'content', 'Portfolio')
   if (snapshot.content.profile?.mediaUsageId) {
     references.push({
@@ -52,14 +53,21 @@ function entityReferences(snapshot: SiteSnapshot): SnapshotEntityReference[] {
       label: 'Profile'
     })
   }
+  references.push({ entityId: 'about-section-bg', section: 'About', kind: 'background', label: 'About Background' })
   add(snapshot.content.about, 'About', 'content', 'About')
   snapshot.content.about.paragraphs.forEach((item) => add(item, 'About', 'content', 'Paragraph'))
+  references.push({ entityId: 'education-section-bg', section: 'Education', kind: 'background', label: 'Education Background' })
   add(snapshot.content.education, 'Education', 'content', 'Education')
+  references.push({ entityId: 'college-section-bg', section: 'College', kind: 'background', label: 'College Background' })
   snapshot.content.college.items.forEach((item) => add(item, 'College', 'content', 'College'))
+  references.push({ entityId: 'shs-section-bg', section: 'SHS', kind: 'background', label: 'SHS Background' })
   snapshot.content.shs.items.forEach((item) => add(item, 'SHS', 'content', 'SHS'))
+  references.push({ entityId: 'experience-section-bg', section: 'Experience', kind: 'background', label: 'Experience Background' })
   add(snapshot.content.experience, 'Experience', 'content', 'Experience')
   snapshot.content.experience.items.forEach((item) => add(item, 'Experience', 'content', 'Experience'))
+  references.push({ entityId: 'certificate-section-bg', section: 'Certificate', kind: 'background', label: 'Certificate Background' })
   add(snapshot.content.certificate, 'Certificate', 'content', 'Certificate')
+  references.push({ entityId: 'contact-section-bg', section: 'Contact', kind: 'background', label: 'Contact Background' })
   add(snapshot.content.contact, 'Contact', 'content', 'Contact')
   const d = snapshot.content.contact.detail
   if (d) {
@@ -423,8 +431,11 @@ function normalizeContactDetailSnapshot(normalized: Record<string, unknown>): vo
     }
   }
 
-  // Backfill entities array with any missing ContactDetail entity references
+  // Backfill entities array with any missing ContactDetail and section background entity references
   const contactDetailEntityIds = [
+    'portfolio-section-bg', 'about-section-bg', 'education-section-bg',
+    'college-section-bg', 'shs-section-bg', 'experience-section-bg',
+    'certificate-section-bg', 'contact-section-bg',
     'contact-detail-section', 'contact-detail-photo-main', 'contact-detail-welcome-group',
     'contact-detail-title', 'contact-detail-subtitle', 'contact-detail-description',
     'contact-detail-wa', 'contact-detail-linkedin', 'contact-detail-cv',
@@ -432,6 +443,14 @@ function normalizeContactDetailSnapshot(normalized: Record<string, unknown>): vo
     'contact-detail-message-fields', 'contact-detail-submit-btn', 'contact-detail-photo-message'
   ]
   const entityMeta: Record<string, { section: string; kind: string; label: string }> = {
+    'portfolio-section-bg': { section: 'Portfolio', kind: 'background', label: 'Portfolio Background' },
+    'about-section-bg': { section: 'About', kind: 'background', label: 'About Background' },
+    'education-section-bg': { section: 'Education', kind: 'background', label: 'Education Background' },
+    'college-section-bg': { section: 'College', kind: 'background', label: 'College Background' },
+    'shs-section-bg': { section: 'SHS', kind: 'background', label: 'SHS Background' },
+    'experience-section-bg': { section: 'Experience', kind: 'background', label: 'Experience Background' },
+    'certificate-section-bg': { section: 'Certificate', kind: 'background', label: 'Certificate Background' },
+    'contact-section-bg': { section: 'Contact', kind: 'background', label: 'Contact Background' },
     'contact-detail-section': { section: 'Contact Detail', kind: 'background', label: 'Contact Detail Section' },
     'contact-detail-photo-main': { section: 'Contact Detail', kind: 'media', label: 'Main Photo' },
     'contact-detail-welcome-group': { section: 'Contact Detail', kind: 'container', label: 'Welcome Group' },
@@ -486,6 +505,14 @@ function normalizeContactDetailSnapshot(normalized: Record<string, unknown>): vo
       if (target.color === undefined) target.color = color
       if (target.boxShadow === undefined) target.boxShadow = 'none'
     }
+    setBgDefault('portfolio-section-bg', '#8D363A')
+    setBgDefault('about-section-bg', '#FFF0BE')
+    setBgDefault('education-section-bg', '#FFF0BE')
+    setBgDefault('college-section-bg', '#FFF0BE')
+    setBgDefault('shs-section-bg', '#FFF0BE')
+    setBgDefault('experience-section-bg', '#FFF0BE')
+    setBgDefault('certificate-section-bg', '#FDEBD6')
+    setBgDefault('contact-section-bg', '#7B2329')
     setBgDefault('contact-detail-section', '#7B2329')
     setBgDefault('contact-message-section', '#F6F4E8')
     setBgDefault('contact-detail-message-card', '#ffffff')

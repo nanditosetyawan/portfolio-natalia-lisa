@@ -18,7 +18,7 @@ const vConfig = computed(() => site.current.visual.shs)
     v-for="item in entries"
     :id="item.order === 0 ? 'shs-section' : undefined"
     :key="item.id"
-    :data-entity-id="item.id"
+    data-entity-id="shs-section-bg"
     data-editor-section-id="shs"
     class="shs-section"
     :style="{
@@ -145,7 +145,7 @@ const vConfig = computed(() => site.current.visual.shs)
         </div>
 
 <!-- Right content — info block (group for drag) -->
-        <div class="shs-content">
+        <div class="shs-content" :data-entity-id="item.id">
           <span
             class="shs-label"
             :style="{

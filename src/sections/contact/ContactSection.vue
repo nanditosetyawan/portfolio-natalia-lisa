@@ -35,7 +35,7 @@ const contentStyle = computed(() => ({
   <section
     id="contact"
     data-editor-section-id="contact"
-    :data-entity-id="contact.id"
+    data-entity-id="contact-section-bg"
     class="contact-section"
     aria-label="Contact section"
     :style="sectionStyle"

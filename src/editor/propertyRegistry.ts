@@ -26,7 +26,6 @@ import {
   animationDirectionOptions,
   animationEaseOptions,
   animationFillModeOptions,
-  animationPresetRegistry,
   clickAnimationOptions,
   entranceAnimationOptions,
   hoverAnimationOptions,
@@ -132,6 +131,9 @@ const outlineDependency = dependency(['media.outlineEnabled'], ({ entity, values
   entity.capabilities.includes('media-outline') && values['media.outlineEnabled'] === true
 ))
 const animationSystemEnabled = dependency(['animation.globalDisabled'], ({ values }) => values['animation.globalDisabled'] !== true)
+const textAnimationEnabled = dependency(['animation.globalDisabled'], ({ entity, values }) => (
+  values['animation.globalDisabled'] !== true && entity.capabilities.includes('text-animation')
+))
 const entranceAnimationEnabled = dependency(['animation.globalDisabled', 'animation.type'], ({ values }) => (
   values['animation.globalDisabled'] !== true && values['animation.type'] !== 'none'
 ))
@@ -363,17 +365,14 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'animation.scrollPlayback', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Scroll Playback', control: 'segmented', type: 'enum', order: 140, commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scrollPlayback', databaseMapping: action('set-animation-config'), defaultValue: 'once', options: [...scrollPlaybackOptions], validation: validEnum(scrollPlaybackOptions.map((option) => option.value)), dependency: scrollAnimationEnabled, animationField: 'scrollPlayback' }),
   defineProperty({ propertyKey: 'animation.scrollOffset', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Offset', control: 'number', type: 'number', order: 150, rowKey: 'animation-scroll-trigger', commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scrollOffset', databaseMapping: action('set-animation-config'), defaultValue: 0, validation: validNumber(0, 1000), dependency: scrollAnimationEnabled, minimum: 0, maximum: 1000, step: 1, unit: 'px', animationField: 'scrollOffset' }),
   defineProperty({ propertyKey: 'animation.scrollThreshold', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Threshold', control: 'number', type: 'number', order: 160, rowKey: 'animation-scroll-trigger', commandType: 'SET_PROPERTY', capability: 'scroll-animation', propertyPath: 'scrollThreshold', databaseMapping: action('set-animation-config'), defaultValue: 0, validation: validNumber(0, 1), dependency: scrollAnimationEnabled, minimum: 0, maximum: 1, step: 0.05, animationField: 'scrollThreshold' }),
-  defineProperty({ propertyKey: 'animation.text', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Text Animation', control: 'select', type: 'enum', order: 170, commandType: 'SET_PROPERTY', capability: 'text-animation', propertyPath: 'text', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...textAnimationOptions], validation: validEnum(textAnimationOptions.map((option) => option.value)), dependency: animationSystemEnabled, animationField: 'text', searchTerms: ['text', 'typewriter', 'character', 'word', 'line'] }),
+  defineProperty({ propertyKey: 'animation.text', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Text Animation', control: 'select', type: 'enum', order: 170, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'text', databaseMapping: action('set-animation-config'), defaultValue: 'none', options: [...textAnimationOptions], validation: validEnum(textAnimationOptions.map((option) => option.value)), dependency: textAnimationEnabled, helperText: 'Deselect Image to Use Text Animation Feature', animationField: 'text', searchTerms: ['text', 'typewriter', 'character', 'word', 'line'] }),
 
   defineProperty({ propertyKey: 'animation.timelineMode', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Timeline Ordering', control: 'segmented', type: 'enum', order: 180, commandType: 'SET_PROPERTY', capability: 'timeline-animation', propertyPath: 'timelineMode', databaseMapping: action('set-animation-config'), defaultValue: 'parallel', options: [...timelineModeOptions], validation: validEnum(timelineModeOptions.map((option) => option.value)), dependency: configuredAnimationEnabled, animationField: 'timelineMode', searchTerms: ['timeline', 'sequential', 'parallel'] }),
   defineProperty({ propertyKey: 'animation.timelineDelay', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Timeline Delay', control: 'number', type: 'number', order: 190, commandType: 'SET_PROPERTY', capability: 'timeline-animation', propertyPath: 'timelineDelay', databaseMapping: action('set-animation-config'), defaultValue: 0, validation: validNumber(0, 60000), dependency: configuredAnimationEnabled, minimum: 0, maximum: 60000, step: 50, unit: 'ms', animationField: 'timelineDelay' }),
   defineProperty({ propertyKey: 'animation.timelinePreview', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Preview Timeline', control: 'timeline', type: 'metadata', order: 200, commandType: 'SET_PROPERTY', capability: 'timeline-animation', propertyPath: 'timelineSummary', databaseMapping: action('preview-animation-timeline'), defaultValue: '', validation: validMetadata, dependency: configuredAnimationEnabled, animationField: 'timelineSummary', copyable: false }),
 
-  defineProperty({ propertyKey: 'animation.preset', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Animation Preset', control: 'select', type: 'enum', order: 210, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'preset', databaseMapping: action('apply-animation-preset'), defaultValue: '', placeholder: 'Choose preset', options: animationPresetRegistry.map((preset) => ({ label: preset.label, value: preset.id })), validation: validEnum(animationPresetRegistry.map((preset) => preset.id)), dependency: animationSystemEnabled, animationField: 'preset', copyable: false }),
   defineProperty({ propertyKey: 'animation.copy', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Copy Animation', control: 'button', type: 'metadata', order: 220, rowKey: 'animation-copy-paste', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'copy', databaseMapping: action('copy-animation'), defaultValue: '', validation: validMetadata, animationField: 'copy', copyable: false }),
   defineProperty({ propertyKey: 'animation.paste', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Paste Animation', control: 'button', type: 'metadata', order: 230, rowKey: 'animation-copy-paste', commandType: 'PASTE_STYLE', capability: 'animation', propertyPath: 'paste', databaseMapping: action('paste-animation'), defaultValue: '', validation: validMetadata, animationField: 'paste', copyable: false }),
-  defineProperty({ propertyKey: 'animation.duplicate', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Duplicate Animation', control: 'button', type: 'metadata', order: 240, rowKey: 'animation-duplicate-reset', commandType: 'PASTE_STYLE', capability: 'animation', propertyPath: 'duplicate', databaseMapping: action('duplicate-animation'), defaultValue: '', validation: validMetadata, animationField: 'duplicate', helperText: 'Select two or more objects to duplicate this animation.', copyable: false }),
-  defineProperty({ propertyKey: 'animation.reset', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Reset Animation', control: 'button', type: 'metadata', order: 250, rowKey: 'animation-duplicate-reset', commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'reset', databaseMapping: action('reset-animation'), defaultValue: '', validation: validMetadata, animationField: 'reset', copyable: false }),
   defineProperty({ propertyKey: 'animation.globalDisabled', category: 'animation', categoryLabel: 'ANIMATION', categoryOrder: 55, label: 'Disable All Animations', control: 'checkbox', type: 'boolean', order: 260, commandType: 'SET_PROPERTY', capability: 'animation', propertyPath: 'globalDisabled', databaseMapping: action('set-animation-config'), defaultValue: false, validation: validBoolean, animationField: 'globalDisabled', copyable: false }),
 
   defineProperty({ propertyKey: 'advanced.objectId', category: 'behavior', categoryLabel: 'BEHAVIOR', categoryOrder: 60, label: 'Object ID', control: 'readonly', type: 'metadata', order: 10, commandType: 'SET_PROPERTY', capability: 'advanced', propertyPath: 'objectId', databaseMapping: metadata('objectId'), defaultValue: '', validation: validMetadata, readOnly: true, copyable: false }),
@@ -391,7 +390,7 @@ const entries: PropertyRegistryEntry[] = [
   defineProperty({ propertyKey: 'runtime.zIndex', category: 'position', label: 'Layer order', control: 'number', type: 'number', order: 904, commandType: 'SET_PROPERTY', capability: 'position', propertyPath: 'zIndex', databaseMapping: snapshot('layout.{entityId}.zIndex'), defaultValue: 0, validation: validNumber(-10000, 10000), previewUpdater: stylePreview('z-index'), visibilityRule: hidden, styleKey: 'layout.zIndex' }),
   defineProperty({ propertyKey: 'runtime.backgroundColor', category: 'effects', label: 'Background color', control: 'color', type: 'color', order: 905, commandType: 'SET_PROPERTY', capability: 'background', propertyPath: 'color', databaseMapping: snapshot('backgrounds.{entityId}.color'), defaultValue: 'transparent', validation: validColor, previewUpdater: {
     styles: ['background-color', '--contact-field-bg'],
-    update: ({ entityId, setStyle }, value) => {
+    update: ({ element, entityId, setStyle }, value) => {
       const color = value === undefined || value === null ? '' : String(value)
       if (entityId === 'contact-detail-message-fields') {
         setStyle('background-color', '')
@@ -400,6 +399,10 @@ const entries: PropertyRegistryEntry[] = [
       }
       setStyle('--contact-field-bg', '')
       setStyle('background-color', color)
+      if (entityId === 'experience-section-bg') {
+        const sticky = element?.querySelector<HTMLElement>('.exp-sticky-viewport')
+        if (sticky) sticky.style.backgroundColor = color
+      }
     }
   }, visibilityRule: ({ entity }) => Boolean(entity.ux?.visibleProperties?.includes('runtime.backgroundColor')), styleKey: 'background.color' }),
   defineProperty({ propertyKey: 'runtime.backgroundGradient', category: 'effects', label: 'Gradient', control: 'text', type: 'string', order: 906, commandType: 'SET_PROPERTY', capability: 'background', propertyPath: 'gradient', databaseMapping: snapshot('backgrounds.{entityId}.gradient'), defaultValue: '', validation: validString(512), previewUpdater: stylePreview('background-image'), visibilityRule: hidden, styleKey: 'background.gradient' }),

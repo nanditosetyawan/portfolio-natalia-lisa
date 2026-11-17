@@ -84,7 +84,6 @@ import {
   type ResolvedInspectorPresentation
 } from '../../editor/inspectorPresentation'
 import {
-  applyAnimationPreset,
   hasAnimation,
   readAnimationInspectorValue,
   updateAnimationConfiguration,
@@ -526,8 +525,8 @@ function presentationForProperty(
     return {
       ...presentation,
       mode: 'simple',
-      category: 'effects',
-      categoryLabel: 'EFFECTS',
+      category: 'color',
+      categoryLabel: 'COLOUR',
       categoryOrder: 40,
       order: 60,
       label: 'Background color',
@@ -1487,8 +1486,7 @@ const propertyActionHandlers: Partial<Record<PropertyAction, (value: string | nu
   'choose-media': async (value, property) => assignMediaReferenceToSelected(String(value), property.metadata.commandType),
   'set-media-crop': async (value, property) => setMediaCrop(String(value), property.metadata.commandType),
   'set-media-fit': async (value, property) => setMediaFit(String(value), property.metadata.commandType),
-  'set-animation-config': async (value, property) => updateSelectedAnimationConfig(property.metadata.animationField, value),
-  'apply-animation-preset': async (value) => applySelectedAnimationPreset(String(value))
+  'set-animation-config': async (value, property) => updateSelectedAnimationConfig(property.metadata.animationField, value)
 }
 
 function animationRecordChanges(objectId: string, settings: AnimationSettings): Array<{ propertyPath: string; nextValue: EditorValue }> {
@@ -1543,13 +1541,6 @@ function updateSelectedAnimationConfig(field: AnimationPropertyField | undefined
   if (commitAnimationSettings([entity.id], next, `Animation ${field}`)) saveStatus.value = `${entity.label} animation updated.`
 }
 
-function applySelectedAnimationPreset(presetId: string): void {
-  const entity = selectedEntity.value
-  if (!entity || !presetId) return
-  const next = applyAnimationPreset(effectiveAnimationSettings(entity.id), presetId)
-  if (next && commitAnimationSettings([entity.id], next, `Animation Preset ${presetId}`)) saveStatus.value = 'Animation preset applied.'
-}
-
 function previewSelectedAnimation(timeline = false): void {
   const root = previewStage.value
   const entity = selectedEntity.value
@@ -1576,26 +1567,6 @@ function pasteSelectedAnimation(): void {
   const entity = selectedEntity.value
   if (!entity || !animationClipboard.value) return
   if (commitAnimationSettings([entity.id], cloneEditorData(animationClipboard.value), 'Paste Animation', 'PASTE_STYLE')) saveStatus.value = `Animation pasted to ${entity.label}.`
-}
-
-function duplicateSelectedAnimation(): void {
-  const entity = selectedEntity.value
-  const settings = entity ? effectiveAnimationSettings(entity.id) : undefined
-  const targets = editor.selectedObjectIds.filter((objectId) => objectId !== entity?.id)
-  if (!entity || !hasAnimation(settings) || !targets.length) return
-  if (commitAnimationSettings(targets, cloneEditorData(settings ?? {}), 'Duplicate Animation', 'PASTE_STYLE')) saveStatus.value = `Animation duplicated to ${targets.length} object${targets.length === 1 ? '' : 's'}.`
-}
-
-function resetSelectedAnimation(): void {
-  const entity = selectedEntity.value
-  if (!entity || !hasAnimation(effectiveAnimationSettings(entity.id))) return
-  if (editor.setProperties(entity.id, [{ propertyPath: `animations.${animationTargetId(entity.id)}`, nextValue: undefined }], {
-    interaction: 'Reset Animation',
-    objectIds: [entity.id]
-  }, 'SET_PROPERTY')) {
-    markEditorChanged()
-    saveStatus.value = `${entity.label} animation reset.`
-  }
 }
 
 function numericCssLength(value: EditorValue): number | null {
@@ -1794,9 +1765,8 @@ function isPanelPropertyApplicable(property: PanelProperty): boolean {
     const actionName = property.metadata.databaseMapping.action
     const settings = effectiveAnimationSettings(descriptor.entityId)
     if (['preview-animation', 'preview-animation-timeline'].includes(actionName) && reducedMotionActive.value) return false
-    if (['copy-animation', 'reset-animation'].includes(actionName) && !hasAnimation(settings)) return false
+    if (actionName === 'copy-animation' && !hasAnimation(settings)) return false
     if (actionName === 'paste-animation' && !animationClipboard.value) return false
-    if (actionName === 'duplicate-animation' && (!hasAnimation(settings) || editor.selectedObjectIds.length < 2)) return false
   }
   const context: PropertyVisibilityContext = {
     entity: descriptor,
@@ -1811,6 +1781,9 @@ function isPanelPropertyEnabled(property: PanelProperty): boolean {
 }
 
 function panelPropertyHelperText(property: PanelProperty): string {
+  if (property.metadata.propertyKey === 'animation.text' && !isFontSelected.value) {
+    return 'Deselect Image to Use Text Animation Feature'
+  }
   if (property.metadata.databaseMapping.kind === 'action'
     && ['upload-media', 'choose-media'].includes(property.metadata.databaseMapping.action)) {
     return mediaInsertionAvailabilityError() || property.metadata.helperText || ''
@@ -1933,9 +1906,7 @@ const propertyButtonActionHandlers: Partial<Record<PropertyAction, (property: Pa
   'preview-animation': () => previewSelectedAnimation(false),
   'preview-animation-timeline': () => previewSelectedAnimation(true),
   'copy-animation': () => copySelectedAnimation(),
-  'paste-animation': () => pasteSelectedAnimation(),
-  'duplicate-animation': () => duplicateSelectedAnimation(),
-  'reset-animation': () => resetSelectedAnimation()
+  'paste-animation': () => pasteSelectedAnimation()
 }
 
 function handlePropertyAction(property: PanelProperty): void {
@@ -3729,6 +3700,11 @@ function cancelLibrarySwitch(): void {
                 :data-responsive-source="panelResponsiveLabel(property) || undefined"
               >
                 <span>{{ property.metadata.label }}</span>
+                <span
+                  v-if="!isPanelPropertyEnabled(property) && panelPropertyHelperText(property)"
+                  class="property-field-disabled-tooltip"
+                  role="tooltip"
+                >{{ panelPropertyHelperText(property) }}</span>
                 <div v-if="panelResponsiveVisibleLabel(property) || canResetPanelOverride(property)" class="property-field-meta">
                   <span v-if="panelResponsiveVisibleLabel(property)" class="responsive-property-state" :class="{ 'is-override': panelResponsiveState(property)?.overridden }">{{ panelResponsiveVisibleLabel(property) }}</span>
                   <button
@@ -4003,14 +3979,16 @@ function cancelLibrarySwitch(): void {
 .accordion-header-wrap:hover .category-disabled-tooltip, .property-group--disabled:hover .category-disabled-tooltip { opacity: 1; visibility: visible; }
 .object-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem; margin-top: .65rem; }.object-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; padding: .5rem .35rem; border: 1px solid #e4d4ca; border-radius: 9px; background: #fffaf4; color: #684e45; font-size: .65rem; font-weight: 800; cursor: pointer; }.object-actions button:hover:not(:disabled) { border-color: #c98a8f; color: #8d363a; }.object-actions button:disabled { cursor: not-allowed; opacity: .42; }
 .object-state-notice { margin: .55rem 0 0; padding: .55rem .65rem; border-left: 3px solid #c98a8f; border-radius: 0 8px 8px 0; background: rgba(255,245,235,.72); color: #80675d; font-size: .66rem; line-height: 1.45; }
-.property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.35); box-shadow: 0 4px 14px rgba(73,54,47,.025); }
+.property-group { margin-top: 1.1rem; border: 1px solid rgba(73,54,47,.13); border-radius: 13px; overflow: visible; background: rgba(255,255,255,.35); box-shadow: 0 4px 14px rgba(73,54,47,.025); }
 .property-group--inline { border: 0; border-radius: 0; overflow: visible; background: transparent; }
 .property-group--inline .accordion-content { padding: 0; }
-.accordion-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; border-left: 3px solid transparent; padding: .85rem .9rem .85rem .78rem; background: #fff8ef; color: #5a3e35; font: inherit; font-size: .78rem; font-weight: 850; letter-spacing: .1em; text-align: left; cursor: pointer; transition: background-color .18s ease,border-color .18s ease,color .18s ease; }
+.accordion-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; border-left: 3px solid transparent; padding: .85rem .9rem .85rem .78rem; background: #fff8ef; color: #5a3e35; font: inherit; font-size: .78rem; font-weight: 850; letter-spacing: .1em; text-align: left; cursor: pointer; transition: background-color .18s ease,border-color .18s ease,color .18s ease; border-top-left-radius: 12px; border-top-right-radius: 12px; }
+.accordion-toggle[aria-expanded='false'] { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
 .property-group[data-property-category='font'] .accordion-toggle,.property-group[data-property-category='media'] .accordion-toggle { background: #fff5eb; border-left-color: #c98a8f; }
 .property-group[data-property-category='layout'] .accordion-toggle,.property-group[data-property-category='visibility'] .accordion-toggle { background: #f7f0e7; border-left-color: #bba694; }
-.property-group[data-property-category='effects'] .accordion-toggle,.property-group[data-property-category='interaction'] .accordion-toggle { background: #fff8ef; border-left-color: #d9b6b6; }
+.property-group[data-property-category='effects'] .accordion-toggle,.property-group[data-property-category='interaction'] .accordion-toggle,.property-group[data-property-category='color'] .accordion-toggle { background: #fff8ef; border-left-color: #d9b6b6; }
 .property-group[data-property-category='animation'] .accordion-toggle { background: #fff0ed; border-left-color: #b85b69; }
+.property-group[data-property-category='advanced'] { display: none !important; }
 .property-group[data-property-category='advanced'] .accordion-toggle { background: #f6f4e8; border-left-color: #8a756b; color: #684e45; }
 .accordion-toggle[aria-expanded='true'] { color: #8d363a; box-shadow: inset 0 -1px rgba(73,54,47,.08); }
 .accordion-content { display: grid; gap: .2rem; padding: .15rem .85rem 1rem; transition: opacity .18s ease, transform .18s ease; }
@@ -4021,7 +3999,9 @@ function cancelLibrarySwitch(): void {
 .accordion-content .property-field > span:first-child { line-height: 1.25; color: #684e45; }
 .property-field-meta { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; min-width: 0; margin-top: -.15rem; }.responsive-property-state { flex: 0 0 auto; padding: .16rem .32rem; border: 1px solid rgba(73,54,47,.12); border-radius: 999px; background: #f5eee5; color: #8a756b; font-size: .5rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }.responsive-property-state.is-override { border-color: rgba(184,91,105,.28); background: #fff0ed; color: #a44955; }.property-field .reset-override-button { width: auto; min-width: 0; border: 0; border-radius: 5px; padding: .16rem .3rem; background: transparent; color: #a44955; font-size: .5rem; line-height: 1; text-decoration: underline; cursor: pointer; }.property-field .reset-override-button:hover { background: #fff0ed; }
 .friendly-style-state { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; margin-top: -.12rem; }.friendly-style-state span { padding: .15rem .34rem; border-radius: 999px; background: #f3ece4; color: #826d63; font-size: .5rem; font-weight: 800; }.friendly-style-state button { width: auto !important; min-height: 24px; border: 0 !important; padding: .15rem .3rem !important; background: transparent !important; color: #a44955 !important; font-size: .5rem; text-decoration: underline; }.friendly-value-note { padding: .38rem .45rem; border-radius: 7px; background: #f7f0e7; color: #806b62 !important; }
-.property-field--disabled { opacity: .48; filter: grayscale(.2); }
+.property-field--disabled { opacity: .48; filter: grayscale(.2); position: relative; }
+.property-field-disabled-tooltip { position: absolute; z-index: 1200; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .15s ease, transform .15s ease; white-space: nowrap; font-size: .65rem; font-weight: 600; line-height: 1.25; color: #fff; background: rgba(45, 32, 28, 0.94); padding: .35rem .65rem; border-radius: 6px; border: none; box-shadow: none; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.property-field--disabled:hover .property-field-disabled-tooltip { opacity: 1; visibility: visible; }
 .property-field--error :deep(input),.property-field--error :deep(select),.property-field--error :deep(textarea) { border-color: #bd4c4c !important; box-shadow: 0 0 0 2px rgba(189,76,76,.1); }.property-field .property-error { color: #a53f32; }.validation-summary { margin-top: 1rem; padding: .7rem .75rem; border: 1px solid rgba(165,63,50,.22); border-radius: 10px; background: #fff0eb; color: #8d363a; font-size: .7rem; font-weight: 700; line-height: 1.45; }
 .empty-properties { color: #8c7568; font-size: .75rem; }
 .discard-draft-button { width: 100%; margin-top: 1.25rem; border: 1px solid #d9b6b6; border-radius: 10px; padding: .7rem; background: #fffaf4; color: #8d363a; font-weight: 700; cursor: pointer; }

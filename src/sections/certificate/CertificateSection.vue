@@ -136,6 +136,7 @@ onBeforeUnmount(() => {
 <template>
   <section
     id="certificate"
+    data-entity-id="certificate-section-bg"
     data-editor-section-id="certificate"
     class="certificate-section"
     :style="{

@@ -12,7 +12,7 @@ const vConfig = computed(() => site.current.visual.education)
   <section
     id="education"
     data-editor-section-id="education"
-    :data-entity-id="education.id"
+    data-entity-id="education-section-bg"
     class="education-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,

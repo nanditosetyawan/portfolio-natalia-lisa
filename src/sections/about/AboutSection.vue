@@ -20,7 +20,7 @@ const photoAreaObjectPosition = (id: string, fallback: string) => site.current.p
   <section
     id="about"
     data-editor-section-id="about"
-    :data-entity-id="about.id"
+    data-entity-id="about-section-bg"
     class="about-section"
     :style="{
       backgroundColor: vConfig.section.backgroundColor,

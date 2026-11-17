@@ -18,7 +18,7 @@ const vConfig = computed(() => site.current.visual.college)
     v-for="item in entries"
     :id="item.order === 0 ? 'college-section' : undefined"
     :key="item.id"
-    :data-entity-id="item.id"
+    data-entity-id="college-section-bg"
     data-editor-section-id="college"
     class="college-section"
     :style="{
@@ -35,6 +35,7 @@ const vConfig = computed(() => site.current.visual.college)
       }"
     >
       <div class="college-content"
+        :data-entity-id="item.id"
         :style="{
           flexBasis: vConfig.content.flexBasis
         }"

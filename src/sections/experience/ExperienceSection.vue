@@ -8,6 +8,7 @@
   <section
     id="experience"
     ref="sectionRef"
+    data-entity-id="experience-section-bg"
     data-editor-section-id="experience"
     class="experience-section"
     :style="{
@@ -386,7 +387,7 @@ const dotTopVh = computed(() => {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: #FFF0BE;
+  background: inherit;
 }
 
 @media (min-width: 901px) {

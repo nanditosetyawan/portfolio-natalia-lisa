@@ -67,6 +67,7 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
   return computed(() => {
     const current = site.current
     const entities: RuntimeAdminEntity[] = []
+    entities.push({ id: 'portfolio-section-bg', section: 'Portfolio', label: 'Portfolio Background', kind: 'background', objectType: 'Background', properties: [] })
     const portfolio = current.content.portfolio as unknown as Record<string, unknown>
     entities.push({
       id: current.content.portfolio.id, section: 'Portfolio', label: 'Portfolio hero', kind: 'text',
@@ -87,6 +88,7 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
     })
 
     const about = current.content.about as unknown as Record<string, unknown>
+    entities.push({ id: 'about-section-bg', section: 'About', label: 'About Background', kind: 'background', objectType: 'Background', properties: [] })
     entities.push({
       id: current.content.about.id, section: 'About', label: 'About title', kind: 'text',
       properties: [
@@ -118,9 +120,13 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
     })
 
     const education = current.content.education as unknown as Record<string, unknown>
+    entities.push({ id: 'education-section-bg', section: 'Education', label: 'Education Background', kind: 'background', objectType: 'Background', properties: [] })
     entities.push({ id: current.content.education.id, section: 'Education', label: 'Education title', kind: 'text', properties: contentProperties(education, [['title', 'Title', 'text']]) })
+    entities.push({ id: 'college-section-bg', section: 'College', label: 'College Background', kind: 'background', objectType: 'Background', properties: [] })
     current.content.college.items.forEach((item) => entities.push({ id: item.id, section: 'College', label: item.school, kind: 'content', properties: contentProperties(item as unknown as Record<string, unknown>, [['label', 'Label', 'text'], ['school', 'School', 'text'], ['period', 'Period', 'text'], ['description', 'Description', 'textarea']]) }))
+    entities.push({ id: 'shs-section-bg', section: 'SHS', label: 'SHS Background', kind: 'background', objectType: 'Background', properties: [] })
     current.content.shs.items.forEach((item) => entities.push({ id: item.id, section: 'SHS', label: item.school, kind: 'content', properties: contentProperties(item as unknown as Record<string, unknown>, [['label', 'Label', 'text'], ['school', 'School', 'text'], ['period', 'Period', 'text'], ['description', 'Description', 'textarea']]) }))
+    entities.push({ id: 'experience-section-bg', section: 'Experience', label: 'Experience Background', kind: 'background', objectType: 'Background', properties: [] })
     entities.push({ id: current.content.experience.id, section: 'Experience', label: 'Experience section title', kind: 'text', properties: contentProperties(current.content.experience as unknown as Record<string, unknown>, [['title', 'Title', 'text']]) })
     current.content.experience.items.forEach((item) => {
       entities.push({ id: item.id, section: 'Experience', label: item.title, kind: 'content', properties: contentProperties(item as unknown as Record<string, unknown>, [['title', 'Title', 'text'], ['date', 'Date', 'text'], ['description', 'Description', 'textarea']]) })
@@ -134,8 +140,10 @@ export function useAdminEntityRegistry(): ComputedRef<RuntimeAdminEntity[]> {
       ] })
     })
 
+    entities.push({ id: 'certificate-section-bg', section: 'Certificate', label: 'Certificate Background', kind: 'background', objectType: 'Background', properties: [] })
     entities.push({ id: current.content.certificate.id, section: 'Certificate', label: 'Certificate section title', kind: 'text', properties: contentProperties(current.content.certificate as unknown as Record<string, unknown>, [['title', 'Title', 'text']]) })
     const contact = current.content.contact as unknown as Record<string, unknown>
+    entities.push({ id: 'contact-section-bg', section: 'Contact', label: 'Contact Background', kind: 'background', objectType: 'Background', properties: [] })
     entities.push({ id: current.content.contact.id, section: 'Contact', label: 'Contact', kind: 'content', properties: contentProperties(contact, [['line1', 'Line 1', 'text'], ['line2', 'Line 2', 'text']]) })
     entities.push({ id: current.content.contact.cta.id, section: 'Contact', label: 'Contact CTA', kind: 'navigation', properties: contentProperties(current.content.contact.cta as unknown as Record<string, unknown>, [['text', 'Text', 'text'], ['href', 'Href', 'text']]) })
 

@@ -23,8 +23,22 @@ export interface EditorObjectCandidate {
 
 const registrations = new Map<EditorObjectType, EditorObjectTypeRegistration>()
 
-/** Centralized UX policy for all 15 ContactDetail & Text Me entities. */
+const sectionBackgroundUxPolicy: EditorObjectUxMetadata = {
+  excludedCapabilities: ['position', 'rotate', 'media-insert', 'layout', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'text-animation', 'timeline-animation'],
+  visibleProperties: ['runtime.backgroundColor'],
+  disableDelete: true
+}
+
+/** Centralized UX policy for fixed section backgrounds and ContactDetail & Text Me entities. */
 export const contactDetailUxPolicies: Record<string, EditorObjectUxMetadata> = {
+  'portfolio-section-bg': sectionBackgroundUxPolicy,
+  'about-section-bg': sectionBackgroundUxPolicy,
+  'education-section-bg': sectionBackgroundUxPolicy,
+  'college-section-bg': sectionBackgroundUxPolicy,
+  'shs-section-bg': sectionBackgroundUxPolicy,
+  'experience-section-bg': sectionBackgroundUxPolicy,
+  'certificate-section-bg': sectionBackgroundUxPolicy,
+  'contact-section-bg': sectionBackgroundUxPolicy,
   'contact-detail-section': {
     excludedCapabilities: ['position', 'rotate', 'media-insert', 'layout', 'effects', 'animation', 'hover-animation', 'click-animation', 'scroll-animation', 'text-animation', 'timeline-animation'],
     visibleProperties: ['runtime.backgroundColor'],

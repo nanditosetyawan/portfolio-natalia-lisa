@@ -242,7 +242,6 @@ registerMany([
   ['animation.timelineDelay', { label: 'Time between animations', hideWhenUnavailable: true }],
   ['animation.timelinePreview', { hideWhenUnavailable: true }],
   ['animation.globalDisabled', { label: 'Turn off all animations' }],
-  ['animation.duplicate', { helperText: 'Select two or more elements to reuse this animation.' }],
 
   ['advanced.objectId', advanced('Element ID')],
   ['advanced.capabilities', advanced('Available controls')],
