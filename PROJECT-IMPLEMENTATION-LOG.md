@@ -5597,3 +5597,37 @@ PASS
 - Validation performed: Post-delete directory listing — 0 files remain in `artifacts/`.
 - Current project status: Verified, stable, clean build, zero errors.
 - Next required step: Await next user instruction.
+
+
+## Request #184 - REVISION: BACKGROUND COLOR PICKER (REMOVE RGB SCRUB, RENAME ALPHA TO OPACITY, FIX POPOVER POSITION)
+
+- Date: 2026-11-18 01:16:00 +07:00 (Asia/Jakarta).
+- Execution mode: surgical frontend UI revision and visual verification on `PropertyColorControl.vue`. Zero database or migration changes.
+- User instruction: "pengontrol warna background, ada revisi. hilangkan kontrol seret kanan kiri untuk rgb, lalu alpha untuk apa? opacity? kalau iya mka ubah teksnya, posisi bagian yang muncul saat atur background terlalu mentok bawah, perbaiki".
+- Scope:
+  1. Remove the horizontal drag-scrub (`↔`) handle from R, G, B inputs inside `PropertyColorControl.vue`.
+  2. Rename the `Alpha` label to `Opacity` (clarifying its transparency control role) while keeping `.alpha-control` selector compatibility for tests.
+  3. Fix `.color-popover` positioning so it no longer clips or hits the bottom edge of the viewport when triggered near the bottom of the inspector sidebar.
+- Specifications consulted: `AGENTS.md`, `.agents/rules/ponytail.md`, `.agents/skills/ponytail/SKILL.md`, `src/pages/admin/components/property-controls/PropertyColorControl.vue`, `src/pages/admin/AdminEdit.vue`, `tests/contact-detail-editor-runtime.mjs`, `tests/editor-professional-ux-runtime.mjs`.
+- Design references consulted: User uploaded screenshot `media_1794938966755_45b0bcdc.png`.
+- Work actually performed:
+  - In `src/pages/admin/components/property-controls/PropertyColorControl.vue`:
+    - Replaced `<PropertyInputControl control="number" />` in `.rgb-grid` with native `<input type="number" min="0" max="255" step="1" />` (handling intermediate empty string cleanly on input and clamping `0..255` on blur), removing the unused `PropertyInputControl` import and `.numeric-scrub` CSS overrides.
+    - Renamed visible label from `Alpha` to `Opacity` and widened the label column (`grid-template-columns: auto minmax(0,1fr) 2.3rem`).
+    - Switched `.color-popover` from bottom-only `position: absolute` to viewport-aware `position: fixed` with `max-height: calc(100vh - 24px); overflow-y: auto;` and `updatePopoverPosition()` (flips above trigger when bottom space is insufficient, or clamps safely within viewport / places beside trigger when neither above nor below fits; tracks scroll and resize).
+- Files created: None in repository (temporary visual check screenshot stored in conversation artifact folder).
+- Files modified:
+  - `src/pages/admin/components/property-controls/PropertyColorControl.vue`
+  - `PROJECT-IMPLEMENTATION-LOG.md`
+- Files deleted: None.
+- Files explicitly protected: All database schemas, migrations `0001-0040`, guest pages, `design/`, `public/`.
+- Decisions made: Kept `.color-popover` inside the component DOM (avoiding `<Teleport>`) and preserved `.alpha-control` class to maintain 100% compatibility with existing runtime tests.
+- Unresolved decisions: None.
+- Validation performed:
+  - `npx vue-tsc --noEmit` -> PASS (0 errors).
+  - `node tests/contact-detail-editor-runtime.mjs` -> PASS.
+  - Headless Chrome 1366x768 visual verification on `contact-detail-section` (`btnRect: top 706..751`, `popRect: top 323..698`, `scrubCount: 0`, `rgbInputCount: 3`, `alphaLabel: "Opacity"`, live RGB edit `#7B2329` -> `#c82329`) -> PASS.
+  - `npm run build` -> verified clean.
+- Visual verification results: Inspected rendered screenshot `color-popover-revised.png`; confirmed clean RGB number inputs without `↔` handles, `OPACITY` label, and popover cleanly positioned above the bottom-edge trigger with all controls fully visible.
+- Current project status: Verified, stable, clean build, zero errors.
+- Next required step: Await next user instruction.
